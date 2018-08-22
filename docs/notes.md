@@ -1,6 +1,8 @@
 #Introduction#
 
-This document records notes and links to papers and repositories, we *think* are interesting or worth exploring/incorporating into UMCCR RNAseq ananlysis report.
+This document records notes and links to papers and repositories, we *think* are interesting or worth exploring/incorporating into UMCCR RNAseq analysis report.
+
+Not to forget, another Google-doc created before is [RNAseq-Workflows](https://docs.google.com/document/d/1WqQQiDgVMIrm856xdNAdqGQibHWUIFx5Ir0xzB8pOEE/edit#heading=h.mh989jx06fxl).
 
 ##https://github.com/nf-core/rnaseq##
 
