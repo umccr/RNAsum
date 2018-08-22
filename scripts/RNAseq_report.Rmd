@@ -1,0 +1,657 @@
+---
+title: "UMCCR Transcriptome Patient Summary"
+author: "Jacek Marzec, Sehrish Kanwal, Lavinia Gordon"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: readable
+    toc: false
+    toc_float: false
+    code_folding: hide
+  rmdformats::material:
+    highlight: kate
+params:
+  project_dir: 
+  sample_name: 
+  count_file: 
+  datasets_mix: '../data/Datasets_list_mix_group.txt'
+  datasets_core_gastrointestinal: '../data/Datasets_list_core_gastrointestinal_group.txt'
+  datasets_developmental_gastrointestinal: '../data/Datasets_list_developmental_gastrointestinal_group.txt'
+  datasets_pancreas: '../data/Datasets_list_pancreas.txt'
+  datasets_bailey: '../data/Datasets_list_bailey.txt'
+  datasets_collisson: '../data/Datasets_list_collisson.txt'
+  datasets_moffitt: '../data/Datasets_list_moffitt.txt'
+---
+
+```{r define_functions}
+##### Create 'not in' operator
+"%!in%" <- function(x,table) match(x,table, nomatch = 0) == 0
+
+##### Prepare object to write into a file
+prepare2write <- function (x) {
+  
+  x2write <- cbind(rownames(x), x)
+  colnames(x2write) <- c("Gene",colnames(x))
+  return(x2write)
+}
+
+##### Combine sample expression profile with reference datasets. This function outputs a vector with first element containing the merged data and second element containing merged targets info
+combineDataets <- function(sample_name, sample_counts, ref_dataset) {
+  
+  ##### Read file with reference datasets information
+  DatasetInput=read.table(ref_dataset, sep="\t", as.is=TRUE, header=TRUE, row.names=1)
+  
+  ##### Extract info about target file for the first dataset
+  fileInfo = strsplit(DatasetInput[,"Target_file"], split='/', fixed=TRUE)
+  targetFile <- read.table(DatasetInput[1,"Target_file"], sep="\t", as.is=TRUE, header=TRUE)[,c(1:4)]
+  rownames(targetFile) <- targetFile[,"Sample_name"]
+  targetFile <- cbind(targetFile[,2:4],rownames(DatasetInput[1,]))
+  colnames(targetFile)[ncol(targetFile)] <- "Dataset"
+  
+  if ( nrow(DatasetInput) > 1 ) {
+    for ( i in 2:nrow(DatasetInput) ) {
+        
+      ##### Create a temporary object to store info from the remaining target files
+      targetFileTmp <- read.table(DatasetInput[i,"Target_file"], sep="\t", as.is=TRUE, header=TRUE)[,c(1:4)]
+      rownames(targetFileTmp) <- targetFileTmp[,"Sample_name"]
+      targetFileTmp <- cbind(targetFileTmp[,2:4],rownames(DatasetInput[i,]))
+      colnames(targetFileTmp)[ncol(targetFileTmp)] <- "Dataset"
+        
+      targetFile <- rbind(targetFile, targetFileTmp)
+    }
+  }  
+  
+  ##### Add sample info
+  sampleTargetFile <- data.frame(sample_counts, sample_name, NA, sample_name)
+  names(sampleTargetFile) <- names(targetFile)
+  rownames(sampleTargetFile) <- sample_name
+  targetFile <- rbind( targetFile, sampleTargetFile )
+  
+  ##### Make syntactically valid names
+  rownames(targetFile) <- make.names(rownames(targetFile))
+  
+  ##### Read sample read count file and combine it with reference datasets
+  datasets.comb=read.table(sample_counts, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
+  names(datasets.comb) <- c("", sample_name)
+      
+  ##### list genes present in the read count file
+  gene_list <- as.vector(datasets.comb[,1])
+      
+  ##### Loop through the expression data from different datasets and merge them into one matrix
+  for ( data_matrix in DatasetInput[ , "Expression_matrix" ] ) {
+    
+    ##### Add data from the reference datasets
+    dataset <- as.data.frame( read.table(data_matrix, header=TRUE, sep="\t", row.names=NULL) )
+      
+    ##### list genes present in individal files
+    gene_list <- c( gene_list, as.vector(dataset[,1]) )
+    
+    ##### Merge the expression datasets and make sure that the genes order is the same
+    datasets.comb <- merge( datasets.comb, dataset, by=1, all = FALSE, sort= TRUE)
+      
+    ##### Remove per-sample data for merged samples to free some memory
+    rm(dataset)
+  }
+  
+  ##### Use gene IDs as rownames
+  rownames(datasets.comb) <- datasets.comb[,1]
+  datasets.comb <- datasets.comb[, -1]
+  
+  ##### Make syntactically valid names
+  colnames(datasets.comb) <- make.names(colnames(datasets.comb))
+  
+  ##### Make sure that the target file contains info only about samples present in the data matrix
+  targetFile <- targetFile[ rownames(targetFile) %in% colnames(datasets.comb),  ]
+  
+  ##### Make sure that the samples order in the data matrix is the same as in the target file 
+  datasets.comb <- datasets.comb[ , rownames(targetFile) ]
+  
+  ##### Identify genes that were not present across all per-sampel files and were ommited in the merged matrix
+  gene_list <- unique(gene_list)
+  gene_list.missing <- gene_list[ gene_list %!in% rownames(datasets.comb) ]
+  
+  ##### Write list of missing genes into a file
+  if ( length(gene_list.missing) > 0 ) {
+    write.table(prepare2write(gene_list.missing), file = paste0(params$project_dir, "/", sample_name,".missing_genes.txt"), sep="\t", quote=FALSE, row.names=TRUE, append = FALSE )
+  }
+  
+    return( list(datasets.comb, targetFile) )
+}
+
+
+##### Assign colours to different groups
+getTargetsColours <- function(targets) {
+  
+##### Predefined selection of colours for groups
+targets.colours <- c("red","blue","green","darkgoldenrod","darkred","deepskyblue", "coral", "cornflowerblue", "chartreuse4", "bisque4", "chocolate3", "cadetblue3", "darkslategrey", "lightgoldenrod4", "mediumpurple4", "orangered3","indianred1","blueviolet","darkolivegreen4","darkgoldenrod4","firebrick3","deepskyblue4", "coral3", "dodgerblue1", "chartreuse3", "bisque3", "chocolate4", "cadetblue", "darkslategray4", "lightgoldenrod3", "mediumpurple3", "orangered1")
+  
+  f.targets <- factor(targets)
+  vec.targets <- targets.colours[1:length(levels(f.targets))]
+  targets.colour <- rep(0,length(f.targets))
+  for(i in 1:length(f.targets))
+    targets.colour[i] <- vec.targets[ f.targets[i]==levels(f.targets)]
+  
+  return( list(vec.targets, targets.colour) )
+}
+
+##### Assign colours to different datasets
+getDatasetsColours <- function(datasets) {
+  
+  ##### Predefined selection of colours for datasets
+  datasets.colours <- c("dodgerblue","firebrick","lightslategrey","darkseagreen","orange","darkcyan","bisque", "coral2", "cadetblue3","red","blue","green")
+  
+  f.datasets <- factor(datasets)
+  vec.datasets <- datasets.colours[1:length(levels(f.datasets))]
+  datasets.colour <- rep(0,length(f.datasets))
+  for(i in 1:length(f.datasets))
+    datasets.colour[i] <- vec.datasets[ f.datasets[i]==levels(f.datasets)]
+  
+  return( list(vec.datasets, datasets.colour) )
+}
+
+##### Perform PCA. This function outputs a list with dataframe and samples colouring info ready for plotting
+pca <- function(data, target) {
+
+  ##### Keep only genes with variance > 0 across all samples
+  rsd <- apply(data,1,sd)
+  data.subset <- data[rsd>0,]
+  
+  ##### Perform PCA
+  data.subset_pca <- prcomp(t(data.subset), scale=FALSE)
+  
+  ##### Get variance importance for all principal components
+  importance_pca <- summary(data.subset_pca)$importance[2,]
+  importance_pca <- paste(round(100*importance_pca, 2), "%", sep="")
+  names(importance_pca) <- names(summary(data.subset_pca)$importance[2,])
+    
+  ##### Prepare data frame
+  data.subset_pca.df <- data.frame(target$Target, target$Dataset, data.subset_pca$x[,"PC1"], data.subset_pca$x[,"PC2"], data.subset_pca$x[,"PC3"])
+  colnames(data.subset_pca.df) <- c("Target", "Dataset", "PC1", "PC2", "PC3")
+  
+  ##### Assigne colours to targets and datasets
+  targets.colour <- getTargetsColours(target$Target)
+  datasets.colour <- getDatasetsColours(target$Dataset)
+  
+  ##### Create a list with dataframe and samples colouring info
+  pca.list <- list(data.subset_pca.df, importance_pca, targets.colour, datasets.colour)
+  names(pca.list) <- c("pca.df", "importance_pca", "targets", "datasets")
+  
+  return( pca.list )
+}
+```
+
+```{r load_libraries}
+suppressMessages(library(edgeR))
+suppressMessages(library(preprocessCore))
+suppressMessages(library(rapportools))
+suppressMessages(library(plotly))
+suppressMessages(library(edgeR))
+```
+
+
+```{r load_ref_data, message=FALSE, warning=FALSE}
+##### Create a list with reference datasets
+ref_datasets <- c("mix", "core_gastrointestinal", "developmental_gastrointestinal", "pancreas", "bailey", "collisson", "moffitt")
+ref_datasets.list <- vector("list", length(ref_datasets))
+names(ref_datasets.list) <- ref_datasets
+
+##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
+ref_datasets.list[["mix"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_mix)
+ref_datasets.list[["core_gastrointestinal"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_core_gastrointestinal)
+ref_datasets.list[["developmental_gastrointestinal"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_developmental_gastrointestinal)
+ref_datasets.list[["pancreas"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_pancreas)
+ref_datasets.list[["bailey"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_bailey)
+ref_datasets.list[["collisson"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_collisson)
+ref_datasets.list[["moffitt"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_moffitt)
+```
+
+
+```{r data_transformation, comment = NA, message=FALSE, warning=FALSE}
+##### Data transformation and filtering
+##### For differential expression and related analyses, gene expression is rarely considered at the level of raw counts since libraries sequenced at a greater depth will result in higher counts. Rather, it is common practice to transform raw counts onto a scale that accounts for such library size differences. Here we convert the read count data into log2-counts per million (***log-CPM***) using function from *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)* package. Genes with very low counts across all libraries provide little evidence for differential expression. In the biological point of view, a gene must be expressed at some minimal level before it is likely to be translated into a protein or to be biologically important. In addition, the pronounced discretenes of these counts interferes with some of the statistical approximations that are used later in the pipeline. These genes should be filtered out prior to further analysis.
+
+##### Loop through combined datasets
+for ( ref in names(ref_datasets.list) ) {
+  
+  counts <- ref_datasets.list[[ref]][[1]]
+  target <- ref_datasets.list[[ref]][[2]]
+  
+  ##### Create EdgeR DGEList object
+  y <- DGEList(counts=counts,  group=target$Target)
+  
+  ##### Add datasets name for each sample
+  y$samples$dataset <- target$Dataset
+  
+  ##### Filtering to remove low expressed genes. Users should filter with CPM rather than filtering on the counts directly, as the latter does not account for differences in library sizes between samples. Here we keep only genes that have CPM of 1
+  keep <- rowSums(cpm(y)>1) >= ncol(counts)/10
+  y.filtered <- y[keep, , keep.lib.sizes=FALSE]
+  
+  ref_datasets.list[[ref]][[3]] <- y.filtered
+}
+
+cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
+
+cat(nrow(y.filtered$counts), "genes remained after filtering out of the", nrow(counts), "genes in the input read count matrix\n\n")
+```
+
+
+```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE}
+##### Data normalisation
+##### During the sample preparation or sequencing process, external factors that are not of biological interest can affect the expression of individual samples. For example, samples processed in the first batch of an experiment can have higher expression overall when compared to samples processed in a second batch. It is assumed that all samples should have a similar range and distribution of expression values. Normalisation for sample-specific effectss is required to ensure that the expression distributions of each sample are similar across the entire experiment. Normalisation by the method of *[trimmed mean of M-values](https://www.ncbi.nlm.nih.gov/pubmed/20196867) (TMM)* is performed using the *calcNormFactors* function in *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)*. The normalisation factors calculated here are used as a scaling factor for the library sizes. TMM is the recommended for most RNA-Seq data where the majority (more than half) of the genes are believed not differentially expressed between any pair of the samples.
+
+##### Adjust for RNA composition effect. Calculate scaling factors for the library sizes with calcNormFactors function using trimmed mean of M-values (TMM) between each pair of samples. Note, that the raw read counts are used to calculate the normalisation factors
+
+##### Loop through combined datasets
+for ( ref in names(ref_datasets.list) ) {
+  
+  y.filtered <- ref_datasets.list[[ref]][[3]]
+  
+  y.filtered.norm <- calcNormFactors(y.filtered, method = "TMM")
+  
+  ##### Transformations from the raw-scale to CPM
+  y.filtered.norm.cpm <- cpm(y.filtered.norm, normalized.lib.sizes=TRUE, log=TRUE, prior.count=0.25)
+  
+  ref_datasets.list[[ref]][[3]] <- y.filtered.norm.cpm
+}
+```
+
+```{r pca, comment = NA, message=FALSE, warning=FALSE}
+##### Loop through combined datasets
+for ( ref in names(ref_datasets.list) ) {
+  
+  target <- ref_datasets.list[[ref]][[2]]
+  data <- ref_datasets.list[[ref]][[3]]
+  
+  ref_datasets.list[[ref]][[4]] <- pca(data, target)
+}
+```
+
+## Comparison to various tumours  {.tabset}
+
+### Distant
+
+```{r pca_plots_various_tumours, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+##### Generate PCA plots for various tumour types
+ref <- "mix"
+
+target <- ref_datasets.list[[ref]][[2]]
+pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+
+##### Generate PCA 2-D plot (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 2-D plot (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_datasets.html"), selfcontained = TRUE)
+
+
+##### Generate PCA 3-D plot  (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 3-D plot  (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_datasets.html"), selfcontained = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+### Gastrointestinal (core)
+
+```{r pca_plots_core_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+##### Generate PCA plots for core gastrointestinal tumours
+ref <- "core_gastrointestinal"
+
+target <- ref_datasets.list[[ref]][[2]]
+pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+
+##### Generate PCA 2-D plot (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 2-D plot (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_datasets.html"), selfcontained = TRUE)
+
+
+##### Generate PCA 3-D plot  (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 3-D plot  (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_datasets.html"), selfcontained = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+### Gastrointestinal (developmental)
+
+```{r pca_plots_dev_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+##### Generate PCA plots for developmental gastrointestinal tumours
+ref <- "developmental_gastrointestinal"
+
+target <- ref_datasets.list[[ref]][[2]]
+pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+
+##### Generate PCA 2-D plot (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 2-D plot (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_datasets.html"), selfcontained = TRUE)
+
+
+##### Generate PCA 3-D plot  (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 3-D plot  (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_datasets.html"), selfcontained = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+### Pancreatic-related
+
+```{r pca_plots_pancreas, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+##### Generate PCA plots for pancreatic related lesions
+ref <- "pancreas"
+
+target <- ref_datasets.list[[ref]][[2]]
+pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+
+##### Generate PCA 2-D plot (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 2-D plot (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_datasets.html"), selfcontained = TRUE)
+
+
+##### Generate PCA 3-D plot  (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 3-D plot  (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_datasets.html"), selfcontained = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+## Molecular classification  {.tabset}
+
+### Bailey
+
+```{r pca_plots_bailey, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+##### Generate PCA plots for TCGA PAAD samples stratified according to Bailey classification
+ref <- "bailey"
+
+target <- ref_datasets.list[[ref]][[2]]
+pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+
+##### Generate PCA 2-D plot (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 2-D plot (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_datasets.html"), selfcontained = TRUE)
+
+
+##### Generate PCA 3-D plot  (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 3-D plot  (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_datasets.html"), selfcontained = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+### Collisson
+
+```{r pca_plots_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+##### Generate PCA plots for TCGA PAAD samples stratified according to Collisson classification
+ref <- "collisson"
+
+target <- ref_datasets.list[[ref]][[2]]
+pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+
+##### Generate PCA 2-D plot (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 2-D plot (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_datasets.html"), selfcontained = TRUE)
+
+
+##### Generate PCA 3-D plot  (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 3-D plot  (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_datasets.html"), selfcontained = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+### Moffitt
+
+```{r pca_plots_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+##### Generate PCA plots for TCGA PAAD samples stratified according to Moffitt classification
+ref <- "moffitt"
+
+target <- ref_datasets.list[[ref]][[2]]
+pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+
+##### Generate PCA 2-D plot (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 2-D plot (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/mix_PCA_2d_datasets.html"), selfcontained = TRUE)
+
+
+##### Generate PCA 3-D plot  (colour targets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_targets.html"), selfcontained = TRUE)
+
+##### Generate PCA 3-D plot  (colour datasets)
+p <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+p
+
+##### Save PCA plot as html
+#htmlwidgets::saveWidget(as_widget(p), paste0(normalizePath(params$project_dir), "/", "mix_PCA_3d_datasets.html"), selfcontained = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+
+## Addendum
+
+```{r sessioninfo}
+devtools::session_info()
+```
+
