@@ -60,4 +60,4 @@ if ( is.na(opt$sample_name) || is.na(opt$count_file) || is.na(opt$report_dir) ) 
 
 
 ##### Pass the user-defined argumentas to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(project_dir = opt$report_dir, sample_name = opt$sample_name, count_file = opt$count_file))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, count_file = opt$count_file))
