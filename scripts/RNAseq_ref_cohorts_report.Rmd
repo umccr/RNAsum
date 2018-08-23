@@ -24,6 +24,7 @@ params:
 ---
 
 ```{r define_functions}
+##### Define functions
 ##### Create 'not in' operator
 "%!in%" <- function(x,table) match(x,table, nomatch = 0) == 0
 
@@ -150,7 +151,7 @@ getDatasetsColours <- function(datasets) {
 }
 
 ##### Perform PCA. This function outputs a list with dataframe and samples colouring info ready for plotting
-pca <- function(data, target) {
+pca <- function(data, targets) {
 
   ##### Keep only genes with variance > 0 across all samples
   rsd <- apply(data,1,sd)
@@ -165,7 +166,7 @@ pca <- function(data, target) {
   names(importance_pca) <- names(summary(data.subset_pca)$importance[2,])
     
   ##### Prepare data frame
-  data.subset_pca.df <- data.frame(target$Target, target$Dataset, data.subset_pca$x[,"PC1"], data.subset_pca$x[,"PC2"], data.subset_pca$x[,"PC3"])
+  data.subset_pca.df <- data.frame(targets$Target, targets$Dataset, data.subset_pca$x[,"PC1"], data.subset_pca$x[,"PC2"], data.subset_pca$x[,"PC3"])
   colnames(data.subset_pca.df) <- c("Target", "Dataset", "PC1", "PC2", "PC3")
   
   ##### Assigne colours to targets and datasets
@@ -178,18 +179,95 @@ pca <- function(data, target) {
   
   return( pca.list )
 }
+
+
+##### Customise the "overview" function from made4 package (present hierarchical clustering using ClassDiscovery package)
+overview <- function (dataset, labels = NULL, title = "", classvec = NULL, 
+    hc = TRUE, boxplot = TRUE, hist = TRUE, returnTree = FALSE) 
+{
+    cols = NULL
+    if (sum(boxplot, hist, hc) == 3) 
+        layout(matrix(c(1, 1, 2, 3), 2, 2, byrow = TRUE))
+    if (sum(boxplot, hist, hc) == 2) 
+        layout(matrix(c(1, 1, 2, 2), 2, 2, byrow = TRUE))
+    classvec = as.factor(classvec)
+    if (is.null(labels)) 
+        labels = colnames(dataset)
+    if (!is.null(labels)) 
+        labels = as.character(labels)
+    if (!is.null(classvec)) {
+        cols = getcol(as.numeric(classvec))
+        layout(matrix(c(1, 1, 2, 2, 3, 4), 3, 2, byrow = TRUE), 
+            heights = c(1.5, 0.1, 0.5))
+    }
+    distEisen <- function(x, use = "pairwise.complete.obs") {
+        co.x <- cor(x, use = use)
+        dist.co.x <- 1 - co.x
+        return(as.dist(dist.co.x))
+    }
+    colhc <- function(hc, classvec) {
+        margins = par()$mar
+        par(mar = c(0.5, margins[1], 0, margins[2]))
+        nc = length(as.character(classvec))
+        colInd = hc$order
+        image(cbind(1:nc), col = cols[colInd], axes = FALSE)
+        par(mar = margins)
+    }
+    if (hc) {
+        if (!inherits(dataset, "matrix")) {
+            if (!inherits(dataset, "AffyBatch")) {
+                dataset <- array2ade4(dataset, trans = FALSE)
+            }
+            if (inherits(dataset, "AffyBatch")) {
+                dataset = exprs(dataset)
+            }
+        }
+        hc = hclust(distEisen(dataset), method = "ave")
+        #plot(hc, hang = -1, labels = labels, main = paste("", 
+        #    title, sep = " "), sub = "", xlab = "")
+        #if (!missing(classvec)) 
+        #    colhc(hc, classvec)
+        
+        ##### Use ClassDiscovery package to generate dendrogram
+        plotColoredClusters(hc, labs=labels, cols=getTargetsColours(classvec)[[2]], main = title)
+        ##### Add a legend
+        legend("topright", legend=levels(classvec), col=getTargetsColours(classvec)[[1]], lty=1, cex=1.4, bty="n")
+    }
+    if (boxplot) {
+        if (!inherits(dataset, "AffyBatch")) {
+            dataset <- array2ade4(dataset, trans = FALSE)
+        }
+        boxplot(dataset, main = paste("boxplot", title, sep = " "), 
+            names = labels, par(las = 2), col = cols)
+    }
+    if (hist) {
+        if (!inherits(dataset, "AffyBatch")) {
+            dataset <- array2ade4(dataset, trans = FALSE)
+            dataset = as.matrix(dataset)
+        }
+        hist(dataset, xlab = "", main = paste("Histogram", title, 
+            sep = " "))
+    }
+    if (returnTree) 
+        return(hc)
+}
 ```
 
 ```{r load_libraries}
+##### Load libraries
 suppressMessages(library(edgeR))
 suppressMessages(library(preprocessCore))
 suppressMessages(library(rapportools))
 suppressMessages(library(plotly))
 suppressMessages(library(edgeR))
+suppressMessages(library(ClassDiscovery))
+suppressMessages(library(made4))
+suppressMessages(library(ade4))
 ```
 
 
 ```{r load_ref_data, message=FALSE, warning=FALSE}
+##### Load reference datasets
 ##### Create a list with reference datasets
 ref_datasets <- c("mix", "core_gastrointestinal", "developmental_gastrointestinal", "pancreas", "bailey", "collisson", "moffitt")
 ref_datasets.list <- vector("list", length(ref_datasets))
@@ -269,18 +347,18 @@ for ( ref in names(ref_datasets.list) ) {
 
 ## Comparison across tumour types  {.tabset}
 
-Principal component analysis (PCA) was performed to present the data from investigated sample in the context of patients with various tumour types derived from [TCGA](https://cancergenome.nih.gov/) cohort. PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The sample expression profile was projected against the four patient cohorts representing (1) unrelated tumour types (*distant tumours*), (2) *core gastrointestinal* tumours, (3) *developmental gastrointestinal* tumours and (4) *pancreas-related* lesions/tissues.
+Principal component analysis (PCA), hierarchical clustering and between-group analysis (BGA) were performed to present the data from investigated sample in the context of patients with various tumour types derived from [TCGA](https://cancergenome.nih.gov/) cohort. The sample expression profile is projected against the four patient cohorts representing (1) unrelated tumour types (*distant tumours*), (2) *core gastrointestinal* tumours, (3) *developmental gastrointestinal* tumours and (4) *pancreas-related* lesions/tissues.
 
 #### Development notes
 - perform clustering analysis for individual datasets to select most similar samples in each tumour type
 - discuss patient cohorts to present
-- add [14 metastatic PC](https://met500.path.med.umich.edu/datasets) samples from [MET500 project](https://met500.path.med.umich.edu/) published by [Dan R. Robinson et al. (2017)](https://www-nature-com.ezp.lib.unimelb.edu.au/articles/nature23306), 244 (?) normal pancreas samples from [recount2](https://www.bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/RNAseq/doc/recount-workshop.html) to the *pancreas-related* dataset
+- add [14 metastatic PC](https://met500.path.med.umich.edu/datasets) samples from [MET500 project](https://met500.path.med.umich.edu/) (published by [Dan R. Robinson et al. (2017)](https://www-nature-com.ezp.lib.unimelb.edu.au/articles/nature23306)) and 244 (?) normal pancreas samples from [recount2](https://www.bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/RNAseq/doc/recount-workshop.html) to the *pancreas-related* dataset
 
 
 
 ### Distant
 
-The expression profile of investigated sample (**red**) was projected against unrelated tumour types, including (1) *acute myeloid leukaemia*, (2) *brain lower grade glioma*, (3) *breast invasive carcinoma*, (4) *glioblastoma multiforme*, (5) *lung Squamous cell carcinoma* and (6) *pancreatic ductal adenocarcinoma* (*PDAC*).
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The expression profile of investigated sample is projected against unrelated tumour types, including (1) *acute myeloid leukaemia*, (2) *brain lower grade glioma*, (3) *breast invasive carcinoma*, (4) *glioblastoma multiforme*, (5) *lung Squamous cell carcinoma* and (6) *pancreatic ductal adenocarcinoma* (*PDAC*).
 
 ```{r pca_plots_various_tumours, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -297,12 +375,11 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 p1 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
   layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
-p1
-
 ##### Generate PCA 2-D plot (colour datasets)
 #p2 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Dataset, text=paste(target$Dataset, rownames(pca.df), sep=": "), colors = datasets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
 #  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
+p1
 #p2
 
 ##### Save PCA plots as html
@@ -312,9 +389,34 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
+Hierarchical clustering with reference samples coloured according to corresponding tumour types.
+
+```{r hc_plots_various_tumours, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to distant tumour types
+data <- ref_datasets.list[[ref]][[3]]
+
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+
+BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
+
+*Top*: projection of samples (coloured by groups), with samples annotation (*left*) and with group annotation (*right*), showing their separation on the first two discriminating BGA axes. Samples with a strong association are projected in the same direction from the origin. The greater the distance from the origin the stronger the association.
+
+*Bottom*: graph of positions of genes on the same BGA axis (*left*) and plot of the eigenvalues (*right*). Genes at the ends of the axis are most discriminating for that group.
+
+```{r bga_plots_various_tumours, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+##### Perform BGA and plot the results
+# Between-group analysis (BGA) is a supervised classification method (Culhane et al., (2002), https://www.ncbi.nlm.nih.gov/pubmed/12490444), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks. The basis of BGA is to ordinate the groups rather than the individual samples. BGA is implemented in the MADE4 package (Culhane et al., (2005), https://www.ncbi.nlm.nih.gov/pubmed/15797915). It also uses functions from ADE4 package (https://bioconductor.org/packages/release/bioc/html/made4.html and http://pbil.univ-lyon1.fr/ade4/home.php?lang=eng).
+bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
+
+##### Plot BGA results
+plot(bga.res,  arraycol=targets.colour[[1]])
+```
+
 ### Gastrointestinal (core)
 
-The expression profile of investigated sample (**red**) was projected against *core gastrointestinal* tumours, including (1) *esophageal carcinoma*, (2) *stomach adenocarcinoma*, (3) *colon adenocarcinoma* and (4) *rectum adenocarcinoma*, (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)), as well as (5) *pancreatic ductal adenocarcinoma* (*PDAC*).
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The expression profile of investigated sample is projected against *core gastrointestinal* tumours, including (1) *esophageal carcinoma*, (2) *stomach adenocarcinoma*, (3) *colon adenocarcinoma* and (4) *rectum adenocarcinoma*, (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)), as well as (5) *pancreatic ductal adenocarcinoma* (*PDAC*).
 
 ```{r pca_plots_core_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -340,9 +442,34 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
+Hierarchical clustering with reference samples coloured according to core gastrointestinal tumours.
+
+```{r hc_plots_core_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to core gastrointestinal tumours
+data <- ref_datasets.list[[ref]][[3]]
+
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+
+BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
+
+*Top*: projection of samples (coloured by groups), with samples annotation (*left*) and with group annotation (*right*), showing their separation on the first two discriminating BGA axes. Samples with a strong association are projected in the same direction from the origin. The greater the distance from the origin the stronger the association.
+
+*Bottom*: graph of positions of genes on the same BGA axis (*left*) and plot of the eigenvalues (*right*). Genes at the ends of the axis are most discriminating for that group.
+
+```{r bga_plots_core_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+##### Perform BGA and plot the results
+# Between-group analysis (BGA) is a supervised classification method (Culhane et al., (2002), https://www.ncbi.nlm.nih.gov/pubmed/12490444), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks. The basis of BGA is to ordinate the groups rather than the individual samples. BGA is implemented in the MADE4 package (Culhane et al., (2005), https://www.ncbi.nlm.nih.gov/pubmed/15797915). It also uses functions from ADE4 package (https://bioconductor.org/packages/release/bioc/html/made4.html and http://pbil.univ-lyon1.fr/ade4/home.php?lang=eng).
+bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
+
+##### Plot BGA results
+plot(bga.res,  arraycol=targets.colour[[1]])
+```
+
 ### Gastrointestinal (developmental)
 
-The expression profile of investigated sample (**red**) was projected against *developmental gastrointestinal* tumours, including (1) *liver hepatocellular carcinoma*, (2) *cholangiocarcinoma* and (3) *pancreatic ductal adenocarcinoma* (*PDAC*) (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)).
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The expression profile of investigated sample is projected against *developmental gastrointestinal* tumours, including (1) *liver hepatocellular carcinoma*, (2) *cholangiocarcinoma* and (3) *pancreatic ductal adenocarcinoma* (*PDAC*) (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)).
 
 ```{r pca_plots_dev_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -368,9 +495,34 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
+Hierarchical clustering with reference samples coloured according to developmental gastrointestinal tumours.
+
+```{r hc_plots_dev_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to developmental gastrointestinal tumours
+data <- ref_datasets.list[[ref]][[3]]
+
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+
+BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
+
+*Top*: projection of samples (coloured by groups), with samples annotation (*left*) and with group annotation (*right*), showing their separation on the first two discriminating BGA axes. Samples with a strong association are projected in the same direction from the origin. The greater the distance from the origin the stronger the association.
+
+*Bottom*: graph of positions of genes on the same BGA axis (*left*) and plot of the eigenvalues (*right*). Genes at the ends of the axis are most discriminating for that group.
+
+```{r bga_plots_dev_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+##### Perform BGA and plot the results
+# Between-group analysis (BGA) is a supervised classification method (Culhane et al., (2002), https://www.ncbi.nlm.nih.gov/pubmed/12490444), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks. The basis of BGA is to ordinate the groups rather than the individual samples. BGA is implemented in the MADE4 package (Culhane et al., (2005), https://www.ncbi.nlm.nih.gov/pubmed/15797915). It also uses functions from ADE4 package (https://bioconductor.org/packages/release/bioc/html/made4.html and http://pbil.univ-lyon1.fr/ade4/home.php?lang=eng).
+bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
+
+##### Plot BGA results
+plot(bga.res,  arraycol=targets.colour[[1]])
+```
+
 ### Pancreas-related
 
-The expression profile of investigated sample (**red**) was projected against *pancreas-related lesions and tissues*, including (1) *intraductal papillary mucinous neoplasm* (*IPMN)*, (2) *pancreatic neuroendocrine tumour* (*PanNET)* and (3) *pancreatic ductal adenocarcinoma* (*PDAC*), (4) *metastatic PDAC*, as well as (5) *normal pancreas tissue*.
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The expression profile of investigated sample is projected against *pancreas-related lesions and tissues*, including (1) *intraductal papillary mucinous neoplasm* (*IPMN)*, (2) *pancreatic neuroendocrine tumour* (*PanNET)* and (3) *pancreatic ductal adenocarcinoma* (*PDAC*), (4) *metastatic PDAC*, as well as (5) *normal pancreas tissue*.
 
 ```{r pca_plots_pancreas, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -396,9 +548,34 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
+Hierarchical clustering with reference samples coloured according to pancreatic related lesions.
+
+```{r hc_plots_pancreas, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to pancreatic related lesions
+data <- ref_datasets.list[[ref]][[3]]
+
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+
+BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
+
+*Top*: projection of samples (coloured by groups), with samples annotation (*left*) and with group annotation (*right*), showing their separation on the first two discriminating BGA axes. Samples with a strong association are projected in the same direction from the origin. The greater the distance from the origin the stronger the association.
+
+*Bottom*: graph of positions of genes on the same BGA axis (*left*) and plot of the eigenvalues (*right*). Genes at the ends of the axis are most discriminating for that group.
+
+```{r bga_plots_pancreas, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+##### Perform BGA and plot the results
+# Between-group analysis (BGA) is a supervised classification method (Culhane et al., (2002), https://www.ncbi.nlm.nih.gov/pubmed/12490444), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks. The basis of BGA is to ordinate the groups rather than the individual samples. BGA is implemented in the MADE4 package (Culhane et al., (2005), https://www.ncbi.nlm.nih.gov/pubmed/15797915). It also uses functions from ADE4 package (https://bioconductor.org/packages/release/bioc/html/made4.html and http://pbil.univ-lyon1.fr/ade4/home.php?lang=eng).
+bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
+
+##### Plot BGA results
+plot(bga.res,  arraycol=targets.colour[[1]])
+```
+
 ## Molecular classification  {.tabset}
 
-The projection of investigated sample (**red**) in the context of TCGA PAAD samples classified based mRNA subtypes reported by *[Bailey et al. (2016)](https://www.ncbi.nlm.nih.gov/pubmed/26909576), [Moffitt et al. (2015)](https://www.ncbi.nlm.nih.gov/pubmed/26343385) and [Collisson et al. (2011)](https://www.ncbi.nlm.nih.gov/pubmed/21460848)*. The molecular classification aids patient assignment into less heterogeneous and more appropriate group regarding the metastatic risk and the therapeutic response, with the consequences of better predicting evolution and better orienting the treatment. A recent report by *[Birnbaum DJ1 et al. (2018)](https://www.ncbi.nlm.nih.gov/pubmed/29499330)* reviews the association between PDAC molecular subtypes and drugs sensitivity. 
+Principal component analysis (PCA), hierarchical clustering and between-group analysis (BGA) were performed to project investigated sample in the context of TCGA PAAD samples classified based mRNA subtypes reported by *[Bailey et al. (2016)](https://www.ncbi.nlm.nih.gov/pubmed/26909576), [Moffitt et al. (2015)](https://www.ncbi.nlm.nih.gov/pubmed/26343385) and [Collisson et al. (2011)](https://www.ncbi.nlm.nih.gov/pubmed/21460848)*. The molecular classification aids patient assignment into less heterogeneous and more appropriate group regarding the metastatic risk and the therapeutic response, with the consequences of better predicting evolution and better orienting the treatment. A recent report by *[Birnbaum DJ1 et al. (2018)](https://www.ncbi.nlm.nih.gov/pubmed/29499330)* reviews the association between PDAC molecular subtypes and drugs sensitivity. 
 
 #### Development notes
 - Use only set of genes associated with individual molecular classification
@@ -407,12 +584,18 @@ The projection of investigated sample (**red**) in the context of TCGA PAAD samp
 
 ### Bailey
 
+***
 This classification includes [4 tumour subtypes](https://www.ncbi.nlm.nih.gov/pubmed/26909576) associated with different molecular pathways:
 
-1. **Squamous** - was associated with a high rate of *TP53* and *KDM6A* mutations and genes involved in *inflammation*, *hypoxia response*, *metabolic reprogramming*, *TGFB signaling*, *MYC pathway activation*, *autophagy* and upregulated expression of *TP63deltaN* and its target genes. It has ***the worst  survival*** compared to the other three subtypes. Demonstrates ***resistance to gemcitabine*** and ***docetaxel*** and is ***sensitive to oxaliplatine*** and ***5-FU***;
+1. **Squamous** - associated with a high rate of *TP53* and *KDM6A* mutations and genes involved in *inflammation*, *hypoxia response*, *metabolic reprogramming*, *TGFB signaling*, *MYC pathway activation*, *autophagy* and upregulated expression of *TP63deltaN* and its target genes. It has ***the worst  survival*** compared to the other three subtypes. Demonstrates ***resistance to gemcitabine*** and ***docetaxel*** and is ***sensitive to oxaliplatine*** and ***5-FU***;
 2. **Pancreatic progenitor** - expressed genes involved in early pancreatic development (*PDX1*, *MNX1*, *HNF4G*, *HNF4A*, *HNF1B*, *HNF1A*, *FOXA2*, *FOXA3*, and *HES1*). Demonstrates ***resistance to docetaxel*** and ***SN-38***;
 3. **ADEX** (aberrantly-differentiated endocrine exocrine) - expressed genes involved in later stages of endocrine and exocrine pancreas development and differentiation (*NR5A2*, *MIST1*, *RBPJL*, *INS*, *NEUROD1*, and *MAFA*);
 4. **Immunogenic** - characterized by immune infiltration associated with *B* and *T-cell signaling* pathway, *antigen presentation*, *CD4+ T-cell*, *CD8+ T-cell*, and *Toll-like receptor signaling* pathway. Potentially can be ***targeted using immune modulators***
+
+***
+
+
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_bailey, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -431,11 +614,11 @@ p1 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Tar
 
 
 ##### Generate PCA 3-D plot  (colour targets)
-p2 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
-  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+#p2 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+#  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
 p1
-p2
+#p2
 
 ##### Save PCA plots as html
 #htmlwidgets::saveWidget(as_widget(p1), paste0(normalizePath(params$report_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
@@ -445,13 +628,43 @@ p2
 detach("package:plotly", unload=FALSE)
 ```
 
+Hierarchical clustering with reference samples coloured according to Bailey molecular subtypes.
+
+```{r hc_plots_bailey, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to Bailey classification
+data <- ref_datasets.list[[ref]][[3]]
+
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+
+BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
+
+*Top*: projection of samples (coloured by groups), with samples annotation (*left*) and with group annotation (*right*), showing their separation on the first two discriminating BGA axes. Samples with a strong association are projected in the same direction from the origin. The greater the distance from the origin the stronger the association.
+
+*Bottom*: graph of positions of genes on the same BGA axis (*left*) and plot of the eigenvalues (*right*). Genes at the ends of the axis are most discriminating for that group.
+
+```{r bga_plots_bailey, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+##### Perform BGA and plot the results
+# Between-group analysis (BGA) is a supervised classification method (Culhane et al., (2002), https://www.ncbi.nlm.nih.gov/pubmed/12490444), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks. The basis of BGA is to ordinate the groups rather than the individual samples. BGA is implemented in the MADE4 package (Culhane et al., (2005), https://www.ncbi.nlm.nih.gov/pubmed/15797915). It also uses functions from ADE4 package (https://bioconductor.org/packages/release/bioc/html/made4.html and http://pbil.univ-lyon1.fr/ade4/home.php?lang=eng).
+bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
+
+##### Plot BGA results
+plot(bga.res,  arraycol=targets.colour[[1]])
+```
+
 ### Collisson
 
+*** 
 This classification includes [3 tumour subtypes](https://www.ncbi.nlm.nih.gov/pubmed/21460848) with different clinical outcomes and therapeutic responses:
 
 1. **Classical** - overexpression of genes associated with adhesion and epithelium, and of *GATA6* involved in pancreatic development. It has ***better survival*** compared to the other subtypes. Demonstrates ***resistance to docetaxel*** and is ***sensitive to erlotinib***;
 2.  **Quasi-mesenchymal** - overexpression of mesenchyme-associated genes (*TWIST1*, *HK2*, and *CAV1*). It is correlated with the ***worst survival*** of all the three subtypes. Demonstrates ***resistance to gemcitabine*** and is ***sensitive to oxaliplatine and 5-FU***;
 3. **Exocrine-like** - high expression of genes related to digestive enzymes. Demonstrates ***resistance to SN-38***
+
+*** 
+
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -469,11 +682,11 @@ p1 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Tar
   layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
 ##### Generate PCA 3-D plot  (colour targets)
-p2 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
-  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+#p2 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+#  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
 p1
-p2
+#p2
 
 ##### Save PCA plots as html
 #htmlwidgets::saveWidget(as_widget(p1), paste0(normalizePath(params$report_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
@@ -483,12 +696,41 @@ p2
 detach("package:plotly", unload=FALSE)
 ```
 
+Hierarchical clustering with reference samples coloured according to Collisson molecular subtypes.
+
+```{r hc_plots_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to Collisson classification
+data <- ref_datasets.list[[ref]][[3]]
+
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
+
+*Top*: projection of samples (coloured by groups), with samples annotation (*left*) and with group annotation (*right*), showing their separation on the first two discriminating BGA axes. Samples with a strong association are projected in the same direction from the origin. The greater the distance from the origin the stronger the association.
+
+*Bottom*: graph of positions of genes on the same BGA axis (*left*) and plot of the eigenvalues (*right*). Genes at the ends of the axis are most discriminating for that group.
+
+```{r bga_plots_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+##### Perform BGA and plot the results
+# Between-group analysis (BGA) is a supervised classification method (Culhane et al., (2002), https://www.ncbi.nlm.nih.gov/pubmed/12490444), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks. The basis of BGA is to ordinate the groups rather than the individual samples. BGA is implemented in the MADE4 package (Culhane et al., (2005), https://www.ncbi.nlm.nih.gov/pubmed/15797915). It also uses functions from ADE4 package (https://bioconductor.org/packages/release/bioc/html/made4.html and http://pbil.univ-lyon1.fr/ade4/home.php?lang=eng).
+bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
+
+##### Plot BGA results
+plot(bga.res,  arraycol=targets.colour[[1]])
+```
+
 ### Moffitt
 
+*** 
 This classification includes two stromal-associated (*normal* and *activated stroma*) [2 tumour-associated subtypes](https://www.ncbi.nlm.nih.gov/pubmed/26343385). Here the malignant epithelial-associated subtypes are presented:
 
 1. **Basal-like** - has ***worst prognosis*** and is molecularly similar to basal tumors in bladder and breast cancers. It is ***sensitive to oxaliplatine*** and ***5-FU***;
 2.  **Classical** - has ***better prognosis***. Demonstrates ***resistance to docetaxel*** and ***SN-38*** and is ***sensitive to erlotinib***
+
+*** 
+
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -506,11 +748,11 @@ p1 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Tar
   layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
 ##### Generate PCA 3-D plot  (colour targets)
-p2 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
-  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+#p2 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, z = ~PC3, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter3d', mode = "markers", marker = list(size=8, opacity = 0.7, symbol="circle"), width = 800, height = 800) %>%
+#  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), zaxis = list(title = paste( "PC3", " (",importance_pca["PC3"],")",sep="")) , margin = list(l=50, r=50, b=50, t=10, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
 p1
-p2
+#p2
 
 ##### Save PCA plots as html
 #htmlwidgets::saveWidget(as_widget(p1), paste0(normalizePath(params$report_dir), "/mix_PCA_2d_targets.html"), selfcontained = TRUE)
@@ -520,6 +762,30 @@ p2
 detach("package:plotly", unload=FALSE)
 ```
 
+Hierarchical clustering with reference samples coloured according to Moffitt molecular subtypes.
+
+```{r hc_plots_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to Moffitt classification
+data <- ref_datasets.list[[ref]][[3]]
+
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+
+BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
+
+*Top*: projection of samples (coloured by groups), with samples annotation (*left*) and with group annotation (*right*), showing their separation on the first two discriminating BGA axes. Samples with a strong association are projected in the same direction from the origin. The greater the distance from the origin the stronger the association.
+
+*Bottom*: graph of positions of genes on the same BGA axis (*left*) and plot of the eigenvalues (*right*). Genes at the ends of the axis are most discriminating for that group.
+
+```{r bga_plots_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+##### Perform BGA and plot the results
+# Between-group analysis (BGA) is a supervised classification method (Culhane et al., (2002), https://www.ncbi.nlm.nih.gov/pubmed/12490444), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks. The basis of BGA is to ordinate the groups rather than the individual samples. BGA is implemented in the MADE4 package (Culhane et al., (2005), https://www.ncbi.nlm.nih.gov/pubmed/15797915). It also uses functions from ADE4 package (https://bioconductor.org/packages/release/bioc/html/made4.html and http://pbil.univ-lyon1.fr/ade4/home.php?lang=eng).
+bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
+
+##### Plot BGA results
+plot(bga.res,  arraycol=targets.colour[[1]])
+```
 
 ## Addendum
 
