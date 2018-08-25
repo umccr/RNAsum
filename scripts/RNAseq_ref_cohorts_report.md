@@ -83,7 +83,7 @@ Example read count data from *[bcbio-nextgen RNA-seq pipeline](https://bcbio-nex
 /data/cephfs/punim0010/projects/Jacek_RNA_seq_report/RNAseq-Analysis-Report/data
 ```
 
-* [HTML report](../reports/CCR170012_MH17T001P013.RNAseq_ref_cohorts_report.html) - *UMCCR Transcriptome Patient Summary* report for patient P013
+* [HTML report](../reports/CCR170012_MH17T001P013.RNAseq_ref_cohorts_report.html) - *UMCCR Transcriptome Patient Summary* report for [primary tissue from patient P013](https://trello.com/c/G8poK9Dr/1-mh17t001p013) (with [PCGR](https://github.com/sigven/pcgr) report [here](https://trello-attachments.s3.amazonaws.com/5922a4dd5c1330894b346463/5922a54934e9ac6f8ac3cefa/98961884a7ee9e0f03cdb6c39d27faf6/MH17T001P013_Tumor.pcgr.html))
 
 ### To-do list
 
