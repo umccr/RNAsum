@@ -14,11 +14,11 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript  RNAseq_ref_cohorts_report.R  --sample_name ./CCR170012_MH17T001P013_report  --count_file ./data/CCR170012_MH17T001P013-ready.counts  --report_dir /reports
+#	  Command line use example: Rscript  RNAseq_ref_cohorts_report.R  --sample_name ./CCR170012_MH17T001P013  --count_file ./data/CCR170012_MH17T001P013-ready.counts  --report_dir /reports
 #
-#   sample_name:   Desired sample name to report
+#   sample_name:   Desired sample name to be presented in the report
 #   count_file:    Location and name of the read count file from bcbio RNA-seq pipeline
-#   report_dir:    Location for the report
+#   report_dir:    Desired location for the report
 #
 ################################################################################
 
@@ -40,11 +40,11 @@ suppressMessages(library(optparse))
 
 option_list = list(
   make_option(c("-s", "--sample_name"), action="store", default=NA, type='character',
-              help="Desired sample name to reporty"),
+              help="Desired sample name to be presented in the report"),
   make_option(c("-c", "--count_file"), action="store", default=NA, type='character',
               help="Location and name of the read count file from bcbio RNA-seq pipeline"),
   make_option(c("-r", "--report_dir"), action="store", default=NA, type='character',
-              help="Location and name of the read count file from bcbio RNA-seq pipeline")
+              help="Desired location for the report")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
