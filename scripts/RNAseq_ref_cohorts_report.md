@@ -21,8 +21,8 @@ Set of scripts to presnet the sample expression profile in the context of genome
 
 Script | Description | Packages
 ------------ | ------------ | ------------
-*[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)* | Collects user-defined parameters for the corresponding [RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd) markdown script |  *[optparse](https://cran.r-project.org/web/packages/optparse/optparse.pdf)* <br> *[knitr](https://cran.r-project.org/web/packages/knitr/knitr.pdf)*
-*[RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd)* | Launch by *[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)*. Post-processes, summarises and visualises an output from *[bcbio-nextgen RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* to generate patient summary report <br> | *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)* <br> *[preprocessCore](https://www.bioconductor.org/packages/release/bioc/html/preprocessCore.html)* <br> *[plotly](https://plot.ly/r/)* <br> *[ClassDiscovery](https://cran.r-project.org/web/packages/ClassDiscovery/index.html)* <br> *[plotly](https://plot.ly/r/)* <br> *[made4](https://bioconductor.org/packages/release/bioc/html/made4.html)* <br> *[ade4](https://cran.r-project.org/web/packages/ade4/index.html)*
+*[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)* | Collects user-defined parameters for the corresponding *[RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd)* markdown script |  *[optparse](https://cran.r-project.org/web/packages/optparse/optparse.pdf)* <br> *[knitr](https://cran.r-project.org/web/packages/knitr/knitr.pdf)*
+*[RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd)* | Launched by *[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)*. Post-processes, summarises and visualises an output from *[bcbio-nextgen RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* to generate patient summary report <br> | *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)* <br> *[preprocessCore](https://www.bioconductor.org/packages/release/bioc/html/preprocessCore.html)* <br> *[plotly](https://plot.ly/r/)* <br> *[ClassDiscovery](https://cran.r-project.org/web/packages/ClassDiscovery/index.html)* <br> *[plotly](https://plot.ly/r/)* <br> *[made4](https://bioconductor.org/packages/release/bioc/html/made4.html)* <br> *[ade4](https://cran.r-project.org/web/packages/ade4/index.html)*
 <br />
 
 
@@ -65,14 +65,14 @@ Tab | Description
 ------------ | -----------
 PCA | reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts
 Dendrogram | hierarchical clustering with reference samples coloured according to corresponding tumour types
-BGA | supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444))
+BGA | supervised classification method (*[Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)*)
 <br />
 
 
 
 2. **Molecular classification**
 
-PCA, hierarchical clustering and BGA to project sample in the context of [TCGA](https://cancergenome.nih.gov/) PAAD samples classified based mRNA subtypes reported by [Bailey et al. (2016)](https://www.ncbi.nlm.nih.gov/pubmed/26909576), [Moffitt et al. (2015)](https://www.ncbi.nlm.nih.gov/pubmed/26343385) and [Collisson et al. (2011)](https://www.ncbi.nlm.nih.gov/pubmed/21460848). The molecular classification aids patient assignment into less heterogeneous and more appropriate group regarding the metastatic risk and the therapeutic response, with the consequences of better predicting evolution and better orienting the treatment. A recent report by [Birnbaum DJ1 et al. (2018)](https://www.ncbi.nlm.nih.gov/pubmed/29499330) reviews the association between pancreatic ductal adenocarcinoma (PDAC) molecular subtypes and drugs sensitivity. Individual classification results are presented in separate tabs with the corresponding tumour subtypes description and containing sub-sections as in the [comparison across tumour types](#report-content) section.
+PCA, hierarchical clustering and BGA to project sample in the context of [TCGA](https://cancergenome.nih.gov/) PAAD samples classified based mRNA subtypes reported by *[Bailey et al. (2016)](https://www.ncbi.nlm.nih.gov/pubmed/26909576)*, *[Moffitt et al. (2015)](https://www.ncbi.nlm.nih.gov/pubmed/26343385)* and *[Collisson et al. (2011)](https://www.ncbi.nlm.nih.gov/pubmed/21460848)*. The molecular classification aids patient assignment into less heterogeneous and more appropriate group regarding the metastatic risk and the therapeutic response, with the consequences of better predicting evolution and better orienting the treatment. A recent report by *[Birnbaum DJ1 et al. (2018)](https://www.ncbi.nlm.nih.gov/pubmed/29499330)* reviews the association between pancreatic ductal adenocarcinoma (PDAC) molecular subtypes and drugs sensitivity. Individual classification results are presented in separate tabs with the corresponding tumour subtypes description and containing sub-sections as in the [comparison across tumour types](#report-content) section.
 	
 
 ### Example report
