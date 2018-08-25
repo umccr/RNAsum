@@ -1,13 +1,13 @@
 # Presenting sample data in the context of reference datasets
 
-Set of scripts to presnet the sample expression profile in the context of genome-scale pancreas-related data from large cohorts of patients. Currenlty the sample data is combined with [TCGA](https://cancergenome.nih.gov/) data but once we optimise the *batch-effect adjustment apporach* in the [RNA-seq data combination step](https://github.com/umccr/RNA-seq-analysis/tree/master/readcount-analysis) the plan is to add more datasets, e.g. [14 metastatic PC](https://met500.path.med.umich.edu/datasets) samples from [MET500 project](https://met500.path.med.umich.edu/datasets) (published by [Dan R. Robinson et al. (2017)](https://www-nature-com.ezp.lib.unimelb.edu.au/articles/nature23306)) and 244 (?) normal pancreas samples from [recount2](https://www.bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/RNAseq/doc/recount-workshop.html).
+Set of scripts to presnet the sample expression profile in the context of genome-scale pancreas-related data from large cohorts of patients. Currenlty the sample data is combined with [TCGA](https://cancergenome.nih.gov/) data only but once we optimise the *batch-effect adjustment apporach* in the [RNA-seq data combination step](https://github.com/umccr/RNA-seq-analysis/tree/master/readcount-analysis) the plan is to add more datasets, e.g. [14 metastatic PC](https://met500.path.med.umich.edu/datasets) samples from [MET500 project](https://met500.path.med.umich.edu/) (published by [Dan R. Robinson et al. (2017)](https://www-nature-com.ezp.lib.unimelb.edu.au/articles/nature23306)) and 244 (?) normal pancreas samples from [recount2](https://www.bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/RNAseq/doc/recount-workshop.html).
 
 
 ## Table of contents
 
 <!-- vim-markdown-toc GFM -->
 * [Scripts summary](#scripts-summary)
-* [Post-process, summarise and visualise sample data](#post-process,-summarise-and-visualise-sample-data)
+* [Post-process, summarise and visualise sample data](#post-process-summarise-and-visualise-sample-data)
   * [Report content](#report-content)
   * [Example report](#example-report)
   * [To-do list](#to-do-list)
@@ -26,9 +26,9 @@ Script | Description | Packages
 <br />
 
 
-## Post-process, summarise and visualise sample data
+## Post-process summarise and visualise sample data
 
-To summarise multiple MAF files run the *[summariseMAFs.R](https://github.com/umccr/MAF-summary/tree/master/scripts/summariseMAFs.R)* script. This script catches the arguments from the command line and passes them to the *[summariseMAFs.Rmd](https://github.com/umccr/MAF-summary/tree/master/scripts/summariseMAFs.Rmd)* script to produce the html report, generate set of plots and excel spreadsheets summarising each MAF file.
+To post-process the sample data run the *[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)* script. This script catches the arguments from the command line and passes them to the *[RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd)* script which produces the html report.
 
 **Script**: *[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)*
 
@@ -72,7 +72,7 @@ BGA | supervised classification method ([Culhane et al., (2002)](https://www.ncb
 
 2. **Molecular classification**
 
-PCA, hierarchical clustering and BGA to project sample in the context of [TCGA](https://cancergenome.nih.gov/) PAAD samples classified based mRNA subtypes reported by [Bailey et al. (2016)](https://www.ncbi.nlm.nih.gov/pubmed/26909576), [Moffitt et al. (2015)](https://www.ncbi.nlm.nih.gov/pubmed/26343385) and [Collisson et al. (2011)](https://www.ncbi.nlm.nih.gov/pubmed/21460848). The molecular classification aids patient assignment into less heterogeneous and more appropriate group regarding the metastatic risk and the therapeutic response, with the consequences of better predicting evolution and better orienting the treatment. A recent report by [Birnbaum DJ1 et al. (2018)}(https://www.ncbi.nlm.nih.gov/pubmed/29499330) reviews the association between pancreatic ductal adenocarcinoma (PDAC) molecular subtypes and drugs sensitivity. Individual classification results are presented in separate tabs with the corresponding tumour subtypes description and containing sub-sections as in the [comparison across tumour types](#report-content) section.
+PCA, hierarchical clustering and BGA to project sample in the context of [TCGA](https://cancergenome.nih.gov/) PAAD samples classified based mRNA subtypes reported by [Bailey et al. (2016)](https://www.ncbi.nlm.nih.gov/pubmed/26909576), [Moffitt et al. (2015)](https://www.ncbi.nlm.nih.gov/pubmed/26343385) and [Collisson et al. (2011)](https://www.ncbi.nlm.nih.gov/pubmed/21460848). The molecular classification aids patient assignment into less heterogeneous and more appropriate group regarding the metastatic risk and the therapeutic response, with the consequences of better predicting evolution and better orienting the treatment. A recent report by [Birnbaum DJ1 et al. (2018)](https://www.ncbi.nlm.nih.gov/pubmed/29499330) reviews the association between pancreatic ductal adenocarcinoma (PDAC) molecular subtypes and drugs sensitivity. Individual classification results are presented in separate tabs with the corresponding tumour subtypes description and containing sub-sections as in the [comparison across tumour types](#report-content) section.
 	
 
 ### Example report
@@ -83,7 +83,7 @@ Example read count data from *[bcbio-nextgen RNA-seq pipeline](https://bcbio-nex
 /data/cephfs/punim0010/projects/Jacek_RNA_seq_report/RNAseq-Analysis-Report/data
 ```
 
-* [HTML report](https://rawgit.com/umccr/MAF-summary/master/scripts/summariseMAFs.html) - R html report for all cohorts
+* [HTML report](../reports/CCR170012_MH17T001P013.RNAseq_ref_cohorts_report.html) - *UMCCR Transcriptome Patient Summary* report for patient P013
 
 ### To-do list
 
