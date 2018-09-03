@@ -37,7 +37,16 @@ Sorted the oncofuse output on the encompassing reads:
 
 ```sort -k4 -n -r MH17T001P013-oncofuse-edited >MH17T001P013-oncofuse-edited-sorted.tsv```
 
-Importing both pizzly and oncofuse tsvs as dataframe in R to find common fusion gene pairs betwen both tools. 
+### Result
+
+Importing both pizzly and oncofuse tsvs as dataframe in R to find common fusion gene pairs betwen both tools. The intersection between both results in quite low (35 pairs). Another point is the final filtered calls produced by pizzly are ~100 and oncofuse is ~500, which is an indication of huge amount of false positive predictions.
+
+Thus, we need to find ways to shrink down the list of candidates from fusion detection tools, thus focusing on a reduced set of highly reliable fusions with a potential driver impact into the disease.
+
+## Exploring fusion prioritization tool 
+
+[FuGePrior](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5260008/) 
+
 
 
 
