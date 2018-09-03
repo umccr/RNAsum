@@ -17,13 +17,35 @@ Pizzly produces a `tsv` file of the genes with the breakpoints indicated relativ
 
 ```geneA.name geneA.id geneB.name geneB.id paircount splitcount transcripts.list```
 
-For comparison purposes, I sorted the paircount column of this file using:
+For comparison purposes, I sorted pizzly output on the paircount value:
 
 ```sort -k5 -n -r MH17T001P013-oncofuse-test-flat-filtered.tsv > MH17T001P013-oncofuse-test-flat-filtered-sorted.tsv```
 
 ### Oncofuse
 
 Oncofuse is a post-processing tool that takes fusions called by other programs (such as  STAR) as an input and predict oncogenic potential i.e. the probability of being 'driver' events to fusion sequences.
+
+Oncofuse produces a 36 columns output. For comparison purpose, I have selected the following columns (and copied those to a new life). 
+
+```5_FPG_GENE_NAME 3_FPG_GENE_NAME SPANNING_READS ENCOMPASSING_READS GENOMIC P_VAL_CORR DRIVER_PROB```
+
+* `FPG` stands for fusion pair gene.
+* Encompassing mate pairs refer to those in which each read aligns to an independent transcript, thereby encompassing the fusion junction. 
+* Spanning mate pairs refer to those in which one sequence read aligns to a gene and its mate spans the fusion junction.
+
+Sorted the oncofuse output on the encompassing reads: 
+
+```sort -k4 -n -r MH17T001P013-oncofuse-edited >MH17T001P013-oncofuse-edited-sorted.tsv```
+
+Importing both pizzly and oncofuse tsvs as dataframe in R to find common fusion gene pairs betwen both tools. 
+
+
+
+
+
+
+
+
 
 
 
