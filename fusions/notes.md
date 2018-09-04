@@ -45,9 +45,7 @@ Thus, we need to find ways to shrink down the list of candidates from fusion det
 
 ## Exploring fusion prioritization tool 
 
-[FuGePrior](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5260008/) 
-
-
+[FuGePrior](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5260008/) prioritizes gene fusions from paired-end RNA-Seq data. Specifically, the implemented methodology exploits a set of processing and filtering stages to lower the number of fusions from chimeric transcript discovery tools. 
 
 
 
