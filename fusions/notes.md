@@ -47,7 +47,20 @@ Thus, we need to find ways to shrink down the list of candidates from fusion det
 
 [FuGePrior](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5260008/) prioritizes gene fusions from paired-end RNA-Seq data. Specifically, the implemented methodology exploits a set of processing and filtering stages to lower the number of fusions from chimeric transcript discovery tools. 
 
+**Requirements**
 
+It needs union list of chimeric candidates from ChimeraScan, defuse and a third chimeric transcript tool selected by the user. The unique limitation on the choice of this last algorithm is the compatibility of its output with Pegasus tool input format.  
+
+Also, we will need to setup:
+
+* ChimeraScan 
+* defuse 
+* Pegasus tool
+* Oncofuse
+* Make sure the third tool of interest produces output in the right format, as expected by Pegasus. 
+* Also, for each step, manual pre-processign is required (as indicated by this [guide](https://philae.polito.it/paciello/FuGePrior/blob/master/FuGePriorUserGuide.pdf).
+
+Reading through the guide and the way this tool has been structured, I am not convinced it is worth putting effort in (one for discussion). 
 
 
 
