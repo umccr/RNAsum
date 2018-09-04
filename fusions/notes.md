@@ -63,7 +63,13 @@ Also, we will need to setup:
 Reading through the guide and the way this tool has been structured, I am not convinced it is worth putting effort in (one for discussion). 
 
 
+## Pizzly/Oncofuse fusion filtering
 
+There was a nice point mentioned in the FuGePrior paper; we can sort and filter the oncofuse output on driver probability values for the fusions and compare the results with pizzly output.
+
+After performing this filtering, the possible fusion candidates in oncofuse output reduced from ~500 to 100. 
+
+I also did some filtering on pizzly
 
 
 
