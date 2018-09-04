@@ -9,9 +9,3 @@ pizzly <- read.table(file = '~/Documents/UMCCR/data/fusions/comparison/MH17T001P
 oncofuse.sorted <- filter(arrange(oncofuse, desc(oncofuse$DRIVER_PROB)), DRIVER_PROB >= 0.6)
 
 
-
-
-
-
-
-
