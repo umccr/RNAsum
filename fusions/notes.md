@@ -63,13 +63,23 @@ Also, we will need to setup:
 Reading through the guide and the way this tool has been structured, I am not convinced it is worth putting effort in (one for discussion). 
 
 
-## Pizzly/Oncofuse fusion filtering
+## Pizzly/Oncofuse fusion filtering/prioritization
 
 There was a nice point mentioned in the FuGePrior paper; we can sort and filter the oncofuse output on driver probability values for the fusions and compare the results with pizzly output.
 
 After performing this filtering, the possible fusion candidates in oncofuse output reduced from ~500 to 100. 
 
-I also did some filtering on pizzly
+I also did some filtering on pair count values supporting gene fusions in pizzly output.
+
+**Points to discuss**
+
+* Doing a semi_join (to find common fusions between both callers return a very small number of final results -> 6)
+
+* I am assuming geneA.name in pizzly is the 5' partner gene in fusion pair and vice versa for the geneB.name.
+	* To circumvent this issue, I have also checked for the opposite condition on the second `joint.fusion.calls.2` condition in the R script. That also only returned 7 observations.
+
+* We can try doing a union between both callers? This will give us more fusions for further evaluation but we can try narrow down the number by applying more stringent filtering upstream? 
+
 
 
 
