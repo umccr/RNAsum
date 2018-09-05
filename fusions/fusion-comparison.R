@@ -20,5 +20,8 @@ joint.fusion.calls <- semi_join(oncofuse.sorted.filtered, pizzly.sorted.filtered
 joint.fusion.calls.2 <- semi_join(oncofuse.sorted.filtered, pizzly.sorted.filtered,
                                 by = c("X5_FPG_GENE_NAME" = "geneB.name", "X3_FPG_GENE_NAME" = "geneA.name"))
 
+#selectiong all columns from the two dataframes
+joint.fusion.calls.inner <- inner_join(oncofuse.sorted.filtered, pizzly.sorted.filtered,
+                                by = c("X5_FPG_GENE_NAME" = "geneA.name", "X3_FPG_GENE_NAME" = "geneB.name"))
 
 
