@@ -82,6 +82,20 @@ I also did some filtering on pair count values supporting gene fusions in pizzly
 
 * We can try doing a union between both callers? This will give us more fusions for further evaluation but we can try narrow down the number by applying more stringent filtering upstream? 
 
+## To Do's
+
+* Check for the pizzly results for the data Sean points us to ( samples with known/validated fusions, so we know what we are expecting to see.)
+* Try validating the pizzly results using kallisto (i.e. see https://github.com/pmelsted/pizzly/issues/9)
+* we should try confFuse (see https://github.com/umccr/fusion_annotation).
+
+
+## Useful reading resources
+
+* Good fusion ref - https://www.nature.com/articles/srep21597
+* a good read - https://escholarship.org/uc/item/63v3493d p30 onwards, very clear.
+* Good thread - https://github.com/pmelsted/pizzly/issues/19
+* see also https://github.com/rdocking/fusebench/wiki/components_and_similar_projects
+
 
 
 
