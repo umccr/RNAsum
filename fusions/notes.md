@@ -11,6 +11,8 @@ We are interested in including fusion information into RNAseq report and validat
 
 bcbio-RNAseq pipeline support a couple of tools for fusion calling, [pizzly](https://github.com/pmelsted/pizzly) and [oncofuse](http://www.unav.es/genetica/oncofuse.html). Ideally, in the report, we would like to use output from one of the tools that we are confident in. 
 
+The loaction to sample analysis run to get the oncofuse and pizzly results is `/data/cephfs/punim0010/projects/Kanwal_RNASeq_Patients/MH17T001P013-oncofuse-test`
+
 ### Pizzly
 
 Pizzly produces a `tsv` file of the genes with the breakpoints indicated relative to the transcript, e.g. 
