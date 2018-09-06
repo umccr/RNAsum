@@ -6,27 +6,30 @@ pizzly.fusions <- read.table(file = '~/Documents/UMCCR/data/fusions/pizzly-valid
 #read in the transcripts quantification file
 quant <- read.table(file = '~/Documents/UMCCR/data/fusions/pizzly-validation/abundance.tsv', header = TRUE)
 
-#sort and filter quantification file on tpm values
+#sort and filter quantification file on tpm values. Currently filtering on transcripts that have higher value than
+#the mean transcript value.
 quant.sorted.filtered <- filter(arrange(quant, desc(quant$tpm)), tpm >= (mean(quant$tpm)))
 
 #pizzly.fusions$transcripts.list is a factor. Coerce the argument to character first to be able to use sapply
 #pizzly.fusions$transcripts.list <- as.character(pizzly.fusions$transcripts.list)
 
-data <- data.frame()
-df <- apply(pizzly.fusions[,c('geneA.name','geneB.name','transcripts.list')],1, function(x){
+#initialize an empty dataframe
+result <- data.frame()
+
+#apply function on every row in a df, but selected columns. Split the transcript list on ';' and check for occurence of every split element
+#in the quantification file. If it exists, extract the correponding fusion gene pair
+apply(pizzly.fusions[,c('geneA.name','geneB.name','transcripts.list')],1, function(x){
   y <- strsplit(x['transcripts.list'], ";")
   y <- unname(y)
   for (i in 1:length(y[[1]])){
-    #print(length(y[[1]]))
-    #print(y[[1]][i])
     if (y[[1]][i] %in% quant.sorted.filtered$target_id){
-      #print("yes")
-      #print(x['geneA.name'])
-      df <- data.frame(geneA = x['geneA.name'], geneB = x['geneB.name'], stringsAsFactors=FALSE)
-      data <- rbind(data, df)
+      result <<- rbind(result, data.frame(geneA = x['geneA.name'], geneB = x['geneB.name'], stringsAsFactors=FALSE))
     }
   }
-  print(data)
 })
+
+#remove duplicated values from result (as multiple transcripts might support fusion between same gene)
+deduped.result <- unique(result)
+
 
 
