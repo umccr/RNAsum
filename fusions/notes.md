@@ -86,7 +86,7 @@ I also did some filtering on pair count values supporting gene fusions in pizzly
 
 * Check for the pizzly results for the data Sean points us to ( samples with known/validated fusions, so we know what we are expecting to see.)
 * Try validating the pizzly results using kallisto (i.e. see https://github.com/pmelsted/pizzly/issues/9)
-* we should try confFuse (see https://github.com/umccr/fusion_annotation).
+* We should also try confFuse (see https://github.com/umccr/fusion_annotation).
 
 
 ## Useful reading resources
@@ -95,6 +95,24 @@ I also did some filtering on pair count values supporting gene fusions in pizzly
 * a good read - https://escholarship.org/uc/item/63v3493d p30 onwards, very clear.
 * Good thread - https://github.com/pmelsted/pizzly/issues/19
 * see also https://github.com/rdocking/fusebench/wiki/components_and_similar_projects
+
+## Validating pizzly results using kallisto
+
+The basic idea is to run kallisto to quantify the fusion transcripts and select those which have a decent TPM support.
+
+Translating the last two steps `rule append_index` and `rule requant_kallisto` from the snakefile (https://github.com/pmelsted/pizzly/blob/master/test/Snakefile) on commandline. The intial steps are already part of bcbio-RNAseq workflow. 
+
+1. Created a new directory on spartan under `/data/cephfs/punim0010/projects/Kanwal_RNASeq_Patients/pizzly-validation` for this work.
+
+2. Create a new index based on the transcriptome and the fusion transcripts identified by `pizzly`
+
+ ```cat /data/cephfs/punim0010/projects/Kanwal_RNASeq_Patients/MH17T001P013-oncofuse-test/work/inputs/transcriptome/GRCh37.fa /data/cephfs/punim0010/projects/Kanwal_RNASeq_Patients/MH17T001P013-oncofuse-test/final/MH17T001P013-oncofuse-test/pizzly/MH17T001P013-oncofuse-test.fusions.fasta | gzip - > transcripts_with_fusions_fasta.gz```
+
+ ```/data/cephfs/punim0010/local/development/bcbio/galaxy/../anaconda/bin/kallisto index -k 31 -i ./transcripts_with_fusions.kidx transcripts_with_fusions_fasta.gz```
+ 
+3. Run `kallisto` in normal quantification mode on the expanded index to quantify both normal transcripts and fusions.
+ 
+ ```/data/cephfs/punim0010/local/development/bcbio/galaxy/../anaconda/bin/kallisto quant -i ./transcripts_with_fusions.kidx -o ./quant_pizzly_post /data/cephfs/punim0010/data/FASTQ/180518_A00130_0058_AH5CN3DSXX/CCR170012_MH17T001P013_S39_R1_001.fastq.gz /data/cephfs/punim0010/data/FASTQ/180518_A00130_0058_AH5CN3DSXX/CCR170012_MH17T001P013_S39_R2_001.fastq.gz```
 
 
 
