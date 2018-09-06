@@ -116,7 +116,7 @@ Translating the last two steps `rule append_index` and `rule requant_kallisto` f
  
 * The script to filter fusion genes on trancript TPM values is on github `https://github.com/umccr/RNAseq-Analysis-Report/tree/master/fusions/pizzly-filtering.R`
 
-	* In the test data, pizzly originally produced 103 fusion calls. The second round of filtering resuced the number of fusions to 30.
+	* In the test data, pizzly originally produced 103 filetred fusion calls. The second round of filtering reduced the number of fusions to 30.
 
 
  
