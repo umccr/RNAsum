@@ -114,10 +114,15 @@ Translating the last two steps `rule append_index` and `rule requant_kallisto` f
  
  ```/data/cephfs/punim0010/local/development/bcbio/galaxy/../anaconda/bin/kallisto quant -i ./transcripts_with_fusions.kidx -o ./quant_pizzly_post /data/cephfs/punim0010/data/FASTQ/180518_A00130_0058_AH5CN3DSXX/CCR170012_MH17T001P013_S39_R1_001.fastq.gz /data/cephfs/punim0010/data/FASTQ/180518_A00130_0058_AH5CN3DSXX/CCR170012_MH17T001P013_S39_R2_001.fastq.gz```
  
-* The script to filter fusion genes on trancript TPM values is on github `https://github.com/umccr/RNAseq-Analysis-Report/tree/master/fusions/pizzly-filtering.R`
+* The script to filter fusion genes on fusion trancripts TPM values is on github `https://github.com/umccr/RNAseq-Analysis-Report/tree/master/fusions/pizzly-filtering.R`
 
-	* In the test data, pizzly originally produced 103 filetred fusion calls. The second round of filtering reduced the number of fusions to 30.
+	* In the test data, pizzly originally produced 103 filtered fusion calls. The second round of filtering reduced the number of fusions to 30.
 
+## confFuse
+
+confFuse assigns a confidence score to  each putative fusion transcript from deFuse output. deFuse - a software package for gene fusion discovery using RNA-Seq data - further depends on BLAT, whose license is $$$ for non-academics etc. 
+
+`https://github.com/bcbio/bcbio-nextgen/issues/527#issuecomment-54805226`
 
  
 
