@@ -36,6 +36,8 @@ apply(pizzly.fusions[,c('geneA.name','geneB.name','transcripts.list')],1, functi
 })
 
 #let's try using for loop for iterating over pizzly.fusions dataframe and get transcriptID and fusion gene pair information.
+#can also filter quant.sorted.filtered$target_id to have only fusion gene target ids (that is two tracscripts instead of one-
+#this will increase speed
 
 for (row in 1:nrow(pizzly.fusions)){
   y <- strsplit(as.character(pizzly.fusions[row, 7]), "\\;")
