@@ -1,4 +1,5 @@
-#A script to select fusions from pizzly output which have a decent TPM support in the quantification file.
+#Script to select fusions from pizzly output which have a decent TPM support in the quantification file.
+#This analysis is done to support adding fusion calling results to RNAseq report
 
 #read in the pizzly fusion calls
 pizzly.fusions <- read.table(file = '~/Documents/UMCCR/data/fusions/pizzly-validation/MH17T001P013-oncofuse-test-flat-filtered.tsv', header = TRUE)
