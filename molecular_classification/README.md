@@ -1,6 +1,6 @@
 # Presenting sample data in the context of reference datasets
 
-Set of scripts to presnet the sample expression profile in the context of genome-scale pancreas-related data from large cohorts of patients. Currenlty the sample data is combined with [TCGA](https://cancergenome.nih.gov/) data only but once we optimise the *batch-effect adjustment apporach* in the [RNA-seq data combination step](https://github.com/umccr/RNA-seq-analysis/tree/master/readcount-analysis) the plan is to add more datasets, e.g. [14 metastatic PC](https://met500.path.med.umich.edu/datasets) samples from [MET500 project](https://met500.path.med.umich.edu/) (published by [Dan R. Robinson et al. (2017)](https://www-nature-com.ezp.lib.unimelb.edu.au/articles/nature23306)) and 244 (?) normal pancreas samples from [recount2](https://www.bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/RNAseq/doc/recount-workshop.html).
+Set of scripts to present the sample expression profile in the context of genome-scale pancreas-related data from large cohorts of patients. Currenlty the sample data is combined with [TCGA](https://cancergenome.nih.gov/) data only but once we optimise the *batch-effect adjustment apporach* in the [RNA-seq data combination step](https://github.com/umccr/RNA-seq-analysis/tree/master/readcount-analysis) the plan is to add more datasets, e.g. [14 metastatic PC](https://met500.path.med.umich.edu/datasets) samples from [MET500 project](https://met500.path.med.umich.edu/) (published by [Dan R. Robinson et al. (2017)](https://www-nature-com.ezp.lib.unimelb.edu.au/articles/nature23306)) and 244 (?) normal pancreas samples from [recount2](https://www.bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/RNAseq/doc/recount-workshop.html).
 
 
 ## Table of contents
@@ -87,6 +87,14 @@ Example read count data from *[bcbio-nextgen RNA-seq pipeline](https://bcbio-nex
 
 ### To-do list
 
-* [Cumulative distribution function](https://en.wikipedia.org/wiki/Cumulative_distribution_function) (CDF) plots for selected genes to present their expression levels in the context of the overall expression distribution in investigated sample
-* Link to [umccrise](https://github.com/umccr/umccrise) report to define genes to for the  CDF plots
-* ...
+#### Comparison across tumour types
+
+* Perform clustering analysis for individual datasets to select most similar samples in each tumour type
+* Discuss patient cohorts to present
+* Add [14 metastatic PC](https://met500.path.med.umich.edu/datasets) samples from [MET500 project](https://met500.path.med.umich.edu/) (published by [Dan R. Robinson et al. (2017)](https://www-nature-com.ezp.lib.unimelb.edu.au/articles/nature23306)) and 244 (?) normal pancreas samples from [recount2](https://www.bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/RNAseq/doc/recount-workshop.html) to the *pancreas-related* dataset
+* Implement interactive plot for dendrogram
+
+#### Molecular classification
+
+* Use only set of genes associated with individual molecular classification
+* implement interactive plot for dendrogram (plotly)
