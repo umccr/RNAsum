@@ -132,6 +132,7 @@ JAFFA [ref](https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-015
 **Pointers**
 
 - JAFFA expects the UCSC version of the genome. Other versions (e.g. Ensembl) aren't compatible with JAFFA's reference files. 
+- The install script for the pipeline fails to install a couple of dependencies that have to be then manually provided. 
 
 
 
