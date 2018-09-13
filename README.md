@@ -6,6 +6,7 @@ Post-process, summarise and visualise an output from *[bcbio-nextgen RNA-seq pip
 	- Comparison across tumour types
 	- Molecular classification
 - [Expression profiles](./expression_profiles)
+- [Gene-set analyses](./gene_set_analyses)
 - [Gene fusions](./fusions)
 
 
