@@ -133,6 +133,26 @@ JAFFA [ref](https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-015
 
 - JAFFA expects the UCSC version of the genome. Other versions (e.g. Ensembl) aren't compatible with JAFFA's reference files. 
 - The install script for the pipeline fails to install a couple of dependencies that have to be then manually provided. 
+- Step 3 in the [guide](https://github.com/Oshlack/JAFFA/wiki/HowToSetUpJAFFA) mentions to create a `hg38.fa` file. I received an error when running the pipeline:
+
+```
+Running JAFFA version 1.09
+Checking for required data files...
+CAN'T FIND /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/hg38_
+genCode22.fa...
+PLEASE DOWNLOAD and/or FIX PATH... STOPPING NOW
+```
+Now trying to rename the file to `hg38_genCode22.fa` to see if the issue is fixed.
+
+After renaming the above file, now getting the following issue:
+
+```
+Running JAFFA version 1.09
+Checking for required data files...
+/data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/hg38_genCode22.fa
+CAN'T FIND /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/hg38_genCode22.tab...
+PLEASE DOWNLOAD and/or FIX PATH... STOPPING NOW
+```
 
 
 
