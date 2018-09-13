@@ -154,7 +154,9 @@ CAN'T FIND /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T0
 PLEASE DOWNLOAD and/or FIX PATH... STOPPING NOW
 ```
 
-So the issue is, I need files in the `JAFFA_REFERENCE_FILES_HG38_GENCODE22.tar.gz` (this tar contains both the above files mentioned in the errors) and also http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz (which is the `.fa` file).
+So, it turns out the issue is, I need files in the `JAFFA_REFERENCE_FILES_HG38_GENCODE22.tar.gz` (this tar contains both the above files mentioned in the errors) and also http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz (which is the `.fa` file), that too in the root directory of `JAFFA-version-1.09`.
+
+Now, the pipeline is running, until I get a new error :)
 
 
 
