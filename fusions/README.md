@@ -125,7 +125,13 @@ confFuse assigns a confidence score to  each putative fusion transcript from deF
 `https://github.com/bcbio/bcbio-nextgen/issues/527#issuecomment-54805226`
 
  
+## Jaffa
 
+JAFFA [ref](https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-015-0167-x) compares a cancer transcriptome to the reference transcriptome, rather than the genome, where the cancer transcriptome is inferred using long reads directly or by de novo assembling short reads. It is a multi-step pipeline that takes raw RNA-Seq reads and outputs a set of candidate fusion genes along with their cDNA breakpoint sequences. 
+
+**Pointers**
+
+- JAFFA expects the UCSC version of the genome. Other versions (e.g. Ensembl) aren't compatible with JAFFA's reference files. 
 
 
 
