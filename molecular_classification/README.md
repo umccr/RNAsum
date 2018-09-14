@@ -42,7 +42,7 @@ Argument | Description
 **Command line use example**:
 
 ```
-Rscript  RNAseq_ref_cohorts_report.R  --sample_name ./CCR170012_MH17T001P013  --count_file ./data/CCR170012_MH17T001P013-ready.counts  --report_dir /reports
+Rscript  RNAseq_ref_cohorts_report.R  --sample_name CCR170012_MH17T001P013  --count_file ../data/CCR170012_MH17T001P013-ready.counts  --report_dir ../reports
 ```
 <br>
 
