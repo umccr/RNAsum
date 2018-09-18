@@ -14,10 +14,6 @@ performing gene set enrichment analyses.
 
 >The expression data is ranked based on the probability of expression scores computed using *three component normal-uniform mixture model* under Bayesian hierarchical analysis (involves Markov Chain Monte Carlo (MCMC) techniques, [MCMC](https://rdrr.io/bioc/metaArray/man/poe.mcmc.html) in [metaArray](https://rdrr.io/bioc/metaArray/) package) or  *two-component normal-uniform mixture distribution* algorithm (a faster algorithm based on the expectation-maximization (EM), [EM](https://rdrr.io/bioc/metaArray/man/poe.em.html) using [fit.em](https://rdrr.io/bioc/metaArray/man/fit.em.html) function) ([1](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2246152/pdf/1471-2105-8-364.pdf)).
 
-
-https://rdrr.io/bioc/metaArray/
-
-
 * [NOISeq-sim](https://bioconductor.org/packages/devel/bioc/vignettes/NOISeq/inst/doc/NOISeq.pdf)
 
 >It simulates replicates under the assumption that gene expression counts follow multinomial distribution, in which the probability of each gene corresponds to the probability of a read mapping to that gene. The probability of each gene is estimated by the proportion of its read counts relative to the total number of mapped reads from the only sample under the corresponding experimental condition. The method generates a joint null distribution of fold-changes (M) and absolute differences (D) of the expression counts from the replicates within the same condition. This joint null distribution is then used to assess differential expression by gene‘s (M, D) pair computed between conditions (plots on page 23 in [NOISeq manual](https://bioconductor.org/packages/devel/bioc/vignettes/NOISeq/inst/doc/NOISeq.pdf)).
