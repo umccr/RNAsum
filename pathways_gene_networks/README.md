@@ -1,4 +1,4 @@
-# Pathway-level analyses and gene networks
+# Deregulated pathways and gene networks
 
 Work in progress.
 
