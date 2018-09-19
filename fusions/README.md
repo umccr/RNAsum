@@ -171,7 +171,7 @@ while running the following command:
 time /data/cephfs/punim0010/local/development/bcbio/anaconda/bin/Rscript --vanilla --args CCR170012/CCR170012.psl CCR170012/CCR170012.txt 1000 /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/hg38_genCode22.tab < /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/process_transcriptome_blat_table.R &> /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/CCR170012/log_filter
 ```
 		- The issue was in the path to R in `tools.groovy` script as R != Rscript
-		- 
+		
 - After, updating path to R, it is producing the following error: 
 
 `Error in library(IRanges) : there is no package called 'IRanges'`
@@ -184,10 +184,12 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 		
 		- Also, needed to craete symlinks to reference file (see `~/.miniconda3/envs/jaffa/share/jaffa-1.09-1`. 
 		
-		- After specifying all the paths, seems the IRanges issue is no longer produced but now get `cannot open file 'null/hg38_genCode22.tab': No such file or directory`. Not sure, why is there a `null` before the `tab` file in the command:
-		```
+		- After specifying all the paths, seems the IRanges issue is no longer produced but now get `cannot open file 'null/hg38_genCode22.tab': No such file or directory`. 
+
+		Not sure, why is there a `null` before the `tab` file in the command:
+		
 		time ~/.miniconda3/envs/jaffa/bin/R --vanilla --args CCR170012/CCR170012.psl CCR170012/CCR170012.txt 1000 null/hg38_genCode22.tab < /home/sehrishk/.miniconda3/envs/jaffa/share/jaffa-1.09-1/process_transcriptome_blat_table.R &> /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/CCR170012/log_filter
-		``` 
+		
 - As atleast using conda package's R solved the issue with IRanges, next trying to use my initial pipeline setup (not the conda one) but edited its `tools.groovy` to point to conda's R. Now, the step `filter_transcripts` is running.
 
 
