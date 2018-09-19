@@ -171,6 +171,12 @@ while running the following command:
 time /data/cephfs/punim0010/local/development/bcbio/anaconda/bin/Rscript --vanilla --args CCR170012/CCR170012.psl CCR170012/CCR170012.txt 1000 /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/hg38_genCode22.tab < /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/process_transcriptome_blat_table.R &> /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/CCR170012/log_filter
 ```
 		- The issue was in the path to R in `tools.groovy` script as R != Rscript
+		- 
+- After, updating path to R, it is producing the following error: 
+
+`Error in library(IRanges) : there is no package called 'IRanges'`
+
+and even exporting/specifying `.libPaths()` did not solve the issue.
 
 
 
