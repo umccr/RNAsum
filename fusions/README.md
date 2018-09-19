@@ -192,6 +192,10 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 		
 - As atleast using conda package's R solved the issue with IRanges, next trying to use my initial pipeline setup (not the conda one) but edited its `tools.groovy` to point to conda's R. Now, the step `filter_transcripts` is running.
 
+- The pipeline ran successfully and the results are in `/data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39`.
+
+
+
 
 
 
