@@ -188,7 +188,7 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 		```
 		time ~/.miniconda3/envs/jaffa/bin/R --vanilla --args CCR170012/CCR170012.psl CCR170012/CCR170012.txt 1000 null/hg38_genCode22.tab < /home/sehrishk/.miniconda3/envs/jaffa/share/jaffa-1.09-1/process_transcriptome_blat_table.R &> /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/CCR170012/log_filter
 		``` 
-
+- As atleast using conda package's R solved the issue with IRanges, next trying to use my initial pipeline setup (not the conda one) but edited its `tools.groovy` to point to conda's R. Now, the step `filter_transcripts` is running.
 
 
 
