@@ -160,12 +160,19 @@ So, it turns out the issue is, I need files in the `JAFFA_REFERENCE_FILES_HG38_G
 
 Now, the pipeline is running, until I get a new error :)
 
-- Getting `In file(file, "rt") : cannot open file '1000': No such file or directory
-Execution halted` while running the following command:
+- Getting 
+
+`In file(file, "rt") : cannot open file '1000': No such file or directory
+Execution halted` 
+
+while running the following command:
 
 ```
 time /data/cephfs/punim0010/local/development/bcbio/anaconda/bin/Rscript --vanilla --args CCR170012/CCR170012.psl CCR170012/CCR170012.txt 1000 /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/hg38_genCode22.tab < /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/../JAFFA-version-1.09/process_transcriptome_blat_table.R &> /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/CCR170012/log_filter
 ```
+		- The issue was in the path to R in `tools.groovy` script as R != Rscript
+
+
 
 
 
