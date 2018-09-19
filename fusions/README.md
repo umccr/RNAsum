@@ -178,6 +178,18 @@ time /data/cephfs/punim0010/local/development/bcbio/anaconda/bin/Rscript --vanil
 
 and even exporting/specifying `.libPaths()` did not solve the issue.
 
+- Now, trying the JAFFA's conda package (https://bioconda.github.io/recipes/jaffa/README.html)
+
+		- The conda install  `~/.miniconda3/envs/jaffa/share/jaffa-1.09-1` is missing `tools.groovy` that documents the path to tools used by the pipleine.
+		
+		- Also, needed to craete symlinks to reference file (see `~/.miniconda3/envs/jaffa/share/jaffa-1.09-1`. 
+		
+		- After specifying all the paths, seems the IRanges issue is no longer produced but now get `cannot open file 'null/hg38_genCode22.tab': No such file or directory`. Not sure, why is there a `null` before the `tab` file in the command:
+		```
+		time ~/.miniconda3/envs/jaffa/bin/R --vanilla --args CCR170012/CCR170012.psl CCR170012/CCR170012.txt 1000 null/hg38_genCode22.tab < /home/sehrishk/.miniconda3/envs/jaffa/share/jaffa-1.09-1/process_transcriptome_blat_table.R &> /data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39/CCR170012/log_filter
+		``` 
+
+
 
 
 
