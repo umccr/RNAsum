@@ -194,6 +194,13 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 
 - The pipeline ran successfully and the results are in `/data/cephfs/punim0010/projects/Kanwal_Jaffa/results_CCR170012_MH17T001P013_S39`.
 
+## Jaffa VS Pizzly fusion genes comparison
+
+The script used for the analysis is `https://github.com/umccr/RNAseq-Analysis-Report/blob/master/fusions/jaffa-pizzly.R`.
+
+Both of these made only 3 joint fusion calls (which is worrying - needs more discussion).
+
+
 
 
 
