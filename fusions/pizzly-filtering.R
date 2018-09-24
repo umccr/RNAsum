@@ -7,7 +7,7 @@ pizzly.fusions <- read.table(file = '~/Documents/UMCCR/data/fusions/pizzly-valid
 #read in the transcripts quantification file
 quant <- read.table(file = '~/Documents/UMCCR/data/fusions/pizzly-validation/abundance.tsv', header = TRUE)
 
-#sort and filter quantification file on tpm values. Currently filtering on quantiles. Selected 0.99 because that reduces the final fusion
+#sort and filter quantification file on tpm values. Currently filtering on quantiles. Selected 0.997 because that reduces the final fusion
 #calls to the value we are interested in (~15)
 
 quant.sorted.filtered <- filter(arrange(quant, desc(quant$tpm)), tpm >= (quantile(quant$tpm, 0.997)))
@@ -37,10 +37,10 @@ for (row in 1:nrow(pizzly.fusions)){
 }
 
 #remove nulls from result list
-result.list <- result.list[lapply(result.list, length)>0]
+#result.list <- result.list[lapply(result.list, length)>0]
 
 #remove duplicated values from result (as multiple transcripts might support fusion between same gene)
-deduped.result <- unique(result)
+#deduped.result <- unique(result)
 
 #apply function on every row in a df, but selected columns. Split the transcript list on ';' and
 #check for occurence of every split element in the quantification file. If it exists, extract the correponding fusion gene pair
