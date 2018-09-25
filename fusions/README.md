@@ -131,7 +131,7 @@ JAFFA [ref](https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-015
 
 **Pipeline summary**
 
-1. RNAseq reads are first filtered to remove intronic and intergenic reads.
+1. RNAseq reads are first filtered to remove intronic and intergenic reads (using bowtie2).
 2. Assembly is recommended if the read length is less than 50bp.
 3. The resulting tumour sequences are then aligned to the reference transcriptome and those that align to multiple genes are selected. These contigs make up a set of initial candidate fusions.
 4. Next, the pipeline counts the number of reads or read pairs that span the breakpoint. 
@@ -211,7 +211,7 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 
 * Both of these made only 3 joint fusion calls.
 
-* Jaffa uses a `known_fusions.txt` file when calling and filtering fusions. 
+* Jaffa uses a `known_fusions.txt` file when calling and filtering fusions -> to check if a fusion called is a recurrent fusion or not. 
 
 
 
