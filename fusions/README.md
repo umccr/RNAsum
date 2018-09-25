@@ -213,6 +213,16 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 
 * Jaffa uses a `known_fusions.txt` file when calling and filtering fusions -> to check if a fusion called is a recurrent fusion or not. 
 
+## Fusion visualization
+
+**Clinker**
+
+Following the installation instructions at: `https://github.com/Oshlack/Clinker/wiki/1.-Installation`.
+
+The conda environement for clinker can be activated using `conda activate clinker`.
+The location to github repository for clinker is `/data/cephfs/punim0010/projects/Kanwal_Clinker/Clinker`.
+
+
 
 
 
