@@ -129,6 +129,17 @@ confFuse assigns a confidence score to  each putative fusion transcript from deF
 
 JAFFA [ref](https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-015-0167-x) compares a cancer transcriptome to the reference transcriptome, rather than the genome, where the cancer transcriptome is inferred using long reads directly or by de novo assembling short reads. It is a multi-step pipeline that takes raw RNA-Seq reads and outputs a set of candidate fusion genes along with their cDNA breakpoint sequences. 
 
+**Pipeline summary**
+
+1. RNAseq reads are first filtered to remove intronic and intergenic reads.
+2. Assembly is recommended if the read length is less than 50bp.
+3. The resulting tumour sequences are then aligned to the reference transcriptome and those that align to multiple genes are selected. These contigs make up a set of initial candidate fusions.
+4. Next, the pipeline counts the number of reads or read pairs that span the breakpoint. 
+5. Candidated are then aligned to the human genome to determine genomic coordinates of the breakpoint.
+6. Further selection and candidate classifcation is carried out using parameters such as genomic gap size, supporting reads and alignment of breakpoints to exon-exon boundaries.
+7. A final list of candidate fusions are reported along with their sequence.
+
+
 I am installing it in `/data/cephfs/punim0010/projects/Kanwal_Jaffa/`.
 
 **Pointers**
@@ -196,9 +207,11 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 
 ## Jaffa VS Pizzly fusion genes comparison
 
-The script used for the analysis is `https://github.com/umccr/RNAseq-Analysis-Report/blob/master/fusions/jaffa-pizzly.R`.
+* The script used for the analysis is `https://github.com/umccr/RNAseq-Analysis-Report/blob/master/fusions/jaffa-pizzly.R`.
 
-Both of these made only 3 joint fusion calls (which is worrying - needs more discussion).
+* Both of these made only 3 joint fusion calls.
+
+* Jaffa uses a `known_fusions.txt` file when calling and filtering fusions. 
 
 
 
