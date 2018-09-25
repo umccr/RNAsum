@@ -140,7 +140,7 @@ JAFFA [ref](https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-015
 7. A final list of candidate fusions are reported along with their sequence.
 
 
-I am installing it in `/data/cephfs/punim0010/projects/Kanwal_Jaffa/`.
+Jaffa installation directory is `/data/cephfs/punim0010/projects/Kanwal_Jaffa/`.
 
 **Pointers**
 
