@@ -36,6 +36,9 @@ for (row in 1:nrow(pizzly.fusions)){
   }
 }
 
+#write final output to a file
+write.csv(result, file = "pizzly-filtered-MH17T001P013.csv", row.names = FALSE)
+
 #remove nulls from result list
 #result.list <- result.list[lapply(result.list, length)>0]
 
