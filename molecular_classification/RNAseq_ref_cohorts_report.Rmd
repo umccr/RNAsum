@@ -428,7 +428,7 @@ plot(bga.res,  arraycol=targets.colour[[1]])
 
 ### Gastrointestinal (core)  {.tabset}
 
-The sample expression profile projected against patients representing *core gastrointestinal* tumours, including (1) *esophageal carcinoma*, (2) *stomach adenocarcinoma*, (3) *colon adenocarcinoma* and (4) *rectum adenocarcinoma*, (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)), as well as (5) *pancreatic ductal adenocarcinoma* (*PDAC*).
+The sample expression profile projected against patients representing *core gastrointestinal* tumours, including *esophageal carcinoma* (n=8), *stomach adenocarcinoma* (n=9), *colon adenocarcinoma* (n=15) and *rectum adenocarcinoma* (n=12), (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)), as well as *pancreatic ductal adenocarcinoma* (*PDAC*, n=150).
 
 #### PCA
 
@@ -488,7 +488,7 @@ plot(bga.res,  arraycol=targets.colour[[1]])
 
 ### Gastrointestinal (developmental)  {.tabset}
 
-The sample expression profile projected against patients representing *developmental gastrointestinal* tumours, including (1) *liver hepatocellular carcinoma*, (2) *cholangiocarcinoma* and (3) *pancreatic ductal adenocarcinoma* (*PDAC*) (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)).
+The sample expression profile projected against patients representing *developmental gastrointestinal* tumours, including *liver hepatocellular carcinoma* (n=14), *cholangiocarcinoma* (n=8) and *pancreatic ductal adenocarcinoma* (*PDAC*, n=150) (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)).
 
 #### PCA
 
@@ -690,7 +690,45 @@ overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="
 
 #### Heatmap
 
+Unsupervised hierarchical clustering of the signature genes expression profiles is presented as heatmap with genes and samples represented by columns and rows, respectively. The samples charactersitcs are also indicated on the right hand-side.
+
+```{r heatmap_bailey, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+suppressMessages(library(heatmaply))
+
+##### Make sure all signature genes have variance > 0 across samples
+rsd<-apply(data,1,sd)
+sel<-order(rsd, decreasing=TRUE)[1:nrow(data)]
+data <- data[sel,]
+
+##### Prepare samples annotation info
+#Annotation <- as.matrix(annData[,c(2:ncol(annData))])
+#names(Annotation) <- names(annData)[c(2:ncol(annData))]
+
+##### Transpose matrix
+data.t <- data.frame(t(data))
+
+data.annot <- as.data.frame(cbind( data.t, target$Target ))
+colnames(data.annot) <- c(rownames(data), "Group")
+
+##### Cluster genes
+hc <- hclust(as.dist(1-cor(data.t, method="pearson")), method="ward.D")
+
+##### Cluster samples
+hr <- hclust(as.dist(dist(data.t, method="euclidean")), method="ward.D")
+
+##### Generate heatmap
+heatmaply(data.annot, k_col=1, k_row=length(unique(target$Target))-1, labCol=rownames(data), labRow=colnames(data), Rowv=as.dendrogram(hr), Colv=as.dendrogram(hc), colors = colorRampPalette(c("darkblue","darkslateblue","white","firebrick3","firebrick4"))(100), scale="col", trace="none", hide_colorbar = FALSE, fontsize_row = 8, fontsize_col = 8, label_names=c("Sample","Gene","Expression"), key.title = "Expression", xlab = "Gene", ylab = "Sample") %>%
+layout(autosize = TRUE, width = 800, margin = list(l=180, r=50, b=180, t=50, pad=4), showlegend = FALSE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:heatmaply", unload=FALSE)
+detach("package:plotly", unload=FALSE)
+```
+
 #### Signature genes
+
+Table with detailed information about the singature genes including thier expression levels in investigated sample and mean expression across samples representing various molecular subtypes, as well as  annotation.
 
 ### Collisson {.tabset}
 
@@ -770,6 +808,42 @@ overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="
 
 #### Heatmap
 
+Unsupervised hierarchical clustering of the signature genes expression profiles is presented as heatmap with genes and samples represented by columns and rows, respectively. The samples charactersitcs are also indicated on the right hand-side.
+
+```{r heatmap_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+suppressMessages(library(heatmaply))
+
+##### Make sure all signature genes have variance > 0 across samples
+rsd<-apply(data,1,sd)
+sel<-order(rsd, decreasing=TRUE)[1:nrow(data)]
+data <- data[sel,]
+
+##### Prepare samples annotation info
+#Annotation <- as.matrix(annData[,c(2:ncol(annData))])
+#names(Annotation) <- names(annData)[c(2:ncol(annData))]
+
+##### Transpose matrix
+data.t <- data.frame(t(data))
+
+data.annot <- as.data.frame(cbind( data.t, target$Target ))
+colnames(data.annot) <- c(rownames(data), "Group")
+
+##### Cluster genes
+hc <- hclust(as.dist(1-cor(data.t, method="pearson")), method="ward.D")
+
+##### Cluster samples
+hr <- hclust(as.dist(dist(data.t, method="euclidean")), method="ward.D")
+
+##### Generate heatmap
+heatmaply(data.annot, k_col=1, k_row=length(unique(target$Target))-1, labCol=rownames(data), labRow=colnames(data), Rowv=as.dendrogram(hr), Colv=as.dendrogram(hc), colors = colorRampPalette(c("darkblue","darkslateblue","white","firebrick3","firebrick4"))(100), scale="col", trace="none", hide_colorbar = FALSE, fontsize_row = 8, fontsize_col = 8, label_names=c("Sample","Gene","Expression"), key.title = "Expression", xlab = "Gene", ylab = "Sample") %>%
+layout(autosize = TRUE, width = 800, margin = list(l=180, r=50, b=180, t=50, pad=4), showlegend = FALSE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:heatmaply", unload=FALSE)
+detach("package:plotly", unload=FALSE)
+```
+
 #### Signature genes
 
 ### Moffitt {.tabset}
@@ -848,6 +922,42 @@ overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="
 ```
 
 #### Heatmap
+
+Unsupervised hierarchical clustering of the signature genes expression profiles is presented as heatmap with genes and samples represented by columns and rows, respectively. The samples charactersitcs are also indicated on the right hand-side.
+
+```{r heatmap_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+suppressMessages(library(heatmaply))
+
+##### Make sure all signature genes have variance > 0 across samples
+rsd<-apply(data,1,sd)
+sel<-order(rsd, decreasing=TRUE)[1:nrow(data)]
+data <- data[sel,]
+
+##### Prepare samples annotation info
+#Annotation <- as.matrix(annData[,c(2:ncol(annData))])
+#names(Annotation) <- names(annData)[c(2:ncol(annData))]
+
+##### Transpose matrix
+data.t <- data.frame(t(data))
+
+data.annot <- as.data.frame(cbind( data.t, target$Target ))
+colnames(data.annot) <- c(rownames(data), "Group")
+
+##### Cluster genes
+hc <- hclust(as.dist(1-cor(data.t, method="pearson")), method="ward.D")
+
+##### Cluster samples
+hr <- hclust(as.dist(dist(data.t, method="euclidean")), method="ward.D")
+
+##### Generate heatmap
+heatmaply(data.annot, k_col=1, k_row=length(unique(target$Target))-1, labCol=rownames(data), labRow=colnames(data), Rowv=as.dendrogram(hr), Colv=as.dendrogram(hc), colors = colorRampPalette(c("darkblue","darkslateblue","white","firebrick3","firebrick4"))(100), scale="col", trace="none", hide_colorbar = FALSE, fontsize_row = 8, fontsize_col = 8, label_names=c("Sample","Gene","Expression"), key.title = "Expression", xlab = "Gene", ylab = "Sample") %>%
+layout(autosize = TRUE, width = 800, margin = list(l=180, r=50, b=180, t=50, pad=4), showlegend = FALSE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:heatmaply", unload=FALSE)
+detach("package:plotly", unload=FALSE)
+```
 
 #### Signature genes
 
