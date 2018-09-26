@@ -14,7 +14,7 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript  RNAseq_ref_cohorts_report.R  --sample_name ./CCR170012_MH17T001P013  --count_file ./data/CCR170012_MH17T001P013-ready.counts  --report_dir /reports
+#	  Command line use example: Rscript  RNAseq_ref_cohorts_report.R  --sample_name CCR170012_MH17T001P013  --count_file ../data/CCR170012_MH17T001P013-ready.counts  --report_dir ../reports
 #
 #   sample_name:   Desired sample name to be presented in the report
 #   count_file:    Location and name of the read count file from bcbio RNA-seq pipeline
@@ -53,11 +53,11 @@ opt = parse_args(OptionParser(option_list=option_list))
 if ( is.na(opt$sample_name) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
   
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRNAseq_ref_cohorts_report.R --sample_name CCR170012_MH17T001P013 --count_file ./data/CCR170012_MH17T001P013-ready.counts --report_dir /reports\n\n")
+  cat("\ncommand example:\n\n Rscript  RNAseq_ref_cohorts_report.R  --sample_name CCR170012_MH17T001P013  --count_file ../data/CCR170012_MH17T001P013-ready.counts  --report_dir ../reports\n\n")
   
   q()
 }
 
 
-##### Pass the user-defined argumentas to the RNAseq_report R markdown script and generate the report
+##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
 rmarkdown::render(input = "RNAseq_ref_cohorts_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_ref_cohorts_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, count_file = opt$count_file))
