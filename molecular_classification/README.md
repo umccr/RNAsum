@@ -10,8 +10,6 @@ Set of scripts to present the sample expression profile in the context of genome
 * [Post-process, summarise and visualise sample data](#post-process-summarise-and-visualise-sample-data)
   * [Report content](#report-content)
   * [Example report](#example-report)
-  * [To-do list](#to-do-list)
-
 
 <!-- vim-markdown-toc -->
 <br>
@@ -19,10 +17,10 @@ Set of scripts to present the sample expression profile in the context of genome
 
 ## Scripts summary
 
-Script | Description | Packages
------------- | ------------ | ------------
-*[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)* | Collects user-defined parameters for the corresponding *[RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd)* markdown script |  *[optparse](https://cran.r-project.org/web/packages/optparse/optparse.pdf)* <br> *[knitr](https://cran.r-project.org/web/packages/knitr/knitr.pdf)*
-*[RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd)* | Launched by *[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)*. Post-processes, summarises and visualises an output from *[bcbio-nextgen RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* to generate patient summary report <br> | *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)* <br> *[preprocessCore](https://www.bioconductor.org/packages/release/bioc/html/preprocessCore.html)* <br> *[plotly](https://plot.ly/r/)* <br> *[ClassDiscovery](https://cran.r-project.org/web/packages/ClassDiscovery/index.html)* <br> *[plotly](https://plot.ly/r/)* <br> *[made4](https://bioconductor.org/packages/release/bioc/html/made4.html)* <br> *[ade4](https://cran.r-project.org/web/packages/ade4/index.html)*
+Script | Description
+------------ | ------------
+*[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)* | Collects user-defined parameters for the corresponding *[RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd)* markdown script
+*[RNAseq_ref_cohorts_report.Rmd](RNAseq_ref_cohorts_report.Rmd)* | Launched by *[RNAseq_ref_cohorts_report.R](RNAseq_ref_cohorts_report.R)*. Post-processes, summarises and visualises an output from *[bcbio-nextgen RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* to generate patient summary report
 <br />
 
 
@@ -39,6 +37,8 @@ Argument | Description
 --report_dir | Desired location for the report
 <br />
 
+**Packages**: *[optparse](https://cran.r-project.org/web/packages/optparse/optparse.pdf)*, *[knitr](https://cran.r-project.org/web/packages/knitr/knitr.pdf)*, *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)*, *[preprocessCore](https://www.bioconductor.org/packages/release/bioc/html/preprocessCore.html)*, *[plotly](https://plot.ly/r/)*, *[ClassDiscovery](https://cran.r-project.org/web/packages/ClassDiscovery/index.html)*, *[plotly](https://plot.ly/r/)*, *[made4](https://bioconductor.org/packages/release/bioc/html/made4.html)*, *[ade4](https://cran.r-project.org/web/packages/ade4/index.html)*
+ 
 **Command line use example**:
 
 ```
@@ -68,8 +68,6 @@ Dendrogram | hierarchical clustering with reference samples coloured according t
 BGA | supervised classification method (*[Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)*)
 <br />
 
-
-
 2. **Molecular classification**
 
 PCA, hierarchical clustering and BGA to project sample in the context of [TCGA](https://cancergenome.nih.gov/) PAAD samples classified based mRNA subtypes reported by *[Bailey et al. (2016)](https://www.ncbi.nlm.nih.gov/pubmed/26909576)*, *[Moffitt et al. (2015)](https://www.ncbi.nlm.nih.gov/pubmed/26343385)* and *[Collisson et al. (2011)](https://www.ncbi.nlm.nih.gov/pubmed/21460848)*. The molecular classification aids patient assignment into less heterogeneous and more appropriate group regarding the metastatic risk and the therapeutic response, with the consequences of better predicting evolution and better orienting the treatment. A recent report by *[Birnbaum DJ1 et al. (2018)](https://www.ncbi.nlm.nih.gov/pubmed/29499330)* reviews the association between pancreatic ductal adenocarcinoma (PDAC) molecular subtypes and drugs sensitivity. Individual classification results are presented in separate tabs with the corresponding tumour subtypes description and containing sub-sections as in the [comparison across tumour types](#report-content) section.
@@ -84,17 +82,3 @@ Example read count data from *[bcbio-nextgen RNA-seq pipeline](https://bcbio-nex
 ```
 
 * [HTML report](../reports/CCR170012_MH17T001P013.RNAseq_ref_cohorts_report.html) - *UMCCR Transcriptome Patient Summary* report for [primary tissue from patient P013](https://trello.com/c/G8poK9Dr/1-mh17t001p013) (with [PCGR](https://github.com/sigven/pcgr) report [here](https://trello-attachments.s3.amazonaws.com/5922a4dd5c1330894b346463/5922a54934e9ac6f8ac3cefa/98961884a7ee9e0f03cdb6c39d27faf6/MH17T001P013_Tumor.pcgr.html))
-
-### To-do list
-
-#### Comparison across tumour types
-
-* Perform clustering analysis for individual datasets to select most similar samples in each tumour type
-* Discuss patient cohorts to present
-* Add [14 metastatic PC](https://met500.path.med.umich.edu/datasets) samples from [MET500 project](https://met500.path.med.umich.edu/) (published by [Dan R. Robinson et al. (2017)](https://www-nature-com.ezp.lib.unimelb.edu.au/articles/nature23306)) and 244 (?) normal pancreas samples from [recount2](https://www.bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/RNAseq/doc/recount-workshop.html) to the *pancreas-related* dataset
-* Implement interactive plot for dendrogram
-
-#### Molecular classification
-
-* Use only set of genes associated with individual molecular classification
-* implement interactive plot for dendrogram (plotly)

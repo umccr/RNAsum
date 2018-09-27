@@ -5,8 +5,8 @@ date: '`r Sys.Date()`'
 output:
   html_document:
     theme: readable
-    toc: false
-    toc_float: false
+    toc: true
+    toc_float: true
     code_folding: hide
   rmdformats::material:
     highlight: kate
@@ -21,9 +21,12 @@ params:
   datasets_bailey: '../data/Datasets_list_bailey.txt'
   datasets_collisson: '../data/Datasets_list_collisson.txt'
   datasets_moffitt: '../data/Datasets_list_moffitt.txt'
+  genes_bailey: '../data/Bailey_genes_ensembl.txt'
+  genes_collisson: '../data/Collisson_genes_ensembl.txt'
+  genes_moffitt: '../data/Moffitt_genes_ensembl.txt'
 ---
 
-```{r define_functions}
+```{r define_functions, comment=NA, message=FALSE, warning=FALSE}
 ##### Define functions
 ##### Create 'not in' operator
 "%!in%" <- function(x,table) match(x,table, nomatch = 0) == 0
@@ -37,7 +40,7 @@ prepare2write <- function (x) {
 }
 
 ##### Combine sample expression profile with reference datasets. This function outputs a vector with first element containing the merged data and second element containing merged targets info
-combineDataets <- function(sample_name, sample_counts, ref_dataset) {
+combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
   
   ##### Read file with reference datasets information
   DatasetInput=read.table(ref_dataset, sep="\t", as.is=TRUE, header=TRUE, row.names=1)
@@ -253,7 +256,7 @@ overview <- function (dataset, labels = NULL, title = "", classvec = NULL,
 }
 ```
 
-```{r load_libraries}
+```{r load_libraries, warning=FALSE}
 ##### Load libraries
 suppressMessages(library(edgeR))
 suppressMessages(library(preprocessCore))
@@ -273,16 +276,25 @@ ref_datasets <- c("mix", "core_gastrointestinal", "developmental_gastrointestina
 ref_datasets.list <- vector("list", length(ref_datasets))
 names(ref_datasets.list) <- ref_datasets
 
-##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_datasets.list[["mix"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_mix)
-ref_datasets.list[["core_gastrointestinal"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_core_gastrointestinal)
-ref_datasets.list[["developmental_gastrointestinal"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_developmental_gastrointestinal)
-ref_datasets.list[["pancreas"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_pancreas)
-ref_datasets.list[["bailey"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_bailey)
-ref_datasets.list[["collisson"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_collisson)
-ref_datasets.list[["moffitt"]] <- combineDataets(params$sample_name, params$count_file, params$datasets_moffitt)
-```
+##### Create a list with subtype-associated genes
+ref_genes <- c("bailey", "collisson", "moffitt")
+ref_genes.list <- vector("list", length(ref_genes))
+names(ref_genes.list) <- ref_genes
 
+##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
+ref_datasets.list[["mix"]] <- combineDatasets(params$sample_name, params$count_file, params$datasets_mix)
+ref_datasets.list[["core_gastrointestinal"]] <- combineDatasets(params$sample_name, params$count_file, params$datasets_core_gastrointestinal)
+ref_datasets.list[["developmental_gastrointestinal"]] <- combineDatasets(params$sample_name, params$count_file, params$datasets_developmental_gastrointestinal)
+ref_datasets.list[["pancreas"]] <- combineDatasets(params$sample_name, params$count_file, params$datasets_pancreas)
+ref_datasets.list[["bailey"]] <- combineDatasets(params$sample_name, params$count_file, params$datasets_bailey)
+ref_datasets.list[["collisson"]] <- combineDatasets(params$sample_name, params$count_file, params$datasets_collisson)
+ref_datasets.list[["moffitt"]] <- combineDatasets(params$sample_name, params$count_file, params$datasets_moffitt)
+
+##### Read in subtype-associated genes
+ref_genes.list[["collisson"]] <- read.table(params$genes_collisson, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
+ref_genes.list[["bailey"]] <- read.table(params$genes_bailey, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
+ref_genes.list[["moffitt"]] <- read.table(params$genes_moffitt, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
+```
 
 ```{r data_transformation, comment = NA, message=FALSE, warning=FALSE}
 ##### Data transformation and filtering
@@ -345,13 +357,17 @@ for ( ref in names(ref_datasets.list) ) {
 }
 ```
 
-## Comparison across tumour types  {.tabset}
+## Comparison across tumour types
 
-Principal component analysis (PCA), hierarchical clustering and between-group analysis (BGA) were performed to present the data from investigated sample in the context of patients with various tumour types derived from [TCGA](https://cancergenome.nih.gov/) cohort. The sample expression profile is projected against the four patient cohorts representing (1) unrelated tumour types (*distant tumours*), (2) *core gastrointestinal* tumours, (3) *developmental gastrointestinal* tumours and (4) *pancreas-related* lesions/tissues.
+Principal component analysis (PCA), hierarchical clustering and between-group analysis (BGA) were performed to present the data from investigated sample in the context of patients with various tumour types derived from [TCGA](https://cancergenome.nih.gov/) cohorts as well as samples from healthy pancreas derived from [GTEx](https://jhubiostatistics.shinyapps.io/recount/) dataset [SRP012682](https://trace.ncbi.nlm.nih.gov/Traces/sra/?study=SRP012682).
 
-### Distant
+### Distant  {.tabset}
 
-PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The expression profile of investigated sample is projected against unrelated tumour types, including (1) *acute myeloid leukaemia*, (2) *brain lower grade glioma*, (3) *breast invasive carcinoma*, (4) *glioblastoma multiforme*, (5) *lung Squamous cell carcinoma* and (6) *pancreatic ductal adenocarcinoma* (*PDAC*).
+The sample expression profile projected against patients representing unrelated tumour types, including *acute myeloid leukaemia* (n=10), *brain lower grade glioma* (n=15), *breast invasive carcinoma* (n=15), *glioblastoma multiforme* (n=13), *lung Squamous cell carcinoma* (n=10) and *pancreatic ductal adenocarcinoma* (*PDAC*, n=150).
+
+#### PCA
+
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_various_tumours, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -382,6 +398,8 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
+#### Clustering
+
 Hierarchical clustering with reference samples coloured according to corresponding tumour types.
 
 ```{r hc_plots_various_tumours, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
@@ -391,6 +409,7 @@ data <- ref_datasets.list[[ref]][[3]]
 overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
 ```
 
+#### BGA
 
 BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
 
@@ -407,9 +426,13 @@ bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
 plot(bga.res,  arraycol=targets.colour[[1]])
 ```
 
-### Gastrointestinal (core)
+### Gastrointestinal (core)  {.tabset}
 
-PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The expression profile of investigated sample is projected against *core gastrointestinal* tumours, including (1) *esophageal carcinoma*, (2) *stomach adenocarcinoma*, (3) *colon adenocarcinoma* and (4) *rectum adenocarcinoma*, (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)), as well as (5) *pancreatic ductal adenocarcinoma* (*PDAC*).
+The sample expression profile projected against patients representing *core gastrointestinal* tumours, including *esophageal carcinoma* (n=8), *stomach adenocarcinoma* (n=9), *colon adenocarcinoma* (n=15) and *rectum adenocarcinoma* (n=12), (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)), as well as *pancreatic ductal adenocarcinoma* (*PDAC*, n=150).
+
+#### PCA
+
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_core_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -435,6 +458,8 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
+#### Clustering
+
 Hierarchical clustering with reference samples coloured according to core gastrointestinal tumours.
 
 ```{r hc_plots_core_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
@@ -444,6 +469,7 @@ data <- ref_datasets.list[[ref]][[3]]
 overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
 ```
 
+#### BGA
 
 BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
 
@@ -460,9 +486,13 @@ bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
 plot(bga.res,  arraycol=targets.colour[[1]])
 ```
 
-### Gastrointestinal (developmental)
+### Gastrointestinal (developmental)  {.tabset}
 
-PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The expression profile of investigated sample is projected against *developmental gastrointestinal* tumours, including (1) *liver hepatocellular carcinoma*, (2) *cholangiocarcinoma* and (3) *pancreatic ductal adenocarcinoma* (*PDAC*) (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)).
+The sample expression profile projected against patients representing *developmental gastrointestinal* tumours, including *liver hepatocellular carcinoma* (n=14), *cholangiocarcinoma* (n=8) and *pancreatic ductal adenocarcinoma* (*PDAC*, n=150) (as defined in the [TCGA PanCan paper](https://www.ncbi.nlm.nih.gov/pubmed/29625048)).
+
+#### PCA
+
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_dev_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -488,6 +518,8 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
+#### Clustering
+
 Hierarchical clustering with reference samples coloured according to developmental gastrointestinal tumours.
 
 ```{r hc_plots_dev_gastrointestinal, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
@@ -497,6 +529,7 @@ data <- ref_datasets.list[[ref]][[3]]
 overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
 ```
 
+#### BGA
 
 BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
 
@@ -513,9 +546,13 @@ bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
 plot(bga.res,  arraycol=targets.colour[[1]])
 ```
 
-### Pancreas-related
+### Pancreas-related  {.tabset}
 
-PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts. The expression profile of investigated sample is projected against *pancreas-related lesions and tissues*, including (1) *intraductal papillary mucinous neoplasm* (*IPMN)*, (2) *pancreatic neuroendocrine tumour* (*PanNET)* and (3) *pancreatic ductal adenocarcinoma* (*PDAC*), (4) *metastatic PDAC*, as well as (5) *normal pancreas tissue*.
+The sample expression profile projected against patients representing *pancreas-related lesions and tissues*, including *intraductal papillary mucinous neoplasm* (*IPMN*, n=2), *pancreatic neuroendocrine tumour* (*PanNET*, n=8), *pancreatic ductal adenocarcinoma* (*PDAC*, n=150), *metastatic PDAC* (n=1), as well as *heatly pancreas tissue* (n=15) and *normal pancreas tissue adjacent to tumour* (n=4).
+
+#### PCA
+
+PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_pancreas, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
 suppressMessages(library(plotly))
@@ -541,6 +578,8 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
+#### Clustering
+
 Hierarchical clustering with reference samples coloured according to pancreatic related lesions.
 
 ```{r hc_plots_pancreas, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
@@ -550,6 +589,7 @@ data <- ref_datasets.list[[ref]][[3]]
 overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
 ```
 
+#### BGA
 
 BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
 
@@ -566,11 +606,11 @@ bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
 plot(bga.res,  arraycol=targets.colour[[1]])
 ```
 
-## Molecular classification  {.tabset}
+## Molecular classification
 
 Principal component analysis (PCA), hierarchical clustering and between-group analysis (BGA) were performed to project investigated sample in the context of TCGA PAAD samples classified based mRNA subtypes reported by *[Bailey et al. (2016)](https://www.ncbi.nlm.nih.gov/pubmed/26909576), [Moffitt et al. (2015)](https://www.ncbi.nlm.nih.gov/pubmed/26343385) and [Collisson et al. (2011)](https://www.ncbi.nlm.nih.gov/pubmed/21460848)*. The molecular classification aids patient assignment into less heterogeneous and more appropriate group regarding the metastatic risk and the therapeutic response, with the consequences of better predicting evolution and better orienting the treatment. A recent report by *[Birnbaum DJ1 et al. (2018)](https://www.ncbi.nlm.nih.gov/pubmed/29499330)* reviews the association between PDAC molecular subtypes and drugs sensitivity. 
 
-### Bailey
+### Bailey {.tabset}
 
 ***
 This classification includes [4 tumour subtypes](https://www.ncbi.nlm.nih.gov/pubmed/26909576) associated with different molecular pathways:
@@ -582,6 +622,7 @@ This classification includes [4 tumour subtypes](https://www.ncbi.nlm.nih.gov/pu
 
 ***
 
+#### PCA
 
 PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
@@ -590,11 +631,16 @@ suppressMessages(library(plotly))
 ##### Generate PCA plots for TCGA PAAD samples stratified according to Bailey classification
 ref <- "bailey"
 
+##### PCA using subtype-specific genes only
 target <- ref_datasets.list[[ref]][[2]]
-pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
-importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+data <- ref_datasets.list[[ref]][[3]]
+data <- data[ rownames(data) %in% unlist(ref_genes.list[[ref]]), ]
+ref_datasets.list[[ref]][[5]] <- pca(data, target)
+
+pca.df <- ref_datasets.list[[ref]][[5]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[5]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[5]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[5]]$datasets
 
 ##### Generate PCA 2-D plot (colour targets)
 p1 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
@@ -616,15 +662,7 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
-Hierarchical clustering with reference samples coloured according to Bailey molecular subtypes.
-
-```{r hc_plots_bailey, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
-##### Generate dendrogram with samples coloured according to Bailey classification
-data <- ref_datasets.list[[ref]][[3]]
-
-overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
-```
-
+#### BGA
 
 BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
 
@@ -641,7 +679,58 @@ bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
 plot(bga.res,  arraycol=targets.colour[[1]])
 ```
 
-### Collisson
+#### Clustering
+
+Hierarchical clustering with reference samples coloured according to Bailey molecular subtypes.
+
+```{r hc_plots_bailey, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to Bailey classification
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+#### Heatmap
+
+Unsupervised hierarchical clustering of the signature genes expression profiles is presented as heatmap with genes and samples represented by columns and rows, respectively. The samples charactersitcs are also indicated on the right hand-side.
+
+```{r heatmap_bailey, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+suppressMessages(library(heatmaply))
+
+##### Make sure all signature genes have variance > 0 across samples
+rsd<-apply(data,1,sd)
+sel<-order(rsd, decreasing=TRUE)[1:nrow(data)]
+data <- data[sel,]
+
+##### Prepare samples annotation info
+#Annotation <- as.matrix(annData[,c(2:ncol(annData))])
+#names(Annotation) <- names(annData)[c(2:ncol(annData))]
+
+##### Transpose matrix
+data.t <- data.frame(t(data))
+
+data.annot <- as.data.frame(cbind( data.t, target$Target ))
+colnames(data.annot) <- c(rownames(data), "Group")
+
+##### Cluster genes
+hc <- hclust(as.dist(1-cor(data.t, method="pearson")), method="ward.D")
+
+##### Cluster samples
+hr <- hclust(as.dist(dist(data.t, method="euclidean")), method="ward.D")
+
+##### Generate heatmap
+heatmaply(data.annot, k_col=1, k_row=length(unique(target$Target))-1, labCol=rownames(data), labRow=colnames(data), Rowv=as.dendrogram(hr), Colv=as.dendrogram(hc), colors = colorRampPalette(c("darkblue","darkslateblue","white","firebrick3","firebrick4"))(100), scale="col", trace="none", hide_colorbar = FALSE, fontsize_row = 8, fontsize_col = 8, label_names=c("Sample","Gene","Expression"), key.title = "Expression", xlab = "Gene", ylab = "Sample") %>%
+layout(autosize = TRUE, width = 800, margin = list(l=180, r=50, b=180, t=50, pad=4), showlegend = FALSE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:heatmaply", unload=FALSE)
+detach("package:plotly", unload=FALSE)
+```
+
+#### Signature genes
+
+Table with detailed information about the singature genes including thier expression levels in investigated sample and mean expression across samples representing various molecular subtypes, as well as  annotation.
+
+### Collisson {.tabset}
 
 *** 
 This classification includes [3 tumour subtypes](https://www.ncbi.nlm.nih.gov/pubmed/21460848) with different clinical outcomes and therapeutic responses:
@@ -652,6 +741,8 @@ This classification includes [3 tumour subtypes](https://www.ncbi.nlm.nih.gov/pu
 
 *** 
 
+#### PCA
+
 PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
@@ -659,11 +750,16 @@ suppressMessages(library(plotly))
 ##### Generate PCA plots for TCGA PAAD samples stratified according to Collisson classification
 ref <- "collisson"
 
+##### PCA using subtype-specific genes only
 target <- ref_datasets.list[[ref]][[2]]
-pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
-importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+data <- ref_datasets.list[[ref]][[3]]
+data <- data[ rownames(data) %in% unlist(ref_genes.list[[ref]]), ]
+ref_datasets.list[[ref]][[5]] <- pca(data, target)
+
+pca.df <- ref_datasets.list[[ref]][[5]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[5]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[5]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[5]]$datasets
 
 ##### Generate PCA 2-D plot (colour targets)
 p1 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
@@ -684,14 +780,7 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
-Hierarchical clustering with reference samples coloured according to Collisson molecular subtypes.
-
-```{r hc_plots_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
-##### Generate dendrogram with samples coloured according to Collisson classification
-data <- ref_datasets.list[[ref]][[3]]
-
-overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
-```
+#### BGA
 
 BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
 
@@ -708,7 +797,56 @@ bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
 plot(bga.res,  arraycol=targets.colour[[1]])
 ```
 
-### Moffitt
+#### Clustering
+
+Hierarchical clustering with reference samples coloured according to Collisson molecular subtypes.
+
+```{r hc_plots_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to Collisson classification
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+#### Heatmap
+
+Unsupervised hierarchical clustering of the signature genes expression profiles is presented as heatmap with genes and samples represented by columns and rows, respectively. The samples charactersitcs are also indicated on the right hand-side.
+
+```{r heatmap_collisson, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+suppressMessages(library(heatmaply))
+
+##### Make sure all signature genes have variance > 0 across samples
+rsd<-apply(data,1,sd)
+sel<-order(rsd, decreasing=TRUE)[1:nrow(data)]
+data <- data[sel,]
+
+##### Prepare samples annotation info
+#Annotation <- as.matrix(annData[,c(2:ncol(annData))])
+#names(Annotation) <- names(annData)[c(2:ncol(annData))]
+
+##### Transpose matrix
+data.t <- data.frame(t(data))
+
+data.annot <- as.data.frame(cbind( data.t, target$Target ))
+colnames(data.annot) <- c(rownames(data), "Group")
+
+##### Cluster genes
+hc <- hclust(as.dist(1-cor(data.t, method="pearson")), method="ward.D")
+
+##### Cluster samples
+hr <- hclust(as.dist(dist(data.t, method="euclidean")), method="ward.D")
+
+##### Generate heatmap
+heatmaply(data.annot, k_col=1, k_row=length(unique(target$Target))-1, labCol=rownames(data), labRow=colnames(data), Rowv=as.dendrogram(hr), Colv=as.dendrogram(hc), colors = colorRampPalette(c("darkblue","darkslateblue","white","firebrick3","firebrick4"))(100), scale="col", trace="none", hide_colorbar = FALSE, fontsize_row = 8, fontsize_col = 8, label_names=c("Sample","Gene","Expression"), key.title = "Expression", xlab = "Gene", ylab = "Sample") %>%
+layout(autosize = TRUE, width = 800, margin = list(l=180, r=50, b=180, t=50, pad=4), showlegend = FALSE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:heatmaply", unload=FALSE)
+detach("package:plotly", unload=FALSE)
+```
+
+#### Signature genes
+
+### Moffitt {.tabset}
 
 *** 
 This classification includes 2 stromal-associated (*normal* and *activated stroma*) and [2 tumour-associated subtypes](https://www.ncbi.nlm.nih.gov/pubmed/26343385). Here the malignant epithelial-associated subtypes are presented:
@@ -718,6 +856,8 @@ This classification includes 2 stromal-associated (*normal* and *activated strom
 
 *** 
 
+#### PCA
+
 PCA reduces the dimensionality of data while retaining most of the variation in the dataset, making it possible to visually assess similarities and differences between the investigated sample and the various patient cohorts.
 
 ```{r pca_plots_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
@@ -725,11 +865,16 @@ suppressMessages(library(plotly))
 ##### Generate PCA plots for TCGA PAAD samples stratified according to Moffitt classification
 ref <- "moffitt"
 
+##### PCA using subtype-specific genes only
 target <- ref_datasets.list[[ref]][[2]]
-pca.df <- ref_datasets.list[[ref]][[4]]$pca.df
-importance_pca <- ref_datasets.list[[ref]][[4]]$importance_pca
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+data <- ref_datasets.list[[ref]][[3]]
+data <- data[ rownames(data) %in% unlist(ref_genes.list[[ref]]), ]
+ref_datasets.list[[ref]][[5]] <- pca(data, target)
+
+pca.df <- ref_datasets.list[[ref]][[5]]$pca.df
+importance_pca <- ref_datasets.list[[ref]][[5]]$importance_pca
+targets.colour <- ref_datasets.list[[ref]][[5]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[5]]$datasets
 
 ##### Generate PCA 2-D plot (colour targets)
 p1 <- plot_ly(pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7, symbol="circle"), width = 800, height = 600) %>%
@@ -750,15 +895,7 @@ p1
 detach("package:plotly", unload=FALSE)
 ```
 
-Hierarchical clustering with reference samples coloured according to Moffitt molecular subtypes.
-
-```{r hc_plots_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
-##### Generate dendrogram with samples coloured according to Moffitt classification
-data <- ref_datasets.list[[ref]][[3]]
-
-overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
-```
-
+#### BGA
 
 BGA is a supervised classification method ([Culhane et al., (2002)](https://www.ncbi.nlm.nih.gov/pubmed/12490444)), which performs comparably to a range of supervised classification methods, including support vector machines and artificial neural networks.
 
@@ -773,6 +910,64 @@ bga.res<-bga(data, type="coa", classvec=as.factor(target$Target))
 
 ##### Plot BGA results
 plot(bga.res,  arraycol=targets.colour[[1]])
+```
+
+#### Clustering
+
+Hierarchical clustering with reference samples coloured according to Moffitt molecular subtypes.
+
+```{r hc_plots_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6}
+##### Generate dendrogram with samples coloured according to Moffitt classification
+overview(data, classvec=as.factor(target$Target), labels=colnames(data), title="", boxplot=FALSE, hist=FALSE)
+```
+
+#### Heatmap
+
+Unsupervised hierarchical clustering of the signature genes expression profiles is presented as heatmap with genes and samples represented by columns and rows, respectively. The samples charactersitcs are also indicated on the right hand-side.
+
+```{r heatmap_moffitt, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 8}
+suppressMessages(library(plotly))
+suppressMessages(library(heatmaply))
+
+##### Make sure all signature genes have variance > 0 across samples
+rsd<-apply(data,1,sd)
+sel<-order(rsd, decreasing=TRUE)[1:nrow(data)]
+data <- data[sel,]
+
+##### Prepare samples annotation info
+#Annotation <- as.matrix(annData[,c(2:ncol(annData))])
+#names(Annotation) <- names(annData)[c(2:ncol(annData))]
+
+##### Transpose matrix
+data.t <- data.frame(t(data))
+
+data.annot <- as.data.frame(cbind( data.t, target$Target ))
+colnames(data.annot) <- c(rownames(data), "Group")
+
+##### Cluster genes
+hc <- hclust(as.dist(1-cor(data.t, method="pearson")), method="ward.D")
+
+##### Cluster samples
+hr <- hclust(as.dist(dist(data.t, method="euclidean")), method="ward.D")
+
+##### Generate heatmap
+heatmaply(data.annot, k_col=1, k_row=length(unique(target$Target))-1, labCol=rownames(data), labRow=colnames(data), Rowv=as.dendrogram(hr), Colv=as.dendrogram(hc), colors = colorRampPalette(c("darkblue","darkslateblue","white","firebrick3","firebrick4"))(100), scale="col", trace="none", hide_colorbar = FALSE, fontsize_row = 8, fontsize_col = 8, label_names=c("Sample","Gene","Expression"), key.title = "Expression", xlab = "Gene", ylab = "Sample") %>%
+layout(autosize = TRUE, width = 800, margin = list(l=180, r=50, b=180, t=50, pad=4), showlegend = FALSE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:heatmaply", unload=FALSE)
+detach("package:plotly", unload=FALSE)
+```
+
+#### Signature genes
+
+## Parameters
+
+```{r params_info, comment = NA}
+for ( i in 1:length(params) ) {
+
+  cat(paste("Parameter: ", names(params)[i], "\nValue: ", paste(unlist(params[i]), collapse = ","), "\n\n", sep=""))
+}
 ```
 
 ## Addendum
