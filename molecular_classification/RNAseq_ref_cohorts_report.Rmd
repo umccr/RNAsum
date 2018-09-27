@@ -21,9 +21,9 @@ params:
   datasets_bailey: '../data/Datasets_list_bailey.txt'
   datasets_collisson: '../data/Datasets_list_collisson.txt'
   datasets_moffitt: '../data/Datasets_list_moffitt.txt'
-  genes_bailey: '../data/Bailey_genes_ensembl.txt'
-  genes_collisson: '../data/Collisson_genes_ensembl.txt'
-  genes_moffitt: '../data/Moffitt_genes_ensembl.txt'
+  genes_bailey: '../data/Bailey_genes.txt'
+  genes_collisson: '../data/Collisson_genes.txt'
+  genes_moffitt: '../data/Moffitt_genes.txt'
 ---
 
 ```{r define_functions, comment=NA, message=FALSE, warning=FALSE}
@@ -263,11 +263,11 @@ suppressMessages(library(preprocessCore))
 suppressMessages(library(rapportools))
 suppressMessages(library(plotly))
 suppressMessages(library(edgeR))
+suppressMessages(library(org.Hs.eg.db))
 suppressMessages(library(ClassDiscovery))
 suppressMessages(library(made4))
 suppressMessages(library(ade4))
 ```
-
 
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
@@ -324,7 +324,6 @@ for ( ref in names(ref_datasets.list) ) {
 cat(nrow(y.filtered$counts), "genes remained after filtering low expressed genes, out of the total", nrow(counts), "input genes\n\n")
 ```
 
-
 ```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE}
 ##### Data normalisation
 ##### During the sample preparation or sequencing process, external factors that are not of biological interest can affect the expression of individual samples. For example, samples processed in the first batch of an experiment can have higher expression overall when compared to samples processed in a second batch. It is assumed that all samples should have a similar range and distribution of expression values. Normalisation for sample-specific effectss is required to ensure that the expression distributions of each sample are similar across the entire experiment. Normalisation by the method of *[trimmed mean of M-values](https://www.ncbi.nlm.nih.gov/pubmed/20196867) (TMM)* is performed using the *calcNormFactors* function in *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)*. The normalisation factors calculated here are used as a scaling factor for the library sizes. TMM is the recommended for most RNA-Seq data where the majority (more than half) of the genes are believed not differentially expressed between any pair of the samples.
@@ -354,6 +353,38 @@ for ( ref in names(ref_datasets.list) ) {
   data <- ref_datasets.list[[ref]][[3]]
   
   ref_datasets.list[[ref]][[4]] <- pca(data, target)
+}
+```
+
+```{r gene_annot, comment = NA, message=FALSE, warning=FALSE}
+##### Loop through combined datasets and annotate genes
+for ( ref in names(ref_datasets.list) ) {
+  
+  ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
+  data <- ref_datasets.list[[ref]][[3]]
+  data.df <- as.data.frame(cbind(rownames(data), data))
+  colnames(data.df)[1] <- "ENSEMBL"
+  
+  ##### Extract the gene annotation information
+  gene_info <-  AnnotationDbi::select(org.Hs.eg.db, rownames(data), c("ENTREZID", "GENENAME", "SYMBOL", "ENSEMBL"), 'ENSEMBL')
+  
+  ##### Merge the gene annotation with expression data
+  data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = TRUE)
+  
+  ##### Keep only genes fo which gene symbol is available
+  data.annot <- data.annot[!(is.na(data.annot$SYMBOL) | data.annot$SYMBOL==""), ]
+  
+  ##### Remove rows with duplicated gene symbols
+  data.annot = data.annot[!duplicated(data.annot$SYMBOL),]
+  rownames(data.annot) <- data.annot$SYMBOL
+  
+  ##### Get data matrix with gene symbols
+  #data <- data.annot[, colnames(data)]
+  #data <- apply(data.annot[, colnames(data)], 2, as.numeric)
+  #rownames(data) <- data.annot$SYMBOL
+  ref_datasets.list[[ref]][[3]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
+  rownames(ref_datasets.list[[ref]][[3]]) <- data.annot$SYMBOL
+  ref_datasets.list[[ref]][[5]] <- data.annot[, c("ENTREZID", "GENENAME", "SYMBOL", "ENSEMBL")]
 }
 ```
 
