@@ -10,7 +10,7 @@ quant <- read.table(file = '~/Documents/UMCCR/data/fusions/pizzly-validation/abu
 #sort and filter quantification file on tpm values. Currently filtering on quantiles. Selected 0.997 because that reduces the final fusion
 #calls to the value we are interested in (~15)
 
-quant.sorted.filtered <- filter(arrange(quant, desc(quant$tpm)), tpm >= (quantile(quant$tpm, 0.997)))
+quant.sorted.filtered <- filter(arrange(quant, desc(quant$tpm)), tpm >= (quantile(quant$tpm, 0.999)))
 
 #pizzly.fusions$transcripts.list is a factor. Coerce the argument to character first to be able to use sapply
 #pizzly.fusions$transcripts.list <- as.character(pizzly.fusions$transcripts.list)
