@@ -213,6 +213,29 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 
 * Jaffa uses a `known_fusions.txt` file when calling and filtering fusions -> to check if a fusion called is a recurrent fusion or not. 
 
+## Fusion visualization
+
+**Clinker**
+
+Following the installation instructions at: `https://github.com/Oshlack/Clinker/wiki/1.-Installation`.
+
+The conda environement for clinker can be activated using `conda activate clinker`.
+The location to github repository for clinker is `/data/cephfs/punim0010/projects/Kanwal_Clinker/Clinker`.
+
+Clinker expects input in a specific format:
+
+`chrom1,base1,chrom2,base2`
+
+However the header of pizzly output looks like this:
+
+```
+geneA.name      geneA.id        geneB.name      geneB.id        paircount       splitcount      transcripts.list
+VIM     ENSG00000026025 ALB     ENSG00000163631 4       4       ENST00000544301_0:1642_ENST00000509063_0:1911;ENST00000224237_0:1374_ENST00000509063_0:1911;ENST00000487938_0:1374_ENST00000509063_0:1911
+```
+
+
+
+
 
 
 
