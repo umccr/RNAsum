@@ -43,7 +43,7 @@ write.csv(result, file = "pizzly-filtered-MH17T001P013.csv", row.names = FALSE)
 #result.list <- result.list[lapply(result.list, length)>0]
 
 #remove duplicated values from result (as multiple transcripts might support fusion between same gene)
-#deduped.result <- unique(result)
+deduped.result <- unique(result)
 
 #apply function on every row in a df, but selected columns. Split the transcript list on ';' and
 #check for occurence of every split element in the quantification file. If it exists, extract the correponding fusion gene pair
