@@ -11,9 +11,9 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: 
-  sample_name: 
-  count_file: 
+  report_dir: '../reports'
+  sample_name: 'CCR170012_MH17T001P013'
+  count_file: '../data/CCR170012_MH17T001P013-ready.counts'
   datasets_pancreas: '../data/Datasets_list_pancreas.txt'
   genes_fusions: '../data/Genes_fusions.txt'
   genes_pmcc: '../data/Genes_PMCC.txt'
@@ -418,6 +418,7 @@ for ( ref in names(ref_datasets.list) ) {
   ref_datasets.list[[ref]][[5]] <- data.annot[, c("ENTREZID", "GENENAME", "SYMBOL", "ENSEMBL")]
 }
 ```
+
 ## Fusion Calling
 
 ### Prioritization of Pizzly results
@@ -467,11 +468,9 @@ for (row in 1:nrow(pizzly.fusions)){
 deduped.result <- unique(result)
 
 #Extract only those fusion genes that are in PMCC list
-#read in the PMCC genes list
-pmcc.genes <- read.table(file = '~/Documents/UMCCR/data/RNAseq-report/2018-02-16_PMCC_Panel_Genes.txt', header = FALSE)
 result.pmcc <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% pmcc.genes$V1 | pizzly.fusions[row,3] %in% pmcc.genes$V1){
+  if(pizzly.fusions[row,1] %in% unlist(ref_genes.list[["genes_pmcc"]]) | pizzly.fusions[row,3] %in% unlist(ref_genes.list[["genes_pmcc"]])) {
     #creating a new dataframe for extracting pizzly rows with pmcc gene hits
     result.pmcc <- rbind(result.pmcc, data.frame(pizzly.fusions[row,]))
   }
@@ -501,43 +500,45 @@ Currently, dispalying the top 3 hits from pizzly filtering output (Group 1).
 
 ```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
 #get path to fusion visualization pdf file
-fusion_1 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[1], "_", pizzly.fusions2$geneB.name[1], ".pdf"), sep = "/")
+fusion_pdf <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[1], "_", pizzly.fusions2$geneB.name[1], ".pdf"), sep = "/")
 
 #export pdf to png
-fusion1 <- image_read_pdf(fusion_1, pages = NULL, density = 300)
-fusion1 <- image_write(fusion1, path = "~/Documents/UMCCR/data/fusions/pizzly-validation/ALB_APOA1.png", format = "png")
+fusion_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[1], "_", pizzly.fusions2$geneB.name[1], ".png"), sep = "/")
+fusion <- image_read_pdf(fusion_pdf, pages = NULL, density = 300)
+image_write(fusion, path = fusion_png, format = "png")
 
 #present the converted file in the report
-fusion1_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[1], "_", pizzly.fusions2$geneB.name[1], ".png"), sep = "/")
-include_graphics(fusion1_png)
+include_graphics(fusion_png)
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
 
 ```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
-
-fusion_2 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[2], "_", pizzly.fusions2$geneB.name[2], ".pdf"), sep = "/")
+#get path to fusion visualization pdf file
+fusion_pdf <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[2], "_", pizzly.fusions2$geneB.name[2], ".pdf"), sep = "/")
 
 #export pdf to png
-fusion2 <- image_read_pdf(fusion_2, pages = NULL, density = 300)
-image_write(fusion2, path ="~/Documents/UMCCR/data/fusions/pizzly-validation/ALB_FGG.png", format = "png")
+fusion_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[2], "_", pizzly.fusions2$geneB.name[2], ".png"), sep = "/")
+fusion <- image_read_pdf(fusion_pdf, pages = NULL, density = 300)
+image_write(fusion, path = fusion_png, format = "png")
 
 #present the converted file in the report
-fusion2_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[2], "_", pizzly.fusions2$geneB.name[2], ".png"), sep = "/")
-include_graphics(fusion2_png)
+include_graphics(fusion_png)
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
+
 ```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
-fusion_3 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[3], "_", pizzly.fusions2$geneB.name[3], ".pdf"), sep = "/")
+#get path to fusion visualization pdf file
+fusion_pdf <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[3], "_", pizzly.fusions2$geneB.name[3], ".pdf"), sep = "/")
 
 #export pdf to png
-fusion3 <- image_read_pdf(fusion_3, pages = NULL, density = 300)
-fusion3 <- image_write(fusion3, path = "~/Documents/UMCCR/data/fusions/pizzly-validation/HP_ALB.png", format = "png")
+fusion_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[3], "_", pizzly.fusions2$geneB.name[3], ".png"), sep = "/")
+fusion <- image_read_pdf(fusion_pdf, pages = NULL, density = 300)
+image_write(fusion, path = fusion_png, format = "png")
 
 #present the converted file in the report
-fusion3_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[3], "_", pizzly.fusions2$geneB.name[3], ".png"), sep = "/")
-include_graphics(fusion3_png)
+include_graphics(fusion_png)
 ```
 
 ### Fusion genes expression profiles  {.tabset}
