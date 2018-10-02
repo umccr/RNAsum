@@ -51,10 +51,10 @@ opt = parse_args(OptionParser(option_list=option_list))
 
 ##### Read in argument from command line and check if all were provide by the user
 if ( is.na(opt$sample_name) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
-  
+
   cat("\nPlease type in required arguments!\n\n")
   cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --count_file ../data/CCR170012_MH17T001P013-ready.counts  --report_dir ../reports\n\n")
-  
+
   q()
 }
 
