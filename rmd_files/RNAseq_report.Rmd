@@ -178,8 +178,13 @@ pca <- function(data, targets) {
   
   return( pca.list )
 }
-  
 
+##### Convert a vector of numbers into corresponding vector of their percentiles
+perc.rank <- function(x) trunc(rank(x))*100/length(x)
+
+##### Perform range standardization between 0 and 1 (for the cumulative sums)
+standardization <- function(x) sort(x-min(x))/(max(x)-min(x))
+  
 ##### Generate cumulative distribution function (CDF) plot for selected gene using sample combined with pancreas expression data
 cdfPlot <- function(gene, data, targets, sampleName) {
   
@@ -189,22 +194,34 @@ cdfPlot <- function(gene, data, targets, sampleName) {
   PDAC.expr <- sort(rowMeans(data[, targets$Target %in% "PDAC" ]))
   met.expr <- sort(data[, targets$Target %in% "PDAC (metastatic)" ]) # Don't take the mean for this group as there is only one metastatic sample in TCGA PAAD
   
-  ##### Perform range standardization between 0 and 1 (for the cumulative sums)
-  sample.expr <- sort(sample.expr-min(sample.expr))/(max(sample.expr)-min(sample.expr))
-  normal.expr <- sort(normal.expr-min(normal.expr))/(max(normal.expr)-min(normal.expr))
-  PDAC.expr <- sort(PDAC.expr-min(PDAC.expr))/(max(PDAC.expr)-min(PDAC.expr))
-  met.expr <- sort(met.expr-min(met.expr))/(max(met.expr)-min(met.expr))
+  ##### Convert a expression values into corresponding percentiles
+  sample.q <- perc.rank(sample.expr)
+  normal.q <- perc.rank(normal.expr)
+  PDAC.q <- perc.rank(PDAC.expr)
+  met.q <- perc.rank(met.expr)
   
-  ##### Calculate cumulative sums and organise the data into data frame
-  sample.expr.cum <- as.data.frame(cbind(c(1:length(sample.expr)), sample.expr, cumsum(sample.expr)))
-  normal.expr.cum <- as.data.frame(cbind(c(1:length(normal.expr)), normal.expr, cumsum(normal.expr)))
-  PDAC.expr.cum <- as.data.frame(cbind(c(1:length(PDAC.expr)), PDAC.expr, cumsum(PDAC.expr)))
-  met.expr.cum <- as.data.frame(cbind(c(1:length(met.expr)), met.expr, cumsum(met.expr)))
+  ##### Perform range standardization between 0 and 1 (for the cumulative sums), otherwise the negative values are summed up
+  sample.expr.z <- standardization(sample.expr)
+  normal.expr.z <- standardization(normal.expr)
+  PDAC.expr.z <- standardization(PDAC.expr)
+  met.expr.z <- standardization(met.expr)
   
-  names(sample.expr.cum) <- c("index", "expression", "cumulative_fraction")
-  names(normal.expr.cum) <- c("index", "expression", "cumulative_fraction")
-  names(PDAC.expr.cum) <- c("index", "expression", "cumulative_fraction")
-  names(met.expr.cum) <- c("index", "expression", "cumulative_fraction")
+  ##### Calculate cumulative sums and perform range standardization between 0 and 1 
+  sample.expr.cum <- standardization(cumsum(sample.expr.z))
+  normal.expr.cum <- standardization(cumsum(normal.expr.z))
+  PDAC.expr.cum <- standardization(cumsum(PDAC.expr.z))
+  met.expr.cum <- standardization(cumsum(met.expr.z))
+  
+  ##### Organise the data into data frame
+  sample.expr.cum <- as.data.frame(cbind(c(1:length(sample.expr)), sample.expr, sample.q, sample.expr.cum))
+  normal.expr.cum <- as.data.frame(cbind(c(1:length(normal.expr)), normal.expr, normal.q, normal.expr.cum))
+  PDAC.expr.cum <- as.data.frame(cbind(c(1:length(PDAC.expr)), PDAC.expr, PDAC.q, PDAC.expr.cum))
+  met.expr.cum <- as.data.frame(cbind(c(1:length(met.expr)), met.expr, met.q, met.expr.cum))
+  
+  names(sample.expr.cum) <- c("index", "expression", "quantile", "cumulative_fraction")
+  names(normal.expr.cum) <- c("index", "expression", "quantile", "cumulative_fraction")
+  names(PDAC.expr.cum) <- c("index", "expression", "quantile", "cumulative_fraction")
+  names(met.expr.cum) <- c("index", "expression", "quantile", "cumulative_fraction")
   
   ##### Extract expression for selected genes
   sample.expr.cum.selected <- sample.expr.cum[ rownames(sample.expr.cum) %in% unlist(gene), ]
@@ -216,59 +233,72 @@ cdfPlot <- function(gene, data, targets, sampleName) {
   p <- plot_ly(sample.expr.cum, x = ~expression, color = I("black")) %>%
   
     ##### Add sample data
-    add_markers(y = sample.expr.cum.selected$index, x = sample.expr.cum.selected$expression,
-                text = rownames(sample.expr.cum.selected),
-                name = "Selected genes",
-                marker = list(size = 9, color = "black"),
+    add_markers(y = sample.expr.cum.selected$cumulative_fraction, x = sample.expr.cum.selected$expression,
+                text = rownames(sample.expr.cum.selected ),
+                name = params$sample,
+                marker = list(size = 12, color = "black"),
                 showlegend = FALSE) %>%
   
-    add_lines(y = sample.expr.cum$index, x = sample.expr.cum$expression, 
+    add_lines(y = sample.expr.cum$cumulative_fraction, x = sample.expr.cum$expression, 
               line = list(color = "grey"),
-              text = rownames( met.expr.cum.selected),
+              text = rownames( sample.expr.cum ),
               name = params$sample, showlegend = TRUE) %>%
     
     ##### Add normal pancreas data
-    add_markers(y = normal.expr.cum.selected$index, x =  normal.expr.cum.selected$expression,
-                text = rownames( normal.expr.cum.selected),
-                name = "Selected genes",
-                marker = list(size = 9, color = "green"),
+    add_markers(y = normal.expr.cum.selected$cumulative_fraction, x =  normal.expr.cum.selected$expression,
+                text = rownames( normal.expr.cum.selected ),
+                name = "Pancreas (normal)",
+                marker = list(size = 12, opacity = 0.5, color = "green"),
                 showlegend = FALSE) %>%
   
-    add_lines(y = normal.expr.cum$index, x = normal.expr.cum$expression, opacity = 0.5,
+    add_lines(y = normal.expr.cum$cumulative_fraction, x = normal.expr.cum$expression, opacity = 0.5,
               line = list(color = "green", dash = "dash"),
-              text = rownames( met.expr.cum.selected),
+              text = rownames( normal.expr.cum ),
               name = "Pancreas (normal)", showlegend = TRUE) %>%
     
     ##### Add PDAC data
-    add_markers(y = PDAC.expr.cum.selected$index, x =  PDAC.expr.cum.selected$expression,
+    add_markers(y = PDAC.expr.cum.selected$cumulative_fraction, x =  PDAC.expr.cum.selected$expression,
                 text = rownames( PDAC.expr.cum.selected),
-                name = "Selected genes",
-                marker = list(size = 9, color = "coral"),
+                name = "PDAC",
+                marker = list(size = 12, opacity = 0.5, color = "coral"),
                 showlegend = FALSE) %>%
   
-    add_lines(y = PDAC.expr.cum$index, x = PDAC.expr.cum$expression, opacity = 0.5,
+    add_lines(y = PDAC.expr.cum$cumulative_fraction, x = PDAC.expr.cum$expression, opacity = 0.5,
               line = list(color = "coral", dash = "dash"),
-              text = rownames( met.expr.cum.selected),
+              text = rownames( PDAC.expr.cum),
               name = "PDAC", showlegend = TRUE) %>%
     
     ##### Add metastatic PDAC data
-    add_markers(y = met.expr.cum.selected$index, x =  met.expr.cum.selected$expression,
+    add_markers(y = met.expr.cum.selected$cumulative_fraction, x =  met.expr.cum.selected$expression,
                 text = rownames( met.expr.cum.selected),
-                name = "Selected genes",
-                marker = list(size = 9, color = "red"),
+                name = "PDAC (metastatic)",
+                marker = list(size = 12, opacity = 0.5, color = "red"),
                 showlegend = FALSE) %>%
     
-    add_lines(y = met.expr.cum$index, x = met.expr.cum$expression, opacity = 0.5,
+    add_lines(y = met.expr.cum$cumulative_fraction, x = met.expr.cum$expression, opacity = 0.5,
               line = list(color = "red", dash = "dash"),
-              text = rownames( met.expr.cum.selected),
+              text = rownames( met.expr.cum),
               name = "PDAC (metastatic)", showlegend = TRUE) %>%
-  
-    layout(xaxis = list(title = "mRNA expression"),
+    
+    ##### Add quantile lines
+    add_lines(y = seq(0,0.9,0.1), x = rep(quantile(sample.expr, probs=0:4/4)[2], 10), opacity = 0.5,
+              line = list(color = "gray", opacity = 0.2, dash = "dash"),
+              name = "Q1", showlegend = FALSE) %>%
+    
+    add_lines(y = seq(0,0.9,0.1), x = rep(quantile(sample.expr, probs=0:4/4)[3], 10), opacity = 0.5,
+              line = list(color = "gray", opacity = 0.2, dash = "dash"),
+              name = "Q2", showlegend = FALSE) %>%
+    
+    add_lines(y = seq(0,0.9,0.1), x = rep(quantile(sample.expr, probs=0:4/4)[4], 10), opacity = 0.5,
+              line = list(color = "gray", opacity = 0.2, dash = "dash"),
+              name = "Q3", showlegend = FALSE) %>%
+    
+    layout(xaxis = list(title = "mRNA expression", zeroline = FALSE),
            yaxis = list(title = "Cumulative fraction"),
-           legend = list(orientation = 'v', x = 0.02, y = 0.9, bgcolor = "transparent"),
-           annotations = list(x = sample.expr.cum.selected$expression, y = sample.expr.cum.selected$index,
-    text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 50, ay = 50
-  ))
+           legend = list(orientation = 'v', x = 0.02, y = 0.95, bgcolor = "white"),
+           annotations = list(x = sample.expr.cum.selected$expression, y = sample.expr.cum.selected$cumulative_fraction,
+    text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 50, ay = 50))
+  
   return( p )
 }
 
