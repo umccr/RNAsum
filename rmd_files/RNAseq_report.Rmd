@@ -11,13 +11,13 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: 
-  sample_name: 
-  count_file: 
+  report_dir: '../reports'
+  sample_name: 'CCR170012_MH17T001P013'
+  count_file: '../data/CCR170012_MH17T001P013-ready.counts'
   datasets_pancreas: '../data/Datasets_list_pancreas.txt'
   genes_fusions: '../data/Genes_fusions.txt'
   genes_pmcc: '../data/Genes_PMCC.txt'
-  pizzly_folder: '/Users/kanwals/Documents/UMCCR/data/fusions/pizzly-validation'
+  pizzly_folder: '../data/pizzly-validation'
 ---
 
 RNA-seq report for sample **`r params$sample_name`**.
@@ -291,6 +291,21 @@ boxPlot <- function(gene, data, targets, targets.colour, sampleName, order ) {
   
   return( p )
 }
+
+##### Fusion visualization
+fusion_png <- function(geneA, geneB, pizzly_folder ) {
+
+  ##### Get path to fusion visualization pdf file
+  fusion_pdf <- paste(pizzly_folder, paste0(geneA, "_", geneB, ".pdf"), sep = "/")
+  
+  ##### Export pdf to png
+  fusion_png <- paste(pizzly_folder, paste0(geneA, "_", geneB, ".png"), sep = "/")
+  fusion <- image_read_pdf(fusion_pdf, pages = NULL, density = 300)
+  image_write(fusion, path = fusion_png, format = "png")
+  
+  ##### Present the converted file in the report
+  include_graphics(fusion_png)
+}
 ```
 
 ```{r load_libraries, warning=FALSE}
@@ -418,6 +433,7 @@ for ( ref in names(ref_datasets.list) ) {
   ref_datasets.list[[ref]][[5]] <- data.annot[, c("ENTREZID", "GENENAME", "SYMBOL", "ENSEMBL")]
 }
 ```
+
 ## Fusion Calling
 
 ### Prioritization of Pizzly results
@@ -467,11 +483,9 @@ for (row in 1:nrow(pizzly.fusions)){
 deduped.result <- unique(result)
 
 #Extract only those fusion genes that are in PMCC list
-#read in the PMCC genes list
-pmcc.genes <- read.table(file = '~/Documents/UMCCR/data/RNAseq-report/2018-02-16_PMCC_Panel_Genes.txt', header = FALSE)
 result.pmcc <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% pmcc.genes$V1 | pizzly.fusions[row,3] %in% pmcc.genes$V1){
+  if(pizzly.fusions[row,1] %in% unlist(ref_genes.list[["genes_pmcc"]]) | pizzly.fusions[row,3] %in% unlist(ref_genes.list[["genes_pmcc"]])) {
     #creating a new dataframe for extracting pizzly rows with pmcc gene hits
     result.pmcc <- rbind(result.pmcc, data.frame(pizzly.fusions[row,]))
   }
@@ -500,44 +514,22 @@ Currently, dispalying the top 3 hits from pizzly filtering output (Group 1).
 #### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
 
 ```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
-#get path to fusion visualization pdf file
-fusion_1 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[1], "_", pizzly.fusions2$geneB.name[1], ".pdf"), sep = "/")
-
-#export pdf to png
-fusion1 <- image_read_pdf(fusion_1, pages = NULL, density = 300)
-fusion1 <- image_write(fusion1, path = "~/Documents/UMCCR/data/fusions/pizzly-validation/ALB_APOA1.png", format = "png")
-
-#present the converted file in the report
-fusion1_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[1], "_", pizzly.fusions2$geneB.name[1], ".png"), sep = "/")
-include_graphics(fusion1_png)
+##### Convert the fusion image from pdf to png and present it in the report
+fusion_png(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], params$pizzly_folder )
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
 
 ```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
-
-fusion_2 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[2], "_", pizzly.fusions2$geneB.name[2], ".pdf"), sep = "/")
-
-#export pdf to png
-fusion2 <- image_read_pdf(fusion_2, pages = NULL, density = 300)
-image_write(fusion2, path ="~/Documents/UMCCR/data/fusions/pizzly-validation/ALB_FGG.png", format = "png")
-
-#present the converted file in the report
-fusion2_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[2], "_", pizzly.fusions2$geneB.name[2], ".png"), sep = "/")
-include_graphics(fusion2_png)
+##### Convert the fusion image from pdf to png and present it in the report
+fusion_png(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], params$pizzly_folder )
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
+
 ```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
-fusion_3 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[3], "_", pizzly.fusions2$geneB.name[3], ".pdf"), sep = "/")
-
-#export pdf to png
-fusion3 <- image_read_pdf(fusion_3, pages = NULL, density = 300)
-fusion3 <- image_write(fusion3, path = "~/Documents/UMCCR/data/fusions/pizzly-validation/HP_ALB.png", format = "png")
-
-#present the converted file in the report
-fusion3_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[3], "_", pizzly.fusions2$geneB.name[3], ".png"), sep = "/")
-include_graphics(fusion3_png)
+##### Convert the fusion image from pdf to png and present it in the report
+fusion_png(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], params$pizzly_folder )
 ```
 
 ### Fusion genes expression profiles  {.tabset}
@@ -545,8 +537,6 @@ include_graphics(fusion3_png)
 The expression profiles of detected fusion genes across pancreas-related lesions/tissues.
 
 #### `r ref_genes.list[["genes_fusions"]][1,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][1,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -567,26 +557,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][1,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-  
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_fusions"]][1,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -596,8 +566,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 #### `r ref_genes.list[["genes_fusions"]][2,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][2,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -618,26 +586,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][2,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_fusions"]][2,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -647,8 +595,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 #### `r ref_genes.list[["genes_fusions"]][3,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][3,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -669,26 +615,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][3,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_fusions"]][3,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -698,8 +624,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 #### `r ref_genes.list[["genes_fusions"]][4,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][4,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -720,26 +644,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][4,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_fusions"]][4,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -749,8 +653,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 #### `r ref_genes.list[["genes_fusions"]][5,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][5,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -771,26 +673,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][5,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_fusions_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_fusions"]][5,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -800,8 +682,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 #### `r ref_genes.list[["genes_fusions"]][6,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][6,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -822,26 +702,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][6,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_fusions_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_fusions"]][6,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -851,8 +711,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 #### `r ref_genes.list[["genes_fusions"]][7,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][7,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -872,26 +730,6 @@ cdfPlot(gene, data, target, params$sample_name)
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
-
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_fusions"]][7,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_fusions_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
 
 Table with of ***`r ref_genes.list[["genes_fusions"]][7,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
@@ -913,8 +751,6 @@ TO BE COMPLETED...
 
 ### `r ref_genes.list[["genes_pmcc"]][1,]`
 
-#### ECDF plot
-
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][1,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
 ```{r cdf_plot_pmcc_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
@@ -934,26 +770,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][1,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_pmcc_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-  
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_pmcc"]][1,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -963,8 +779,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 ### `r ref_genes.list[["genes_pmcc"]][2,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][2,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -985,26 +799,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][2,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_pmcc_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_pmcc"]][2,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -1014,8 +808,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 ### `r ref_genes.list[["genes_pmcc"]][3,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][3,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -1036,26 +828,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][3,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_pmcc_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_pmcc"]][3,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -1065,8 +837,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 ### `r ref_genes.list[["genes_pmcc"]][4,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][4,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -1087,26 +857,6 @@ cdfPlot(gene, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][4,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_pmcc_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
-
 Table with of ***`r ref_genes.list[["genes_pmcc"]][4,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
@@ -1116,8 +866,6 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 ```
 
 ### `r ref_genes.list[["genes_pmcc"]][5,]`
-
-#### ECDF plot
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][5,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
@@ -1137,26 +885,6 @@ cdfPlot(gene, data, target, params$sample_name)
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
-
-#### Box-plot
-
-Box-plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][5,]`*** (y-axis) in sample **`r params$sample_name`** and its expression distribution in samples representing various pancreas-related lesions/tissues (x-axis).
-
-```{r box_plot_pmcc_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-target <- target$Target
-
-order = c(params$sample_name, "Pancreas (normal)", "Pancreas (normal adjacent)", "IPMN", "PanNET", "PDAC", "PDAC (metastatic)")
-
-##### Generate box-plot for selected gene using sample combined with pancreas expression data
-boxPlot(gene, data, target, targets.colour, params$sample_name, order )
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-#### Gene details
 
 Table with of ***`r ref_genes.list[["genes_pmcc"]][5,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
