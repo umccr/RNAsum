@@ -1,0 +1,155 @@
+---
+title: "Fusion Results"
+author: "Sehrish Kanwal"
+date: "01/10/2018"
+output: html_document
+params:
+  pizzly_folder: '/Users/kanwals/Documents/UMCCR/data/fusions/pizzly-validation'
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Required packages
+
+```{r}
+suppressMessages(library(kableExtra))
+suppressMessages(library(tidyverse))
+suppressMessages(library(knitr))
+suppressMessages(library(magick))
+```
+
+### Prioritization of Pizzly results
+
+The prioritization of pizzly results is performed in two steps.
+
+1. In the first step, basic idea is to run kallisto to quantify the fusion transcripts (reported by pizzly) and 
+select those which have a decent TPM support.
+  * Create a new index based on the transcriptome and the fusion transcripts identified by pizzly.
+  * Run kallisto in normal quantification mode on the expanded index to quantify both normal transcripts 
+  and fusions.
+  * Select only the fusions with a high TPM value as reported by previous step.
+
+2. In the second step, fusion genes reported by pizzly are compared with PMCC gene list and report 
+the ones that are present in this list. 
+
+```{r}
+#read in the pizzly fusion calls
+pizzly.fusions <- read.table(file = paste(params$pizzly_folder, "pizzly-flat-filtered.tsv", sep = "/"), header = TRUE)
+
+#read in the transcripts quantification file
+quant <- read.table(file = paste(params$pizzly_folder, "abundance.tsv", sep = "/"), header = TRUE)
+
+#sort and filter quantification file on tpm values. Currently filtering on quantiles. Selected 0.997 because that reduces the final fusion
+#calls to the value we are interested in (~15)
+quant.sorted.filtered <- filter(arrange(quant, desc(quant$tpm)), tpm >= (quantile(quant$tpm, 0.999)))
+
+#initialize an empty dataframe
+result <- data.frame()
+result.list <- vector("list", length = nrow(pizzly.fusions))
+
+#let's try using for loop for iterating over pizzly.fusions dataframe and get transcriptID and fusion gene pair information.
+#can also filter quant.sorted.filtered$target_id to have only fusion gene target ids (that is two tracscripts instead of one-
+#this will increase speed
+
+for (row in 1:nrow(pizzly.fusions)){
+  y <- strsplit(as.character(pizzly.fusions[row, 7]), "\\;")
+  y <- unname(y)
+  for (i in 1:length(y[[1]])){
+    if (y[[1]][i] %in% quant.sorted.filtered$target_id){
+      #val <- c(y[[1]][i], as.character(pizzly.fusions[row,1]), as.character(pizzly.fusions[row, 3]))
+      #creating a new dataframe for the filtered pizzly results
+      result <- rbind(result, data.frame(pizzly.fusions[row,]))
+      #result.list[[row]] <- val
+    }
+  }
+}
+
+#remove duplicated values from result filtered using expression count(as multiple transcripts might support fusion between same gene)
+deduped.result <- unique(result)
+
+#Extract only those fusion genes that are in PMCC list
+#read in the PMCC genes list
+pmcc.genes <- read.table(file = '~/Documents/UMCCR/data/RNAseq-report/2018-02-16_PMCC_Panel_Genes.txt', header = FALSE)
+result.pmcc <- data.frame()
+for (row in 1:nrow(pizzly.fusions)){
+  if(pizzly.fusions[row,1] %in% pmcc.genes$V1 | pizzly.fusions[row,3] %in% pmcc.genes$V1){
+    #creating a new dataframe for extracting pizzly rows with pmcc gene hits
+    result.pmcc <- rbind(result.pmcc, data.frame(pizzly.fusions[row,]))
+  }
+}
+
+#sorting pizzly.fusions according to two new target dataframes identified i.e. 1- pizzly result filtering using expressions counts and 2- pmcc gene list
+
+pizzly.fusions$order <- rownames(pizzly.fusions) %in% rownames(deduped.result) 
+pizzly.fusions$order2 <- rownames(pizzly.fusions) %in% rownames(result.pmcc)
+
+pizzly.fusions2 <- arrange(pizzly.fusions, -order, -order2) %>%
+  select(-order,-order2)
+
+kable(pizzly.fusions2) %>%
+  kable_styling(font_size = 10, "striped", "bordered") %>%
+  #row_spec(c(as.numeric(rownames(deduped.result)),as.numeric(rownames(result.pmcc))), bold = T, color = "white", background = "#D7261E") %>%
+  #row_spec(1:nrow(deduped.result), bold = T, color = "white", background = "red") %>%
+  #row_spec((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.pmcc)), color = "white", background = "blue") %>%
+  group_rows("Filtered results using expression count matrix", 1, nrow(deduped.result), label_row_css = "background-color: #E74C3C; color: #fff;") %>%
+  group_rows("Filtered results using PMCC gene list", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.pmcc)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
+  group_rows("Other pizzly results", (nrow(deduped.result) + nrow(result.pmcc) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
+  scroll_box(width = "100%", height = "200px")
+```
+
+## Fusion visualization {.tabset}
+
+Currently, dispalying the top 3 hits from pizzly filtering output (Group 1).
+
+### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
+
+```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
+#get path to fusion visualization pdf file
+fusion_1 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[1], "_", pizzly.fusions2$geneB.name[1], ".pdf"), sep = "/")
+
+#export pdf to png
+fusion1 <- image_read_pdf(fusion_1, pages = NULL, density = 300)
+fusion1 <- image_write(fusion1, path = "~/Documents/UMCCR/data/fusions/pizzly-validation/ALB_APOA1.png", format = "png")
+
+#present the converted file in the report
+fusion1_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[1], "_", pizzly.fusions2$geneB.name[1], ".png"), sep = "/")
+include_graphics(fusion1_png)
+```
+
+### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
+
+```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
+
+fusion_2 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[2], "_", pizzly.fusions2$geneB.name[2], ".pdf"), sep = "/")
+
+#export pdf to png
+fusion2 <- image_read_pdf(fusion_2, pages = NULL, density = 300)
+image_write(fusion2, path ="~/Documents/UMCCR/data/fusions/pizzly-validation/ALB_FGG.png", format = "png")
+
+#present the converted file in the report
+fusion2_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[2], "_", pizzly.fusions2$geneB.name[2], ".png"), sep = "/")
+include_graphics(fusion2_png)
+```
+
+### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
+```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
+fusion_3 <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[3], "_", pizzly.fusions2$geneB.name[3], ".pdf"), sep = "/")
+
+#export pdf to png
+fusion3 <- image_read_pdf(fusion_3, pages = NULL, density = 300)
+fusion3 <- image_write(fusion3, path = "~/Documents/UMCCR/data/fusions/pizzly-validation/HP_ALB.png", format = "png")
+
+#present the converted file in the report
+fusion3_png <- paste(params$pizzly_folder, paste0(pizzly.fusions2$geneA.name[3], "_", pizzly.fusions2$geneB.name[3], ".png"), sep = "/")
+include_graphics(fusion3_png)
+```
+
+
+
+
+
+
+
+
