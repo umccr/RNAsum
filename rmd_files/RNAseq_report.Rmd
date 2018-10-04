@@ -490,11 +490,9 @@ for (row in 1:nrow(pizzly.fusions)){
 deduped.result <- unique(result)
 
 #Extract only those fusion genes that are in PMCC list
-#read in the PMCC genes list
-pmcc.genes <- read.table(file = '~/Documents/UMCCR/data/RNAseq-report/2018-02-16_PMCC_Panel_Genes.txt', header = FALSE)
 result.pmcc <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% pmcc.genes$V1 | pizzly.fusions[row,3] %in% pmcc.genes$V1){
+  if(pizzly.fusions[row,1] %in% unlist(ref_genes.list[["genes_pmcc"]]) | pizzly.fusions[row,3] %in% unlist(ref_genes.list[["genes_pmcc"]])){
     #creating a new dataframe for extracting pizzly rows with pmcc gene hits
     result.pmcc <- rbind(result.pmcc, data.frame(pizzly.fusions[row,]))
   }
@@ -544,7 +542,7 @@ fusion_png(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], params$
 fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$pizzly_folder )
 ```
 
-## Number of reads supporting fusions of interest
+### Number of reads supporting fusions of interest
 
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
 result_reads <- data.frame()
@@ -575,7 +573,7 @@ The expression profiles of detected fusion genes across pancreas-related lesions
 
 #### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
 
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[1]`*** and ***`r pizzly.fusions2$geneB.name[1]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
+Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[2]`*** and ***`r pizzly.fusions2$geneB.name[2]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
 ```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
 suppressMessages(library(plotly))
@@ -586,28 +584,29 @@ target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+geneA <- pizzly.fusions2$geneA.name[2]
+geneB <- pizzly.fusions2$geneB.name[2]
 
-gene <- pizzly.fusions2$geneA.name[1]
-cdfPlot(gene, data, target, params$sample_name)
-
-gene <- pizzly.fusions2$geneB.name[1]
-cdfPlot(gene, data, target, params$sample_name)
+cdfPlot(geneA, data, target, params$sample_name)
+cdfPlot(geneB, data, target, params$sample_name)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
 
-Table with of ***`r pizzly.fusions2$geneA.name[1]`*** and ***`r pizzly.fusions2$geneB.name[1]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
+Table with of ***`r geneA`*** and ***`r geneB`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
 
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", options = list(pageLength = 1) )
+fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+DT::datatable( data = fusion.df, filter = "none", options = list(pageLength = 2) )
 ```
 
-#### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
+#### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
 
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[2]`*** and ***`r pizzly.fusions2$geneB.name[2]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
+Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[3]`*** and ***`r pizzly.fusions2$geneB.name[3]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
 ```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
 suppressMessages(library(plotly))
@@ -618,28 +617,29 @@ target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+geneA <- pizzly.fusions2$geneA.name[3]
+geneB <- pizzly.fusions2$geneB.name[3]
 
-gene <- pizzly.fusions2$geneA.name[2]
-cdfPlot(gene, data, target, params$sample_name)
-
-gene <- pizzly.fusions2$geneB.name[2]
-cdfPlot(gene, data, target, params$sample_name)
+cdfPlot(geneA, data, target, params$sample_name)
+cdfPlot(geneB, data, target, params$sample_name)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
 
-Table with of ***`r pizzly.fusions2$geneA.name[1]`*** and ***`r pizzly.fusions2$geneB.name[1]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
+Table with of ***`r geneA`*** and ***`r geneB`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
 
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", options = list(pageLength = 1) )
+fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+DT::datatable( data = fusion.df, filter = "none", options = list(pageLength = 2) )
 ```
 
-#### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
+#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
 
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[3]`*** and ***`r pizzly.fusions2$geneB.name[3]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
+Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[4]`*** and ***`r pizzly.fusions2$geneB.name[4]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
 ```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
 suppressMessages(library(plotly))
@@ -650,23 +650,24 @@ target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+geneA <- pizzly.fusions2$geneA.name[4]
+geneB <- pizzly.fusions2$geneB.name[4]
 
-gene <- pizzly.fusions2$geneA.name[3]
-cdfPlot(gene, data, target, params$sample_name)
-
-gene <- pizzly.fusions2$geneB.name[3]
-cdfPlot(gene, data, target, params$sample_name)
+cdfPlot(geneA, data, target, params$sample_name)
+cdfPlot(geneB, data, target, params$sample_name)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
 
-Table with of ***`r pizzly.fusions2$geneA.name[1]`*** and ***`r pizzly.fusions2$geneB.name[1]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
+Table with of ***`r geneA`*** and ***`r geneB`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
 
 TO BE COMPLETED...
 
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", options = list(pageLength = 1) )
+fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+DT::datatable( data = fusion.df, filter = "none", options = list(pageLength = 2) )
 ```
 
 ## PMCC gene panel expression profiles  {.tabset}
@@ -683,7 +684,7 @@ TO BE COMPLETED...
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][1,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
-```{r cdf_plot_pmcc_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
+```{r cdf_plot_pmcc_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate PCA plots for pancreatic related lesions
 ref <- "pancreas"
@@ -712,7 +713,7 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][2,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
-```{r cdf_plot_pmcc_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
+```{r cdf_plot_pmcc_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate PCA plots for pancreatic related lesions
 ref <- "pancreas"
@@ -741,7 +742,7 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][3,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
-```{r cdf_plot_pmcc_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
+```{r cdf_plot_pmcc_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate PCA plots for pancreatic related lesions
 ref <- "pancreas"
@@ -770,7 +771,7 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][4,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
-```{r cdf_plot_pmcc_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
+```{r cdf_plot_pmcc_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate PCA plots for pancreatic related lesions
 ref <- "pancreas"
@@ -799,7 +800,7 @@ DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", op
 
 Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][5,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
 
-```{r cdf_plot_pmcc_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 4}
+```{r cdf_plot_pmcc_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate PCA plots for pancreatic related lesions
 ref <- "pancreas"
