@@ -464,13 +464,12 @@ the ones that are present in this list.
 #read in the pizzly fusion calls
 pizzly.fusions <- read.table(file = paste(params$pizzly_folder, "pizzly-flat-filtered.tsv", sep = "/"), header = TRUE)
 quant <- read.table(file = paste(params$pizzly_folder, "abundance.tsv", sep = "/"), header = TRUE)
-#sort and filter quantification file on tpm values. Currently filtering on quantiles. Selected 0.997 because that reduces the final fusion
-#calls to the value we are interested in (~15)
-quant.sorted.filtered <- filter(arrange(quant, desc(quant$tpm)), tpm >= (quantile(quant$tpm, 0.999)))
+#sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
+quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
+quant.sorted.filtered <- filter(arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.999)))
 
 #initialize an empty dataframe
 result <- data.frame()
-result.list <- vector("list", length = nrow(pizzly.fusions))
 
 #let's try using for loop for iterating over pizzly.fusions dataframe and get transcriptID and fusion gene pair information.
 #can also filter quant.sorted.filtered$target_id to have only fusion gene target ids (that is two tracscripts instead of one-
@@ -481,10 +480,8 @@ for (row in 1:nrow(pizzly.fusions)){
   y <- unname(y)
   for (i in 1:length(y[[1]])){
     if (y[[1]][i] %in% quant.sorted.filtered$target_id){
-      #val <- c(y[[1]][i], as.character(pizzly.fusions[row,1]), as.character(pizzly.fusions[row, 3]))
       #creating a new dataframe for the filtered pizzly results
       result <- rbind(result, data.frame(pizzly.fusions[row,]))
-      #result.list[[row]] <- val
     }
   }
 }
@@ -493,9 +490,11 @@ for (row in 1:nrow(pizzly.fusions)){
 deduped.result <- unique(result)
 
 #Extract only those fusion genes that are in PMCC list
+#read in the PMCC genes list
+pmcc.genes <- read.table(file = '~/Documents/UMCCR/data/RNAseq-report/2018-02-16_PMCC_Panel_Genes.txt', header = FALSE)
 result.pmcc <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% unlist(ref_genes.list[["genes_pmcc"]]) | pizzly.fusions[row,3] %in% unlist(ref_genes.list[["genes_pmcc"]])) {
+  if(pizzly.fusions[row,1] %in% pmcc.genes$V1 | pizzly.fusions[row,3] %in% pmcc.genes$V1){
     #creating a new dataframe for extracting pizzly rows with pmcc gene hits
     result.pmcc <- rbind(result.pmcc, data.frame(pizzly.fusions[row,]))
   }
@@ -510,7 +509,10 @@ pizzly.fusions2 <- arrange(pizzly.fusions, -order, -order2) %>%
   select(-order,-order2)
 
 kable(pizzly.fusions2) %>%
-  kable_styling(font_size = 11, "striped", "bordered") %>%
+  kable_styling(font_size = 10, "striped", "bordered") %>%
+  #row_spec(c(as.numeric(rownames(deduped.result)),as.numeric(rownames(result.pmcc))), bold = T, color = "white", background = "#D7261E") %>%
+  #row_spec(1:nrow(deduped.result), bold = T, color = "white", background = "red") %>%
+  #row_spec((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.pmcc)), color = "white", background = "blue") %>%
   group_rows("Filtered results using expression count matrix", 1, nrow(deduped.result), label_row_css = "background-color: #E74C3C; color: #fff;") %>%
   group_rows("Filtered results using PMCC gene list", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.pmcc)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
   group_rows("Other pizzly results", (nrow(deduped.result) + nrow(result.pmcc) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
