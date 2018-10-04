@@ -521,25 +521,50 @@ kable(pizzly.fusions2) %>%
 
 Currently, dispalying the top 3 hits from pizzly filtering output (Group 1).
 
-#### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
-
-```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
-##### Convert the fusion image from pdf to png and present it in the report
-fusion_png(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], params$pizzly_folder )
-```
-
 #### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
 
-```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
 fusion_png(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], params$pizzly_folder )
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
 
-```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
 fusion_png(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], params$pizzly_folder )
+```
+
+#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
+
+```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
+##### Convert the fusion image from pdf to png and present it in the report
+fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$pizzly_folder )
+```
+
+## Number of reads supporting fusions of interest
+
+```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
+result_reads <- data.frame()
+for (row in 1:nrow(deduped.result)){
+  y <- strsplit(as.character(deduped.result[row, 7]), "\\;")
+  y <- unname(y)
+  for (i in 1:length(y[[1]])){
+    if (y[[1]][i] %in% quant.sorted.filtered$target_id){
+      #creating a new dataframe for the reads supporting individual transcript ID for each filtered fusion gene pair 
+      result_reads_inter <- data.frame(deduped.result[row,1:6])
+      result_reads_inter$transcriptID = y[[1]][i]
+      tpm = quant.sorted.filtered[grep(y[[1]][i], quant.sorted.filtered$target_id), ]$tpm 
+      result_reads_inter$tpm = tpm
+      result_reads <- rbind(result_reads, result_reads_inter)
+    }
+  }
+}
+
+result_reads <- result_reads[order(-result_reads$tpm),]
+kable(result_reads, row.names = FALSE) %>%
+  kable_styling(font_size = 10, "striped", "bordered")
+
 ```
 
 ### Fusion genes expression profiles  {.tabset}
