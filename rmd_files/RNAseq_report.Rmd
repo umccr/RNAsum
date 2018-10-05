@@ -11,9 +11,9 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: 
-  sample_name: 
-  count_file: 
+  report_dir: '../reports'
+  sample_name: 'CCR170012_MH17T001P013'
+  count_file: '../data/CCR170012_MH17T001P013-ready.counts'
   datasets_pancreas: '../data/Datasets_list_PDAC.txt'
   genes_fusions: '../data/Genes_fusions.txt'
   genes_pmcc: '../data/Genes_PMCC.txt'
@@ -210,14 +210,17 @@ exprGroupStats <- function(data, targets, target) {
   data.group.q <- perc.rank(data.group.mean)
   
   ##### Perform range standardization between 0 and 1 (for the cumulative sums), otherwise the negative values are summed up
-  data.group.z <- standardization(data.group.mean)
+  data.group.s <- standardization(data.group.mean)
   
   ##### Calculate cumulative sums and perform range standardization between 0 and 1 
-  data.group.cum <- standardization(cumsum(data.group.z))
+  data.group.cum <- standardization(cumsum(data.group.s))
+  
+  ##### Perform Z-score transformation of the mean expression values
+  data.group.z <- scale(data.group.mean)
   
   ##### Organise the data into data frame
-  data.group.df <- as.data.frame(cbind( data.group.mean, data.group.sd, data.group.q, data.group.cum))
-  names(data.group.df) <- c("mean", "sd", "quantile", "cumulative_fraction")
+  data.group.df <- as.data.frame(cbind( data.group.mean, data.group.sd, data.group.z, data.group.q, data.group.cum))
+  names(data.group.df) <- c("mean", "sd", "z", "quantile", "cumulative_fraction")
   
   return( data.group.df )
 }
@@ -225,6 +228,7 @@ exprGroupStats <- function(data, targets, target) {
 ##### Generate cumulative distribution function (CDF) plot for selected gene
 cdfPlot <- function(gene, data, targets, sampleName) {
   
+  ##### Get expression-related stats for each group
   sample.expr.cum <- exprGroupStats(data, targets, sampleName)
   PDAC.expr.cum <- exprGroupStats(data, targets, "PDAC")
   normal.expr.cum <- exprGroupStats(data, targets, "Pancreas (normal)")
@@ -235,64 +239,63 @@ cdfPlot <- function(gene, data, targets, sampleName) {
   normal.expr.cum.selected <- normal.expr.cum[ rownames(normal.expr.cum) %in% unlist(gene), ]
   
   ##### Generate interactive CFD plot with plotly
-  p <- plot_ly(sample.expr.cum, x = ~mean, color = I("black")) %>%
+  p <- plot_ly(sample.expr.cum, x = ~z, color = I("black")) %>%
   
     ##### Add sample data
-    add_markers(y = sample.expr.cum.selected$cumulative_fraction, x = sample.expr.cum.selected$mean,
+    add_markers(y = sample.expr.cum.selected$cumulative_fraction, x = sample.expr.cum.selected$z,
                 text = rownames(sample.expr.cum.selected ),
                 name = params$sample,
                 marker = list(size = 12, color = "black"),
                 showlegend = FALSE) %>%
   
-    add_lines(y = sample.expr.cum$cumulative_fraction, x = sample.expr.cum$mean, 
+    add_lines(y = sample.expr.cum$cumulative_fraction, x = sample.expr.cum$z, 
               line = list(color = "grey"),
               text = rownames( sample.expr.cum ),
               name = params$sample, showlegend = TRUE) %>%
     
     ##### Add PDAC data
-    add_markers(y = PDAC.expr.cum.selected$cumulative_fraction, x =  PDAC.expr.cum.selected$mean,
+    add_markers(y = PDAC.expr.cum.selected$cumulative_fraction, x =  PDAC.expr.cum.selected$z,
                 text = rownames( PDAC.expr.cum.selected),
                 name = "PDAC",
                 marker = list(size = 12, opacity = 0.5, color = "red"),
                 showlegend = FALSE) %>%
   
-    add_lines(y = PDAC.expr.cum$cumulative_fraction, x = PDAC.expr.cum$mean, opacity = 0.5,
+    add_lines(y = PDAC.expr.cum$cumulative_fraction, x = PDAC.expr.cum$z, opacity = 0.5,
               line = list(color = "red", dash = "dash"),
               text = rownames( PDAC.expr.cum),
               name = "PDAC", showlegend = TRUE) %>%
-
     
     ##### Add normal pancreas data
-    add_markers(y = normal.expr.cum.selected$cumulative_fraction, x =  normal.expr.cum.selected$mean,
+    add_markers(y = normal.expr.cum.selected$cumulative_fraction, x =  normal.expr.cum.selected$z,
                 text = rownames( normal.expr.cum.selected ),
                 name = "Pancreas (normal)",
                 marker = list(size = 12, opacity = 0.5, color = "green"),
                 showlegend = FALSE) %>%
   
-    add_lines(y = normal.expr.cum$cumulative_fraction, x = normal.expr.cum$mean, opacity = 0.5,
+    add_lines(y = normal.expr.cum$cumulative_fraction, x = normal.expr.cum$z, opacity = 0.5,
               line = list(color = "green", dash = "dash"),
               text = rownames( normal.expr.cum ),
               name = "Pancreas (normal)", showlegend = TRUE) %>%
     
     ##### Add quantile lines
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$mean, probs=0:4/4)[2], 11), opacity = 0.5,
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[2], 11), opacity = 0.5,
               line = list(color = "gray", opacity = 0.2, dash = "dash"),
               name = "Q1", showlegend = FALSE) %>%
     
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$mean, probs=0:4/4)[3], 11), opacity = 0.5,
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[3], 11), opacity = 0.5,
               line = list(color = "gray", opacity = 0.2, dash = "dash"),
               name = "Q2", showlegend = FALSE) %>%
     
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$mean, probs=0:4/4)[4], 11), opacity = 0.5,
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[4], 11), opacity = 0.5,
               line = list(color = "gray", opacity = 0.2, dash = "dash"),
-              name = "Q3", showlegend = FALSE) %>%
+              name = "Q3", showlegend = FALSE) %>% 
     
-    layout(xaxis = list(title = "mRNA expression", zeroline = FALSE, range = c(min(sample.expr.cum$mean), max(sample.expr.cum$mean)+4)),
+    layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z), max(sample.expr.cum$z)+1)),
            yaxis = list(title = "Cumulative fraction"),
            legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
-           annotations = list(x = sample.expr.cum.selected$mean, y = sample.expr.cum.selected$cumulative_fraction,
-    text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 50, ay = 50))
-  
+           annotations = list(x = sample.expr.cum.selected$z, y = sample.expr.cum.selected$cumulative_fraction,
+    text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 30, ay = 30))
+
   return( p )
 }
 
@@ -310,6 +313,84 @@ fusion_png <- function(geneA, geneB, pizzly_folder ) {
   ##### Present the converted file in the report
   include_graphics(fusion_png)
 }
+
+
+##### Generate table with coloured cells indicating expression values for selected genes
+exprTable <- function(genes, data, targets, genes_annot = NULL) {
+  
+  ##### Check how many of the selected genes are present in the expression data
+  genes <- as.data.frame(genes[ unlist(genes) %in% rownames(data) , ])
+  names(genes) <- "gene"
+    
+  targets.list <- unique(target$Target)
+  
+  ##### Initiate dataframe for expression mean values in each group
+  group.z <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = nrow(data)))
+  colnames(group.z) <- targets.list
+  rownames(group.z) <- sort(rownames(data))
+  
+  for ( group in targets.list ) {
+  
+    group.stats <- exprGroupStats(data[rownames(group.z), ], target, group)
+    group.stats <- group.stats[order(rownames(group.stats)), ]
+    group.z[, group] <- round(group.stats$z, digits=2)
+  }
+  
+  ##### Subset the expression data to include only the PMCC genes
+  group.z <- group.z[ rownames(group.z) %in% unlist(genes), ]
+  
+  ##### Compute Z-scores sd for each gene
+  group.z <- cbind(group.z, round(rowSds(as.matrix(group.z)), digits = 2))
+  names(group.z)[ncol(group.z)] <- "SD"
+  
+  ##### Add genes annotation
+  if ( !is.null(genes_annot) ) {
+    
+    ##### Merge the dataframe with groups mean expression values and gene annotations
+    group.z <- merge(genes_annot, group.z, by="row.names", all = FALSE, sort = FALSE)[, -1]
+    
+  } else {
+    group.z <- cbind(rownames(group.z), group.z)
+    names(group.z)[1] <- "Gene"
+  }
+  
+  ##### Order table by SD
+  group.z <- group.z[ order(group.z[, "SD"],  decreasing = TRUE), ]
+  
+  ##### Define colours for cells background (using expression values quantiles) for each group
+  ##### Initiate dataframe for expression mean values in each group
+  brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
+  colnames(brks.q) <- targets.list
+  clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
+  colnames(clrs.q) <- targets.list
+  
+  for ( group in targets.list ) {
+  
+    brks.q[[group]] <- quantile(group.z[, targets.list[1]], probs = seq(.05, .95, .0005), na.rm = TRUE)
+  
+    clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]])/2 + 1.5), 0) %>%
+    {paste0("rgb(255,", ., ",", ., ")")}
+    clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]])/2 - 0.5), 0)) %>%
+    {paste0("rgb(", .,",", .,",", "255)")}
+    
+    clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
+  }
+  
+  ##### Generate a table with genes annotationa and coloured exprssion values in each group
+  DT::datatable( data = group.z, filter="none", rownames = FALSE, options = list(pageLength = 10), caption = htmltools::tags$caption(
+          style = 'caption-side: top; text-align: center; color:black; 
+          font-size:10% ;') ) %>%
+    DT::formatStyle( columns = names(group.z), `font-size` = '12px' ) %>%
+    
+    ##### Colour cells according to the expression values quantiles in each group
+    DT::formatStyle(columns = targets.list[1], 
+                    backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])) %>%
+    DT::formatStyle(columns = targets.list[2], 
+                    backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
+    DT::formatStyle(columns = targets.list[3], 
+                    backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]]))
+}
+
 ```
 
 ```{r load_libraries, warning=FALSE}
@@ -693,72 +774,13 @@ mRNA expression levels of genes included in the Peter Mac comprehensive cancer (
 ```{r gene_table_pmcc, comment = NA, message=FALSE, warning=FALSE}
 ##### Check how many of the PMCC genes are present in the expression data
 data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[ref]][[2]]
 
 ref_genes.list[["genes_pmcc"]] <- as.data.frame(ref_genes.list[["genes_pmcc"]][ unlist(ref_genes.list[["genes_pmcc"]]) %in% rownames(data) , ])
 names(ref_genes.list[["genes_pmcc"]]) <- "genes_pmcc"
   
-cat(nrow(ref_genes.list[["genes_pmcc"]]), "PMCC panel genes are present in the expression data\n\n")
-
-##### Subset the expression data to include only the PMCC genes
-data <- data[ rownames(data) %in% unlist(ref_genes.list[["genes_pmcc"]]), ]
-ref_datasets.list[[ref]][[6]] <- data
-
-##### Initiate dataframe for expression mean values in each group
-group.mean <- as.data.frame(matrix(NA, ncol = length(unique(target$Target)), nrow = nrow(data)))
-colnames(group.mean) <- unique(target$Target)
-rownames(group.mean) <- sort(rownames(data))
-
-for ( group in unique(target$Target) ) {
-
-  group.stats <- exprGroupStats(data[rownames(group.mean), ], target, group)
-  group.stats <- group.stats[order(rownames(group.stats)), ]
-  group.mean[, group] <- round(group.stats$mean, digits=2)
-      
-}
-
-##### Order dataframe with gene annotations
-genes.annot <- ref_datasets.list[[ref]][[5]][order(ref_datasets.list[[ref]][[5]]$SYMBOL), c(1:3)]
-
-##### Merge the dataframe with groups mean expression values and gene annotations
-group.mean <- merge(genes.annot, group.mean, by="row.names", all = FALSE, sort = FALSE)[, -1]
-group.mean <- group.mean[ order(group.mean[, params$sample_name],  decreasing = TRUE), ]
-
-##### Define colours for cells background (using expression values quantiles) for each group
-##### Initiate dataframe for expression mean values in each group
-brks.q <- as.data.frame( matrix(NA, ncol = length(unique(target$Target)), nrow = length(seq(.05, .95, .0005)) ))
-colnames(brks.q) <- unique(target$Target)
-clrs.q <- as.data.frame( matrix(NA, ncol = length(unique(target$Target)), nrow = length(seq(.05, .95, .0005))+1 ))
-colnames(clrs.q) <- unique(target$Target)
-
-for ( group in unique(target$Target) ) {
-
-  brks.q[[group]] <- quantile(group.mean[, unique(target$Target)[1]], probs = seq(.05, .95, .0005), na.rm = TRUE)
-
-  clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]])/2 + 1.5), 0) %>%
-  {paste0("rgb(255,", ., ",", ., ")")}
-  clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]])/2 - 0.5), 0)) %>%
-  {paste0("rgb(", .,",", .,",", "255)")}
-  
-  clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
-}
-
-##### Generate a table with genes annotationa and coloured exprssion values in each group
-DT::datatable( data = group.mean, rownames = FALSE, options = list(pageLength = 10), caption = htmltools::tags$caption(
-        style = 'caption-side: top; text-align: center; color:black; 
-        font-size:10% ;'),
-      filter=list(position = 'top') ) %>%
-  DT::formatStyle( columns = names(group.mean), `font-size` = '12px' ) %>%
-  
-  ##### Colour cells according to the expression values quantiles in each group
-  DT::formatStyle(columns = unique(target$Target)[1], 
-                  backgroundColor = DT::styleInterval(brks.q[[unique(target$Target)[1]]], clrs.q[[unique(target$Target)[1]]])) %>%
-  DT::formatStyle(columns = unique(target$Target)[2], 
-                  backgroundColor = DT::styleInterval(brks.q[[unique(target$Target)[2]]], clrs.q[[unique(target$Target)[2]]])) %>%
-  DT::formatStyle(columns = unique(target$Target)[3], 
-                  backgroundColor = DT::styleInterval(brks.q[[unique(target$Target)[3]]], clrs.q[[unique(target$Target)[3]]]))
-    
+exprTable(ref_genes.list[["genes_pmcc"]], data, target, ref_datasets.list[[ref]][[5]][, c(1,3)])
 ```
-
 
 ### PMCC genes expression profiles {.tabset}
 
