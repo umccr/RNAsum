@@ -566,7 +566,7 @@ kable(result_reads, row.names = FALSE) %>%
 
 ### Fusion genes expression profiles  {.tabset}
 
-mRNA expression levels of fusion genes in sample **`r params$sample_name`** and average mRNA expression in samples from cancer patients and healthy individuals.
+mRNA expression levels of fusion genes in sample **`r params$sample_name`** and their average mRNA expression in samples from cancer patients and healthy individuals.
 
 #### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
 
@@ -660,7 +660,80 @@ kable(fusion.df, row.names = FALSE) %>%
 
 ## PMCC gene panel
 
-mRNA expression levels of genes included in the Peter Mac comprehensive cancer (PMCC) panel in sample **`r params$sample_name`** and average mRNA expression in samples from cancer patients and healthy individuals.
+mRNA expression levels of genes included in the Peter Mac comprehensive cancer (PMCC) panel in sample **`r params$sample_name`** and their average mRNA expression in samples from cancer patients and healthy individuals.
+
+
+### PMCC genes expression summary
+
+```{r gene_table_pmcc, comment = NA, message=FALSE, warning=FALSE}
+##### Check how many of the PMCC genes are present in the expression data
+data <- ref_datasets.list[[ref]][[3]]
+
+ref_genes.list[["genes_pmcc"]] <- as.data.frame(ref_genes.list[["genes_pmcc"]][ unlist(ref_genes.list[["genes_pmcc"]]) %in% rownames(data) , ])
+names(ref_genes.list[["genes_pmcc"]]) <- "genes_pmcc"
+  
+cat(nrow(ref_genes.list[["genes_pmcc"]]), "PMCC panel genes are present in the expression data\n\n")
+
+##### Subset the expression data to include only the PMCC genes
+data <- data[ rownames(data) %in% unlist(ref_genes.list[["genes_pmcc"]]), ]
+ref_datasets.list[[ref]][[6]] <- data
+
+##### Initiate dataframe for expression mean values in each group
+group.mean <- as.data.frame(matrix(NA, ncol = length(unique(target$Target)), nrow = nrow(data)))
+colnames(group.mean) <- unique(target$Target)
+rownames(group.mean) <- sort(rownames(data))
+
+for ( group in unique(target$Target) ) {
+
+  group.stats <- exprGroupStats(data[rownames(group.mean), ], target, group)
+  group.stats <- group.stats[order(rownames(group.stats)), ]
+  group.mean[, group] <- round(group.stats$mean, digits=2)
+      
+}
+
+##### Order dataframe with gene annotations
+genes.annot <- ref_datasets.list[[ref]][[5]][order(ref_datasets.list[[ref]][[5]]$SYMBOL), c(1:3)]
+
+##### Merge the dataframe with groups mean expression values and gene annotations
+group.mean <- merge(genes.annot, group.mean, by="row.names", all = FALSE, sort = FALSE)[, -1]
+group.mean <- group.mean[ order(group.mean[, params$sample_name],  decreasing = TRUE), ]
+
+##### Define colours for cells background (using expression values quantiles) for each group
+##### Initiate dataframe for expression mean values in each group
+brks.q <- as.data.frame( matrix(NA, ncol = length(unique(target$Target)), nrow = length(seq(.05, .95, .0005)) ))
+colnames(brks.q) <- unique(target$Target)
+clrs.q <- as.data.frame( matrix(NA, ncol = length(unique(target$Target)), nrow = length(seq(.05, .95, .0005))+1 ))
+colnames(clrs.q) <- unique(target$Target)
+
+for ( group in unique(target$Target) ) {
+
+  brks.q[[group]] <- quantile(group.mean[, unique(target$Target)[1]], probs = seq(.05, .95, .0005), na.rm = TRUE)
+
+  clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]])/2 + 1.5), 0) %>%
+  {paste0("rgb(255,", ., ",", ., ")")}
+  clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]])/2 - 0.5), 0)) %>%
+  {paste0("rgb(", .,",", .,",", "255)")}
+  
+  clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
+}
+
+##### Generate a table with genes annotationa and coloured exprssion values in each group
+DT::datatable( data = group.mean, rownames = FALSE, options = list(pageLength = 10), caption = htmltools::tags$caption(
+        style = 'caption-side: top; text-align: center; color:black; 
+        font-size:10% ;'),
+      filter=list(position = 'top') ) %>%
+  DT::formatStyle( columns = names(group.mean), `font-size` = '12px' ) %>%
+  
+  ##### Colour cells according to the expression values quantiles in each group
+  DT::formatStyle(columns = unique(target$Target)[1], 
+                  backgroundColor = DT::styleInterval(brks.q[[unique(target$Target)[1]]], clrs.q[[unique(target$Target)[1]]])) %>%
+  DT::formatStyle(columns = unique(target$Target)[2], 
+                  backgroundColor = DT::styleInterval(brks.q[[unique(target$Target)[2]]], clrs.q[[unique(target$Target)[2]]])) %>%
+  DT::formatStyle(columns = unique(target$Target)[3], 
+                  backgroundColor = DT::styleInterval(brks.q[[unique(target$Target)[3]]], clrs.q[[unique(target$Target)[3]]]))
+    
+```
+
 
 ### PMCC genes expression profiles {.tabset}
 
@@ -757,15 +830,6 @@ cdfPlot(gene, data, target, params$sample_name)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
-```
-
-### PMCC genes expression summary
-
-TO BE COMPLETED...
-
-```{r gene_table_pmcc_5, comment = NA, message=FALSE, warning=FALSE}
-kable(ref_datasets.list[[ref]][[5]][gene, ], row.names = FALSE) %>%
-  kable_styling(font_size = 10, "striped", "bordered")
 ```
 
 ## Parameters
