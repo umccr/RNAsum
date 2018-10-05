@@ -11,9 +11,9 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: '../reports'
-  sample_name: 'CCR170012_MH17T001P013'
-  count_file: '../data/CCR170012_MH17T001P013-ready.counts'
+  report_dir: 
+  sample_name: 
+  count_file: 
   datasets_pancreas: '../data/Datasets_list_PDAC.txt'
   genes_fusions: '../data/Genes_fusions.txt'
   genes_pmcc: '../data/Genes_PMCC.txt'
@@ -234,9 +234,9 @@ cdfPlot <- function(gene, data, targets, sampleName) {
   normal.expr.cum <- exprGroupStats(data, targets, "Pancreas (normal)")
   
   ##### Extract expression for selected genes
-  sample.expr.cum.selected <- sample.expr.cum[ rownames(sample.expr.cum) %in% unlist(gene), ]
-  PDAC.expr.cum.selected <- PDAC.expr.cum[ rownames(PDAC.expr.cum) %in% unlist(gene), ]
-  normal.expr.cum.selected <- normal.expr.cum[ rownames(normal.expr.cum) %in% unlist(gene), ]
+  sample.expr.cum.selected <- sample.expr.cum[ rownames(sample.expr.cum) %in% gene, ]
+  PDAC.expr.cum.selected <- PDAC.expr.cum[ rownames(PDAC.expr.cum) %in% gene, ]
+  normal.expr.cum.selected <- normal.expr.cum[ rownames(normal.expr.cum) %in% gene, ]
   
   ##### Generate interactive CFD plot with plotly
   p <- plot_ly(sample.expr.cum, x = ~z, color = I("black")) %>%
@@ -319,8 +319,7 @@ fusion_png <- function(geneA, geneB, pizzly_folder ) {
 exprTable <- function(genes, data, targets, genes_annot = NULL) {
   
   ##### Check how many of the selected genes are present in the expression data
-  genes <- as.data.frame(genes[ unlist(genes) %in% rownames(data) , ])
-  names(genes) <- "gene"
+  genes <- genes[ genes %in% rownames(data) ]
     
   targets.list <- unique(target$Target)
   
@@ -335,9 +334,6 @@ exprTable <- function(genes, data, targets, genes_annot = NULL) {
     group.stats <- group.stats[order(rownames(group.stats)), ]
     group.z[, group] <- round(group.stats$z, digits=2)
   }
-  
-  ##### Subset the expression data to include only the PMCC genes
-  group.z <- group.z[ rownames(group.z) %in% unlist(genes), ]
   
   ##### Compute Z-scores sd for each gene
   group.z <- cbind(group.z, round(rowSds(as.matrix(group.z)), digits = 2))
@@ -357,7 +353,7 @@ exprTable <- function(genes, data, targets, genes_annot = NULL) {
   ##### Order table by SD
   group.z <- group.z[ order(group.z[, "SD"],  decreasing = TRUE), ]
   
-  ##### Define colours for cells background (using expression values quantiles) for each group
+  ##### Define colours for cells background for each group
   ##### Initiate dataframe for expression mean values in each group
   brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
   colnames(brks.q) <- targets.list
@@ -365,9 +361,10 @@ exprTable <- function(genes, data, targets, genes_annot = NULL) {
   colnames(clrs.q) <- targets.list
   
   for ( group in targets.list ) {
-  
-    brks.q[[group]] <- quantile(group.z[, targets.list[1]], probs = seq(.05, .95, .0005), na.rm = TRUE)
-  
+
+    brks.q[[group]] <- quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
+    #brks.q[[group]] <- sort(group.z[, group])
+    
     clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]])/2 + 1.5), 0) %>%
     {paste0("rgb(255,", ., ",", ., ")")}
     clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]])/2 - 0.5), 0)) %>%
@@ -375,6 +372,9 @@ exprTable <- function(genes, data, targets, genes_annot = NULL) {
     
     clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
   }
+  
+  ##### Subset the expression data to include only the PMCC genes
+  group.z <- group.z[ group.z$SYMBOL %in% genes, ]
   
   ##### Generate a table with genes annotationa and coloured exprssion values in each group
   DT::datatable( data = group.z, filter="none", rownames = FALSE, options = list(pageLength = 10), caption = htmltools::tags$caption(
@@ -390,7 +390,6 @@ exprTable <- function(genes, data, targets, genes_annot = NULL) {
     DT::formatStyle(columns = targets.list[3], 
                     backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]]))
 }
-
 ```
 
 ```{r load_libraries, warning=FALSE}
@@ -695,13 +694,10 @@ cdfPlot(geneB, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-TO BE COMPLETED...
-
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-kable(fusion.df, row.names = FALSE) %>%
-  kable_styling(font_size = 10, "striped", "bordered")
+exprTable(fusion.df$SYMBOL, data, target, ref_datasets.list[[ref]][[5]][, c(1,3)])
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
@@ -725,13 +721,10 @@ cdfPlot(geneB, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-TO BE COMPLETED...
-
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-kable(fusion.df, row.names = FALSE) %>%
-  kable_styling(font_size = 10, "striped", "bordered")
+exprTable(fusion.df$SYMBOL, data, target, ref_datasets.list[[ref]][[5]][, c(1,3)])
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
@@ -755,13 +748,10 @@ cdfPlot(geneB, data, target, params$sample_name)
 detach("package:plotly", unload=FALSE)
 ```
 
-TO BE COMPLETED...
-
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-kable(fusion.df, row.names = FALSE) %>%
-  kable_styling(font_size = 10, "striped", "bordered")
+exprTable(fusion.df$SYMBOL, data, target, ref_datasets.list[[ref]][[5]][, c(1,3)])
 ```
 
 ## PMCC gene panel
