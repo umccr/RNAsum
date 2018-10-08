@@ -200,39 +200,41 @@ exprGroupStats <- function(data, targets, target) {
   ##### For groups with > 1 sample get the mean and standard deviation for each gene
   if ( !is.null(ncol(data.group)) )  {
     
-    data.group.mean <- sort(rowMeans(data.group))
+    data.group.median <- rowMedians(data.group)
+    names(data.group.median) <- rownames(data)
+    data.group.median <- sort(data.group.median)
     data.group.sd <- rowSds(data.group)
     
   } else {
-    data.group.mean <- sort(data.group)
+    data.group.median <- sort(data.group)
     data.group.sd <- rep( NA, length(data.group))
   }
   
-  ##### Make sure the mean and sd vectors have the same gene order
+  ##### Make sure the median and sd vectors have the same gene order
   names(data.group.sd) <- rownames(data)
-  data.group.sd <- data.group.sd[names(data.group.mean)]
+  data.group.sd <- data.group.sd[names(data.group.median)]
 
   ##### Convert a expression values into corresponding percentiles
-  data.group.q <- perc.rank(data.group.mean)
+  data.group.q <- perc.rank(data.group.median)
   
   ##### Perform range standardization between 0 and 1 (for the cumulative sums), otherwise the negative values are summed up
-  data.group.s <- standardization(data.group.mean)
+  data.group.s <- standardization(data.group.median)
   
   ##### Calculate cumulative sums and perform range standardization between 0 and 1 
   data.group.cum <- standardization(cumsum(data.group.s))
   
-  ##### Perform Z-score transformation of the mean expression values
-  data.group.z <- scale(data.group.mean)
+  ##### Perform Z-score transformation of the median expression values
+  data.group.z <- scale(data.group.median)
   
   ##### Organise the data into data frame
-  data.group.df <- as.data.frame(cbind( data.group.mean, data.group.sd, data.group.z, data.group.q, data.group.cum))
-  names(data.group.df) <- c("mean", "sd", "z", "quantile", "cumulative_fraction")
+  data.group.df <- as.data.frame(cbind( data.group.median, data.group.sd, data.group.z, data.group.q, data.group.cum))
+  names(data.group.df) <- c("median", "sd", "z", "quantile", "cumulative_fraction")
   
   return( data.group.df )
 }
   
-##### Generate cumulative distribution function (CDF) plot for selected gene
-cdfPlot <- function(gene, data, targets, sampleName, normal, cancer) {
+##### Generate cumulative distribution function (CDF) plot for selected gene. If option "boxplot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
+cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, boxPlot = FALSE) {
   
   ##### Get expression-related stats for each group
   sample.expr.cum <- exprGroupStats(data, targets, sampleName)
@@ -245,7 +247,7 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer) {
   normal.expr.cum.selected <- normal.expr.cum[ rownames(normal.expr.cum) %in% gene, ]
   
   ##### Generate interactive CFD plot with plotly
-  p <- plot_ly(sample.expr.cum, x = ~z, color = I("black")) %>%
+  p1 <- plot_ly(sample.expr.cum, x = ~z, color = I("black")) %>%
   
     ##### Add sample data
     add_markers(y = sample.expr.cum.selected$cumulative_fraction, x = sample.expr.cum.selected$z,
@@ -296,13 +298,35 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer) {
               line = list(color = "gray", opacity = 0.2, dash = "dash"),
               name = "Q3", showlegend = FALSE) %>% 
     
-        layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1, max(sample.expr.cum$z)+1)),
+        layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
            yaxis = list(title = "Cumulative fraction"),
-           legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
-           annotations = list(x = sample.expr.cum.selected$z, y = sample.expr.cum.selected$cumulative_fraction,
-    text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 30, ay = 30))
+           legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white")
+           
+           ##### Annotate the gene of interest
+           #annotations = list(x = sample.expr.cum.selected$z, y = sample.expr.cum.selected$cumulative_fraction,
+    #text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 30, ay = 30)
+    )
+    
+  ##### Generate box-plot for selected gene
+  if ( boxPlot ) {
+    
+    data.z <- scale(data)
+    targets$Target[ targets$Target==sampleName ] <- "Patient"
+    
+    gene.expr.df <- data.frame(targets$Target, data.z[gene, ])
+    colnames(gene.expr.df) <- c("Group", "Expression")
+    
+    ##### Reorder groups
+    gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(normal, cancer, "Patient"))
+      
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("darkgreen", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600) %>%
+      layout(yaxis = list( title =""), xaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, showlegend=FALSE)
 
-  return( p )
+    return( subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE) )
+    
+  } else {
+    return( p1 )
+  }
 }
 
 ##### Fusion visualization
@@ -329,7 +353,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, genes_annot = NU
     
   targets.list <- unique(target$Target)
   
-  ##### Initiate dataframe for expression mean values in each group
+  ##### Initiate dataframe for expression median values in each group
   group.z <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = nrow(data)))
   colnames(group.z) <- targets.list
   rownames(group.z) <- sort(rownames(data))
@@ -345,7 +369,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, genes_annot = NU
   group.z <- cbind(group.z, round(rowSds(as.matrix(group.z)), digits = 2))
   names(group.z)[ncol(group.z)] <- "SD"
   
-  ##### Calculate Z-score differneces between investigated sample and normal group mean values
+  ##### Calculate Z-score differneces between investigated sample and normal group median values
   group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, normal]), digits = 2))
   names(group.z)[ncol(group.z)] <- "Patient vs Normal"
   
@@ -358,7 +382,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, genes_annot = NU
   ##### Add genes annotation
   if ( !is.null(genes_annot) ) {
     
-    ##### Merge the dataframe with groups mean expression values and gene annotations
+    ##### Merge the dataframe with groups median expression values and gene annotations
     group.z <- merge(genes_annot, group.z, by="row.names", all = FALSE, sort = FALSE)
     rownames(group.z) <- group.z$Row.names
     group.z <- group.z[, -1]
@@ -381,7 +405,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, genes_annot = NU
   group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
   
   ##### Define colours for cells background for each group and the patient vs normal difference
-  ##### Initiate dataframe for expression mean values in each group
+  ##### Initiate dataframe for expression median values in each group
   brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
   colnames(brks.q) <- targets.list
   clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
@@ -580,7 +604,8 @@ for ( gene in unlist(ref_genes.list[["genes_pmcc"]]) ) {
 rownames(cancer_genes) <- cancer_genes$Hugo.Symbol
 names(cancer_genes) <- c("Gene", "No. of resources", "OncoKB", "Oncogene", "TSG", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "PMCC")
 cancer_genes <- cancer_genes[,c("Oncogene", "TSG", "No. of resources", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "PMCC")]
-cancer_genes[ cancer_genes=="No" ] <- ""
+cancer_genes[ cancer_genes=="No" ] <- "-"
+cancer_genes[ cancer_genes=="" ] <- "-"
 
 ref_genes.list[["cancer_genes"]] <- cancer_genes
 ```
@@ -593,6 +618,8 @@ target <- ref_datasets.list[[ref]][[2]]
 ref_normal <- table(target$Target)[names(table(target$Target))==params$normal_group]
 ref_cancer <- table(target$Target)[names(table(target$Target))==params$cancer_group]
 ```
+
+***
 
 ### Input data summary
 
@@ -607,6 +634,7 @@ From the `r nrow(counts)` input genes:
 * `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/)-apporved gene symbol
 * **`r nrow(data.annot)` genes** remained for the analysis
 
+***
 
 ## Gene fusion events
 
@@ -699,6 +727,8 @@ for (row in 1:nrow(deduped.result)){
   }
 }
 ```
+
+***
 
 ### Fusion genes expression profiles {.tabset}
 
@@ -860,6 +890,8 @@ fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYM
 exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
 ```
 
+***
+
 ## Cancer genes
 
 mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. These include *[Peter Mac](https://www.petermac.org/) comprehensive cancer (PMCC)* panel genes and genes considered to be cancer genes (listed [here](http://oncokb.org/#/cancerGenes)) by *[OncoKB](http://oncokb.org/#/about)* based on their inclusion in the following sequencing panels: *[MSK-IMPACT](https://www.mskcc.org/msk-impact)*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf)*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx)*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme)*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full)* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census)*.
@@ -880,6 +912,8 @@ cancer_genes.expr <- exprTable(rownames(ref_genes.list[["cancer_genes"]]), data,
 cancer_genes.expr[[1]]
 ```
 
+***
+
 ### Cancer genes expression profiles {.tabset}
 
 NOTE: currently, displaying the top 6 cancer genes with the greatest difference in standarised (Z-score) mRNA expression between patient's sample and the average mRNA expression in samples from normal individuals.
@@ -896,7 +930,8 @@ targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[1]
 
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group)
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -914,7 +949,8 @@ targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[2]
 
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group)
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -932,7 +968,8 @@ targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[3]
 
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group)
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -950,7 +987,8 @@ targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[4]
 
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group)
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -968,7 +1006,8 @@ targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[5]
 
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group)
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -986,7 +1025,8 @@ targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[6]
 
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group)
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
