@@ -20,6 +20,7 @@ params:
   cancer_group: 'PDAC'
   genes_fusions: '../data/Genes_fusions.txt'
   genes_pmcc: '../data/Genes_PMCC.txt'
+  genes_immune: '../data/Genes_immune.txt'
   pizzly_folder: '../data/pizzly-validation'
   oncokb_genes: '../data/CancerGenesList.txt'
   oncokb_clin_vars: '../data/allActionableVariants.txt'
@@ -485,7 +486,7 @@ ref_datasets.list <- vector("list", length(ref_datasets))
 names(ref_datasets.list) <- ref_datasets
 
 ##### Create a list with various sets of genes
-ref_genes <- c("genes_fusions","genes_pmcc", "oncokb_genes")
+ref_genes <- c("genes_fusions","genes_pmcc", "oncokb_genes", "genes_immune")
 ref_genes.list <- vector("list", length(ref_genes))
 names(ref_genes.list) <- ref_genes
 
@@ -501,6 +502,7 @@ ref_datasets.list[[params$tissue]] <- combineDatasets(params$sample_name, params
 ref_genes.list[["genes_fusions"]] <- read.table(params$genes_fusions, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
 ref_genes.list[["genes_pmcc"]] <- read.table(params$genes_pmcc, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
 ref_genes.list[["oncokb_genes"]] <- read.table(params$oncokb_genes, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, comment.char = "")
+ref_genes.list[["genes_immune"]] <- read.table(params$genes_immune, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
 
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(params$oncokb_clin_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL)
@@ -652,6 +654,8 @@ From the `r nrow(counts)` input genes:
 ***
 
 ## Key findings
+
+Section summarising the key findings (clincially relevant deregulated genes and pathways, gene fusion events etc.)
 
 ***
 
@@ -1055,13 +1059,25 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 
 ## Immune Response Markers
 
-Section providing expression data for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy (similar to [this report](https://trello-attachments.s3.amazonaws.com/5753fc730bff8d2b24f159df/59912803fd0e33e3395d05e7/dc9a81ae11a9d1825ab0028d01dc8c53/Advance-sample-report-card-final.pdf))
+Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy (similar to [this report](https://trello-attachments.s3.amazonaws.com/5753fc730bff8d2b24f159df/59912803fd0e33e3395d05e7/dc9a81ae11a9d1825ab0028d01dc8c53/Advance-sample-report-card-final.pdf))
+
+```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+
+immune_genes.expr <- exprTable(unlist(ref_genes.list[["genes_immune"]]), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)])
+
+##### Present the expression summary table
+immune_genes.expr[[1]]
+```
 
 ***
 
 ## Drug matching
 
-Report drugs that target deregulated genes, fusion events (deregulated pathways to be added) based on data from:
+Section reporting drugs that target deregulated genes, fusion events (deregulated pathways to be added) based on data from:
 
 * *[CIViC](https://civicdb.org/home)* (data availabe [here](https://github.com/oncokb/oncokb-public/tree/master/data))
 * *[OncoKB](http://oncokb.org/#/about)*
