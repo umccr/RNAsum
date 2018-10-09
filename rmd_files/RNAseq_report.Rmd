@@ -233,8 +233,9 @@ exprGroupStats <- function(data, targets, target) {
   return( data.group.df )
 }
   
-##### Generate cumulative distribution function (CDF) plot for selected gene. If option "boxplot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
-cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, boxPlot = FALSE) {
+  
+##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
+cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot = FALSE) {
   
   ##### Get expression-related stats for each group
   sample.expr.cum <- exprGroupStats(data, targets, sampleName)
@@ -245,6 +246,21 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, boxPlot = F
   sample.expr.cum.selected <- sample.expr.cum[ rownames(sample.expr.cum) %in% gene, ]
   cancer.expr.cum.selected <- cancer.expr.cum[ rownames(cancer.expr.cum) %in% gene, ]
   normal.expr.cum.selected <- normal.expr.cum[ rownames(normal.expr.cum) %in% gene, ]
+  
+  ##### Generate box-plot for selected gene
+  if ( addBoxPlot ) {
+    
+    data.z <- scale(data)
+    targets$Target[ targets$Target==sampleName ] <- "Patient"
+    
+    gene.expr.df <- data.frame(targets$Target, data.z[gene, ])
+    colnames(gene.expr.df) <- c("Group", "Expression")
+    
+    ##### Reorder groups
+    gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(normal, cancer, "Patient"))
+      
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("darkgreen", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
+  }
   
   ##### Generate interactive CFD plot with plotly
   p1 <- plot_ly(sample.expr.cum, x = ~z, color = I("black")) %>%
@@ -298,33 +314,29 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, boxPlot = F
               line = list(color = "gray", opacity = 0.2, dash = "dash"),
               name = "Q3", showlegend = FALSE) %>% 
     
-        layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
+        layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
            yaxis = list(title = "Cumulative fraction"),
            legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white")
            
            ##### Annotate the gene of interest
            #annotations = list(x = sample.expr.cum.selected$z, y = sample.expr.cum.selected$cumulative_fraction,
-    #text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 30, ay = 30)
+           #text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 30, ay = 30)
     )
+  
+  ##### Combine CDF plot with boxplot if this option is selected
+  if ( addBoxPlot ) {
     
-  ##### Generate box-plot for selected gene
-  if ( boxPlot ) {
+    p1_2 <- subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE) %>%
+  layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
+          yaxis = list(title = "Cumulative fraction"),
+          legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
+          yaxis2 = list( title =""), xaxis2 = list(title = paste0(gene, " mRNA expression (Z-score)")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = FALSE,
+         showlegend=TRUE, showlegend2=FALSE)
     
-    data.z <- scale(data)
-    targets$Target[ targets$Target==sampleName ] <- "Patient"
-    
-    gene.expr.df <- data.frame(targets$Target, data.z[gene, ])
-    colnames(gene.expr.df) <- c("Group", "Expression")
-    
-    ##### Reorder groups
-    gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(normal, cancer, "Patient"))
-      
-    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("darkgreen", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600) %>%
-      layout(yaxis = list( title =""), xaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, showlegend=FALSE)
-
-    return( subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE) )
+    return( p1_2 )
     
   } else {
+   
     return( p1 )
   }
 }
@@ -346,7 +358,7 @@ fusion_png <- function(geneA, geneB, pizzly_folder ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, targets, sampleName, normal, genes_annot = NULL, cancer_genes_resources = NULL) {
+exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_annot = NULL, cancer_genes_resources = NULL) {
   
   ##### Check how many of the selected genes are present in the expression data
   genes <- genes[ genes %in% rownames(data) ]
@@ -379,6 +391,9 @@ exprTable <- function(genes, data, targets, sampleName, normal, genes_annot = NU
   names(group.z)[names(group.z)==normal] <- "Normal"
   targets.list[targets.list==normal] <- "Normal"
   
+  ##### Reorder groups
+  group.z <- cbind(group.z[ , c("Normal", cancer, "Patient")], group.z[, c(4,5)])
+    
   ##### Add genes annotation
   if ( !is.null(genes_annot) ) {
     
@@ -426,7 +441,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, genes_annot = NU
   
   ##### Subset the expression data to include only the cancer genes
   group.z <- group.z[ rownames(group.z) %in% genes, ]
-  
+    
   ##### Generate a table with genes annotationa and coloured exprssion values in each group
   dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800, caption = htmltools::tags$caption(
           style = 'caption-side: top; text-align: left; color:grey; 
@@ -690,7 +705,7 @@ for (row in 1:nrow(pizzly.fusions)){
   }
 }
 
-#sorting pizzly.fusions according to two new target dataframes identified i.e. 1- pizzly result filtering using expressions counts and 2- pmcc gene list
+#sorting pizzly.fusions according to two new target dataframes identified i.e. 1- pizzly result filtering using expressions counts and 2- cancer genes list
 
 pizzly.fusions$order <- rownames(pizzly.fusions) %in% rownames(deduped.result) 
 pizzly.fusions$order2 <- rownames(pizzly.fusions) %in% rownames(result.cancer_genes)
@@ -706,7 +721,7 @@ kable(pizzly.fusions2) %>%
   group_rows("Filtered results using expression count matrix", 1, nrow(deduped.result), label_row_css = "background-color: #E74C3C; color: #fff;") %>%
   group_rows("Filtered results using cancer genes list", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.cancer_genes)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
   group_rows("Other pizzly results", (nrow(deduped.result) + nrow(result.cancer_genes) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
-  scroll_box(width = "100%", height = "200px")
+  scroll_box(width = "100%", height = "400px")
 ```
 
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
@@ -783,7 +798,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
@@ -835,7 +850,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
@@ -887,7 +902,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
 ```
 
 ***
@@ -906,7 +921,7 @@ ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 
-cancer_genes.expr <- exprTable(rownames(ref_genes.list[["cancer_genes"]]), data, target, params$sample_name, params$normal_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]])
+cancer_genes.expr <- exprTable(rownames(ref_genes.list[["cancer_genes"]]), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]])
 
 ##### Present the expression summary table
 cancer_genes.expr[[1]]
@@ -931,7 +946,7 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[1]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -950,7 +965,7 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -969,7 +984,7 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -988,7 +1003,7 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1007,7 +1022,7 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1026,7 +1041,7 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 gene <- cancer_genes.expr[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, boxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
