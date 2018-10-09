@@ -14,13 +14,19 @@ params:
   report_dir: 
   sample_name: 
   count_file: 
-  datasets_pancreas: '../data/Datasets_list_pancreas.txt'
+  tissue: 'pancreas'
+  datasets: '../data/Datasets_list_PDAC.txt'
+  normal_group: 'Normal (pancreas)'
+  cancer_group: 'PDAC'
   genes_fusions: '../data/Genes_fusions.txt'
   genes_pmcc: '../data/Genes_PMCC.txt'
   pizzly_folder: '../data/pizzly-validation'
+  oncokb_genes: '../data/CancerGenesList.txt'
+  oncokb_clin_vars: '../data/allActionableVariants.txt'
+  oncokb_all_vars: '../data/allAnnotatedVariants.txt'
 ---
 
-RNA-seq report for sample **`r params$sample_name`**.
+RNA-seq report for patient sample **`r params$sample_name`**.
 
 ```{r define_functions, comment=NA, message=FALSE, warning=FALSE}
 ##### Define functions
@@ -184,122 +190,155 @@ perc.rank <- function(x) trunc(rank(x))*100/length(x)
 
 ##### Perform range standardization between 0 and 1 (for the cumulative sums)
 standardization <- function(x) sort(x-min(x))/(max(x)-min(x))
+
+##### Calculate mean, sd, quantiles and cumulative franctions for expression data from specific sample group
+exprGroupStats <- function(data, targets, target) {
   
-##### Generate cumulative distribution function (CDF) plot for selected gene using sample combined with pancreas expression data
-cdfPlot <- function(gene, data, targets, sampleName) {
+  ##### Subset data for defined biological group
+  data.group <- data[, targets$Target %in% target ]
   
-  ##### Subset data for each biological group
-  sample.expr <- sort(data[, sampleName])
-  normal.expr <- sort(rowMeans(data[, targets$Target %in% "Pancreas (normal)" ]))
-  PDAC.expr <- sort(rowMeans(data[, targets$Target %in% "PDAC" ]))
-  met.expr <- sort(data[, targets$Target %in% "PDAC (metastatic)" ]) # Don't take the mean for this group as there is only one metastatic sample in TCGA PAAD
+  ##### For groups with > 1 sample get the mean and standard deviation for each gene
+  if ( !is.null(ncol(data.group)) )  {
+    
+    data.group.median <- rowMedians(data.group)
+    names(data.group.median) <- rownames(data)
+    data.group.median <- sort(data.group.median)
+    data.group.sd <- rowSds(data.group)
+    
+  } else {
+    data.group.median <- sort(data.group)
+    data.group.sd <- rep( NA, length(data.group))
+  }
   
+  ##### Make sure the median and sd vectors have the same gene order
+  names(data.group.sd) <- rownames(data)
+  data.group.sd <- data.group.sd[names(data.group.median)]
+
   ##### Convert a expression values into corresponding percentiles
-  sample.q <- perc.rank(sample.expr)
-  normal.q <- perc.rank(normal.expr)
-  PDAC.q <- perc.rank(PDAC.expr)
-  met.q <- perc.rank(met.expr)
+  data.group.q <- perc.rank(data.group.median)
   
   ##### Perform range standardization between 0 and 1 (for the cumulative sums), otherwise the negative values are summed up
-  sample.expr.z <- standardization(sample.expr)
-  normal.expr.z <- standardization(normal.expr)
-  PDAC.expr.z <- standardization(PDAC.expr)
-  met.expr.z <- standardization(met.expr)
+  data.group.s <- standardization(data.group.median)
   
   ##### Calculate cumulative sums and perform range standardization between 0 and 1 
-  sample.expr.cum <- standardization(cumsum(sample.expr.z))
-  normal.expr.cum <- standardization(cumsum(normal.expr.z))
-  PDAC.expr.cum <- standardization(cumsum(PDAC.expr.z))
-  met.expr.cum <- standardization(cumsum(met.expr.z))
+  data.group.cum <- standardization(cumsum(data.group.s))
+  
+  ##### Perform Z-score transformation of the median expression values
+  data.group.z <- scale(data.group.median)
   
   ##### Organise the data into data frame
-  sample.expr.cum <- as.data.frame(cbind(c(1:length(sample.expr)), sample.expr, sample.q, sample.expr.cum))
-  normal.expr.cum <- as.data.frame(cbind(c(1:length(normal.expr)), normal.expr, normal.q, normal.expr.cum))
-  PDAC.expr.cum <- as.data.frame(cbind(c(1:length(PDAC.expr)), PDAC.expr, PDAC.q, PDAC.expr.cum))
-  met.expr.cum <- as.data.frame(cbind(c(1:length(met.expr)), met.expr, met.q, met.expr.cum))
+  data.group.df <- as.data.frame(cbind( data.group.median, data.group.sd, data.group.z, data.group.q, data.group.cum))
+  names(data.group.df) <- c("median", "sd", "z", "quantile", "cumulative_fraction")
   
-  names(sample.expr.cum) <- c("index", "expression", "quantile", "cumulative_fraction")
-  names(normal.expr.cum) <- c("index", "expression", "quantile", "cumulative_fraction")
-  names(PDAC.expr.cum) <- c("index", "expression", "quantile", "cumulative_fraction")
-  names(met.expr.cum) <- c("index", "expression", "quantile", "cumulative_fraction")
+  return( data.group.df )
+}
+  
+  
+##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
+cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot = FALSE) {
+  
+  ##### Get expression-related stats for each group
+  sample.expr.cum <- exprGroupStats(data, targets, sampleName)
+  cancer.expr.cum <- exprGroupStats(data, targets, cancer)
+  normal.expr.cum <- exprGroupStats(data, targets, normal)
   
   ##### Extract expression for selected genes
-  sample.expr.cum.selected <- sample.expr.cum[ rownames(sample.expr.cum) %in% unlist(gene), ]
-  normal.expr.cum.selected <- normal.expr.cum[ rownames(normal.expr.cum) %in% unlist(gene), ]
-  PDAC.expr.cum.selected <- PDAC.expr.cum[ rownames(PDAC.expr.cum) %in% unlist(gene), ]
-  met.expr.cum.selected <- met.expr.cum[ rownames(met.expr.cum) %in% unlist(gene), ]
+  sample.expr.cum.selected <- sample.expr.cum[ rownames(sample.expr.cum) %in% gene, ]
+  cancer.expr.cum.selected <- cancer.expr.cum[ rownames(cancer.expr.cum) %in% gene, ]
+  normal.expr.cum.selected <- normal.expr.cum[ rownames(normal.expr.cum) %in% gene, ]
+  
+  ##### Generate box-plot for selected gene
+  if ( addBoxPlot ) {
+    
+    data.z <- scale(data)
+    targets$Target[ targets$Target==sampleName ] <- "Patient"
+    
+    gene.expr.df <- data.frame(targets$Target, data.z[gene, ])
+    colnames(gene.expr.df) <- c("Group", "Expression")
+    
+    ##### Reorder groups
+    gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(normal, cancer, "Patient"))
+      
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("darkgreen", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
+  }
   
   ##### Generate interactive CFD plot with plotly
-  p <- plot_ly(sample.expr.cum, x = ~expression, color = I("black")) %>%
+  p1 <- plot_ly(sample.expr.cum, x = ~z, color = I("black")) %>%
   
     ##### Add sample data
-    add_markers(y = sample.expr.cum.selected$cumulative_fraction, x = sample.expr.cum.selected$expression,
+    add_markers(y = sample.expr.cum.selected$cumulative_fraction, x = sample.expr.cum.selected$z,
                 text = rownames(sample.expr.cum.selected ),
-                name = params$sample,
+                name = "Patient",
                 marker = list(size = 12, color = "black"),
-                showlegend = FALSE) %>%
+                showlegend = TRUE) %>%
   
-    add_lines(y = sample.expr.cum$cumulative_fraction, x = sample.expr.cum$expression, 
+    add_lines(y = sample.expr.cum$cumulative_fraction, x = sample.expr.cum$z, 
               line = list(color = "grey"),
               text = rownames( sample.expr.cum ),
-              name = params$sample, showlegend = TRUE) %>%
+              name = "Patient", showlegend = FALSE) %>%
     
-    ##### Add normal pancreas data
-    add_markers(y = normal.expr.cum.selected$cumulative_fraction, x =  normal.expr.cum.selected$expression,
-                text = rownames( normal.expr.cum.selected ),
-                name = "Pancreas (normal)",
-                marker = list(size = 12, opacity = 0.5, color = "green"),
-                showlegend = FALSE) %>%
+    ##### Add cancer data
+    add_markers(y = cancer.expr.cum.selected$cumulative_fraction, x =  cancer.expr.cum.selected$z,
+                text = rownames( cancer.expr.cum.selected),
+                name = cancer,
+                marker = list(size = 12, opacity = 0.5, color = "red"),
+                showlegend = TRUE) %>%
   
-    add_lines(y = normal.expr.cum$cumulative_fraction, x = normal.expr.cum$expression, opacity = 0.5,
+    add_lines(y = cancer.expr.cum$cumulative_fraction, x = cancer.expr.cum$z, opacity = 0.5,
+              line = list(color = "red", dash = "dash"),
+              text = rownames( cancer.expr.cum ),
+              name = cancer, showlegend = FALSE) %>%
+    
+    ##### Add normal data
+    add_markers(y = normal.expr.cum.selected$cumulative_fraction, x =  normal.expr.cum.selected$z,
+                text = rownames( normal.expr.cum.selected ),
+                name = normal,
+                marker = list(size = 12, opacity = 0.5, color = "green"),
+                showlegend = TRUE) %>%
+  
+    add_lines(y = normal.expr.cum$cumulative_fraction, x = normal.expr.cum$z, opacity = 0.5,
               line = list(color = "green", dash = "dash"),
               text = rownames( normal.expr.cum ),
-              name = "Pancreas (normal)", showlegend = TRUE) %>%
-    
-    ##### Add PDAC data
-    add_markers(y = PDAC.expr.cum.selected$cumulative_fraction, x =  PDAC.expr.cum.selected$expression,
-                text = rownames( PDAC.expr.cum.selected),
-                name = "PDAC",
-                marker = list(size = 12, opacity = 0.5, color = "coral"),
-                showlegend = FALSE) %>%
-  
-    add_lines(y = PDAC.expr.cum$cumulative_fraction, x = PDAC.expr.cum$expression, opacity = 0.5,
-              line = list(color = "coral", dash = "dash"),
-              text = rownames( PDAC.expr.cum),
-              name = "PDAC", showlegend = TRUE) %>%
-    
-    ##### Add metastatic PDAC data
-    add_markers(y = met.expr.cum.selected$cumulative_fraction, x =  met.expr.cum.selected$expression,
-                text = rownames( met.expr.cum.selected),
-                name = "PDAC (metastatic)",
-                marker = list(size = 12, opacity = 0.5, color = "red"),
-                showlegend = FALSE) %>%
-    
-    add_lines(y = met.expr.cum$cumulative_fraction, x = met.expr.cum$expression, opacity = 0.5,
-              line = list(color = "red", dash = "dash"),
-              text = rownames( met.expr.cum),
-              name = "PDAC (metastatic)", showlegend = TRUE) %>%
+              name = normal, showlegend = FALSE) %>%
     
     ##### Add quantile lines
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr, probs=0:4/4)[2], 11), opacity = 0.5,
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[2], 11), opacity = 0.5,
               line = list(color = "gray", opacity = 0.2, dash = "dash"),
               name = "Q1", showlegend = FALSE) %>%
     
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr, probs=0:4/4)[3], 11), opacity = 0.5,
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[3], 11), opacity = 0.5,
               line = list(color = "gray", opacity = 0.2, dash = "dash"),
               name = "Q2", showlegend = FALSE) %>%
     
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr, probs=0:4/4)[4], 11), opacity = 0.5,
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[4], 11), opacity = 0.5,
               line = list(color = "gray", opacity = 0.2, dash = "dash"),
-              name = "Q3", showlegend = FALSE) %>%
+              name = "Q3", showlegend = FALSE) %>% 
     
-    layout(xaxis = list(title = "mRNA expression", zeroline = FALSE, range = c(min(sample.expr), max(sample.expr)+4)),
+        layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
            yaxis = list(title = "Cumulative fraction"),
-           legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
-           annotations = list(x = sample.expr.cum.selected$expression, y = sample.expr.cum.selected$cumulative_fraction,
-    text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 50, ay = 50))
+           legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white")
+           
+           ##### Annotate the gene of interest
+           #annotations = list(x = sample.expr.cum.selected$z, y = sample.expr.cum.selected$cumulative_fraction,
+           #text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 30, ay = 30)
+    )
   
-  return( p )
+  ##### Combine CDF plot with boxplot if this option is selected
+  if ( addBoxPlot ) {
+    
+    p1_2 <- subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE) %>%
+  layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
+          yaxis = list(title = "Cumulative fraction"),
+          legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
+          yaxis2 = list( title =""), xaxis2 = list(title = paste0(gene, " mRNA expression (Z-score)")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = FALSE,
+         showlegend=TRUE, showlegend2=FALSE)
+    
+    return( p1_2 )
+    
+  } else {
+   
+    return( p1 )
+  }
 }
 
 ##### Fusion visualization
@@ -316,6 +355,111 @@ fusion_png <- function(geneA, geneB, pizzly_folder ) {
   ##### Present the converted file in the report
   include_graphics(fusion_png)
 }
+
+
+##### Generate table with coloured cells indicating expression values for selected genes
+exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_annot = NULL, cancer_genes_resources = NULL) {
+  
+  ##### Check how many of the selected genes are present in the expression data
+  genes <- genes[ genes %in% rownames(data) ]
+    
+  targets.list <- unique(target$Target)
+  
+  ##### Initiate dataframe for expression median values in each group
+  group.z <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = nrow(data)))
+  colnames(group.z) <- targets.list
+  rownames(group.z) <- sort(rownames(data))
+  
+  for ( group in targets.list ) {
+  
+    group.stats <- exprGroupStats(data[rownames(group.z), ], target, group)
+    group.stats <- group.stats[order(rownames(group.stats)), ]
+    group.z[, group] <- round(group.stats$z, digits=2)
+  }
+  
+  ##### Compute Z-scores sd for each gene
+  group.z <- cbind(group.z, round(rowSds(as.matrix(group.z)), digits = 2))
+  names(group.z)[ncol(group.z)] <- "SD"
+  
+  ##### Calculate Z-score differneces between investigated sample and normal group median values
+  group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, normal]), digits = 2))
+  names(group.z)[ncol(group.z)] <- "Patient vs Normal"
+  
+  ##### Change sample ID to "Patient" and normal sample to "Normal" for better visualisation
+  names(group.z)[names(group.z)==sampleName] <- "Patient"
+  targets.list[targets.list==sampleName] <- "Patient"
+  names(group.z)[names(group.z)==normal] <- "Normal"
+  targets.list[targets.list==normal] <- "Normal"
+  
+  ##### Reorder groups
+  group.z <- cbind(group.z[ , c("Normal", cancer, "Patient")], group.z[, c(4,5)])
+    
+  ##### Add genes annotation
+  if ( !is.null(genes_annot) ) {
+    
+    ##### Merge the dataframe with groups median expression values and gene annotations
+    group.z <- merge(genes_annot, group.z, by="row.names", all = FALSE, sort = FALSE)
+    rownames(group.z) <- group.z$Row.names
+    group.z <- group.z[, -1]
+    
+  } else {
+    group.z <- cbind(rownames(group.z), group.z)
+    names(group.z)[1] <- "Gene"
+  }
+  
+  ##### Add cancer gene resources info
+  if ( !is.null(cancer_genes_resources) ) {
+    
+    group.z <- merge(group.z, cancer_genes_resources, by="row.names", all = TRUE, sort = FALSE)
+    rownames(group.z) <- group.z$Row.names
+    group.z <- group.z[, -1]
+    
+  }
+  
+  ##### Order table by the highest absolute values for Patient vs Normal difference
+  group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
+  
+  ##### Define colours for cells background for each group and the patient vs normal difference
+  ##### Initiate dataframe for expression median values in each group
+  brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
+  colnames(brks.q) <- targets.list
+  clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
+  colnames(clrs.q) <- targets.list
+  
+  for ( group in c(targets.list, "Patient vs Normal") ) {
+
+    brks.q[[group]] <- quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
+    #brks.q[[group]] <- sort(group.z[, group])
+    
+    clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]])/2 + 1.5), 0) %>%
+    {paste0("rgb(255,", ., ",", ., ")")}
+    clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]])/2 - 0.5), 0)) %>%
+    {paste0("rgb(", .,",", .,",", "255)")}
+    
+    clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
+  }
+  
+  ##### Subset the expression data to include only the cancer genes
+  group.z <- group.z[ rownames(group.z) %in% genes, ]
+    
+  ##### Generate a table with genes annotationa and coloured exprssion values in each group
+  dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800, caption = htmltools::tags$caption(
+          style = 'caption-side: top; text-align: left; color:grey; 
+          font-size:100% ;', htmltools::strong("Standardised (Z-score) mRNA expression levels in individual groups."))) %>%
+    DT::formatStyle( columns = names(group.z), `font-size` = '12px' ) %>%
+    
+    ##### Colour cells according to the expression values quantiles in each group
+    DT::formatStyle(columns = targets.list[1], 
+                    backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])) %>%
+    DT::formatStyle(columns = targets.list[2], 
+                    backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
+    DT::formatStyle(columns = targets.list[3], 
+                    backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
+    DT::formatStyle(columns = "Patient vs Normal", 
+                    backgroundColor = DT::styleInterval(brks.q[["Patient vs Normal"]], clrs.q[["Patient vs Normal"]]))
+  
+    return( list(dt.table,  group.z) )
+}
 ```
 
 ```{r load_libraries, warning=FALSE}
@@ -330,26 +474,37 @@ suppressMessages(library(kableExtra))
 suppressMessages(library(tidyverse))
 suppressMessages(library(knitr))
 suppressMessages(library(magick))
+suppressMessages(library(matrixStats))
 ```
 
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
 ##### Create a list with reference datasets
-ref_datasets <- c("pancreas")
+ref_datasets <- c(params$tissue)
 ref_datasets.list <- vector("list", length(ref_datasets))
 names(ref_datasets.list) <- ref_datasets
 
-##### Create a list with subtype-associated genes
-ref_genes <- c("genes_fusions","genes_pmcc")
+##### Create a list with various sets of genes
+ref_genes <- c("genes_fusions","genes_pmcc", "oncokb_genes")
 ref_genes.list <- vector("list", length(ref_genes))
 names(ref_genes.list) <- ref_genes
 
+##### Create a list with cancer genes annotations
+caner_genes_annot <- c("oncokb_clin_vars", "oncokb_all_vars")
+caner_genes_annot.list <- vector("list", length(caner_genes_annot))
+names(caner_genes_annot.list) <- caner_genes_annot
+  
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_datasets.list[["pancreas"]] <- combineDatasets(params$sample_name, params$count_file, params$datasets_pancreas)
+ref_datasets.list[[params$tissue]] <- combineDatasets(params$sample_name, params$count_file, params$datasets)
 
 ##### Read in selected genes list
 ref_genes.list[["genes_fusions"]] <- read.table(params$genes_fusions, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
 ref_genes.list[["genes_pmcc"]] <- read.table(params$genes_pmcc, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
+ref_genes.list[["oncokb_genes"]] <- read.table(params$oncokb_genes, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, comment.char = "")
+
+##### Read in OncoKB (http://oncokb.org) annotations
+caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(params$oncokb_clin_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL)
+caner_genes_annot.list[["oncokb_all_vars"]] <- read.table(params$oncokb_all_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
 ```
 
 ```{r data_transformation, comment = NA, message=FALSE, warning=FALSE}
@@ -376,8 +531,6 @@ for ( ref in names(ref_datasets.list) ) {
 }
 
 # cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
-
-cat(nrow(y.filtered$counts), "genes remained after filtering low expressed genes, out of the total", nrow(counts), "input genes\n\n")
 ```
 
 ```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE}
@@ -422,7 +575,7 @@ for ( ref in names(ref_datasets.list) ) {
   colnames(data.df)[1] <- "ENSEMBL"
   
   ##### Extract the gene annotation information
-  gene_info <-  AnnotationDbi::select(org.Hs.eg.db, rownames(data), c("ENTREZID", "GENENAME", "SYMBOL", "ENSEMBL"), 'ENSEMBL')
+  gene_info <-  AnnotationDbi::select(org.Hs.eg.db, rownames(data), c("SYMBOL", "GENENAME", "ENSEMBL", "ENTREZID"), "ENSEMBL")
   
   ##### Merge the gene annotation with expression data
   data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = TRUE)
@@ -440,13 +593,213 @@ for ( ref in names(ref_datasets.list) ) {
   #rownames(data) <- data.annot$SYMBOL
   ref_datasets.list[[ref]][[3]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
   rownames(ref_datasets.list[[ref]][[3]]) <- data.annot$SYMBOL
-  ref_datasets.list[[ref]][[5]] <- data.annot[, c("ENTREZID", "GENENAME", "SYMBOL", "ENSEMBL")]
+  ref_datasets.list[[ref]][[5]] <- data.annot[, c("SYMBOL", "GENENAME", "ENSEMBL", "ENTREZID")]
 }
 ```
 
-## Fusion Calling
+```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
+##### Combine PMCC gene panel and OncoKB cancer genes
+cancer_genes <- ref_genes.list[["oncokb_genes"]]
+cancer_genes$PMCC <- rep("No", nrow(cancer_genes))
 
-### Prioritization of Pizzly results
+for ( gene in unlist(ref_genes.list[["genes_pmcc"]]) ) {
+
+  ##### Check if the PMCC genes is aleady reported in OncoKB
+  if ( gene %in% cancer_genes$Hugo.Symbol ) {
+   
+    cancer_genes[ cancer_genes$Hugo.Symbol==gene, ]$PMCC <- "Yes"
+    
+  ##### Add if not present
+  } else {
+    
+    cancer_genes <- rbind(cancer_genes, c(gene, 1, "No", rep("", 8), "Yes"))
+  }
+}
+
+rownames(cancer_genes) <- cancer_genes$Hugo.Symbol
+names(cancer_genes) <- c("Gene", "No. of resources", "OncoKB", "Oncogene", "TSG", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "PMCC")
+cancer_genes <- cancer_genes[,c("Oncogene", "TSG", "No. of resources", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "PMCC")]
+cancer_genes[ cancer_genes=="No" ] <- "-"
+cancer_genes[ cancer_genes=="" ] <- "-"
+
+ref_genes.list[["cancer_genes"]] <- cancer_genes
+```
+
+```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
+##### Summarise the reference cohorts samples
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+
+ref_normal <- table(target$Target)[names(table(target$Target))==params$normal_group]
+ref_cancer <- table(target$Target)[names(table(target$Target))==params$cancer_group]
+```
+
+***
+
+### Input data summary
+
+The following refenece patient cohorts were used for the analysis:
+
+* **`r paste (ref_normal, params$normal_group, sep=" ")`** samples
+* **`r paste (ref_cancer, params$cancer_group, sep=" ")`** samples
+
+From the `r nrow(counts)` input genes:
+
+* `r nrow(counts) - nrow(y.filtered$counts)` genes were filtered out due to low expression
+* `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/)-apporved gene symbol
+* **`r nrow(data.annot)` genes** remained for the analysis
+
+***
+
+## Key findings
+
+***
+
+## Cancer genes
+
+mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. These include *[Peter Mac](https://www.petermac.org/) comprehensive cancer (PMCC)* panel genes and genes considered to be cancer genes (listed [here](http://oncokb.org/#/cancerGenes)) by *[OncoKB](http://oncokb.org/#/about)* based on their inclusion in the following sequencing panels: *[MSK-IMPACT](https://www.mskcc.org/msk-impact)*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf)*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx)*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme)*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full)* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census)*.
+
+### Cancer genes expression summary
+
+From the `r nrow(ref_genes.list[["cancer_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["cancer_genes"]]) %in% rownames(ref_datasets.list[[ref]][[3]])))`** of them was reliably measured in the patient's sample.
+
+```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+
+cancer_genes.expr <- exprTable(rownames(ref_genes.list[["cancer_genes"]]), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]])
+
+##### Present the expression summary table
+cancer_genes.expr[[1]]
+```
+
+***
+
+### Cancer genes expression profiles {.tabset}
+
+NOTE: currently, displaying the top 6 cancer genes with the greatest difference in standarised (Z-score) mRNA expression between patient's sample and the average mRNA expression in samples from normal individuals.
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[1]`
+
+```{r cdf_plot_cancer_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[1]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[2]`
+
+```{r cdf_plot_cancer_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[2]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[3]`
+
+```{r cdf_plot_cancer_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[3]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[4]`
+
+```{r cdf_plot_cancer_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[4]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[5]`
+
+```{r cdf_plot_cancer_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[5]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[6]`
+
+```{r cdf_plot_cancer_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[6]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+## Gene fusion events
+
+### Fusion events prioritisation
 
 The prioritization of pizzly results is performed in two steps.
 
@@ -457,7 +810,7 @@ select those which have a decent TPM support.
   and fusions.
   * Select only the fusions with a high TPM value as reported by previous step.
 
-2. In the second step, fusion genes reported by pizzly are compared with PMCC gene list and report 
+2. In the second step, fusion genes reported by pizzly are compared with cancer gene list (from Peter Mac comprehensive cancer (PMCC) panel and [OncoKB](http://oncokb.org/#/cancerGenes)) and report 
 the ones that are present in this list.
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -490,61 +843,35 @@ for (row in 1:nrow(pizzly.fusions)){
 deduped.result <- unique(result)
 
 #Extract only those fusion genes that are in PMCC list
-result.pmcc <- data.frame()
+result.cancer_genes <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% unlist(ref_genes.list[["genes_pmcc"]]) | pizzly.fusions[row,3] %in% unlist(ref_genes.list[["genes_pmcc"]])){
+  if(pizzly.fusions[row,1] %in% rownames(ref_genes.list[["cancer_genes"]]) | pizzly.fusions[row,3] %in% rownames(ref_genes.list[["cancer_genes"]])) {
     #creating a new dataframe for extracting pizzly rows with pmcc gene hits
-    result.pmcc <- rbind(result.pmcc, data.frame(pizzly.fusions[row,]))
+    result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
   }
 }
 
-#sorting pizzly.fusions according to two new target dataframes identified i.e. 1- pizzly result filtering using expressions counts and 2- pmcc gene list
+#sorting pizzly.fusions according to two new target dataframes identified i.e. 1- pizzly result filtering using expressions counts and 2- cancer genes list
 
 pizzly.fusions$order <- rownames(pizzly.fusions) %in% rownames(deduped.result) 
-pizzly.fusions$order2 <- rownames(pizzly.fusions) %in% rownames(result.pmcc)
+pizzly.fusions$order2 <- rownames(pizzly.fusions) %in% rownames(result.cancer_genes)
 
 pizzly.fusions2 <- arrange(pizzly.fusions, -order, -order2) %>%
   select(-order,-order2)
 
 kable(pizzly.fusions2) %>%
-  kable_styling(font_size = 10, "striped", "bordered") %>%
-  #row_spec(c(as.numeric(rownames(deduped.result)),as.numeric(rownames(result.pmcc))), bold = T, color = "white", background = "#D7261E") %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
+  #row_spec(c(as.numeric(rownames(deduped.result)),as.numeric(rownames(result.cancer_genes))), bold = T, color = "white", background = "#D7261E") %>%
   #row_spec(1:nrow(deduped.result), bold = T, color = "white", background = "red") %>%
-  #row_spec((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.pmcc)), color = "white", background = "blue") %>%
+  #row_spec((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes)), color = "white", background = "blue") %>%
   group_rows("Filtered results using expression count matrix", 1, nrow(deduped.result), label_row_css = "background-color: #E74C3C; color: #fff;") %>%
-  group_rows("Filtered results using PMCC gene list", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.pmcc)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
-  group_rows("Other pizzly results", (nrow(deduped.result) + nrow(result.pmcc) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
-  scroll_box(width = "100%", height = "200px")
+  group_rows("Filtered results using cancer genes list", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.cancer_genes)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
+  group_rows("Other pizzly results", (nrow(deduped.result) + nrow(result.cancer_genes) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
+  scroll_box(width = "100%", height = "400px")
 ```
-
-### Fusion visualization {.tabset}
-
-Currently, dispalying the top 3 hits from pizzly filtering output (Group 1).
-
-#### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
-
-```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
-##### Convert the fusion image from pdf to png and present it in the report
-fusion_png(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], params$pizzly_folder )
-```
-
-#### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
-
-```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
-##### Convert the fusion image from pdf to png and present it in the report
-fusion_png(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], params$pizzly_folder )
-```
-
-#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
-
-```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
-##### Convert the fusion image from pdf to png and present it in the report
-fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$pizzly_folder )
-```
-
-### Number of reads supporting fusions of interest
 
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
+##### Get the number of reads supporting fusions of interest
 result_reads <- data.frame()
 for (row in 1:nrow(deduped.result)){
   y <- strsplit(as.character(deduped.result[row, 7]), "\\;")
@@ -560,26 +887,44 @@ for (row in 1:nrow(deduped.result)){
     }
   }
 }
-
-result_reads <- result_reads[order(-result_reads$tpm),]
-kable(result_reads, row.names = FALSE) %>%
-  kable_styling(font_size = 10, "striped", "bordered")
-
 ```
 
-### Fusion genes expression profiles  {.tabset}
+***
 
-The expression profiles of detected fusion genes across pancreas-related lesions/tissues.
+### Fusion genes expression profiles {.tabset}
+
+NOTE: currently, displaying the top 3 hits from pizzly filtering output (red section in above table).
 
 #### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
 
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[2]`*** and ***`r pizzly.fusions2$geneB.name[2]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
+##### Fusion events visualization
+
+```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
+##### Convert the fusion image from pdf to png and present it in the report
+geneA <- pizzly.fusions2$geneA.name[2]
+geneB <- pizzly.fusions2$geneB.name[2]
+
+fusion_png(geneA, geneB, params$pizzly_folder )
+```
+
+```{r fusions_tables1, comment = NA, message=TRUE, warning=FALSE}
+##### Present a table with number of reads supporting this fusion
+fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
+kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
+  scroll_box(width = "100%")
+```
+
+***
+
+##### Fusion genes expression
+
+mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
 
 ```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
 suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-ref <- "pancreas"
-
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
@@ -587,32 +932,51 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 geneA <- pizzly.fusions2$geneA.name[2]
 geneB <- pizzly.fusions2$geneB.name[2]
 
-cdfPlot(geneA, data, target, params$sample_name)
-cdfPlot(geneB, data, target, params$sample_name)
+cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
+cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
 
-Table with of ***`r geneA`*** and ***`r geneB`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
-
-TO BE COMPLETED...
+***
 
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-DT::datatable( data = fusion.df, filter = "none", options = list(pageLength = 2) )
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
 
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[3]`*** and ***`r pizzly.fusions2$geneB.name[3]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
+##### Fusion events visualization
+
+```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
+##### Convert the fusion image from pdf to png and present it in the report
+geneA <- pizzly.fusions2$geneA.name[3]
+geneB <- pizzly.fusions2$geneB.name[3]
+
+fusion_png(geneA, geneB, params$pizzly_folder )
+```
+
+```{r fusions_tables2, comment = NA, message=TRUE, warning=FALSE}
+##### Present a table with number of reads supporting this fusion
+fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
+kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
+  scroll_box(width = "100%")
+```
+
+***
+
+##### Fusion genes expression
+
+mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
 
 ```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
 suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-ref <- "pancreas"
-
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
@@ -620,32 +984,51 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 geneA <- pizzly.fusions2$geneA.name[3]
 geneB <- pizzly.fusions2$geneB.name[3]
 
-cdfPlot(geneA, data, target, params$sample_name)
-cdfPlot(geneB, data, target, params$sample_name)
+cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
+cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
 
-Table with of ***`r geneA`*** and ***`r geneB`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
-
-TO BE COMPLETED...
+***
 
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-DT::datatable( data = fusion.df, filter = "none", options = list(pageLength = 2) )
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
 
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r pizzly.fusions2$geneA.name[4]`*** and ***`r pizzly.fusions2$geneB.name[4]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
+##### Fusion events visualization
+
+```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
+##### Convert the fusion image from pdf to png and present it in the report
+geneA <- pizzly.fusions2$geneA.name[4]
+geneB <- pizzly.fusions2$geneB.name[4]
+
+fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$pizzly_folder )
+```
+
+```{r fusions_tables3, comment = NA, message=TRUE, warning=FALSE}
+##### Present a table with number of reads supporting this fusion
+fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
+kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
+  scroll_box(width = "100%")
+```
+
+***
+
+##### Fusion genes expression
+
+mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
 
 ```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
 suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-ref <- "pancreas"
-
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
@@ -653,177 +1036,43 @@ datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 geneA <- pizzly.fusions2$geneA.name[4]
 geneB <- pizzly.fusions2$geneB.name[4]
 
-cdfPlot(geneA, data, target, params$sample_name)
-cdfPlot(geneB, data, target, params$sample_name)
+cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
+cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
 
-Table with of ***`r geneA`*** and ***`r geneB`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
-
-TO BE COMPLETED...
+***
 
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-DT::datatable( data = fusion.df, filter = "none", options = list(pageLength = 2) )
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
 ```
 
-## PMCC gene panel expression profiles  {.tabset}
+***
 
-The expression profiles of genes included in the Peter Mac comprehensive cancer panel (PMCC) across pancreas-related lesions/tissues.
+## Immune Response Markers
 
-#### Expession levels
+Section providing expression data for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy (similar to [this report](https://trello-attachments.s3.amazonaws.com/5753fc730bff8d2b24f159df/59912803fd0e33e3395d05e7/dc9a81ae11a9d1825ab0028d01dc8c53/Advance-sample-report-card-final.pdf))
 
-Table presenting mRNA expression levels of PMCC panel genes in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
+***
 
-TO BE COMPLETED...
+## Drug matching
 
-### `r ref_genes.list[["genes_pmcc"]][1,]`
+Report drugs that target deregulated genes, fusion events (deregulated pathways to be added) based on data from:
 
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][1,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
+* *[CIViC](https://civicdb.org/home)* (data availabe [here](https://github.com/oncokb/oncokb-public/tree/master/data))
+* *[OncoKB](http://oncokb.org/#/about)*
+* *[DrugBank](https://www.drugbank.ca/)*
+* *[KEGG Drug](https://www.genome.jp/kegg/drug/)*
 
-```{r cdf_plot_pmcc_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-ref <- "pancreas"
+***
 
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-gene <- ref_genes.list[["genes_pmcc"]][1,]
+## References
 
-cdfPlot(gene, data, target, params$sample_name)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-Table with of ***`r ref_genes.list[["genes_pmcc"]][1,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
-
-TO BE COMPLETED...
-
-```{r gene_table_pmcc_1, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", options = list(pageLength = 1) )
-```
-
-### `r ref_genes.list[["genes_pmcc"]][2,]`
-
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][2,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
-
-```{r cdf_plot_pmcc_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-ref <- "pancreas"
-
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-gene <- ref_genes.list[["genes_pmcc"]][2,]
-
-cdfPlot(gene, data, target, params$sample_name)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-Table with of ***`r ref_genes.list[["genes_pmcc"]][2,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
-
-TO BE COMPLETED...
-
-```{r gene_table_pmcc_2, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", options = list(pageLength = 1) )
-```
-
-### `r ref_genes.list[["genes_pmcc"]][3,]`
-
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][3,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
-
-```{r cdf_plot_pmcc_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-ref <- "pancreas"
-
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-gene <- ref_genes.list[["genes_pmcc"]][3,]
-
-cdfPlot(gene, data, target, params$sample_name)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-Table with of ***`r ref_genes.list[["genes_pmcc"]][3,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
-
-TO BE COMPLETED...
-
-```{r gene_table_pmcc_3, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", options = list(pageLength = 1) )
-```
-
-### `r ref_genes.list[["genes_pmcc"]][4,]`
-
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][4,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
-
-```{r cdf_plot_pmcc_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-ref <- "pancreas"
-
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-gene <- ref_genes.list[["genes_pmcc"]][4,]
-
-cdfPlot(gene, data, target, params$sample_name)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-Table with of ***`r ref_genes.list[["genes_pmcc"]][4,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
-
-TO BE COMPLETED...
-
-```{r gene_table_pmcc_4, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", options = list(pageLength = 1) )
-```
-
-### `r ref_genes.list[["genes_pmcc"]][5,]`
-
-Empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level of ***`r ref_genes.list[["genes_pmcc"]][5,]`*** in the context of the overall mRNA expression distribution in sample **`r params$sample_name`** and samples representing various pancreas-related lesions/tissues.
-
-```{r cdf_plot_pmcc_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate PCA plots for pancreatic related lesions
-ref <- "pancreas"
-
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-gene <- ref_genes.list[["genes_pmcc"]][5,]
-
-cdfPlot(gene, data, target, params$sample_name)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-Table with of ***`r ref_genes.list[["genes_pmcc"]][5,]`*** annotation and mRNA expression levels in sample **`r params$sample_name`** and average mRNA expression across samples representing different pancreas-related lesions and tissues.
-
-TO BE COMPLETED...
-
-```{r gene_table_pmcc_5, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = ref_datasets.list[[ref]][[5]][gene, ], filter = "none", options = list(pageLength = 1) )
-```
+***
 
 ## Parameters
 
@@ -834,9 +1083,11 @@ for ( i in 1:length(params) ) {
 }
 ```
 
+***
+
 ## Addendum
 
-```{r sessioninfo}
+```{r sessioninfo, comment = NA}
 devtools::session_info()
 ```
 
