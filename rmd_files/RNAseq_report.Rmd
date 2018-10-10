@@ -415,6 +415,14 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     rownames(group.z) <- group.z$Row.names
     group.z <- group.z[, -1]
     
+    ##### Provide link to OncoKB for reported cancer genes
+    for ( gene in genes) {
+      
+      if ( gene %in% rownames(cancer_genes_resources) ) {
+        
+        group.z$SYMBOL[ group.z$SYMBOL==gene] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
+      }
+    }
   }
   
   ##### Order table by the highest absolute values for Patient vs Normal difference
@@ -442,11 +450,12 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   
   ##### Subset the expression data to include only the cancer genes
   group.z <- group.z[ rownames(group.z) %in% genes, ]
-    
+  
   ##### Generate a table with genes annotationa and coloured exprssion values in each group
   dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800, caption = htmltools::tags$caption(
           style = 'caption-side: top; text-align: left; color:grey; 
-          font-size:100% ;', htmltools::strong("Standardised (Z-score) mRNA expression levels in individual groups."))) %>%
+          font-size:100% ;', htmltools::strong("Standardised (Z-score) mRNA expression levels in individual groups.")),
+  escape = FALSE) %>%
     DT::formatStyle( columns = names(group.z), `font-size` = '12px' ) %>%
     
     ##### Colour cells according to the expression values quantiles in each group
@@ -458,7 +467,9 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
                     backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
     DT::formatStyle(columns = "Patient vs Normal", 
                     backgroundColor = DT::styleInterval(brks.q[["Patient vs Normal"]], clrs.q[["Patient vs Normal"]]))
-  
+    
+    group.z$SYMBOL <- rownames(group.z)
+    
     return( list(dt.table,  group.z) )
 }
 ```
@@ -640,7 +651,7 @@ ref_cancer <- table(target$Target)[names(table(target$Target))==params$cancer_gr
 
 ### Input data summary
 
-The following refenece patient cohorts were used for the analysis:
+The following reference patient cohorts were used for the analysis:
 
 * **`r paste (ref_normal, params$normal_group, sep=" ")`** samples
 * **`r paste (ref_cancer, params$cancer_group, sep=" ")`** samples
@@ -657,6 +668,8 @@ From the `r nrow(counts)` input genes:
 
 Section summarising the key findings (clincially relevant deregulated genes and pathways, gene fusion events etc.)
 
+TO BE ADDED...
+
 ***
 
 ## Cancer genes
@@ -665,7 +678,7 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### Cancer genes expression summary
 
-From the `r nrow(ref_genes.list[["cancer_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["cancer_genes"]]) %in% rownames(ref_datasets.list[[ref]][[3]])))`** of them was reliably measured in the patient's sample.
+From the `r nrow(ref_genes.list[["cancer_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["cancer_genes"]]) %in% rownames(ref_datasets.list[[ref]][[3]])))`** was reliably measured in the patient's sample.
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
@@ -683,7 +696,7 @@ cancer_genes.expr[[1]]
 
 ### Cancer genes expression profiles {.tabset}
 
-NOTE: currently, displaying the top 6 cancer genes with the greatest difference in standarised (Z-score) mRNA expression between patient's sample and the average mRNA expression in samples from normal individuals.
+NOTE: currently, displaying the top 6 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from normal individuals.
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[1]`
 
@@ -1073,6 +1086,8 @@ immune_genes.expr <- exprTable(unlist(ref_genes.list[["genes_immune"]]), data, t
 immune_genes.expr[[1]]
 ```
 
+WORK IN PROGRESS...
+
 ***
 
 ## Drug matching
@@ -1084,9 +1099,13 @@ Section reporting drugs that target deregulated genes, fusion events (deregulate
 * *[DrugBank](https://www.drugbank.ca/)*
 * *[KEGG Drug](https://www.genome.jp/kegg/drug/)*
 
+TO BE ADDED...
+
 ***
 
 ## References
+
+TO BE ADDED...
 
 ***
 
