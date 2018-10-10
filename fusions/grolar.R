@@ -21,19 +21,19 @@ library(dplyr)
 
 # Assuming you have used GRCh38 gene models
 library(EnsDb.Hsapiens.v79)
-edb <- EnsDb.Hsapiens.v79
+grolar.edb <- EnsDb.Hsapiens.v79
 listColumns(edb)
 supportedFilters(edb)
 
 
 # Suffix which apears after sample id in output file name
-suffix <- ".json"
+grolar.suffix <- ".json"
 
 # Lets get a list of all the files we want to process
-JSON_files <- list.files(path = ".", pattern = paste0("*",suffix))
+grolar.JSON_files <- list.files(path = ".", pattern = paste0("*",grolar.suffix))
 
 # Make a list of Ids
-Ids <- gsub(suffix, "", JSON_files)
+grolar.Ids <- gsub(grolar.suffix, "", grolar.JSON_files)
 
 # This function will flatten out the JSON giving you a list of gene A and gene
 # B sorted by splitcount then paircount
@@ -46,11 +46,11 @@ GetFusionz <- function(sample, suffix) {
   JSON_file <- paste0(sample, suffix)
   cat(paste("### Working on sample:", sample, "input file:", JSON_file, "###", "\n"))
   cat("Reading JSON..\n")
-  JSON <- fromJSON(JSON_file, flatten = TRUE)
+  JSON <- fromJSON(grolar.JSON_file, flatten = TRUE)
   cat("Extracting gene dataframe\n")
   JSON_level1 <- JSON$genes
   cat("Sorting by number of events\n")
-  idx <- order(JSON_level1$splitcount, JSON_level1$paircount, decreasing = TRUE)
+  grolar.idx <- order(JSON_level1$splitcount, JSON_level1$paircount, decreasing = TRUE)
   output <- JSON_level1[idx,]
   #print(output$geneA.id)
   # Clean up IDs
@@ -84,61 +84,62 @@ GetFusionz_and_namez <- function(sample, suffix) {
   output <- JSON_level1
 
   # Drop weird cols
-  output <- output[,c(-3,-4)]
+  grolar.output <- output[,c(-3,-4)]
 
   # Clean up IDs
 #  output$geneA.id <- gsub(".\\d+$", "", output$geneA.id, perl = TRUE)
 #  output$geneB.id <- gsub(".\\d+$", "", output$geneB.id, perl = TRUE)
-  
+
   # Add uniq-key
-  output <- cbind(rownames(output), output)
-  tmp <- colnames(output)[-1]
-  colnames(output) <- c("ID", tmp)
-  #colnames(output)
+  grolar.output <- cbind(rownames(grolar.output), grolar.output)
+  tmp <- colnames(grolar.output)[-1]
+  colnames(grolar.output) <- c("ID", tmp)
+  colnames(output)
   #head(output)
 
   # Now extract geneA geneB locations
   # get all geneAs
   cat("Getting co-ordinates for gene A\n")
-  geneAs <- output$geneA.id
-  geneAs_info <- genes(edb,
+  grolar.geneAs <- grolar.output$geneA.id
+  grolar.geneAs_info <- genes(edb,
         columns = c("gene_id","seq_name","gene_seq_start","gene_seq_end","seq_strand"),
-        filter = GeneIdFilter(geneAs),
+        filter = GeneIdFilter(grolar.geneAs),
         return.type = "DataFrame")
 
   # get all geneBs
   cat("Getting co-ordinates for gene B\n")
-  geneBs <- output$geneB.id
-  geneBs_info <- genes(edb,
+  grolar.geneBs <- grolar.output$geneB.id
+  grolar.geneBs_info <- genes(edb,
                        columns = c("gene_id","seq_name","gene_seq_start","gene_seq_end","seq_strand"),
-                       filter = GeneIdFilter(geneBs),
+                       filter = GeneIdFilter(grolar.geneBs),
                        return.type = "DataFrame")
 
   # Rename cols
-  colnames(geneAs_info) <- paste0("geneA.", colnames(geneAs_info))
-  colnames(geneBs_info) <- paste0("geneB.", colnames(geneBs_info))
+  colnames(grolar.geneAs_info) <- paste0("geneA.", colnames(grolar.geneAs_info))
+  colnames(grolar.geneBs_info) <- paste0("geneB.", colnames(grolar.geneBs_info))
   #colnames(geneAs_info)
   #colnames(geneBs_info)
 
   # Merge in geneA_info
   cat("Merging DFs\n")
-  tmp1 <- merge(output, geneAs_info, by.x = "geneA.id", by.y = "geneA.gene_id", all.x = TRUE)
-  tmp2 <- merge(output, geneBs_info, by.x = "geneB.id", by.y = "geneB.gene_id", all.x = TRUE)
+  grolar.tmp1 <- merge(grolar.output, grolar.geneAs_info, by.x = "geneA.id", by.y = "geneA.gene_id", all.x = TRUE)
+  grolar.tmp2 <- merge(grolar.output, grolar.geneBs_info, by.x = "geneB.id", by.y = "geneB.gene_id", all.x = TRUE)
 
   # Check we have the same length
-  stopifnot(nrow(tmp1) == nrow(tmp2))
+  stopifnot(nrow(grolar.tmp1) == nrow(grolar.tmp2))
 
   # Merge these DFs
-  output <- merge(tmp1, tmp2[,c(2,8:11)], by = "ID")[,c(1,3,4,2,5,8,9,10,11,6,7,12,13,14,15)]
+  grolar.output <- merge(grolar.tmp1, grolar.tmp2[,c(2,8:11)], by = "ID")[,c(1,3,4,2,5,8,9,10,11,6,7,12,13,14,15)]
   colnames(output)
 
   # Now use mutate
   cat("Finding genes on same chr\n")
-  super_identical <- Vectorize(identical, c("x", "y"))
+  grolar.super_identical <- Vectorize(identical, c("x", "y"))
   # Need to convert from DataFrame to data.frame
-  output <- as.data.frame(output)
-  output <- mutate(output, same_chr = super_identical(output$geneA.seq_name,output$geneB.seq_name))
-  identical_idx <- which(output$same_chr == TRUE)
+  grolar.output <- as.data.frame(grolar.output)
+  grolar.output <- mutate(grolar.output, same_chr = grolar.super_identical(grolar.output$geneA.seq_name,
+                                                                           grolar.output$geneB.seq_name))
+  grolar.identical_idx <- which(grolar.output$same_chr == TRUE)
 
 
 
