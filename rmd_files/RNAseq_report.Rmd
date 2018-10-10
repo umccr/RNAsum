@@ -25,6 +25,10 @@ params:
   oncokb_genes: '../data/OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: '../data/OncoKB/allActionableVariants.txt'
   oncokb_all_vars: '../data/OncoKB/allAnnotatedVariants.txt'
+  civic_gene_summaries: '../data/CIViC/01-Oct-2018-GeneSummaries.tsv'
+  civic_var_summaries: '../data/CIViC/01-Oct-2018-VariantSummaries.tsv'
+  civic_clin_evid: '../data/CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv'
+  civic_variant_group: '../data/CIViC/01-Oct-2018-VariantGroupSummaries.tsv'
 ---
 
 RNA-seq report for patient sample **`r params$sample_name`**.
@@ -518,6 +522,12 @@ ref_genes.list[["genes_immune"]] <- read.table(params$genes_immune, sep="\t", as
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(params$oncokb_clin_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL)
 caner_genes_annot.list[["oncokb_all_vars"]] <- read.table(params$oncokb_all_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+
+##### Read in CIViC (https://civicdb.org/) annotations
+caner_genes_annot.list[["civic_gene_summaries"]] <- read.table(params$civic_gene_summaries, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+caner_genes_annot.list[["civic_var_summaries"]] <- read.table(params$civic_var_summaries, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+caner_genes_annot.list[["civic_clin_evid"]] <- read.table(params$civic_clin_evid, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+caner_genes_annot.list[["civic_variant_group"]] <- read.table(params$civic_variant_group, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
 ```
 
 ```{r data_transformation, comment = NA, message=FALSE, warning=FALSE}
@@ -621,6 +631,7 @@ for ( gene in unlist(ref_genes.list[["genes_pmcc"]]) ) {
   if ( gene %in% cancer_genes$Hugo.Symbol ) {
    
     cancer_genes[ cancer_genes$Hugo.Symbol==gene, ]$PMCC <- "Yes"
+    cancer_genes[ cancer_genes$Hugo.Symbol==gene, 2] <- as.numeric(cancer_genes[ cancer_genes$Hugo.Symbol==gene, 2]) + 1
     
   ##### Add if not present
   } else {
@@ -659,14 +670,14 @@ The following reference patient cohorts were used for the analysis:
 From the `r nrow(counts)` input genes:
 
 * `r nrow(counts) - nrow(y.filtered$counts)` genes were filtered out due to low expression
-* `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/)-apporved gene symbol
+* `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-apporved gene symbol
 * **`r nrow(data.annot)` genes** remained for the analysis
 
 ***
 
 ## Key findings
 
-Section summarising the key findings (clincially relevant deregulated genes and pathways, gene fusion events etc.)
+Section summarising the key findings (clincially relevant dysregulated genes and pathways, gene fusion events etc.)
 
 TO BE ADDED...
 
@@ -674,7 +685,7 @@ TO BE ADDED...
 
 ## Cancer genes
 
-mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. These include *[Peter Mac](https://www.petermac.org/) comprehensive cancer (PMCC)* panel genes and genes considered to be cancer genes (listed [here](http://oncokb.org/#/cancerGenes)) by *[OncoKB](http://oncokb.org/#/about)* based on their inclusion in the following sequencing panels: *[MSK-IMPACT](https://www.mskcc.org/msk-impact)*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf)*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx)*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme)*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full)* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census)* (CGC).
+mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. These include *[Peter Mac](https://www.petermac.org/){target="_blank"} comprehensive cancer (PMCC)* panel genes and genes considered to be cancer genes (listed [here](http://oncokb.org/#/cancerGenes){target="_blank"}) by *[OncoKB](http://oncokb.org/#/about){target="_blank"}* based on their inclusion in the following sequencing panels: *[MSK-IMPACT](https://www.mskcc.org/msk-impact){target="_blank"}*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf){target="_blank"}*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx){target="_blank"}*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme){target="_blank"}*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full){target="_blank"}* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census){target="_blank"}* (CGC).
 
 ### Cancer genes expression summary
 
@@ -827,7 +838,7 @@ select those which have a decent TPM support.
   and fusions.
   * Select only the fusions with a high TPM value as reported by previous step.
 
-2. In the second step, fusion genes reported by pizzly are compared with cancer gene list (from Peter Mac comprehensive cancer (PMCC) panel and [OncoKB](http://oncokb.org/#/cancerGenes)) and report 
+2. In the second step, fusion genes reported by pizzly are compared with cancer gene list (from Peter Mac comprehensive cancer (PMCC) panel and [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"}) and report 
 the ones that are present in this list.
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -1072,7 +1083,7 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 
 ## Immune Response Markers
 
-Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy (similar to [this report](https://trello-attachments.s3.amazonaws.com/5753fc730bff8d2b24f159df/59912803fd0e33e3395d05e7/dc9a81ae11a9d1825ab0028d01dc8c53/Advance-sample-report-card-final.pdf))
+Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy (similar to [this report](https://trello-attachments.s3.amazonaws.com/5753fc730bff8d2b24f159df/59912803fd0e33e3395d05e7/dc9a81ae11a9d1825ab0028d01dc8c53/Advance-sample-report-card-final.pdf){target="_blank"})
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
@@ -1092,14 +1103,27 @@ WORK IN PROGRESS...
 
 ## Drug matching
 
-Section reporting drugs that target deregulated genes, fusion events (deregulated pathways to be added) based on data from:
+Section reporting drugs that target dysregulated genes, fusion events (dysregulated pathways to be added) based on data from *[CIViC](https://civicdb.org/home){target="_blank"}* ([Griffith *et al.* 
 
-* *[CIViC](https://civicdb.org/home)* ([Griffith *et al.* (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153))
-* *[OncoKB](http://oncokb.org/#/about)* (data availabe [here](https://github.com/oncokb/oncokb-public/tree/master/data))
-* *[DrugBank](https://www.drugbank.ca/)*
-* *[KEGG Drug](https://www.genome.jp/kegg/drug/)*
+reports suitable drugs based on identified actionable targets, which can be considered in the treatment decision making process.
 
-TO BE ADDED...
+### dysregulated cancer genes
+
+```{r drugs_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+
+cancer_genes.drug <- drugTable(unlist(ref_genes.list[["genes_immune"]]), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)])
+
+##### Present the expression summary table
+cancer_genes.drug[[1]]
+```
+
+### Detected gene fusion events
+
+TO BE COMPLETED
 
 ***
 
