@@ -21,7 +21,9 @@ params:
   genes_fusions: '../data/Genes_fusions.txt'
   genes_pmcc: '../data/Genes_PMCC.txt'
   genes_immune: '../data/Genes_immune.txt'
-  pizzly_folder: '../data/pizzly-validation'
+  pizzly_results: '../data/pizzly'
+  kallisto_results: '../data/kallisto'
+  clinker_results: '../data/clinker'
   oncokb_genes: '../data/OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: '../data/OncoKB/allActionableVariants.txt'
   oncokb_all_vars: '../data/OncoKB/allAnnotatedVariants.txt'
@@ -347,13 +349,13 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
 }
 
 ##### Fusion visualization
-fusion_png <- function(geneA, geneB, pizzly_folder ) {
+fusion_png <- function(geneA, geneB, clinker_results ) {
 
   ##### Get path to fusion visualization pdf file
-  fusion_pdf <- paste(pizzly_folder, paste0(geneA, "_", geneB, ".pdf"), sep = "/")
+  fusion_pdf <- paste(clinker_results, paste0(geneA, "_", geneB, ".pdf"), sep = "/")
   
   ##### Export pdf to png
-  fusion_png <- paste(pizzly_folder, paste0(geneA, "_", geneB, ".png"), sep = "/")
+  fusion_png <- paste(clinker_results, paste0(geneA, "_", geneB, ".png"), sep = "/")
   fusion <- image_read_pdf(fusion_pdf, pages = NULL, density = 300)
   image_write(fusion, path = fusion_png, format = "png")
   
@@ -763,7 +765,7 @@ TO BE ADDED...
 
 ## Cancer genes
 
-mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. These include *[Peter Mac](https://www.petermac.org/){target="_blank"} comprehensive cancer (PMCC)* panel genes and genes considered to be cancer genes (listed [here](http://oncokb.org/#/cancerGenes){target="_blank"}) by *[OncoKB](http://oncokb.org/#/about){target="_blank"}* based on their inclusion in the following sequencing panels: *[MSK-IMPACT](https://www.mskcc.org/msk-impact){target="_blank"}*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf){target="_blank"}*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx){target="_blank"}*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme){target="_blank"}*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full){target="_blank"}* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census){target="_blank"}* (CGC).
+mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. These include *[Peter Mac](https://www.petermac.org/){target="_blank"} comprehensive cancer (PMCC)* panel genes and genes considered to be cancer genes (listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data)) by *[OncoKB](http://oncokb.org/#/about){target="_blank"}* based on their inclusion in the following sequencing panels: *[MSK-IMPACT](https://www.mskcc.org/msk-impact){target="_blank"}*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf){target="_blank"}*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx){target="_blank"}*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme){target="_blank"}*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full){target="_blank"}* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census){target="_blank"}* (CGC).
 
 ### Cancer genes expression summary
 
@@ -931,8 +933,8 @@ the ones that are present in this list.
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
 #read in the pizzly fusion calls
-pizzly.fusions <- read.table(file = paste(params$pizzly_folder, "pizzly-flat-filtered.tsv", sep = "/"), header = TRUE)
-quant <- read.table(file = paste(params$pizzly_folder, "abundance.tsv", sep = "/"), header = TRUE)
+pizzly.fusions <- read.table(file = paste(params$pizzly_results, "pizzly-flat-filtered.tsv", sep = "/"), header = TRUE)
+quant <- read.table(file = paste(params$kallisto_results, "abundance.tsv", sep = "/"), header = TRUE)
 #sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
 quant.sorted.filtered <- filter(arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.999)))
@@ -1020,7 +1022,7 @@ NOTE: currently, displaying the top 3 hits from pizzly filtering output (red sec
 geneA <- pizzly.fusions2$geneA.name[2]
 geneB <- pizzly.fusions2$geneB.name[2]
 
-fusion_png(geneA, geneB, params$pizzly_folder )
+fusion_png(geneA, geneB, params$clinker_results )
 ```
 
 ```{r fusions_tables2, comment = NA, message=TRUE, warning=FALSE}
@@ -1072,7 +1074,7 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 geneA <- pizzly.fusions2$geneA.name[3]
 geneB <- pizzly.fusions2$geneB.name[3]
 
-fusion_png(geneA, geneB, params$pizzly_folder )
+fusion_png(geneA, geneB, params$clinker_results )
 ```
 
 ```{r fusions_tables3, comment = NA, message=TRUE, warning=FALSE}
@@ -1124,7 +1126,7 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 geneA <- pizzly.fusions2$geneA.name[4]
 geneB <- pizzly.fusions2$geneB.name[4]
 
-fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$pizzly_folder )
+fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$clinker_results )
 ```
 
 ```{r fusions_tables4, comment = NA, message=TRUE, warning=FALSE}
@@ -1207,6 +1209,31 @@ genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 civicDrugTable(genes, caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
 ```
 
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Evidence Type](https://civicdb.org/help/evidence/evidence-types){target="_blank"}**
+
+* **Predictive**: Evidence pertaining to a variant’s effect on therapeutic response
+* **Diagnostic**: Evidence pertaining to a variant’s impact on patient diagnosis
+* **Prognostic**: Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival
+* **Predisposing**: Evidence pertains to a variant's role in conferring susceptibility to a disease
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+</font> 
+
 ***
 
 ### Detected gene fusion events
@@ -1223,6 +1250,31 @@ genesB <- levels(deduped.result$geneB.name)[c(deduped.result$geneB.name, result.
 
 civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
 ```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Evidence Type](https://civicdb.org/help/evidence/evidence-types){target="_blank"}**
+
+* **Predictive**: Evidence pertaining to a variant’s effect on therapeutic response
+* **Diagnostic**: Evidence pertaining to a variant’s impact on patient diagnosis
+* **Prognostic**: Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival
+* **Predisposing**: Evidence pertains to a variant's role in conferring susceptibility to a disease
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+</font> 
 
 ***
 
