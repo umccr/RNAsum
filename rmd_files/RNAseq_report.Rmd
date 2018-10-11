@@ -409,7 +409,6 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     
   } else {
     group.z <- cbind(rownames(group.z), group.z)
-    names(group.z)[1] <- "Gene"
   }
   
   ##### Add cancer gene resources info
@@ -428,7 +427,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
       }
     }
   }
-  
+      
   ##### Order table by the highest absolute values for Patient vs Normal difference
   group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
   
@@ -454,13 +453,14 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   
   ##### Subset the expression data to include only the cancer genes
   group.z <- group.z[ rownames(group.z) %in% genes, ]
-  
+  names(group.z)[1] <- "Gene"
+    
   ##### Generate a table with genes annotationa and coloured exprssion values in each group
   dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800, caption = htmltools::tags$caption(
           style = 'caption-side: top; text-align: left; color:grey; 
           font-size:100% ;', htmltools::strong("Standardised (Z-score) mRNA expression levels in individual groups.")),
   escape = FALSE) %>%
-    DT::formatStyle( columns = names(group.z), `font-size` = '12px' ) %>%
+    DT::formatStyle( columns = names(group.z), `font-size` = '12px', 'text-align' = 'center' ) %>%
     
     ##### Colour cells according to the expression values quantiles in each group
     DT::formatStyle(columns = targets.list[1], 
@@ -472,9 +472,87 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     DT::formatStyle(columns = "Patient vs Normal", 
                     backgroundColor = DT::styleInterval(brks.q[["Patient vs Normal"]], clrs.q[["Patient vs Normal"]]))
     
-    group.z$SYMBOL <- rownames(group.z)
+  group.z$SYMBOL <- rownames(group.z)
     
-    return( list(dt.table,  group.z) )
+  return( list(dt.table,  group.z) )
+}
+
+##### Generate table with drugs targeting selected set of genes using info from CIViC database (https://civicdb.org/)
+civicDrugTable <- function(genes, civic_gene_summaries, civic_var_summaries, civic_clin_evid, civic_variant_group) {
+  
+  ##### Initialize data fmrae to the about drug-target info from CIViC
+  drug.info <- setNames(data.frame(matrix(ncol = 16, nrow = 0)), c("Gene", "Variant", "Disease", "phenotypes", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
+
+  ##### Loop thourgh each gene and check if they are druggable
+  for ( gene in genes) {
+    
+    ##### Get summary info about druggable genes
+    if ( gene %in% civic_gene_summaries$name ) {
+      
+      gene.info <- civic_gene_summaries[ civic_gene_summaries$name == gene , ]
+      
+      ##### Extract info about all variants it that gene
+      var.info <- civic_var_summaries[ civic_var_summaries$gene == gene , ]
+      
+      ##### Extract info about all reported variants's clinical evidence for queried gene
+      clin.evid.info <- civic_clin_evid[ civic_clin_evid$gene == gene , ]
+      
+      ##### Provide link to CIViC clinical evidence summary
+      clin.evid.info$evidence_type[ clin.evid.info$gene==gene] <- paste0("<a href='", clin.evid.info$evidence_civic_url[ clin.evid.info$gene==gene], "' target='_blank'>", clin.evid.info$evidence_type, "</a>")
+      
+      ##### Provide link to CIViC gene summary
+      clin.evid.info$gene_civic_url[ clin.evid.info$gene==gene] <- paste0("<a href='", clin.evid.info$gene_civic_url[ clin.evid.info$gene==gene], "' target='_blank'>", gene, "</a>")
+      names(clin.evid.info)[ names(clin.evid.info) =="gene_civic_url" ] <- "Gene"
+      
+      ##### Provide link to CIViC variants summary
+      clin.evid.info$variant_civic_url[ clin.evid.info$gene==gene] <- paste0("<a href='", clin.evid.info$variant_civic_url[ clin.evid.info$gene==gene], "' target='_blank'>", clin.evid.info$variant, "</a>")
+      names(clin.evid.info)[ names(clin.evid.info) =="variant_civic_url" ] <- "Variant"
+      
+      ##### Provide link to ClinicalTrials.gov variants summary based on NCT IDs
+      for ( nct_id in clin.evid.info$nct_ids[ clin.evid.info$gene==gene] ) {
+        
+        if ( !is.empty(nct_id) ) {
+          
+          ##### Deal with multiple NCT IDs (separated by comma)
+          nct_id_url <- gsub(" '" , "'", paste(gsub("/ " , "/", paste("<a href='https://clinicaltrials.gov/ct2/show/", unlist(strsplit(nct_id, split=",", fixed=TRUE)) , "' target='_blank'>", unlist(strsplit(nct_id, split=",", fixed=TRUE)), "</a>")), collapse = ", "))
+          clin.evid.info$nct_ids[ clin.evid.info$nct_ids==nct_id ] <- nct_id_url
+        }
+      }
+      
+      ##### Provide link to PubMed variants summary
+      clin.evid.info$pubmed_id[ clin.evid.info$gene==gene] <- paste0("<a href='https://www.ncbi.nlm.nih.gov/pubmed/", clin.evid.info$pubmed_id[ clin.evid.info$gene==gene], "' target='_blank'>", clin.evid.info$pubmed_id, "</a>")
+      
+      ##### Provide link to Disease Ontology
+      clin.evid.info$doid[ clin.evid.info$gene==gene] <- paste0("<a href='http://www.disease-ontology.org/?id=DOID:", clin.evid.info$doid[ clin.evid.info$gene==gene], "' target='_blank'>", clin.evid.info$disease, "</a>")
+      names(clin.evid.info)[ names(clin.evid.info) =="doid" ] <- "Disease"
+      
+      ##### Subset table to include only most important info
+      clin.evid.info <- clin.evid.info[ , names(drug.info)]
+      
+      ##### Add drugs info for subsequent gene
+      drug.info <- rbind(drug.info, clin.evid.info)
+    }
+  }
+  
+  ##### Use more friendly column names for the table
+  names(drug.info) <- c("Gene", "Variant","Disease", "Phenotypes", "Drugs", "Clinical trials", "Evidence level", "Evidence type", "Evidence direction", "Clinical significance", "Trust rating", "PubMed ID",  "Variant origin", "Representative transcript", "Representative transcript 2", "Review date")
+  
+  ##### Generate a table
+  dt.table <- DT::datatable( data = drug.info, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800, caption = htmltools::tags$caption(
+          style = 'caption-side: top; text-align: left; color:grey; 
+          font-size:100% ;', htmltools::strong("Drug matching based on data provided in CIViC database.")),
+  escape = FALSE) %>%
+    DT::formatStyle( columns = names(drug.info), `font-size` = '12px', 'text-align' = 'center' ) %>%
+    
+    ##### Colour cells according to evidence level and trust rating
+    DT::formatStyle(columns = "Evidence level", 
+                    backgroundColor = DT::styleEqual(c("A", "B", "C", "D", "E"), c("mediumseagreen", "deepskyblue", "mediumpurple", "darkorange", "coral")) )  %>%
+    #DT::formatStyle(columns = "Trust rating", 
+    #                backgroundColor = DT::styleEqual(c(1:5), c(rev(round(seq(0, 200, length.out = 5), 0) %>%  {paste0("rgb(", .,",200,", ., ")")}))) )
+    DT::formatStyle(columns = "Trust rating", 
+                    backgroundColor = DT::styleEqual(c(1:5), c("coral", "azure", "lightskyblue", "palegreen", "mediumseagreen")) )
+  
+  return( list(dt.table,  drug.info) )
 }
 ```
 
@@ -514,20 +592,20 @@ names(caner_genes_annot.list) <- caner_genes_annot
 ref_datasets.list[[params$tissue]] <- combineDatasets(params$sample_name, params$count_file, params$datasets)
 
 ##### Read in selected genes list
-ref_genes.list[["genes_fusions"]] <- read.table(params$genes_fusions, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
-ref_genes.list[["genes_pmcc"]] <- read.table(params$genes_pmcc, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
-ref_genes.list[["oncokb_genes"]] <- read.table(params$oncokb_genes, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, comment.char = "")
-ref_genes.list[["genes_immune"]] <- read.table(params$genes_immune, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
+ref_genes.list[["genes_fusions"]] <- read.table(params$genes_fusions, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
+ref_genes.list[["genes_pmcc"]] <- read.table(params$genes_pmcc, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
+ref_genes.list[["oncokb_genes"]] <- read.table(params$oncokb_genes, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
+ref_genes.list[["genes_immune"]] <- read.table(params$genes_immune, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
 
 ##### Read in OncoKB (http://oncokb.org) annotations
-caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(params$oncokb_clin_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL)
-caner_genes_annot.list[["oncokb_all_vars"]] <- read.table(params$oncokb_all_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(params$oncokb_clin_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
+caner_genes_annot.list[["oncokb_all_vars"]] <- read.table(params$oncokb_all_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 
 ##### Read in CIViC (https://civicdb.org/) annotations
-caner_genes_annot.list[["civic_gene_summaries"]] <- read.table(params$civic_gene_summaries, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
-caner_genes_annot.list[["civic_var_summaries"]] <- read.table(params$civic_var_summaries, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
-caner_genes_annot.list[["civic_clin_evid"]] <- read.table(params$civic_clin_evid, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
-caner_genes_annot.list[["civic_variant_group"]] <- read.table(params$civic_variant_group, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+caner_genes_annot.list[["civic_gene_summaries"]] <- read.table(params$civic_gene_summaries, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
+caner_genes_annot.list[["civic_var_summaries"]] <- read.table(params$civic_var_summaries, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
+caner_genes_annot.list[["civic_clin_evid"]] <- read.table(params$civic_clin_evid, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
+caner_genes_annot.list[["civic_variant_group"]] <- read.table(params$civic_variant_group, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 ```
 
 ```{r data_transformation, comment = NA, message=FALSE, warning=FALSE}
@@ -728,6 +806,8 @@ cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$canc
 detach("package:plotly", unload=FALSE)
 ```
 
+***
+
 #### `r cancer_genes.expr[[2]]$SYMBOL[2]`
 
 ```{r cdf_plot_cancer_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
@@ -746,6 +826,8 @@ cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$canc
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
+
+***
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[3]`
 
@@ -766,6 +848,8 @@ cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$canc
 detach("package:plotly", unload=FALSE)
 ```
 
+***
+
 #### `r cancer_genes.expr[[2]]$SYMBOL[4]`
 
 ```{r cdf_plot_cancer_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
@@ -785,6 +869,8 @@ cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$canc
 detach("package:plotly", unload=FALSE)
 ```
 
+***
+
 #### `r cancer_genes.expr[[2]]$SYMBOL[5]`
 
 ```{r cdf_plot_cancer_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
@@ -803,6 +889,8 @@ cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$canc
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
+
+***
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[6]`
 
@@ -921,68 +1009,16 @@ for (row in 1:nrow(deduped.result)){
 
 ### Fusion genes expression profiles {.tabset}
 
-NOTE: currently, displaying the top 3 hits from pizzly filtering output (red section in above table).
+NOTE: currently, displaying the top 3 hits from pizzly filtering output (red section in [Fusion events prioritisation] table).
 
 #### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
 
 ##### Fusion events visualization
 
-```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
-##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[2]
-geneB <- pizzly.fusions2$geneB.name[2]
-
-fusion_png(geneA, geneB, params$pizzly_folder )
-```
-
-```{r fusions_tables1, comment = NA, message=TRUE, warning=FALSE}
-##### Present a table with number of reads supporting this fusion
-fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-  scroll_box(width = "100%")
-```
-
-***
-
-##### Fusion genes expression
-
-mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
-
-```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-ref <- params$tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-geneA <- pizzly.fusions2$geneA.name[2]
-geneB <- pizzly.fusions2$geneB.name[2]
-
-cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
-cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[ref]][[5]]
-fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
-```
-
-#### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
-
-##### Fusion events visualization
-
 ```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[3]
-geneB <- pizzly.fusions2$geneB.name[3]
+geneA <- pizzly.fusions2$geneA.name[2]
+geneB <- pizzly.fusions2$geneB.name[2]
 
 fusion_png(geneA, geneB, params$pizzly_folder )
 ```
@@ -1009,8 +1045,8 @@ target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-geneA <- pizzly.fusions2$geneA.name[3]
-geneB <- pizzly.fusions2$geneB.name[3]
+geneA <- pizzly.fusions2$geneA.name[2]
+geneB <- pizzly.fusions2$geneB.name[2]
 
 cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
 cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
@@ -1027,16 +1063,16 @@ fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYM
 exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
 ```
 
-#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
+#### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
 
 ##### Fusion events visualization
 
 ```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[4]
-geneB <- pizzly.fusions2$geneB.name[4]
+geneA <- pizzly.fusions2$geneA.name[3]
+geneB <- pizzly.fusions2$geneB.name[3]
 
-fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$pizzly_folder )
+fusion_png(geneA, geneB, params$pizzly_folder )
 ```
 
 ```{r fusions_tables3, comment = NA, message=TRUE, warning=FALSE}
@@ -1061,6 +1097,58 @@ target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+geneA <- pizzly.fusions2$geneA.name[3]
+geneB <- pizzly.fusions2$geneB.name[3]
+
+cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
+cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
+```
+
+#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
+
+##### Fusion events visualization
+
+```{r fusions_figs4, comment = NA, message=TRUE, warning=FALSE}
+##### Convert the fusion image from pdf to png and present it in the report
+geneA <- pizzly.fusions2$geneA.name[4]
+geneB <- pizzly.fusions2$geneB.name[4]
+
+fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$pizzly_folder )
+```
+
+```{r fusions_tables4, comment = NA, message=TRUE, warning=FALSE}
+##### Present a table with number of reads supporting this fusion
+fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
+kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
+  scroll_box(width = "100%")
+```
+
+***
+
+##### Fusion genes expression
+
+mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
+
+```{r cdf_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
 geneA <- pizzly.fusions2$geneA.name[4]
 geneB <- pizzly.fusions2$geneB.name[4]
 
@@ -1073,7 +1161,7 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
+```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
@@ -1103,25 +1191,142 @@ WORK IN PROGRESS...
 
 ## Drug matching
 
-List of suitable drugs based on actionable targets identified among dysregulated genes and fusion events based, which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[CIViC](https://civicdb.org/home){target="_blank"}* ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153)).
+List of suitable drugs based on actionable targets identified among dysregulated genes and fusion events based, which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}).
 
-### dysregulated cancer genes
+### Dysregulated cancer genes {.tabset}
 
-```{r drugs_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
+NOTE: currently, displaying the drugs targeting the top 6 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from normal individuals (see [Cancer genes expression profiles] section).
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[1]`
+
+```{r drugs_cancer_genes_1, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
+gene <- cancer_genes.expr[[2]]$SYMBOL[1]
 
-cancer_genes.drug <- drugTable(unlist(ref_genes.list[["genes_immune"]]), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)])
-
-##### Present the expression summary table
-cancer_genes.drug[[1]]
+civicDrugTable(gene, caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
 ```
 
-### Detected gene fusion events
+***
 
-TO BE COMPLETED
+#### `r cancer_genes.expr[[2]]$SYMBOL[2]`
+
+```{r drugs_cancer_genes_2, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+gene <- cancer_genes.expr[[2]]$SYMBOL[2]
+
+civicDrugTable(gene, caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+```
+
+***
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[3]`
+
+```{r drugs_cancer_genes_3, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+gene <- cancer_genes.expr[[2]]$SYMBOL[3]
+
+civicDrugTable(gene, caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+```
+
+***
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[4]`
+
+```{r drugs_cancer_genes_4, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+gene <- cancer_genes.expr[[2]]$SYMBOL[4]
+
+civicDrugTable(gene, caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+```
+
+***
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[5]`
+
+```{r drugs_cancer_genes_5, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+gene <- cancer_genes.expr[[2]]$SYMBOL[5]
+
+civicDrugTable(gene, caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+```
+
+***
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[6]`
+
+```{r drugs_cancer_genes_6, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+gene <- cancer_genes.expr[[2]]$SYMBOL[6]
+
+civicDrugTable(gene, caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+```
+
+***
+
+### Detected gene fusion events {.tabset}
+
+NOTE: currently, displaying the top 3 hits from pizzly filtering output (red section in [Fusion events prioritisation] table).
+
+#### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
+
+```{r drugs_fusion_genes_2, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+geneA <- pizzly.fusions2$geneA.name[2]
+geneB <- pizzly.fusions2$geneB.name[2]
+
+civicDrugTable(c(levels(geneA)[geneA], levels(geneB)[geneB]), caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+```
+
+***
+
+#### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
+
+```{r drugs_fusion_genes_3, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+geneA <- pizzly.fusions2$geneA.name[3]
+geneB <- pizzly.fusions2$geneB.name[3]
+
+civicDrugTable(c(levels(geneA)[geneA], levels(geneB)[geneB]), caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+```
+
+***
+
+#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
+
+```{r drugs_fusion_genes_4, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+geneA <- pizzly.fusions2$geneA.name[4]
+geneB <- pizzly.fusions2$geneB.name[4]
+
+civicDrugTable(c(levels(geneA)[geneA], levels(geneB)[geneB]), caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+```
 
 ***
 
