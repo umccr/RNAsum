@@ -18,12 +18,9 @@ params:
   datasets: '../data/Datasets_list_PDAC.txt'
   normal_group: 'Normal (pancreas)'
   cancer_group: 'PDAC'
-  genes_fusions: '../data/Genes_fusions.txt'
   genes_pmcc: '../data/Genes_PMCC.txt'
+  genes_fusions: '../fusions/Genes_fusions.txt'
   genes_immune: '../data/Genes_immune.txt'
-  pizzly_results: '../data/pizzly'
-  kallisto_results: '../data/kallisto'
-  clinker_results: '../data/clinker'
   oncokb_genes: '../data/OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: '../data/OncoKB/allActionableVariants.txt'
   oncokb_all_vars: '../data/OncoKB/allAnnotatedVariants.txt'
@@ -365,7 +362,7 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_annot = NULL, cancer_genes_resources = NULL) {
+exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL) {
   
   ##### Check how many of the selected genes are present in the expression data
   genes <- genes[ genes %in% rownames(data) ]
@@ -414,16 +411,16 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   }
   
   ##### Add cancer gene resources info
-  if ( !is.null(cancer_genes_resources) ) {
+  if ( !is.null(OncoKB_genes) ) {
     
-    group.z <- merge(group.z, cancer_genes_resources, by="row.names", all = TRUE, sort = FALSE)
+    group.z <- merge(group.z, OncoKB_genes, by="row.names", all = TRUE, sort = FALSE)
     rownames(group.z) <- group.z$Row.names
     group.z <- group.z[, -1]
     
     ##### Provide link to OncoKB for reported cancer genes
     for ( gene in genes) {
       
-      if ( gene %in% rownames(cancer_genes_resources) ) {
+      if ( gene %in% rownames(OncoKB_genes) ) {
         
         group.z$SYMBOL[ group.z$SYMBOL==gene] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
       }
@@ -589,7 +586,11 @@ names(ref_genes.list) <- ref_genes
 caner_genes_annot <- c("oncokb_clin_vars", "oncokb_all_vars")
 caner_genes_annot.list <- vector("list", length(caner_genes_annot))
 names(caner_genes_annot.list) <- caner_genes_annot
-  
+
+##### Get patient data dir
+dataDir <- unlist(strsplit(params$count_file, split='/', fixed=TRUE))
+dataDir <- paste(dataDir[-c(length(dataDir))], collapse ="/")
+
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
 ref_datasets.list[[params$tissue]] <- combineDatasets(params$sample_name, params$count_file, params$datasets)
 
@@ -726,7 +727,7 @@ cancer_genes <- cancer_genes[,c("Oncogene", "TSG", "No. of resources", "OncoKB",
 cancer_genes[ cancer_genes=="No" ] <- "-"
 cancer_genes[ cancer_genes=="" ] <- "-"
 
-ref_genes.list[["cancer_genes"]] <- cancer_genes
+ref_genes.list[["oncokb_genes"]] <- cancer_genes
 ```
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -769,7 +770,7 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### Cancer genes expression summary
 
-From the `r nrow(ref_genes.list[["cancer_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["cancer_genes"]]) %in% rownames(ref_datasets.list[[ref]][[3]])))`** was reliably measured in the patient's sample.
+From the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[ref]][[3]])))`** was reliably measured in the patient's sample.
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
@@ -777,7 +778,7 @@ ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 
-cancer_genes.expr <- exprTable(rownames(ref_genes.list[["cancer_genes"]]), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]])
+cancer_genes.expr <- exprTable(rownames(ref_genes.list[["oncokb_genes"]]), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]])
 
 ##### Present the expression summary table
 cancer_genes.expr[[1]]
@@ -933,8 +934,8 @@ the ones that are present in this list.
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
 #read in the pizzly fusion calls
-pizzly.fusions <- read.table(file = paste(params$pizzly_results, "pizzly-flat-filtered.tsv", sep = "/"), header = TRUE)
-quant <- read.table(file = paste(params$kallisto_results, "abundance.tsv", sep = "/"), header = TRUE)
+pizzly.fusions <- read.table(file = paste(dataDir, "pizzly/pizzly-flat-filtered.tsv", sep = "/"), header = TRUE)
+quant <- read.table(file = paste(dataDir, "kallisto/abundance.tsv", sep = "/"), header = TRUE)
 #sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
 quant.sorted.filtered <- filter(arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.999)))
@@ -963,7 +964,7 @@ deduped.result <- unique(result)
 #Extract only those fusion genes that are in PMCC list
 result.cancer_genes <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% rownames(ref_genes.list[["cancer_genes"]]) | pizzly.fusions[row,3] %in% rownames(ref_genes.list[["cancer_genes"]])) {
+  if(pizzly.fusions[row,1] %in% rownames(ref_genes.list[["oncokb_genes"]]) | pizzly.fusions[row,3] %in% rownames(ref_genes.list[["oncokb_genes"]])) {
     #creating a new dataframe for extracting pizzly rows with pmcc gene hits
     result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
   }
@@ -1022,7 +1023,7 @@ NOTE: currently, displaying the top 3 hits from pizzly filtering output (red sec
 geneA <- pizzly.fusions2$geneA.name[2]
 geneB <- pizzly.fusions2$geneB.name[2]
 
-fusion_png(geneA, geneB, params$clinker_results )
+fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 ```
 
 ```{r fusions_tables2, comment = NA, message=TRUE, warning=FALSE}
@@ -1062,7 +1063,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1:2)])[[1]]
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
@@ -1074,7 +1075,7 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 geneA <- pizzly.fusions2$geneA.name[3]
 geneB <- pizzly.fusions2$geneB.name[3]
 
-fusion_png(geneA, geneB, params$clinker_results )
+fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 ```
 
 ```{r fusions_tables3, comment = NA, message=TRUE, warning=FALSE}
@@ -1114,7 +1115,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1:2)])[[1]]
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
@@ -1126,7 +1127,7 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 geneA <- pizzly.fusions2$geneA.name[4]
 geneB <- pizzly.fusions2$geneB.name[4]
 
-fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], params$clinker_results )
+fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], paste(dataDir, "clinker", sep="/") )
 ```
 
 ```{r fusions_tables4, comment = NA, message=TRUE, warning=FALSE}
@@ -1166,7 +1167,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["cancer_genes"]][,c(1:2)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1:2)])[[1]]
 ```
 
 ***
