@@ -19,7 +19,6 @@ params:
   normal_group: 'Normal (pancreas)'
   cancer_group: 'PDAC'
   genes_pmcc: '../data/Genes_PMCC.txt'
-  genes_fusions: '../fusions/Genes_fusions.txt'
   genes_immune: '../data/Genes_immune.txt'
   oncokb_genes: '../data/OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: '../data/OncoKB/allActionableVariants.txt'
@@ -578,7 +577,7 @@ ref_datasets.list <- vector("list", length(ref_datasets))
 names(ref_datasets.list) <- ref_datasets
 
 ##### Create a list with various sets of genes
-ref_genes <- c("genes_fusions","genes_pmcc", "oncokb_genes", "genes_immune")
+ref_genes <- c("genes_pmcc", "oncokb_genes", "genes_immune")
 ref_genes.list <- vector("list", length(ref_genes))
 names(ref_genes.list) <- ref_genes
 
@@ -587,15 +586,15 @@ caner_genes_annot <- c("oncokb_clin_vars", "oncokb_all_vars")
 caner_genes_annot.list <- vector("list", length(caner_genes_annot))
 names(caner_genes_annot.list) <- caner_genes_annot
 
-##### Get patient data dir
+##### Get patient data dir and sample file name
 dataDir <- unlist(strsplit(params$count_file, split='/', fixed=TRUE))
+sampleName.orig <- gsub("-ready.counts", "", dataDir[length(dataDir)])
 dataDir <- paste(dataDir[-c(length(dataDir))], collapse ="/")
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
 ref_datasets.list[[params$tissue]] <- combineDatasets(params$sample_name, params$count_file, params$datasets)
 
 ##### Read in selected genes list
-ref_genes.list[["genes_fusions"]] <- read.table(params$genes_fusions, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
 ref_genes.list[["genes_pmcc"]] <- read.table(params$genes_pmcc, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
 ref_genes.list[["oncokb_genes"]] <- read.table(params$oncokb_genes, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
 ref_genes.list[["genes_immune"]] <- read.table(params$genes_immune, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
@@ -934,7 +933,7 @@ the ones that are present in this list.
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
 #read in the pizzly fusion calls
-pizzly.fusions <- read.table(file = paste(dataDir, "pizzly/pizzly-flat-filtered.tsv", sep = "/"), header = TRUE)
+pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName.orig, "-flat-filtered.tsv"), sep = "/"), header = TRUE)
 quant <- read.table(file = paste(dataDir, "kallisto/abundance.tsv", sep = "/"), header = TRUE)
 #sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
