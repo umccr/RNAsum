@@ -957,8 +957,10 @@ for (row in 1:nrow(pizzly.fusions)){
   }
 }
 
-#remove duplicated values from result filtered using expression count(as multiple transcripts might support fusion between same gene)
+#remove duplicated values from result filtered using expression count(as multiple transcripts might support fusion between same gene) and sort the results by number of events (first by split count and then paircount)
 deduped.result <- unique(result)
+idx <- order(deduped.result$splitcount, deduped.result$paircount, decreasing = TRUE)
+deduped.sorted.result <- deduped.result[idx, ]
 
 #Extract only those fusion genes that are in PMCC list
 result.cancer_genes <- data.frame()
@@ -969,10 +971,13 @@ for (row in 1:nrow(pizzly.fusions)){
   }
 }
 
+idx2 <- order(result.pmcc$splitcount, result.pmcc$paircount, decreasing = TRUE)
+result.sorted.pmcc <- result.pmcc[idx2,]
+
 #sorting pizzly.fusions according to two new target dataframes identified i.e. 1- pizzly result filtering using expressions counts and 2- cancer genes list
 
-pizzly.fusions$order <- rownames(pizzly.fusions) %in% rownames(deduped.result) 
-pizzly.fusions$order2 <- rownames(pizzly.fusions) %in% rownames(result.cancer_genes)
+pizzly.fusions$order <- rownames(pizzly.fusions) %in% rownames(deduped.sorted.result) 
+pizzly.fusions$order2 <- rownames(pizzly.fusions) %in% rownames(result.sorted.cancer_genes)
 
 pizzly.fusions2 <- arrange(pizzly.fusions, -order, -order2) %>%
   dplyr::select(-order,-order2)
