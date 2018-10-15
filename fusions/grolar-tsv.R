@@ -13,7 +13,7 @@
 
 # Set up
 # Change to your own output location
-setwd("~/Documents/UMCCR/data/fusions/pizzly-validation/grolar")
+setwd("~/Documents/UMCCR/data/fusions/pizzly-validation/grolar/CCR180038_SV18T002P006/")
 
 # CRAN libs
 library(jsonlite)

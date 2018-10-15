@@ -233,6 +233,10 @@ geneA.name      geneA.id        geneB.name      geneB.id        paircount       
 VIM     ENSG00000026025 ALB     ENSG00000163631 4       4       ENST00000544301_0:1642_ENST00000509063_0:1911;ENST00000224237_0:1374_ENST00000509063_0:1911;ENST00000487938_0:1374_ENST00000509063_0:1911
 ```
 
+To extract genomic cordinates for fusion gene pair, this [script](https://github.com/umccr/RNAseq-Analysis-Report/blob/master/fusions/grolar-tsv.R) can be used. 
+
+Looks like, clinker uses all ensemble transcripts, most of which could be non-coding or hypothetical. Need to figure out ways to restrict it to use TSL1 transcripts only.   
+
 
 
 
