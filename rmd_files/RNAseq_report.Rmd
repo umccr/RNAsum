@@ -11,9 +11,9 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: '/Users/kanwals/Documents/UMCCR/data/RNAseq-report/CCR180038_SV18T002P006_RNA'
-  sample_name: 'CCR180038_SV18T002P006_RNA'
-  count_file: '/Users/kanwals/Documents/UMCCR/data/RNAseq-report/CCR180038_SV18T002P006_RNA/CCR180038_SV18T002P006_RNA-ready.counts'
+  report_dir:
+  sample_name:
+  count_file:
   tissue: 'pancreas'
   datasets: '../data/Datasets_list_PDAC.txt'
   normal_group: 'Normal (pancreas)'
@@ -23,10 +23,8 @@ params:
   oncokb_genes: '../data/OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: '../data/OncoKB/allActionableVariants.txt'
   oncokb_all_vars: '../data/OncoKB/allAnnotatedVariants.txt'
-  civic_gene_summaries: '../data/CIViC/01-Oct-2018-GeneSummaries.tsv'
   civic_var_summaries: '../data/CIViC/01-Oct-2018-VariantSummaries.tsv'
   civic_clin_evid: '../data/CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv'
-  civic_variant_group: '../data/CIViC/01-Oct-2018-VariantGroupSummaries.tsv'
 ---
 
 RNA-seq report for patient sample **`r params$sample_name`**.
@@ -203,35 +201,34 @@ exprGroupStats <- function(data, targets, target) {
   ##### For groups with > 1 sample get the mean and standard deviation for each gene
   if ( !is.null(ncol(data.group)) )  {
     
-    data.group.median <- rowMedians(data.group)
-    names(data.group.median) <- rownames(data)
-    data.group.median <- sort(data.group.median)
+    data.group.mean <- rowMeans(data.group)
+    data.group.mean <- sort(data.group.mean)
     data.group.sd <- rowSds(data.group)
     
   } else {
-    data.group.median <- sort(data.group)
+    data.group.mean <- sort(data.group)
     data.group.sd <- rep( NA, length(data.group))
   }
   
-  ##### Make sure the median and sd vectors have the same gene order
+  ##### Make sure the mean and sd vectors have the same gene order
   names(data.group.sd) <- rownames(data)
-  data.group.sd <- data.group.sd[names(data.group.median)]
+  data.group.sd <- data.group.sd[names(data.group.mean)]
 
   ##### Convert a expression values into corresponding percentiles
-  data.group.q <- perc.rank(data.group.median)
+  data.group.q <- perc.rank(data.group.mean)
   
   ##### Perform range standardization between 0 and 1 (for the cumulative sums), otherwise the negative values are summed up
-  data.group.s <- standardization(data.group.median)
+  data.group.s <- standardization(data.group.mean)
   
   ##### Calculate cumulative sums and perform range standardization between 0 and 1 
   data.group.cum <- standardization(cumsum(data.group.s))
   
-  ##### Perform Z-score transformation of the median expression values
-  data.group.z <- scale(data.group.median)
+  ##### Perform Z-score transformation of the mean expression values
+  data.group.z <- scale(data.group.mean)
   
   ##### Organise the data into data frame
-  data.group.df <- as.data.frame(cbind( data.group.median, data.group.sd, data.group.z, data.group.q, data.group.cum))
-  names(data.group.df) <- c("median", "sd", "z", "quantile", "cumulative_fraction")
+  data.group.df <- as.data.frame(cbind( data.group.mean, data.group.sd, data.group.z, data.group.q, data.group.cum))
+  names(data.group.df) <- c("mean", "sd", "z", "quantile", "cumulative_fraction")
   
   return( data.group.df )
 }
@@ -261,7 +258,7 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
     
     ##### Reorder groups
     gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(normal, cancer, "Patient"))
-      
+    
     p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("darkgreen", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
   }
   
@@ -305,16 +302,16 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
               name = normal, showlegend = FALSE) %>%
     
     ##### Add quantile lines
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[2], 11), opacity = 0.5,
-              line = list(color = "gray", opacity = 0.2, dash = "dash"),
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z)[2], 11), opacity = 0.5,
+              line = list(color = "gray", dash = "dash"),
               name = "Q1", showlegend = FALSE) %>%
     
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[3], 11), opacity = 0.5,
-              line = list(color = "gray", opacity = 0.2, dash = "dash"),
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z)[3], 11), opacity = 0.5,
+              line = list(color = "gray", dash = "dash"),
               name = "Q2", showlegend = FALSE) %>%
     
-    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z, probs=0:4/4)[4], 11), opacity = 0.5,
-              line = list(color = "gray", opacity = 0.2, dash = "dash"),
+    add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z)[4], 11), opacity = 0.5,
+              line = list(color = "gray", dash = "dash"),
               name = "Q3", showlegend = FALSE) %>% 
     
         layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
@@ -368,7 +365,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     
   targets.list <- unique(target$Target)
   
-  ##### Initiate dataframe for expression median values in each group
+  ##### Initiate dataframe for expression mean values in each group
   group.z <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = nrow(data)))
   colnames(group.z) <- targets.list
   rownames(group.z) <- sort(rownames(data))
@@ -384,7 +381,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   group.z <- cbind(group.z, round(rowSds(as.matrix(group.z)), digits = 2))
   names(group.z)[ncol(group.z)] <- "SD"
   
-  ##### Calculate Z-score differneces between investigated sample and normal group median values
+  ##### Calculate Z-score differneces between investigated sample and normal group mean values
   group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, normal]), digits = 2))
   names(group.z)[ncol(group.z)] <- "Patient vs Normal"
   
@@ -400,7 +397,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   ##### Add genes annotation
   if ( !is.null(genes_annot) ) {
     
-    ##### Merge the dataframe with groups median expression values and gene annotations
+    ##### Merge the dataframe with groups mean expression values and gene annotations
     group.z <- merge(genes_annot, group.z, by="row.names", all = FALSE, sort = FALSE)
     rownames(group.z) <- group.z$Row.names
     group.z <- group.z[, -1]
@@ -417,9 +414,9 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     group.z <- group.z[, -1]
     
     ##### Provide link to OncoKB for reported cancer genes
-    for ( gene in genes) {
+    for ( gene in genes ) {
       
-      if ( gene %in% rownames(OncoKB_genes) ) {
+      if ( gene %in% rownames(OncoKB_genes) & OncoKB_genes[gene, "OncoKB"] == "Yes" ) {
         
         group.z$SYMBOL[ group.z$SYMBOL==gene] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
       }
@@ -430,7 +427,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
   
   ##### Define colours for cells background for each group and the patient vs normal difference
-  ##### Initiate dataframe for expression median values in each group
+  ##### Initiate dataframe for expression mean values in each group
   brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
   colnames(brks.q) <- targets.list
   clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
@@ -476,38 +473,43 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
 }
 
 ##### Generate table with drugs targeting selected set of genes using info from CIViC database (https://civicdb.org/)
-civicDrugTable <- function(genes, civic_gene_summaries, civic_var_summaries, civic_clin_evid, civic_variant_group) {
+civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive") {
   
   ##### Initialize data fmrae to the about drug-target info from CIViC
-  drug.info <- setNames(data.frame(matrix(ncol = 16, nrow = 0)), c("Gene", "Variant", "Disease", "phenotypes", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
-
+  drug.info <- setNames(data.frame(matrix(ncol = 18, nrow = 0)), c("Gene", "Variant", "variant_types", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "civic_actionability_score", "Disease", "phenotypes", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
+  
+  evid_levels <- list("A" = "A: Validated association", "B" = "B: Clinical evidence", "C" = "C: Case study", "D" = "D: Preclinical evidence", "E" = "E: Inferential association")
+  
   ##### Loop thourgh each gene and check if they are druggable
   for ( gene in genes) {
     
     ##### Get summary info about druggable genes
-    if ( gene %in% civic_gene_summaries$name ) {
-      
-      gene.info <- civic_gene_summaries[ civic_gene_summaries$name == gene , ]
-      
-      ##### Extract info about all variants it that gene
-      var.info <- civic_var_summaries[ civic_var_summaries$gene == gene , ]
+    if ( gene %in% civic_clin_evid$gene ) {
       
       ##### Extract info about all reported variants's clinical evidence for queried gene
       clin.evid.info <- civic_clin_evid[ civic_clin_evid$gene == gene , ]
+
+      ##### Use more descriptive evidence level info
+      for ( level in unique(clin.evid.info$evidence_level) ) {
+        
+        clin.evid.info$evidence_level[ clin.evid.info$evidence_level == level ] <- evid_levels[[ level ]]
+      }
+      
+      evid_type <- c(clin.evid.info$evidence_type == evid_type)
       
       ##### Provide link to CIViC clinical evidence summary
-      clin.evid.info$evidence_type[ clin.evid.info$gene==gene] <- paste0("<a href='", clin.evid.info$evidence_civic_url[ clin.evid.info$gene==gene], "' target='_blank'>", clin.evid.info$evidence_type, "</a>")
+      clin.evid.info$evidence_type <- paste0("<a href='", clin.evid.info$evidence_civic_url, "' target='_blank'>", clin.evid.info$evidence_type, "</a>")
       
       ##### Provide link to CIViC gene summary
-      clin.evid.info$gene_civic_url[ clin.evid.info$gene==gene] <- paste0("<a href='", clin.evid.info$gene_civic_url[ clin.evid.info$gene==gene], "' target='_blank'>", gene, "</a>")
+      clin.evid.info$gene_civic_url <- paste0("<a href='", clin.evid.info$gene_civic_url, "' target='_blank'>", gene, "</a>")
       names(clin.evid.info)[ names(clin.evid.info) =="gene_civic_url" ] <- "Gene"
       
       ##### Provide link to CIViC variants summary
-      clin.evid.info$variant_civic_url[ clin.evid.info$gene==gene] <- paste0("<a href='", clin.evid.info$variant_civic_url[ clin.evid.info$gene==gene], "' target='_blank'>", clin.evid.info$variant, "</a>")
+      clin.evid.info$variant_civic_url <- paste0("<a href='", clin.evid.info$variant_civic_url, "' target='_blank'>", clin.evid.info$variant, "</a>")
       names(clin.evid.info)[ names(clin.evid.info) =="variant_civic_url" ] <- "Variant"
       
       ##### Provide link to ClinicalTrials.gov variants summary based on NCT IDs
-      for ( nct_id in clin.evid.info$nct_ids[ clin.evid.info$gene==gene] ) {
+      for ( nct_id in clin.evid.info$nct_ids ) {
         
         if ( !is.empty(nct_id) ) {
           
@@ -518,14 +520,26 @@ civicDrugTable <- function(genes, civic_gene_summaries, civic_var_summaries, civ
       }
       
       ##### Provide link to PubMed variants summary
-      clin.evid.info$pubmed_id[ clin.evid.info$gene==gene] <- paste0("<a href='https://www.ncbi.nlm.nih.gov/pubmed/", clin.evid.info$pubmed_id[ clin.evid.info$gene==gene], "' target='_blank'>", clin.evid.info$pubmed_id, "</a>")
+      clin.evid.info$pubmed_id <- paste0("<a href='https://www.ncbi.nlm.nih.gov/pubmed/", clin.evid.info$pubmed_id, "' target='_blank'>", clin.evid.info$pubmed_id, "</a>")
       
       ##### Provide link to Disease Ontology
-      clin.evid.info$doid[ clin.evid.info$gene==gene] <- paste0("<a href='http://www.disease-ontology.org/?id=DOID:", clin.evid.info$doid[ clin.evid.info$gene==gene], "' target='_blank'>", clin.evid.info$disease, "</a>")
+      clin.evid.info$doid <- paste0("<a href='http://www.disease-ontology.org/?id=DOID:", clin.evid.info$doid, "' target='_blank'>", clin.evid.info$disease, "</a>")
       names(clin.evid.info)[ names(clin.evid.info) =="doid" ] <- "Disease"
+      
+      ##### Extract info about all variants it that gene
+      var.info <- civic_var_summaries[ civic_var_summaries$gene == gene , ]
+      var.info <- var.info[, c("variant", "variant_types", "civic_actionability_score")]
+      var.info[,"variant_types"] <- gsub("_", " ", var.info[,"variant_types"])
+      var.info[,"variant_types"] <- gsub(",", ", ", var.info[,"variant_types"])
+      
+      ##### Merge about all variants it that gene and clinical evidence info
+      clin.evid.info <- merge(clin.evid.info, var.info, by = "variant", all.x = TRUE)
       
       ##### Subset table to include only most important info
       clin.evid.info <- clin.evid.info[ , names(drug.info)]
+      
+      ##### Subset table to include only variants with the evidence type of interest
+      clin.evid.info <- clin.evid.info[ evid_type,  ]
       
       ##### Add drugs info for subsequent gene
       drug.info <- rbind(drug.info, clin.evid.info)
@@ -533,7 +547,7 @@ civicDrugTable <- function(genes, civic_gene_summaries, civic_var_summaries, civ
   }
   
   ##### Use more friendly column names for the table
-  names(drug.info) <- c("Gene", "Variant","Disease", "Phenotypes", "Drugs", "Clinical trials", "Evidence level", "Evidence type", "Evidence direction", "Clinical significance", "Trust rating", "PubMed ID",  "Variant origin", "Representative transcript", "Representative transcript 2", "Review date")
+  names(drug.info) <- c("Gene", "Variant", "Variant type", "Drugs", "Clinical trials", "Evidence level", "Evidence type", "Evidence direction", "Clinical significance", "Trust rating", "Actionability score", "Disease", "Phenotypes", "PubMed ID",  "Variant origin", "Representative transcript", "Representative transcript 2", "Review date")
   
   ##### Generate a table
   dt.table <- DT::datatable( data = drug.info, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800, caption = htmltools::tags$caption(
@@ -544,7 +558,7 @@ civicDrugTable <- function(genes, civic_gene_summaries, civic_var_summaries, civ
     
     ##### Colour cells according to evidence level and trust rating
     DT::formatStyle(columns = "Evidence level", 
-                    backgroundColor = DT::styleEqual(c("A", "B", "C", "D", "E"), c("mediumseagreen", "deepskyblue", "mediumpurple", "darkorange", "coral")) )  %>%
+                    backgroundColor = DT::styleEqual(c("A: Validated association", "B: Clinical evidence", "C: Case study", "D: Preclinical evidence", "E: Inferential association"), c("mediumseagreen", "deepskyblue", "mediumpurple", "darkorange", "coral")) )  %>%
     #DT::formatStyle(columns = "Trust rating", 
     #                backgroundColor = DT::styleEqual(c(1:5), c(rev(round(seq(0, 200, length.out = 5), 0) %>%  {paste0("rgb(", .,",200,", ., ")")}))) )
     DT::formatStyle(columns = "Trust rating", 
@@ -604,10 +618,8 @@ caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(params$oncokb_clin_va
 caner_genes_annot.list[["oncokb_all_vars"]] <- read.table(params$oncokb_all_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 
 ##### Read in CIViC (https://civicdb.org/) annotations
-caner_genes_annot.list[["civic_gene_summaries"]] <- read.table(params$civic_gene_summaries, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 caner_genes_annot.list[["civic_var_summaries"]] <- read.table(params$civic_var_summaries, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 caner_genes_annot.list[["civic_clin_evid"]] <- read.table(params$civic_clin_evid, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
-caner_genes_annot.list[["civic_variant_group"]] <- read.table(params$civic_variant_group, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 ```
 
 ```{r data_transformation, comment = NA, message=FALSE, warning=FALSE}
@@ -1018,6 +1030,56 @@ for (row in 1:nrow(deduped.result)){
 
 NOTE: currently, displaying the top 3 hits from pizzly filtering output (red section in [Fusion events prioritisation] table).
 
+#### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
+
+##### Fusion events visualization
+
+```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
+##### Convert the fusion image from pdf to png and present it in the report
+geneA <- pizzly.fusions2$geneA.name[1]
+geneB <- pizzly.fusions2$geneB.name[1]
+
+#fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+```
+
+```{r fusions_tables1, comment = NA, message=TRUE, warning=FALSE}
+##### Present a table with number of reads supporting this fusion
+fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
+kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
+  scroll_box(width = "100%")
+```
+
+***
+
+##### Fusion genes expression
+
+mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
+
+```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+
+cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
+cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+```
+
 #### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
 
 ##### Fusion events visualization
@@ -1027,7 +1089,7 @@ NOTE: currently, displaying the top 3 hits from pizzly filtering output (red sec
 geneA <- pizzly.fusions2$geneA.name[2]
 geneB <- pizzly.fusions2$geneB.name[2]
 
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+#fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 ```
 
 ```{r fusions_tables2, comment = NA, message=TRUE, warning=FALSE}
@@ -1052,8 +1114,6 @@ target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-geneA <- pizzly.fusions2$geneA.name[2]
-geneB <- pizzly.fusions2$geneB.name[2]
 
 cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
 cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
@@ -1064,25 +1124,25 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE, eval = FALSE}
+```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1:2)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
 
 ##### Fusion events visualization
 
-```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE, eval = FALSE}
+```{r fusions_figs3, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions2$geneA.name[3]
 geneB <- pizzly.fusions2$geneB.name[3]
 
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+#fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 ```
 
-```{r fusions_tables3, comment = NA, message=TRUE, warning=FALSE, eval = FALSE}
+```{r fusions_tables3, comment = NA, message=TRUE, warning=FALSE}
 ##### Present a table with number of reads supporting this fusion
 fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
 kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
@@ -1104,8 +1164,6 @@ target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 targets.colour <- ref_datasets.list[[ref]][[4]]$targets
 datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-geneA <- pizzly.fusions2$geneA.name[3]
-geneB <- pizzly.fusions2$geneB.name[3]
 
 cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
 cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
@@ -1119,59 +1177,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1:2)])[[1]]
-```
-
-#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
-
-##### Fusion events visualization
-
-```{r fusions_figs4, comment = NA, message=TRUE, warning=FALSE}
-##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[4]
-geneB <- pizzly.fusions2$geneB.name[4]
-
-fusion_png(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], paste(dataDir, "clinker", sep="/") )
-```
-
-```{r fusions_tables4, comment = NA, message=TRUE, warning=FALSE}
-##### Present a table with number of reads supporting this fusion
-fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-  scroll_box(width = "100%")
-```
-
-***
-
-##### Fusion genes expression
-
-mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
-
-```{r cdf_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-ref <- params$tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-targets.colour <- ref_datasets.list[[ref]][[4]]$targets
-datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
-geneA <- pizzly.fusions2$geneA.name[4]
-geneB <- pizzly.fusions2$geneB.name[4]
-
-cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
-cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[ref]][[5]]
-fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1:2)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 ***
@@ -1200,18 +1206,22 @@ WORK IN PROGRESS...
 
 List of suitable drugs based on actionable targets identified among dysregulated genes and fusion events based, which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}).
 
-### Dysregulated cancer genes
+### Dysregulated cancer genes {.tabset}
 
 NOTE: currently, only the top 50 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from normal individuals (see [Cancer genes expression profiles] section)  were screened for suitable drugs.
 
-```{r drugs_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
+#### Predictive
+
+Evidence pertaining to a variant’s effect on therapeutic response.
+
+```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
 ```
 
 <font size="2">
@@ -1223,13 +1233,6 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_gene_summaries"]], caner_ge
 * **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
 * **E - Inferential association**: Indirect evidence
 
-**[Evidence Type](https://civicdb.org/help/evidence/evidence-types){target="_blank"}**
-
-* **Predictive**: Evidence pertaining to a variant’s effect on therapeutic response
-* **Diagnostic**: Evidence pertaining to a variant’s impact on patient diagnosis
-* **Prognostic**: Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival
-* **Predisposing**: Evidence pertains to a variant's role in conferring susceptibility to a disease
-
 **[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
 
 * **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
@@ -1237,23 +1240,305 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_gene_summaries"]], caner_ge
 * **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
 * **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
 * **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 
 ***
 
-### Detected gene fusion events
+#### Prognostic
 
-NOTE: currently, fusion events involving high expression count and cancer genes (red and blue sections in [Fusion events prioritisation] table) were screened for suitable drugs.
+Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
 
-```{r drugs_fusion_genes, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_prognostic_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
-genesA <- levels(deduped.result$geneA.name)[c(deduped.result$geneA.name, result.cancer_genes$geneA.name)]
-genesB <- levels(deduped.result$geneB.name)[c(deduped.result$geneB.name, result.cancer_genes$geneB.name)]
+genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_gene_summaries"]], caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], caner_genes_annot.list[["civic_variant_group"]])[[1]]
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+#### Diagnostic
+
+Evidence pertaining to a variant’s impact on patient diagnosis.
+
+```{r drugs_diagnostic_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
+
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+#### Predisposing
+
+Evidence pertains to a variant's role in conferring susceptibility to a disease.
+
+```{r drugs_predisposing_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
+
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+### Detected gene fusion events {.tabset}
+
+NOTE: currently, fusion events involving highly abundant transcripts and cancer genes (red and blue sections in [Fusion events prioritisation] table) were screened for suitable drugs.
+
+#### Highly abundant {.tabset}
+
+##### Predictive
+
+Evidence pertaining to a variant’s effect on therapeutic response.
+
+```{r drugs_predictive_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
+genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
+
+civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+##### Prognostic
+
+Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
+
+```{r drugs_prognostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
+genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
+
+civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+##### Diagnostic
+
+Evidence pertaining to a variant’s impact on patient diagnosis.
+
+```{r drugs_diagnostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
+genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
+
+civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+##### Predisposing
+
+Evidence pertains to a variant's role in conferring susceptibility to a disease.
+
+```{r drugs_predisposing_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
+genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
+
+civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+#### Containing cancer genes {.tabset}
+
+##### Predictive
+
+Evidence pertaining to a variant’s effect on therapeutic response.
+
+```{r drugs_predictive_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
+genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
+
+civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
 ```
 
 <font size="2">
@@ -1279,6 +1564,148 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_gene_summaries"
 * **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
 * **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
 * **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+##### Prognostic
+
+Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
+
+```{r drugs_prognostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
+genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
+
+civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Evidence Type](https://civicdb.org/help/evidence/evidence-types){target="_blank"}**
+
+* **Predictive**: Evidence pertaining to a variant’s effect on therapeutic response
+* **Diagnostic**: Evidence pertaining to a variant’s impact on patient diagnosis
+* **Prognostic**: Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival
+* **Predisposing**: Evidence pertains to a variant's role in conferring susceptibility to a disease
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+##### Diagnostic
+
+Evidence pertaining to a variant’s impact on patient diagnosis.
+
+```{r drugs_diagnostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
+genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
+
+civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Evidence Type](https://civicdb.org/help/evidence/evidence-types){target="_blank"}**
+
+* **Predictive**: Evidence pertaining to a variant’s effect on therapeutic response
+* **Diagnostic**: Evidence pertaining to a variant’s impact on patient diagnosis
+* **Prognostic**: Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival
+* **Predisposing**: Evidence pertains to a variant's role in conferring susceptibility to a disease
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+
+***
+
+##### Predisposing
+
+Evidence pertains to a variant's role in conferring susceptibility to a disease.
+
+```{r drugs_predisposing_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting dysregulated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
+genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
+
+civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+```
+
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Evidence Type](https://civicdb.org/help/evidence/evidence-types){target="_blank"}**
+
+* **Predictive**: Evidence pertaining to a variant’s effect on therapeutic response
+* **Diagnostic**: Evidence pertaining to a variant’s impact on patient diagnosis
+* **Prognostic**: Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival
+* **Predisposing**: Evidence pertains to a variant's role in conferring susceptibility to a disease
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 
 ***
