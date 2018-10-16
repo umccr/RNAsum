@@ -613,6 +613,7 @@ ref_datasets.list[[params$tissue]] <- combineDatasets(params$sample_name, params
 ref_genes.list[["genes_pmcc"]] <- read.table(params$genes_pmcc, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
 ref_genes.list[["oncokb_genes"]] <- read.table(params$oncokb_genes, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
 ref_genes.list[["genes_immune"]] <- read.table(params$genes_immune, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
+ref_genes.list[["pcgr"]] <- read.table(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/"), sep=",", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
 
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(params$oncokb_clin_vars, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
@@ -763,16 +764,259 @@ ref_cancer <- table(target$Target)[names(table(target$Target))==params$cancer_gr
 
 The following reference patient cohorts were used for the analysis:
 
-* **`r paste (ref_normal, params$normal_group, sep=" ")`** samples
-* **`r paste (ref_cancer, params$cancer_group, sep=" ")`** samples
+* **`r paste (ref_normal, params$normal_group, sep=" ")`** samples from [The Genotype-Tissue Expression](https://commonfund.nih.gov/gtex) (GTEx) project
+* **`r paste (ref_cancer, params$cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga) (TCGA)
 
 From the `r nrow(counts)` input genes:
 
 * `r nrow(counts) - nrow(y.filtered$counts)` genes were filtered out due to low expression
-* `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-apporved gene symbol
+* `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 * **`r nrow(data.annot)` genes** remained for the analysis
 
 </details>
+
+***
+
+## Mutated genes
+
+mRNA expression levels of mutated genes, obtained from the [PCGR](https://github.com/sigven/pcgr) report, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
+
+### Mutated genes expression summary
+
+From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` cancer genes the expression of **`r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %in% rownames(ref_datasets.list[[ref]][[3]])))`** was reliably measured in the patient's sample.
+
+```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+
+mut_genes.expr <- exprTable(unique(ref_genes.list[["pcgr"]]$SYMBOL), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]])
+
+##### Present the expression summary table
+mut_genes.expr[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The *Patient vs Normal* column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. TSG - tumour suppressor gene; SD - standard deviation
+</font>
+</details>
+
+***
+
+### Mutated genes expression profiles {.tabset}
+
+<span style="color:#ff0000">NOTE</span>: currently, displaying the top 10 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from normal individuals.
+
+#### `r mut_genes.expr[[2]]$SYMBOL[1]`
+
+```{r cdf_plot_mut_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[1]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[2]`
+
+```{r cdf_plot_mut_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[2]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[3]`
+
+```{r cdf_plot_mut_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[3]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[4]`
+
+```{r cdf_plot_mut_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[4]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[5]`
+
+```{r cdf_plot_mut_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[5]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[6]`
+
+```{r cdf_plot_mut_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[6]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[7]`
+
+```{r cdf_plot_mut_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[7]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[8]`
+
+```{r cdf_plot_mut_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[8]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[9]`
+
+```{r cdf_plot_mut_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[9]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r mut_genes.expr[[2]]$SYMBOL[10]`
+
+```{r cdf_plot_mut_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- mut_genes.expr[[2]]$SYMBOL[10]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
 
 ***
 
@@ -799,7 +1043,7 @@ cancer_genes.expr[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">red</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">blue</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The *Patient vs Normal* column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The *Patient vs Normal* column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -807,7 +1051,7 @@ The <span style="color:#ff0000">red</span> colour range indicate relatively **hi
 
 ### Cancer genes expression profiles {.tabset}
 
-NOTE: currently, displaying the top 6 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from normal individuals.
+<span style="color:#ff0000">NOTE</span>: currently, displaying the top 10 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from normal individuals.
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[1]`
 
@@ -935,6 +1179,90 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
+#### `r cancer_genes.expr[[2]]$SYMBOL[7]`
+
+```{r cdf_plot_cancer_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[7]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[8]`
+
+```{r cdf_plot_cancer_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[8]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[9]`
+
+```{r cdf_plot_cancer_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[9]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr[[2]]$SYMBOL[10]`
+
+```{r cdf_plot_cancer_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+targets.colour <- ref_datasets.list[[ref]][[4]]$targets
+datasets.colour <- ref_datasets.list[[ref]][[4]]$datasets
+gene <- cancer_genes.expr[[2]]$SYMBOL[10]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+cdfPlot(gene, data, target, params$sample_name, params$normal_group, params$cancer_group, addBoxPlot = TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
 ## Gene fusion events
 
 <details>
@@ -943,7 +1271,7 @@ detach("package:plotly", unload=FALSE)
 The prioritization of pizzly results is performed in two steps.
 
 1. In the first step, basic idea is to run kallisto to quantify the fusion transcripts (reported by pizzly) and 
-select those which have a decent TPM support.
+select those which have a decent Transcripts Per Kilobase Million (TPM) support.
   * Create a new index based on the transcriptome and the fusion transcripts identified by pizzly.
   * Run kallisto in normal quantification mode on the expanded index to quantify both normal transcripts 
   and fusions.
@@ -951,7 +1279,6 @@ select those which have a decent TPM support.
 
 2. In the second step, fusion genes reported by pizzly are compared with cancer gene list (from Peter Mac comprehensive cancer (PMCC) panel and [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"}) and report 
 the ones that are present in this list.
-
 </details>
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -1020,7 +1347,7 @@ trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "" )
   
 ##### Add columns for info about reported fusions
 pizzly.fusions2 <- cbind(pizzly.fusions2, data.frame(matrix("", ncol = 4, nrow = nrow(pizzly.fusions2)), stringsAsFactors = FALSE))
-colnames(pizzly.fusions2)[-c(1:7)] <- c("Reported", "Effector_gene", "Cancer_acronym", "Source")
+colnames(pizzly.fusions2)[-c(1:7)] <- c("Reported", "Effector_gene", "Source", "Cancer_acronym")
 
 ##### Add annotations about known fusion events
 ##### Loop through all genes involved in reported gene fusions and check if present in pizzly results
@@ -1123,6 +1450,31 @@ kable(pizzly.fusions2, row.names = FALSE) %>%
   scroll_box(width = "100%", height = "400px")
 ```
 
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> section includes highly abundant fusion transcripts, <span style="color:#0000ff">BLUE</span> section lists fusions containing [Cancer genes] and <span style="color:#00c900">GREEN</span> section lists remaining gene fusion events. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) database.
+
+*Reported*: genes known to be involved in tumorigenesis across cancer types via translocation
+
+*Effector_gene*: gene most likely to promote the tumorigenesis between the two translocation partners
+
+*Cancer_acronym*: acronym of cancer type in which the fusion event was detected and reported
+
+**Source**
+
+* *Biomarker*: gene with mutations known to be biomarkers of response to drugs
+* *CGC*: gene obtained from the [Cancer Gene Census](http://cancer.sanger.ac.uk/cosmic)
+* *In_silico_predicted*: gene identified by an ensemble of bioinformatics tools to have signals of positive selection in its mutational pattern across tumors (obtained from the [IntOGen](https://www.intogen.org/search) repository)
+* *Predisposing*: gene with clinical evidence of predisposing to cancer (obtained from the literature)
+* *Validated*: experimentally validated cancer driver gene (obtained from the literature)
+
+**Cancer_acronym**
+
+**AA** adrenal adenoma, **ABC** aneurysmal bone cyst, **AC** adrenal cortex, **ACA** adrenal cortex adenoma, **ACC** adrenal cortex carcinoma, **ACML** atypical chronic myeloid leukemia, **AEL** acute erythroid leukemia, **ALCL** anaplastic large cell lymphoma, **ALL** acute lymphoblastic leukemia, **ALM** acral lentigious melanoma, **AML** acute myeloid lekemia, **APML** acute promyelocytic leukemia, **AS** angiosarcoma, **B** brain, **BCC** basal cell carcinoma, **BCL** b cell lymphoma, **BLCA** bladder , **BLTC** bladder transitional cell, **BLY** burkitt lymphoma, **BRCA** breast , **BRCA/OV-PR** breast/ovary predisposing, **BRCAL** breast lobular, **BRCALU** breast luminal, **BT** billiary tract, **CANCER** cancer, **CANCER-PR** cancer-predisposing, **CCS** clear cell sarcoma, **CER** cervix, **CESC** cervix squamous cell, **CH** cholangiocarcinoma, **CLL** chronic lymphocytic leukemia, **CM** cutaneous melanoma, **CM-PR** cutaneous melanoma – predisposing, **CML** chronic myeloid lekemia, **CMP** chronic myeloproliferative neoplasm, **CNL** chronic neutrophilic leukemia, **CNS** central nervous system, **CNSLY** central nervous system lymphoma, **COC** colon carcinoma, **COC-PR** colon carcinoma – predisposing, **COCA** colon adenocarcinoma, **COREAD** colorectal adenocarcinoma, **COREAD-PR** colorectal adenocarcinoma – predisposing, **CS** chondrosarcoma, **CTCL** cutaneous T-cell lymphoma, **DEST** desmoid tumor, **DFS** dermatofibrosarcoma, **DLBCL** diffuse large B cell lymphoma, **DNT** dysembryoplastic neuroephitelial tumor, **DSRCT** desmoplastic small round cell tumor, **ECL** eosinophilic chronic leukemia, **ED** endometrium, **EDA** endometrial adenocarcinoma, **EDS** endometrial stromal, **ES** endocrine system, **ESCA** esophagous, **ESCC** esophagous clear cell, **ESSC** esophagous squamous cell, **EWS** ewing sarcoma, **FGCT** female germ cell tumor, **FH** fibrous histiocytoma, **FIBS-PR** fibrosarcoma - predisposing, **FL** follicular lymphoma, **G** glioma, **GB** glioblastoma, **GBM** glioblastoma multiforme, **GIST** gastrointestinal stromal, **GIST-PR** gastrointestinal stromal – predisposing, **HA** hepatic adenoma, **HB** hepatic blastoma, **HC** hepatic carcinoma, **HC-PR** hepatic carcinoma – predisposing, **HCL** hairy cell leukemia, **HEMATO** hematological malignancy, **HEMATO-PR** hematological malignancy – predisposing, **HES** hyper eosinophilic advanced syndrome, **HGP** hemangiopericytoma, **HISEC** erdheim-chester histiocytosis, **HISLC** largerhans cell histiocytosis, **HLY** hodgkin lymphoma, **HNC** head and neck, **HNSC** head and neck squamous, **IM** immflamatory myofibroblastic, **L** lung, **LBCL** large b-cell lymphoma, **LGG** lower grade glioma, **LGLK** large granular leukemia, **LIP** liposarcoma, **LK** leukemia, **LUAD** lung adenocarcinoma, **LUSC** lung squamous cell, **LY** luymphoma, **MA** malignant astrocytoma, **MALT** malt lymphoma, **MAS** mastocytosis, **MB** medulloblastoma, **MCL** mantle cell lymphoma, **MCLK** mast cell leukemia, **MDPS** myelodisplatic proliferative syndrome, **MDS** myelodisplasicsyndrome, **MEN** meningioma, **MERC** merkel cell carcinoma, **MESO** mesothelioma, **MFH** myxoidfibrosarcoma, **MGCT** male germ cell tumor, **MKB** megakaryoblastic leukemia, **MM** multiple myeloma, **MML** myelomonocytic leukemia, **MPN** malignant peripheral nerve sheat tumor, **MRT** malignant rhaboid tumor, **MRT-PR** malignant rhaboid tumor – predisposing, **MUCM** mucosal melanoma, **MY** myelofibrosis, **MYEP** myoepithelioma, **MYMA** myeloma, **MYX** myxoma, **NB** neuroblastoma, **NF** neurofibromatosis, **NHLY** non-hodgkin lymphoma, **NMC** nut midline carcinoma, **NSCLC** non-small cell lung, **NSMGCT** non-seminomatous germ cell tumor, **NSPH** nasopharyngeal, **OCSC** oral cavity squamous cell, **OPH** ororpharynx squamous cell, **OS** osteosarcoma, **OV** ovary, **OVCC** ovary clear cell, **OVE** ovary ephitelial cell, **OVG** ovary granulosa cell, **OVSC** ovary small cell, **PA** pancreas, **PAAC** pancreas acinar, **PAAD** pancreas adenocarcinoma, **PAIS** pancreas islet, **PANC** pancreas neuroendocrine, **PARG** paraganglioma, **PATH** parathyroid adenoma, **PCPG** pheochromocytoma and paranganglioma, **PEC** perivascular epithelioid cell, **PG** pediatric glioma, **PHEO** pheochromacytoma, **PIA** pilocytic astrocytoma, **PIGA** pituitary gland adenoma, **PPB** pleuropulmonary blastoma, **PRAD** prostate adenocarcinoma, **PTCL** perypheral t-cell lymphoma, **PV** polycitemia vera, **R** renal, **R-PR** renal – predisposing, **RB** retinoblastoma, **RCCC** renal clear cell, **REC** rectal carcinoma, **RHBDS** rhabdomyosarcoma, **RPC** renal papillary cell, **S** sarcoma, **SCC** squamous cell carcinoma, **SCC-PR** squamous cell carcinoma – predisposing, **SCGS** sex-cord gonadal stromal, **SCHW** schwannoma, **SCLC** small cell lung, **SG** salivary glands, **SGA** salivary glands adenoma, **SGM** salivary glands mucoepidermoid, **SIN** small intestine, **SINNE** small intestine neuroendocrine, **SK** skin, **SK-PR** skin – predisposing, **SM** systemic mastocytosis, **SOLID** solid tumors, **SOLID-PR** solid tumors - predisposing , **ST** stomach, **ST-PR** stomach – predisposing, **STAD** stomach adenocarcinoma, **STS** soft tissue sarcoma, **SYNS** synovial sarcoma, **T** testis, **TCALL** t cell acute lymphoblastic leukemia, **TCPL** t cell prolymphocytic leukemia, **TER** teratoma, **TH** thyroid, **THA** thyroid adenoma, **THCA** thyroid carcinoma, **THF** thyroid follicular, **THM** thyroid medullary, **THYM** thymic, **TOSC** tongue squamous cell, **UCEC** uterine corpus endometroid carcinoma, **UCS** uterine carcinosarcoma, **UTH** urothelial, **UVM** uveal melanoma, **WM** waldenstrom macroglobullinemia, **WT** wilms tumor
+</font>
+</details>
+
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
 ##### Get the number of reads supporting fusions of interest
 result_reads <- data.frame()
@@ -1150,7 +1502,7 @@ result_reads <- result_reads%>%select(-"transcriptID","transcriptID")
 
 ### Fusion genes expression profiles {.tabset}
 
-NOTE: currently, displaying the top 3 hits from pizzly filtering output (red section in [Fusion events prioritisation] table).
+<span style="color:#ff0000">NOTE</span>: currently, displaying the top hits from pizzly filtering output (<span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> sections in [ Gene fusion events] table). Also, in the follwoing visualization section, the missing hits from the prioritized results are the ones for which no junctions are found by clinker.
 
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
 
@@ -1354,8 +1706,6 @@ immune_genes.expr <- exprTable(unlist(ref_genes.list[["genes_immune"]]), data, t
 immune_genes.expr[[1]]
 ```
 
-WORK IN PROGRESS...
-
 ***
 
 ## Drug matching
@@ -1364,7 +1714,7 @@ List of suitable drugs based on actionable targets identified among dysregulated
 
 ### Dysregulated cancer genes {.tabset}
 
-NOTE: currently, only the top 50 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from normal individuals (see [Cancer genes expression profiles] section)  were screened for suitable drugs.
+<span style="color:#ff0000">NOTE</span>: currently, only the top 50 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from normal individuals (see [Cancer genes expression profiles] section)  were screened for suitable drugs.
 
 #### Predictive
 
@@ -1532,7 +1882,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ### Detected gene fusion events {.tabset}
 
-NOTE: currently, fusion events involving highly abundant transcripts and cancer genes (<span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> sections in [Fusion events prioritisation] table) were screened for suitable drugs.
+<span style="color:#ff0000">NOTE</span>: currently, fusion events involving highly abundant transcripts and cancer genes (<span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> sections in [ Gene fusion events] table) were screened for suitable drugs.
 
 #### Highly abundant {.tabset}
 
@@ -1898,23 +2248,6 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 * CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
-</details>
-
-***
-
-## Key findings summary
-
-Section summarising the key findings (clincially relevant dysregulated genes and pathways, gene fusion events etc.)
-
-TO BE ADDED...
-
-***
-
-### References
-
-<details>
-<summary></summary>
-TO BE ADDED...
 </details>
 
 ***
