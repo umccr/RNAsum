@@ -496,7 +496,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
         clin.evid.info$evidence_level[ clin.evid.info$evidence_level == level ] <- evid_levels[[ level ]]
       }
       
-      evid_type <- c(clin.evid.info$evidence_type == evid_type)
+      evid_type.list <- c(clin.evid.info$evidence_type == evid_type)
       
       ##### Provide link to CIViC clinical evidence summary
       clin.evid.info$evidence_type <- paste0("<a href='", clin.evid.info$evidence_civic_url, "' target='_blank'>", clin.evid.info$evidence_type, "</a>")
@@ -540,7 +540,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
       clin.evid.info <- clin.evid.info[ , names(drug.info)]
       
       ##### Subset table to include only variants with the evidence type of interest
-      clin.evid.info <- clin.evid.info[ evid_type,  ]
+      clin.evid.info <- clin.evid.info[ evid_type.list,  ]
       
       ##### Add drugs info for subsequent gene
       drug.info <- rbind(drug.info, clin.evid.info)
@@ -800,7 +800,7 @@ mut_genes.expr[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The *Patient vs Normal* column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -808,7 +808,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ### Mutated genes expression profiles {.tabset}
 
-<span style="color:#ff0000">NOTE</span>: currently, displaying the top 10 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy  individuals.
+<span style="color:#ff0000">NOTE</span>: currently, displaying the top 10 mutated genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy  individuals.
 
 #### `r mut_genes.expr[[2]]$SYMBOL[1]`
 
@@ -1043,7 +1043,7 @@ cancer_genes.expr[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The *Patient vs Normal* column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -1337,6 +1337,8 @@ pizzly.fusions2 <- rbind(deduped.sorted.result, result.sorted.cancer_genes, resu
 
 ##### Flag known fusions based on info from Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers)
 known_translocations <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
+known_translocations$cancer_acronym <- gsub(";", ", ", known_translocations$cancer_acronym)
+known_translocations$source <- gsub(";", ", ", known_translocations$source)
 
 ##### Extract gene pairs involved in reported gene fusions
 trans.pairs <-  strsplit(known_translocations$translocation, split='__', fixed=TRUE)
@@ -1444,9 +1446,9 @@ kable(pizzly.fusions2, row.names = FALSE) %>%
   #row_spec(c(as.numeric(rownames(deduped.result)),as.numeric(rownames(result.cancer_genes))), bold = T, color = "white", background = "#D7261E") %>%
   #row_spec(1:nrow(deduped.result), bold = T, color = "white", background = "red") %>%
   #row_spec((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes)), color = "white", background = "blue") %>%
-  group_rows("Filtered results using expression count matrix", 1, nrow(deduped.result), label_row_css = "background-color: #E74C3C; color: #fff;") %>%
-  group_rows("Filtered results using cancer genes list", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.cancer_genes)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
-  group_rows("Other pizzly results", (nrow(deduped.result) + nrow(result.cancer_genes) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
+  group_rows("Gene fusion events involving highly abundant transcripts", 1, nrow(deduped.result), label_row_css = "background-color: #E74C3C; color: #fff;") %>%
+  group_rows("Gene fusion events involving cancer genes", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.cancer_genes)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
+  group_rows("Remaining gene fusion events", (nrow(deduped.result) + nrow(result.cancer_genes) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
   scroll_box(width = "100%", height = "400px")
 ```
 
@@ -1558,7 +1560,7 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The *Patient vs Normal* column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -1620,7 +1622,7 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The *Patient vs Normal* column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -1682,7 +1684,7 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_grou
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The *Patient vs Normal* column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -1708,7 +1710,176 @@ immune_genes.expr[[1]]
 
 ## Drug matching
 
-List of suitable drugs based on actionable targets identified among dysregulated genes and fusion events based, which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}).
+List of suitable drugs based on actionable targets identified among mutated genes, dysregulated genes and fusion events, which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}).
+
+
+### Mutated genes {.tabset}
+
+<span style="color:#ff0000">NOTE</span>: all mutated genes were screened for suitable drugs.
+
+#### Predictive
+
+Evidence pertaining to a variant’s effect on therapeutic response.
+
+```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting mutated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genes <- mut_genes.expr[[2]]$SYMBOL
+
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+</details>
+
+***
+
+#### Prognostic
+
+Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
+
+```{r drugs_prognostic_mut_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting mutated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genes <- mut_genes.expr[[2]]$SYMBOL
+
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+</details>
+
+***
+
+#### Diagnostic
+
+Evidence pertaining to a variant’s impact on patient diagnosis.
+
+```{r drugs_diagnostic_mut_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting mutated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genes <- mut_genes.expr[[2]]$SYMBOL
+
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+</details>
+
+***
+
+#### Predisposing
+
+Evidence pertains to a variant's role in conferring susceptibility to a disease.
+
+```{r drugs_predisposing_mut_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Generate table with drugs targeting mutated cancer genes
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+genes <- mut_genes.expr[[2]]$SYMBOL
+
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+</font> 
+</details>
+
+***
 
 ### Dysregulated cancer genes {.tabset}
 
@@ -1749,7 +1920,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -1790,7 +1961,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -1831,7 +2002,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -1872,7 +2043,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -1880,7 +2051,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ### Detected gene fusion events {.tabset}
 
-<span style="color:#ff0000">NOTE</span>: currently, fusion events involving highly abundant transcripts and cancer genes (<span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> sections in [ Gene fusion events] table) were screened for suitable drugs.
+<span style="color:#ff0000">NOTE</span>: currently, gene fusion events involving highly abundant transcripts and cancer genes (<span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> sections in [ Gene fusion events] table) were screened for suitable drugs.
 
 #### Highly abundant {.tabset}
 
@@ -1889,7 +2060,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
-##### Generate table with drugs targeting dysregulated cancer genes
+##### Generate table with drugs targeting fusion genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
@@ -1920,7 +2091,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -1931,7 +2102,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
 
 ```{r drugs_prognostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
-##### Generate table with drugs targeting dysregulated cancer genes
+##### Generate table with drugs targeting fusion genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
@@ -1962,7 +2133,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -1973,7 +2144,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
-##### Generate table with drugs targeting dysregulated cancer genes
+##### Generate table with drugs targeting fusion genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
@@ -2004,7 +2175,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2015,7 +2186,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
-##### Generate table with drugs targeting dysregulated cancer genes
+##### Generate table with drugs targeting fusion genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
@@ -2046,7 +2217,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2059,7 +2230,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
-##### Generate table with drugs targeting dysregulated cancer genes
+##### Generate table with drugs targeting fusion genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
@@ -2097,7 +2268,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2108,7 +2279,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
 
 ```{r drugs_prognostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
-##### Generate table with drugs targeting dysregulated cancer genes
+##### Generate table with drugs targeting fusion genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
@@ -2146,7 +2317,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2157,7 +2328,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
-##### Generate table with drugs targeting dysregulated cancer genes
+##### Generate table with drugs targeting fusion genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
@@ -2195,7 +2366,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2206,7 +2377,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
-##### Generate table with drugs targeting dysregulated cancer genes
+##### Generate table with drugs targeting fusion genes
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
@@ -2244,7 +2415,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* CIViC Actionability Score allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2263,6 +2434,8 @@ for ( i in 1:length(params) ) {
 </details>
 
 ***
+
+##
 
 ### Addendum
 
