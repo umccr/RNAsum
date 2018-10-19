@@ -782,13 +782,16 @@ mRNA expression levels of mutated genes, obtained from the [PCGR](https://github
 
 ### Mutated genes expression summary
 
-From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the expression of **`r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %in% rownames(ref_datasets.list[[ref]][[3]])))`** was reliably measured in patient's sample.
+From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the expression of **`r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %in% rownames(ref_datasets.list[[ref]][[3]])))`** was reliably measured in patient's sample. NOTE, all variants annotated by [PCGR](https://github.com/sigven/pcgr){target="_blank"} are reported, including non-coding variants.
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 ref <- params$tissue
 target <- ref_datasets.list[[ref]][[2]]
 data <- ref_datasets.list[[ref]][[3]]
+
+##### Report only mutations calssified within Tiers 1-4
+#ref_genes.list[["pcgr"]] <- ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("TIER 1", "TIER 2", "TIER 3", "TIER 4" ), ]
 
 mut_genes.expr <- exprTable(unique(ref_genes.list[["pcgr"]]$SYMBOL), data, target, params$sample_name, params$normal_group , params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]])
 
@@ -1463,6 +1466,142 @@ result_reads <- result_reads%>%select(-"transcriptID","transcriptID")
 
 <span style="color:#ff0000">NOTE</span>: currently, displaying the top hits from pizzly filtering output (<span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> sections in [Gene fusion events] table). Also, in the following visualisation  section, the missing hits from the prioritised results are the ones for which no junctions are found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
+#### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
+
+##### Fusion events visualisation 
+
+```{r fusions_figs1, comment = NA, message=TRUE, warning=FALSE}
+##### Convert the fusion image from pdf to png and present it in the report
+geneA <- pizzly.fusions2$geneA.name[1]
+geneB <- pizzly.fusions2$geneB.name[1]
+
+##### Check if clinker fusion plot exists. Skip this section in it doesn't
+if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+  
+  fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+}
+```
+
+```{r fusions_tables1, comment = NA, message=TRUE, warning=FALSE}
+##### Present a table with number of reads supporting this fusion
+##### Check if clinker fusion plot exists. Skip this section in it doesn't
+if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+
+  fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
+
+  if( nrow(fusion_result_reads) !=0 ) {
+    kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+    kable_styling(font_size = 12, "striped", "bordered") %>%
+    scroll_box(width = "100%")
+  }
+}
+```
+
+***
+
+##### Fusion genes expression
+
+mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
+
+```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+
+cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
+cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by decreasing values in the "Patient vs Normal" column. TSG - tumour suppressor gene; SD - standard deviation
+</font>
+</details>
+
+***
+
+#### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
+
+##### Fusion events visualisation 
+
+```{r fusions_figs2, comment = NA, message=TRUE, warning=FALSE}
+##### Convert the fusion image from pdf to png and present it in the report
+geneA <- pizzly.fusions2$geneA.name[2]
+geneB <- pizzly.fusions2$geneB.name[2]
+
+##### Check if clinker fusion plot exists. Skip this section in it doesn't
+if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+  
+  fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+}
+```
+
+```{r fusions_tables2, comment = NA, message=TRUE, warning=FALSE}
+##### Present a table with number of reads supporting this fusion
+##### Check if clinker fusion plot exists. Skip this section in it doesn't
+if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+  
+  fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
+  
+  if( nrow(fusion_result_reads) !=0 ) {
+    kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+    kable_styling(font_size = 12, "striped", "bordered") %>%
+    scroll_box(width = "100%")
+  }
+}
+```
+
+***
+
+##### Fusion genes expression
+
+mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
+
+```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+ref <- params$tissue
+target <- ref_datasets.list[[ref]][[2]]
+data <- ref_datasets.list[[ref]][[3]]
+
+cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
+cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by decreasing values in the "Patient vs Normal" column. TSG - tumour suppressor gene; SD - standard deviation
+</font>
+</details>
+
+***
+
 #### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
 
 ##### Fusion events visualisation 
@@ -1472,18 +1611,26 @@ result_reads <- result_reads%>%select(-"transcriptID","transcriptID")
 geneA <- pizzly.fusions2$geneA.name[3]
 geneB <- pizzly.fusions2$geneB.name[3]
 
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+##### Check if clinker fusion plot exists. Skip this section in it doesn't
+if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+  
+  fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+}
 ```
 
 ```{r fusions_tables3, comment = NA, message=TRUE, warning=FALSE}
 ##### Present a table with number of reads supporting this fusion
-fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-
-if( nrow(fusion_result_reads) !=0 ) {
-  kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-  scroll_box(width = "100%")
+##### Check if clinker fusion plot exists. Skip this section in it doesn't
+if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+  
+  fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
+  
+  if( nrow(fusion_result_reads) !=0 ) {
+    kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+    kable_styling(font_size = 12, "striped", "bordered") %>%
+    scroll_box(width = "100%")
   }
+}
 ```
 
 ***
@@ -1509,126 +1656,6 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[ref]][[5]]
-fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by decreasing values in the "Patient vs Normal" column. TSG - tumour suppressor gene; SD - standard deviation
-</font>
-</details>
-
-***
-
-#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
-
-##### Fusion events visualisation 
-
-```{r fusions_figs4, comment = NA, message=TRUE, warning=FALSE}
-##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[4]
-geneB <- pizzly.fusions2$geneB.name[4]
-
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
-```
-
-```{r fusions_tables4, comment = NA, message=TRUE, warning=FALSE}
-##### Present a table with number of reads supporting this fusion
-fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-
-if( nrow(fusion_result_reads) !=0 ) {
-  kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-  scroll_box(width = "100%")
-  }
-```
-
-***
-
-##### Fusion genes expression
-
-mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
-
-```{r cdf_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-ref <- params$tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-
-cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
-cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[ref]][[5]]
-fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by decreasing values in the "Patient vs Normal" column. TSG - tumour suppressor gene; SD - standard deviation
-</font>
-</details>
-
-***
-
-#### `r paste(pizzly.fusions2$geneA.name[6], pizzly.fusions2$geneB.name[6], sep="-")`
-
-##### Fusion events visualisation 
-
-```{r fusions_figs6, comment = NA, message=TRUE, warning=FALSE}
-##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[6]
-geneB <- pizzly.fusions2$geneB.name[6]
-
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
-```
-
-```{r fusions_tables6, comment = NA, message=TRUE, warning=FALSE}
-##### Present a table with number of reads supporting this fusion
-fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-
-if( nrow(fusion_result_reads) !=0 ) {
-  kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-  scroll_box(width = "100%")
-  }
-```
-
-***
-
-##### Fusion genes expression
-
-mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
-
-```{r cdf_plot_fusions_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-ref <- params$tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
-
-cdfPlot(geneA, data, target, params$sample_name, params$normal_group, params$cancer_group)
-cdfPlot(geneB, data, target, params$sample_name, params$normal_group, params$cancer_group)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-```{r gene_table_fusions_6, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[ref]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 exprTable(fusion.df$SYMBOL, data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
