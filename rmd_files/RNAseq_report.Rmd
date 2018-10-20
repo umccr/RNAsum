@@ -745,6 +745,216 @@ cancer_genes[ cancer_genes=="" ] <- "-"
 ref_genes.list[["oncokb_genes"]] <- cancer_genes
 ```
 
+```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
+#read in the pizzly fusion calls
+pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName.orig, "-flat.tsv"), sep = "/"), header = TRUE)
+quant <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
+#sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
+quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
+quant.sorted.filtered <- dplyr::filter(arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.99)))
+
+#initialize an empty dataframe
+result <- data.frame()
+
+#let's try using for loop for iterating over pizzly.fusions dataframe and get transcriptID and fusion gene pair information.
+#can also filter quant.sorted.filtered$target_id to have only fusion gene target ids (that is two tracscripts instead of one-
+#this will increase speed
+
+for (row in 1:nrow(pizzly.fusions)){
+  y <- strsplit(as.character(pizzly.fusions[row, 7]), "\\;")
+  y <- unname(y)
+  for (i in 1:length(y[[1]])){
+    if (y[[1]][i] %in% quant.sorted.filtered$target_id){
+      #creating a new dataframe for the filtered pizzly results
+      result <- rbind(result, data.frame(pizzly.fusions[row,]))
+    }
+  }
+}
+
+#remove duplicated values from result filtered using expression count(as multiple transcripts might support fusion between same gene) and sort the results by number of events (first by split count and then paircount)
+deduped.result <- unique(result)
+idx <- order(deduped.result$splitcount, deduped.result$paircount, decreasing = TRUE)
+deduped.sorted.result <- deduped.result[idx, ]
+
+#Extract only those fusion genes that are in cancer genes list
+result.cancer_genes <- data.frame()
+for (row in 1:nrow(pizzly.fusions)){
+  if(pizzly.fusions[row,1] %in% rownames(ref_genes.list[["oncokb_genes"]]) | pizzly.fusions[row,3] %in% rownames(ref_genes.list[["oncokb_genes"]])) {
+    #creating a new dataframe for extracting pizzly rows with cancer gene hits
+    result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
+  }
+}
+
+#ordering pizzly's cancer genes results on the basis of read count values
+idx2 <- order(result.cancer_genes$splitcount, result.cancer_genes$paircount, decreasing = TRUE)
+result.sorted.cancer_genes <- result.cancer_genes[idx2,]
+
+#extracting rows from pizzly results that are not in re-quant i.e. deduped.sorted.result or cancer genes list i.e. result.sorted.cancer_genes
+result.other_genes <- pizzly.fusions[ rownames(pizzly.fusions) %!in% c(rownames(result.sorted.cancer_genes), rownames(deduped.sorted.result)), ]
+
+#ordering pizzly's other genes results on the basis of read count values
+idx3 <- order(result.other_genes$splitcount, result.other_genes$paircount, decreasing = TRUE)
+result.sorted.other_genes <- result.other_genes[idx3,]
+
+#combing all the three above sorted dataframes
+pizzly.fusions2 <- rbind(deduped.sorted.result, result.sorted.cancer_genes, result.sorted.other_genes)
+
+##### Flag known fusions based on info from Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers)
+known_translocations <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
+known_translocations$cancer_acronym <- gsub(";", ", ", known_translocations$cancer_acronym)
+known_translocations$source <- gsub(";", ", ", known_translocations$source)
+
+##### Extract gene pairs involved in reported gene fusions
+trans.pairs <-  strsplit(known_translocations$translocation, split='__', fixed=TRUE)
+trans.pairs <- data.frame(matrix(unlist(trans.pairs), nrow=length(trans.pairs), byrow=TRUE), stringsAsFactors = FALSE)
+names(trans.pairs) <- c("geneA", "geneB")
+known_translocations <- cbind(known_translocations, trans.pairs)
+trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "" )
+  
+##### Add columns for info about reported fusions
+pizzly.fusions2 <- cbind(pizzly.fusions2, data.frame(matrix("", ncol = 4, nrow = nrow(pizzly.fusions2)), stringsAsFactors = FALSE))
+colnames(pizzly.fusions2)[-c(1:7)] <- c("Reported", "Effector_gene", "Source", "Cancer_acronym")
+
+##### Add annotations about known fusion events
+##### Loop through all genes involved in reported gene fusions and check if present in pizzly results
+for ( i in 1:nrow(pizzly.fusions2) ) {
+  
+  geneA <- pizzly.fusions2$geneA.name[i]
+  geneB <- pizzly.fusions2$geneB.name[i]
+        
+    ##### First check if the exact reported gene pairs were detected by pizzly
+  if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
+    
+    pizzly.fusions2$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneA, geneB, sep="-") ]
+    
+    pizzly.fusions2[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneA, geneB, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
+    
+ } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
+    
+    pizzly.fusions2$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneB, geneA, sep="-") ]
+    
+    pizzly.fusions2[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneB, geneA, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
+    
+  ##### Now check is at lease one of the pizzly results genes was previously reporeted
+  } else {
+    ##### Check pizzly genes A and genes A in reported fusions
+    if ( geneA %in% known_translocations$geneA ) {
+      
+      known_gene <- known_translocations$geneA %in% geneA
+      
+      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
+      
+      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
+        
+        ##### Flag if it's effector gene
+        if ( geneA == known_translocations[ known_gene , "effector_gene" ]  ) {
+          
+          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneA)
+        }
+      
+    ##### Check pizzly genes A and genes B in reported fusions
+    } else if ( geneA %in% known_translocations$geneB ) {
+      
+      known_gene <- known_translocations$geneB %in% geneA
+      
+      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
+      
+      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
+        
+        ##### Flag if it's effector gene
+        if ( geneA == known_translocations[ known_gene , "effector_gene" ]  ) {
+          
+          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneA)
+        }
+    }
+    
+    ##### Check pizzly genes B and genes A in reported fusions
+    if ( geneB %in% known_translocations$geneA ) {
+      
+      known_gene <- known_translocations$geneA %in% geneB
+      
+      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
+      
+      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
+        
+        ##### Flag if it's effector gene
+        if ( geneB == known_translocations[ known_gene , "effector_gene" ]  ) {
+          
+          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneB)
+        }
+      
+    ##### Check pizzly genes B and genes B in reported fusions
+    } else if ( geneB %in% known_translocations$geneB ) {
+      
+      known_gene <- known_translocations$geneB %in% geneB
+      
+      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
+      
+      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
+        
+        ##### Flag if it's effector gene
+        if ( geneB == known_translocations[ known_gene , "effector_gene" ]  ) {
+          
+          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneB)
+        }
+    }
+  }
+}
+
+##### Rearrange the table to move the transcripts list at the end
+pizzly.fusions2 <- pizzly.fusions2%>%select(-"transcripts.list","transcripts.list")
+
+##### Rearrange the table to move the transcripts list at the end
+pizzly.fusions2 <- pizzly.fusions2%>%select(-"transcripts.list","transcripts.list")
+
+##### Index duplicated rows = these are fusions which involve both highly abundant transcripts and cancer genes and so are duplicated in  pizzly.fusions2 data frame
+dup.index <- which( duplicated(pizzly.fusions2) |  duplicated(pizzly.fusions2[nrow(pizzly.fusions2):1, ])[nrow(pizzly.fusions2):1] )
+
+##### Add column indicating fusions containing high abundant transcripts and known cancer genes
+fusions_abundant <- c(rep("-", nrow(pizzly.fusions2)))
+fusions_abundant[ c(1:nrow(deduped.result)) ] <- "Yes"
+fusions_cancer <- c(rep("-", nrow(pizzly.fusions2)))
+fusions_cancer[ c((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes))) ] <- "Yes"
+
+pizzly.fusions.annot <- cbind(pizzly.fusions2, fusions_abundant, fusions_cancer)
+
+##### Indicate duplicated rows and flag them as both, those which involve both highly abundant transcripts and cancer genes
+pizzly.fusions.annot$fusions_abundant[ dup.index  ] <- "Yes"
+pizzly.fusions.annot$fusions_cancer[ dup.index ] <- "Yes"
+
+##### Remove duplicated rows
+if ( duplicated(pizzly.fusions.annot) != 0 ) {
+  
+  pizzly.fusions.annot <- pizzly.fusions.annot[ -c(which( duplicated(pizzly.fusions.annot) )), ]
+}
+
+##### Re-order data frame to prioritise fusions with highly abundant transcripts and cancer genes
+pizzly.fusions.annot <- pizzly.fusions.annot[ rev(with(pizzly.fusions.annot, order(fusions_abundant, fusions_cancer))), ]
+```
+
+```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
+##### Get the number of reads supporting fusions of interest
+result_reads <- data.frame()
+
+for (row in 1:nrow(deduped.result)){
+  y <- strsplit(as.character(deduped.result[row, 7]), "\\;")
+  y <- unname(y)
+  for (i in 1:length(y[[1]])){
+    if (y[[1]][i] %in% quant.sorted.filtered$target_id){
+      #creating a new dataframe for the reads supporting individual transcript ID for each filtered fusion gene pair 
+      result_reads_inter <- data.frame(deduped.result[row,1:6])
+      result_reads_inter$transcriptID = y[[1]][i]
+      tpm = quant.sorted.filtered[grep(y[[1]][i], quant.sorted.filtered$target_id), ]$tpm 
+      result_reads_inter$tpm = tpm
+      result_reads <- rbind(result_reads, result_reads_inter)
+    }
+  }
+}
+
+##### Rearrange the table to move the transcripts list at the end
+result_reads <- result_reads%>%select(-"transcriptID","transcriptID")
+```
+
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Summarise the reference cohorts samples
 ref <- params$tissue
@@ -1243,175 +1453,27 @@ select those which have a decent Transcripts Per Kilobase Million (TPM) support.
 the ones that are present in this list.
 </details>
 
-```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
-#read in the pizzly fusion calls
-pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName.orig, "-flat-filtered.tsv"), sep = "/"), header = TRUE)
-quant <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
-#sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
-quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
-quant.sorted.filtered <- dplyr::filter(arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.99)))
+```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
+# #create a nice table output (with kableExtra, lack of results filtering)
+# kable(pizzly.fusions2, row.names = FALSE) %>%
+#   kable_styling(font_size = 12, "striped", "bordered") %>%
+#   #row_spec(c(as.numeric(rownames(deduped.result)),as.numeric(rownames(result.cancer_genes))), bold = T, color = "white", background = "#D7261E") %>%
+#   #row_spec(1:nrow(deduped.result), bold = T, color = "white", background = "red") %>%
+#   #row_spec((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes)), color = "white", background = "blue") %>%
+#   group_rows("Gene fusion events involving highly abundant transcripts", 1, nrow(deduped.result), label_row_css = "background-color: #E74C3C; color: #fff;") %>%
+#   group_rows("Gene fusion events involving cancer genes", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.cancer_genes)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
+#   group_rows("Remaining gene fusion events", (nrow(deduped.result) + nrow(result.cancer_genes) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
+#   scroll_box(width = "100%", height = "400px")
 
-#initialize an empty dataframe
-result <- data.frame()
+##### Remove some columns and rename column names for better presentation
+pizzly.fusions.annot <- pizzly.fusions.annot[ , names(pizzly.fusions.annot) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
+pizzly.fusions.annot <- pizzly.fusions.annot[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
 
-#let's try using for loop for iterating over pizzly.fusions dataframe and get transcriptID and fusion gene pair information.
-#can also filter quant.sorted.filtered$target_id to have only fusion gene target ids (that is two tracscripts instead of one-
-#this will increase speed
+##### Create a nice table output (with dataTable)
+names(pizzly.fusions.annot) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transscript(s)", "Cancer gene(s)", "Reported fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
 
-for (row in 1:nrow(pizzly.fusions)){
-  y <- strsplit(as.character(pizzly.fusions[row, 7]), "\\;")
-  y <- unname(y)
-  for (i in 1:length(y[[1]])){
-    if (y[[1]][i] %in% quant.sorted.filtered$target_id){
-      #creating a new dataframe for the filtered pizzly results
-      result <- rbind(result, data.frame(pizzly.fusions[row,]))
-    }
-  }
-}
-
-#remove duplicated values from result filtered using expression count(as multiple transcripts might support fusion between same gene) and sort the results by number of events (first by split count and then paircount)
-deduped.result <- unique(result)
-idx <- order(deduped.result$splitcount, deduped.result$paircount, decreasing = TRUE)
-deduped.sorted.result <- deduped.result[idx, ]
-
-#Extract only those fusion genes that are in cancer genes list
-result.cancer_genes <- data.frame()
-for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% rownames(ref_genes.list[["oncokb_genes"]]) | pizzly.fusions[row,3] %in% rownames(ref_genes.list[["oncokb_genes"]])) {
-    #creating a new dataframe for extracting pizzly rows with cancer gene hits
-    result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
-  }
-}
-
-#ordering pizzly's cancer genes results on the basis of read count values
-idx2 <- order(result.cancer_genes$splitcount, result.cancer_genes$paircount, decreasing = TRUE)
-result.sorted.cancer_genes <- result.cancer_genes[idx2,]
-
-#extracting rows from pizzly results that are not in re-quant i.e. deduped.sorted.result or cancer genes list i.e. result.sorted.cancer_genes
-result.other_genes <- pizzly.fusions[ rownames(pizzly.fusions) %!in% c(rownames(result.sorted.cancer_genes), rownames(deduped.sorted.result)), ]
-
-#ordering pizzly's other genes results on the basis of read count values
-idx3 <- order(result.other_genes$splitcount, result.other_genes$paircount, decreasing = TRUE)
-result.sorted.other_genes <- result.other_genes[idx3,]
-
-#combing all the three above sorted dataframes
-pizzly.fusions2 <- rbind(deduped.sorted.result, result.sorted.cancer_genes, result.sorted.other_genes)
-
-##### Flag known fusions based on info from Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers)
-known_translocations <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
-known_translocations$cancer_acronym <- gsub(";", ", ", known_translocations$cancer_acronym)
-known_translocations$source <- gsub(";", ", ", known_translocations$source)
-
-##### Extract gene pairs involved in reported gene fusions
-trans.pairs <-  strsplit(known_translocations$translocation, split='__', fixed=TRUE)
-trans.pairs <- data.frame(matrix(unlist(trans.pairs), nrow=length(trans.pairs), byrow=TRUE), stringsAsFactors = FALSE)
-names(trans.pairs) <- c("geneA", "geneB")
-known_translocations <- cbind(known_translocations, trans.pairs)
-trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "" )
-  
-##### Add columns for info about reported fusions
-pizzly.fusions2 <- cbind(pizzly.fusions2, data.frame(matrix("", ncol = 4, nrow = nrow(pizzly.fusions2)), stringsAsFactors = FALSE))
-colnames(pizzly.fusions2)[-c(1:7)] <- c("Reported", "Effector_gene", "Source", "Cancer_acronym")
-
-##### Add annotations about known fusion events
-##### Loop through all genes involved in reported gene fusions and check if present in pizzly results
-for ( i in 1:nrow(pizzly.fusions2) ) {
-  
-  geneA <- pizzly.fusions2$geneA.name[i]
-  geneB <- pizzly.fusions2$geneB.name[i]
-        
-    ##### First check if the exact reported gene pairs were detected by pizzly
-  if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
-    
-    pizzly.fusions2$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneA, geneB, sep="-") ]
-    
-    pizzly.fusions2[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneA, geneB, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
-    
- } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
-    
-    pizzly.fusions2$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneB, geneA, sep="-") ]
-    
-    pizzly.fusions2[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneB, geneA, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
-    
-  ##### Now check is at lease one of the pizzly results genes was previously reporeted
-  } else {
-    ##### Check pizzly genes A and genes A in reported fusions
-    if ( geneA %in% known_translocations$geneA ) {
-      
-      known_gene <- known_translocations$geneA %in% geneA
-      
-      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
-      
-      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
-        
-        ##### Flag if it's effector gene
-        if ( geneA == known_translocations[ known_gene , "effector_gene" ]  ) {
-          
-          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneA)
-        }
-      
-    ##### Check pizzly genes A and genes B in reported fusions
-    } else if ( geneA %in% known_translocations$geneB ) {
-      
-      known_gene <- known_translocations$geneB %in% geneA
-      
-      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
-      
-      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
-        
-        ##### Flag if it's effector gene
-        if ( geneA == known_translocations[ known_gene , "effector_gene" ]  ) {
-          
-          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneA)
-        }
-    }
-    
-    ##### Check pizzly genes B and genes A in reported fusions
-    if ( geneB %in% known_translocations$geneA ) {
-      
-      known_gene <- known_translocations$geneA %in% geneB
-      
-      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
-      
-      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
-        
-        ##### Flag if it's effector gene
-        if ( geneB == known_translocations[ known_gene , "effector_gene" ]  ) {
-          
-          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneB)
-        }
-      
-    ##### Check pizzly genes B and genes B in reported fusions
-    } else if ( geneB %in% known_translocations$geneB ) {
-      
-      known_gene <- known_translocations$geneB %in% geneB
-      
-      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
-      
-      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
-        
-        ##### Flag if it's effector gene
-        if ( geneB == known_translocations[ known_gene , "effector_gene" ]  ) {
-          
-          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneB)
-        }
-    }
-  }
-}
-
-##### Rearrange the table to move the transcripts list at the end
-pizzly.fusions2 <- pizzly.fusions2%>%select(-"transcripts.list","transcripts.list")
-
-#create a nice table output
-kable(pizzly.fusions2, row.names = FALSE) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-  #row_spec(c(as.numeric(rownames(deduped.result)),as.numeric(rownames(result.cancer_genes))), bold = T, color = "white", background = "#D7261E") %>%
-  #row_spec(1:nrow(deduped.result), bold = T, color = "white", background = "red") %>%
-  #row_spec((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes)), color = "white", background = "blue") %>%
-  group_rows("Gene fusion events involving highly abundant transcripts", 1, nrow(deduped.result), label_row_css = "background-color: #E74C3C; color: #fff;") %>%
-  group_rows("Gene fusion events involving cancer genes", (nrow(deduped.result)+1), (nrow(deduped.result) + nrow(result.cancer_genes)), label_row_css = "background-color: #2980B9; color: #fff;") %>%
-  group_rows("Remaining gene fusion events", (nrow(deduped.result) + nrow(result.cancer_genes) +1), nrow(pizzly.fusions2), label_row_css = "background-color: #27AE60; color: #fff;") %>%
-  scroll_box(width = "100%", height = "400px")
+DT::datatable( data = pizzly.fusions.annot, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800,  escape = FALSE) %>%
+    DT::formatStyle( columns = names(pizzly.fusions.annot), `font-size` = '12px', 'text-align' = 'center' )
 ```
 
 <details>
@@ -1436,29 +1498,6 @@ The <span style="color:#ff0000">RED</span> section includes **highly abundant** 
 **AA** adrenal adenoma, **ABC** aneurysmal bone cyst, **AC** adrenal cortex, **ACA** adrenal cortex adenoma, **ACC** adrenal cortex carcinoma, **ACML** atypical chronic myeloid leukemia, **AEL** acute erythroid leukemia, **ALCL** anaplastic large cell lymphoma, **ALL** acute lymphoblastic leukemia, **ALM** acral lentigious melanoma, **AML** acute myeloid lekemia, **APML** acute promyelocytic leukemia, **AS** angiosarcoma, **B** brain, **BCC** basal cell carcinoma, **BCL** b cell lymphoma, **BLCA** bladder , **BLTC** bladder transitional cell, **BLY** burkitt lymphoma, **BRCA** breast , **BRCA/OV-PR** breast/ovary predisposing, **BRCAL** breast lobular, **BRCALU** breast luminal, **BT** billiary tract, **CANCER** cancer, **CANCER-PR** cancer-predisposing, **CCS** clear cell sarcoma, **CER** cervix, **CESC** cervix squamous cell, **CH** cholangiocarcinoma, **CLL** chronic lymphocytic leukemia, **CM** cutaneous melanoma, **CM-PR** cutaneous melanoma – predisposing, **CML** chronic myeloid lekemia, **CMP** chronic myeloproliferative neoplasm, **CNL** chronic neutrophilic leukemia, **CNS** central nervous system, **CNSLY** central nervous system lymphoma, **COC** colon carcinoma, **COC-PR** colon carcinoma – predisposing, **COCA** colon adenocarcinoma, **COREAD** colorectal adenocarcinoma, **COREAD-PR** colorectal adenocarcinoma – predisposing, **CS** chondrosarcoma, **CTCL** cutaneous T-cell lymphoma, **DEST** desmoid tumor, **DFS** dermatofibrosarcoma, **DLBCL** diffuse large B cell lymphoma, **DNT** dysembryoplastic neuroephitelial tumor, **DSRCT** desmoplastic small round cell tumor, **ECL** eosinophilic chronic leukemia, **ED** endometrium, **EDA** endometrial adenocarcinoma, **EDS** endometrial stromal, **ES** endocrine system, **ESCA** esophagous, **ESCC** esophagous clear cell, **ESSC** esophagous squamous cell, **EWS** ewing sarcoma, **FGCT** female germ cell tumor, **FH** fibrous histiocytoma, **FIBS-PR** fibrosarcoma - predisposing, **FL** follicular lymphoma, **G** glioma, **GB** glioblastoma, **GBM** glioblastoma multiforme, **GIST** gastrointestinal stromal, **GIST-PR** gastrointestinal stromal – predisposing, **HA** hepatic adenoma, **HB** hepatic blastoma, **HC** hepatic carcinoma, **HC-PR** hepatic carcinoma – predisposing, **HCL** hairy cell leukemia, **HEMATO** hematological malignancy, **HEMATO-PR** hematological malignancy – predisposing, **HES** hyper eosinophilic advanced syndrome, **HGP** hemangiopericytoma, **HISEC** erdheim-chester histiocytosis, **HISLC** largerhans cell histiocytosis, **HLY** hodgkin lymphoma, **HNC** head and neck, **HNSC** head and neck squamous, **IM** immflamatory myofibroblastic, **L** lung, **LBCL** large b-cell lymphoma, **LGG** lower grade glioma, **LGLK** large granular leukemia, **LIP** liposarcoma, **LK** leukemia, **LUAD** lung adenocarcinoma, **LUSC** lung squamous cell, **LY** luymphoma, **MA** malignant astrocytoma, **MALT** malt lymphoma, **MAS** mastocytosis, **MB** medulloblastoma, **MCL** mantle cell lymphoma, **MCLK** mast cell leukemia, **MDPS** myelodisplatic proliferative syndrome, **MDS** myelodisplasicsyndrome, **MEN** meningioma, **MERC** merkel cell carcinoma, **MESO** mesothelioma, **MFH** myxoidfibrosarcoma, **MGCT** male germ cell tumor, **MKB** megakaryoblastic leukemia, **MM** multiple myeloma, **MML** myelomonocytic leukemia, **MPN** malignant peripheral nerve sheat tumor, **MRT** malignant rhaboid tumor, **MRT-PR** malignant rhaboid tumor – predisposing, **MUCM** mucosal melanoma, **MY** myelofibrosis, **MYEP** myoepithelioma, **MYMA** myeloma, **MYX** myxoma, **NB** neuroblastoma, **NF** neurofibromatosis, **NHLY** non-hodgkin lymphoma, **NMC** nut midline carcinoma, **NSCLC** non-small cell lung, **NSMGCT** non-seminomatous germ cell tumor, **NSPH** nasopharyngeal, **OCSC** oral cavity squamous cell, **OPH** ororpharynx squamous cell, **OS** osteosarcoma, **OV** ovary, **OVCC** ovary clear cell, **OVE** ovary ephitelial cell, **OVG** ovary granulosa cell, **OVSC** ovary small cell, **PA** pancreas, **PAAC** pancreas acinar, **PAAD** pancreas adenocarcinoma, **PAIS** pancreas islet, **PANC** pancreas neuroendocrine, **PARG** paraganglioma, **PATH** parathyroid adenoma, **PCPG** pheochromocytoma and paranganglioma, **PEC** perivascular epithelioid cell, **PG** pediatric glioma, **PHEO** pheochromacytoma, **PIA** pilocytic astrocytoma, **PIGA** pituitary gland adenoma, **PPB** pleuropulmonary blastoma, **PRAD** prostate adenocarcinoma, **PTCL** perypheral t-cell lymphoma, **PV** polycitemia vera, **R** renal, **R-PR** renal – predisposing, **RB** retinoblastoma, **RCCC** renal clear cell, **REC** rectal carcinoma, **RHBDS** rhabdomyosarcoma, **RPC** renal papillary cell, **S** sarcoma, **SCC** squamous cell carcinoma, **SCC-PR** squamous cell carcinoma – predisposing, **SCGS** sex-cord gonadal stromal, **SCHW** schwannoma, **SCLC** small cell lung, **SG** salivary glands, **SGA** salivary glands adenoma, **SGM** salivary glands mucoepidermoid, **SIN** small intestine, **SINNE** small intestine neuroendocrine, **SK** skin, **SK-PR** skin – predisposing, **SM** systemic mastocytosis, **SOLID** solid tumors, **SOLID-PR** solid tumors - predisposing , **ST** stomach, **ST-PR** stomach – predisposing, **STAD** stomach adenocarcinoma, **STS** soft tissue sarcoma, **SYNS** synovial sarcoma, **T** testis, **TCALL** t cell acute lymphoblastic leukemia, **TCPL** t cell prolymphocytic leukemia, **TER** teratoma, **TH** thyroid, **THA** thyroid adenoma, **THCA** thyroid carcinoma, **THF** thyroid follicular, **THM** thyroid medullary, **THYM** thymic, **TOSC** tongue squamous cell, **UCEC** uterine corpus endometroid carcinoma, **UCS** uterine carcinosarcoma, **UTH** urothelial, **UVM** uveal melanoma, **WM** waldenstrom macroglobullinemia, **WT** wilms tumor
 </font>
 </details>
-
-```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
-##### Get the number of reads supporting fusions of interest
-result_reads <- data.frame()
-
-for (row in 1:nrow(deduped.result)){
-  y <- strsplit(as.character(deduped.result[row, 7]), "\\;")
-  y <- unname(y)
-  for (i in 1:length(y[[1]])){
-    if (y[[1]][i] %in% quant.sorted.filtered$target_id){
-      #creating a new dataframe for the reads supporting individual transcript ID for each filtered fusion gene pair 
-      result_reads_inter <- data.frame(deduped.result[row,1:6])
-      result_reads_inter$transcriptID = y[[1]][i]
-      tpm = quant.sorted.filtered[grep(y[[1]][i], quant.sorted.filtered$target_id), ]$tpm 
-      result_reads_inter$tpm = tpm
-      result_reads <- rbind(result_reads, result_reads_inter)
-    }
-  }
-}
-
-##### Rearrange the table to move the transcripts list at the end
-result_reads <- result_reads%>%select(-"transcriptID","transcriptID")
-```
 
 ***
 
