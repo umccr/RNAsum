@@ -238,7 +238,9 @@ To extract genomic cordinates for fusion gene pair, this [script](https://github
 
 Looks like, clinker uses all ensemble transcripts, most of which could be non-coding or hypothetical. Need to figure out ways to restrict it to use TSL1 transcripts only.   
 
+TO DO:
 
+Can the split read component be cleaned up by removing read support of intragenic events? Or just retaining 2-3 fusion arcs with the strongest support?
 
 
 
