@@ -7,6 +7,16 @@ Gene fusions are hybrid genes formed when two previously independent genes becom
 Many gene fusions are associated with oncogenic properties, and often act as driver mutations in a wide array of cancer types.
 We are interested in including fusion information into RNAseq report and validate it against genomic evidence. 
 
+## Some concepts
+
+**Chimeric proteins** are prepared by fusing the structural genes of the proteins in question in a suitable expression vector. The translational 3′ terminus of the first gene is deleted, as is the promoter at the 5′ terminus of the second structural gene. This type of fusion protein is typically multifunctional, in which each of the fusion partners adds its own separate function.
+
+The genomic **breakpoints** of fusion genes usually occur in intronic or **intergenic regions**, and rarely disrupt coding sequences. This phenomenon may be partly explained by introns being 35 times longer than exons on average (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3675181/). Oncogenic selection may also play a role, as fusions that disrupt an exon have a two-in-three chance of creating a **frameshifted protein** (caused by a frameshift mutation -also called a framing error or a reading frame shift- is a genetic mutation caused by indels (insertions or deletions) of a number of nucleotides in a DNA sequence that is not divisible by three OR  that shifts the way the sequence is read) with little effect on cellular function. Conversely, intronic breakpoints often lead to in-frame chimeric proteins because exons tend to terminate at codon boundaries. Despite this bias for intronic breakpoints, isolated cases of exon disrupting breakpoints have been reported.
+
+Last and first exon skipping (i.e. the last exon of a gene lacks a splicing donor site that is required for spliceosome function and the first exon of a gene lacks a splicing acceptor site) can occur in fusion genes when an RNA polymerase does not properly terminate transcription at the end of the gene. 
+
+Last and first exon skipping can also occur with fusion genes that arise from chromosomal rearrangements. In this way a rearrangement can produce a functional fusion protein even though one or both genomic breakpoints localize to intergenic regions.
+
 ## Explore Pizzly VS Oncofuse
 
 bcbio-RNAseq pipeline support a couple of tools for fusion calling, [pizzly](https://github.com/pmelsted/pizzly) and [oncofuse](http://www.unav.es/genetica/oncofuse.html). Ideally, in the report, we would like to use output from one of the tools that we are confident in. 
