@@ -15,9 +15,9 @@ params:
   sample_name:
   count_file:
   tissue: 'pancreas'
-  datasets: '../data/Datasets_list_PDAC.txt'
-  normal_group: 'Normal (pancreas)'
-  cancer_group: 'PDAC'
+  datasets: '../data/Datasets_list_cervix.txt'
+  normal_group: 'Cervix_uteri (normal)'
+  cancer_group: 'Cervical squamous cell carcinoma'
   genes_pmcc: '../data/Genes_PMCC.txt'
   genes_immune: '../data/Genes_immune.txt'
   oncokb_genes: '../data/OncoKB/CancerGenesList.txt'
@@ -475,7 +475,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
 ##### Generate table with drugs targeting selected set of genes using info from CIViC database (https://civicdb.org/)
 civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive") {
   
-  ##### Initialize data fmrae to the about drug-target info from CIViC
+  ##### Initialize data frame to the about drug-target info from CIViC
   drug.info <- setNames(data.frame(matrix(ncol = 18, nrow = 0)), c("Gene", "Variant", "variant_types", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "civic_actionability_score", "Disease", "phenotypes", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
   
   evid_levels <- list("A" = "A: Validated association", "B" = "B: Clinical evidence", "C" = "C: Case study", "D" = "D: Preclinical evidence", "E" = "E: Inferential association")
@@ -568,21 +568,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
 }
 
 ##### Generate bezier curves-like plot representing gene fusion events
-bezierPlot <- function(fusion_data, genes_annot) {
-  
-  ##### Keep only fusions for which both genes have gene symbol available
-  fusion_data <- fusion_data[ fusion_data$geneA.name %in% genes_annot$SYMBOL, ]
-  fusion_data <- fusion_data[ fusion_data$geneB.name %in% genes_annot$SYMBOL, ]
-  
-  ##### Get genomic info for fusions genes
-  fusion_annot1 <- merge(as.data.frame(fusion_data$geneA.name), genes_annot, by = 1, sort=FALSE)
-  fusion_annot2 <- merge(as.data.frame(fusion_data$geneB.name), genes_annot, by = 1, sort=FALSE)
-  
-  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusion_data$fusions_abundant, fusion_data$fusions_cancer)
-  colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
-  
-  ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
-  fusion_annot <- fusion_annot[ fusion_annot$fusion_data.fusions_abundant == "Yes" | fusion_annot$fusion_data.fusions_cancer == "Yes" , ]
+fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   
   ##### Get the genes chromosomes...
   chr1 <- paste0("chr", fusion_annot$SEQNAME)
@@ -593,7 +579,7 @@ bezierPlot <- function(fusion_data, genes_annot) {
   pos2 <- fusion_annot$GENESEQSTART.1
   
   ##### ... and the events type
-  type <- paste(fusion_annot$fusion_data.fusions_abundant, fusion_annot$fusion_data.fusions_cancer, sep = "-") 
+  type <- paste(fusion_annot$pizzly.fusions.annot.fusions_abundant, fusion_annot$pizzly.fusions.annot.fusions_cancer, sep = "-") 
   type <- gsub("Yes-Yes","Abundant and cancer gene(s)", type)
   type <- gsub("Yes--","Abundant transcript(s)", type)
   type <- gsub("--Yes","Cancer gene(s)", type)
@@ -675,47 +661,54 @@ bezierPlot <- function(fusion_data, genes_annot) {
   return( p )
 }
 
-
 ##### Generate a plot with genome-wide expression profile (Z-score) for each group
-exprProfilePlot <- function(data, targets, sampleName, normal, cancer, genes_annot) {
+exprProfilePlot <- function(genes, data, targets, sampleName, normal, cancer, genes_annot) {
     
     targets.list <- unique(targets$Target)
-  
-    ##### Initiate dataframe for expression mean values in each group
-    group.z <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = nrow(data)))
-    colnames(group.z) <- targets.list
-    rownames(group.z) <- sort(rownames(data))
+    
+    ##### Keep only gene for which both genes have gene symbol available
+    genes <- genes[ genes %in% genes_annot$SYMBOL ]
+    genes <- unique(genes)
+    
+    ##### Initiate list for expression mean values in each group
+    group.z <- sapply(targets.list,function(x) NULL)
     
     for ( group in targets.list ) {
-    
-      group.stats <- exprGroupStats(data[rownames(group.z), ], targets, group)
+      
+      group.z[[group]] <- as.data.frame(matrix(NA, ncol = 2, nrow = nrow(data)))
+      rownames(group.z[[group]]) <- sort(rownames(data))
+      
+      group.stats <- exprGroupStats(data[rownames(data), ], targets, group)
       group.stats <- group.stats[order(rownames(group.stats)), ]
-      group.z[, group] <- round(group.stats$z, digits=2)
+      group.z[[group]][,1] <- round(group.stats$z, digits=2)
+      names(group.z[[group]]) <- c("Upregulated", "Downregulated")
     }
     
     ##### Change sample ID to "Patient" and normal sample to "Normal" for better visualisation
-    names(group.z)[names(group.z)==sampleName] <- "Patient"
     targets.list[targets.list==sampleName] <- "Patient"
-    names(group.z)[names(group.z)==normal] <- "Normal"
     targets.list[targets.list==normal] <- "Normal"
+    names(group.z) <- targets.list
+    targets.list <- c("Patient", cancer, "Normal")
     
     ##### Merge expression data with gene genomic coordinates info
-    group.z <- merge(genes_annot, group.z, by = "row.names", all.x = FALSE)
-    group.z <- group.z[, -1]
-    
-    ###### Change chromosomes X and Y to numbers 23 and 24, respectively
-    group.z$SEQNAME[ group.z$SEQNAME  %in% "X" ] <- 23
-    group.z$SEQNAME[ group.z$SEQNAME %in% "Y" ] <- 24
-    
-    ##### Order the data accordingly to genomic postions
-    group.z = group.z[order(as.numeric(group.z$SEQNAME),as.numeric(group.z$GENESEQSTART)),]
-    
+    for ( group in targets.list ) {
+      
+      group.z[[group]] <- merge(genes_annot, group.z[[group]], by = "row.names", all.x = FALSE)
+      group.z[[group]] <- group.z[[group]][, -1]
+      
+      ###### Change chromosomes X and Y to numbers 23 and 24, respectively
+      group.z[[group]]$SEQNAME[ group.z[[group]]$SEQNAME  %in% "X" ] <- 23
+      group.z[[group]]$SEQNAME[ group.z[[group]]$SEQNAME %in% "Y" ] <- 24
+      
+      ##### Order the data accordingly to genomic postions
+      group.z[[group]] = group.z[[group]][order(as.numeric(group.z[[group]]$SEQNAME),as.numeric(group.z[[group]]$GENESEQSTART)),]
+    }
     ##### Label chromosomes
-    chr_bins <- data.matrix(summary(as.factor(group.z$SEQNAME)))
+    chr_bins <- data.matrix(summary(as.factor(group.z[["Patient"]]$SEQNAME)))
     chr_bins<- data.frame(chr_bins,row.names(chr_bins) )
     colnames(chr_bins) = c("count","Chromosome")
     
-    data.chr_bins <- data.frame(unique(group.z$SEQNAME))
+    data.chr_bins <- data.frame(unique(group.z[["Patient"]]$SEQNAME))
     colnames(data.chr_bins) = c("Chromosome")
   
     chr_annot <- merge(data.chr_bins,chr_bins, by.x="Chromosome", by.y="Chromosome", sort=FALSE)
@@ -735,40 +728,56 @@ exprProfilePlot <- function(data, targets, sampleName, normal, cancer, genes_ann
     ##### Create a list with chromosme boundaries info
     levels(chr_annot$Chromosome)[ levels(chr_annot$Chromosome) == 23 ] <- "X"
     levels(chr_annot$Chromosome)[ levels(chr_annot$Chromosome) == 24 ] <- "Y"
-    chr_nos <- list( x = chr_annot[, 3], y = -1.1, text = chr_annot$Chromosome, xref = "x", yref = "y", showarrow = FALSE )
+    chr_nos <- list( x = chr_annot[, 3], y = min(group.z[["Patient"]]$Upregulated), text = chr_annot$Chromosome, xref = "x", yref = "y", showarrow = FALSE )
 
     ##### Prepare vector to indicate chromosome boundaries
-    chr_lines <- rep(0, nrow(group.z))
-    chr_lines[ chr_annot$count - 1 ] <- 1
-    chr_lines[ chr_annot$count ] <- -1
-  
+    chr_lines <- rep(0, nrow(group.z[["Patient"]]))
+    chr_lines[ chr_annot$count - 1 ] <- max(group.z[["Patient"]]$Upregulated)
+    chr_lines[ chr_annot$count ] <- min(group.z[["Patient"]]$Upregulated)
+ 
+    ##### Initiate list for data to be ploted for each group
+    data2plot <- sapply(targets.list,function(x) NULL)
+    
     ##### Prepare data for plotting with plotly
-    data2plot <- data.frame(group.z[ , c("SYMBOL", "Normal", cancer, "Patient" )], chr_lines)
-    names(data2plot)[names(data2plot)=="SYMBOL"] <- "Gene"
-    
-    ##### Use the genomic positions order for bars
-    data2plot$Gene <- factor(data2plot$Gene, levels = data2plot$Gene)
-    
-    ##### Report only genes with Z-scores > 1 or < -1
-    data2plot[ any(data2plot[, c(2:4) ] < 1 && data2plot[, c(2:4) ] > -1) ] <- 
-    
-    
-    
-    p <- plot_ly(data2plot, x = ~Gene, y = ~Patient, type = 'bar', name = "mRNA expression (mRNA)", color = I("red"), width = 800, height = 400) %>%
-        add_trace(y = ~Loss, name = "Loss/Deletion", color = I("blue")) %>%
-        add_trace(x = ~Gene, y = ~chr_lines, type = 'scatter', name = "Chromosomes", mode = 'lines', line = list(color = "lightgrey", dash = "1px"), hoverinfo = "skip") %>%
-        layout( title = paste0(target.sel, " (n=", (ncol(cnData.subset.sel)-4),")"), yaxis = list(title = "Fraction of samples"), xaxis = list(title = "Chromosome number", showticklabels = FALSE), annotations = chr_nos, barmode = 'group', bargap = 0, margin = list(l=50, r=50, b=100, t=50, pad=4), autosize = F, legend = list(orientation = 'h', y = 1.07, tracegroupgap=0), showlegend=TRUE)
-
+    for ( group in targets.list ) {
       
+      data2plot[[group]] <- data.frame(group.z[[group]][ , c("SYMBOL", "Upregulated", "Downregulated" )], chr_lines)
+      ##### Set the expression value of genes not of interest to 0
+      data2plot[[group]]$Upregulated[ data2plot[[group]]$SYMBOL %!in% genes ] <- 0
+      
+      data2plot[[group]]$GOI <- data2plot[[group]]$SYMBOL
+      data2plot[[group]]$GOI[ data2plot[[group]]$SYMBOL %!in% genes ] <- ""
+      
+      ##### Distinguish up- and dwon-regulated genes and report them in separate columns (for plotly)
+      data2plot[[group]]$Downregulated <- data2plot[[group]]$Upregulated
+      data2plot[[group]]$Upregulated[ data2plot[[group]]$Upregulated < 0 ] <- 0
+      data2plot[[group]]$Downregulated[ data2plot[[group]]$Downregulated >= 0 ] <- 0
+      
+      names(data2plot[[group]])[names(data2plot[[group]])=="SYMBOL"] <- "Gene"
+      
+      ##### Use the genomic positions order for bars
+      data2plot[[group]]$Gene <- factor(data2plot[[group]]$Gene, levels = data2plot[[group]]$Gene)
+    }
+    
+    ##### Generate genome-wide plot of expression (Z-score) values for Patient
+    p1 <- plot_ly(data2plot[["Patient"]], x = ~Gene, y = ~Upregulated, type = 'bar', name = "Upregulated", color = I("red"), text = ~GOI, textposition = 'bottom center', textfont = list( size = 10, color = "black"), constraintext = 'outside', width = 800, height = 400) %>%
+        add_trace(y = ~Downregulated, name = "Downregulated", type = 'bar', color = I("blue"), text = ~GOI, textposition = 'top center', textfont = list( size = 10, color = "black"), constraintext = 'outside') %>%
+        add_trace(x = ~Gene, y = ~chr_lines, type = 'scatter', name = "Chromosomes", mode = 'lines', line = list(color = "lightgrey", dash = "1px"), hoverinfo = "skip") %>%
+        layout( title = "Patient", yaxis = list(title = "mRNA expression (Z-score)"), xaxis = list(title = "Chromosome", showticklabels = FALSE), annotations = chr_nos, barmode = 'group', bargap = 0, margin = list(l=50, r=50, b=100, t=50, pad=4), autosize = F, legend = list(orientation = 'h', y = 1.07, tracegroupgap=0), showlegend=FALSE)
+    
+    ##### Generate genome-wide plot of expression (Z-score) values for cancer group
+    p2 <- plot_ly(data2plot[[targets.list[2]]], x = ~Gene, y = ~Upregulated, type = 'bar', name = "Upregulated", color = I("red"), text = ~GOI, textposition = 'bottom center', textfont = list( size = 10, color = "black"), constraintext = 'outside', width = 800, height = 400) %>%
+        add_trace(y = ~Downregulated, name = "Downregulated", type = 'bar', color = I("blue"), text = ~GOI, textposition = 'top center', textfont = list( size = 10, color = "black"), constraintext = 'outside') %>%
+        add_trace(x = ~Gene, y = ~chr_lines, type = 'scatter', name = "Chromosomes", mode = 'lines', line = list(color = "lightgrey", dash = "1px"), hoverinfo = "skip") %>%
+        layout( title = targets.list[2], yaxis = list(title = "mRNA expression (Z-score)"), xaxis = list(title = "Chromosome", showticklabels = FALSE), annotations = chr_nos, barmode = 'group', bargap = 0, margin = list(l=50, r=50, b=100, t=50, pad=4), autosize = F, legend = list(orientation = 'h', y = 1.07, tracegroupgap=0), showlegend=FALSE)
+    
+    ##### Generate genome-wide plot of expression (Z-score) values for normal group
+    p3 <- plot_ly(data2plot[[targets.list[3]]], x = ~Gene, y = ~Upregulated, type = 'bar', name = "Upregulated", color = I("red"), text = ~GOI, textposition = 'bottom center', textfont = list( size = 10, color = "black"), constraintext = 'outside', width = 800, height = 400) %>%
+        add_trace(y = ~Downregulated, name = "Downregulated", type = 'bar', color = I("blue"), text = ~GOI, textposition = 'top center', textfont = list( size = 10, color = "black"), constraintext = 'outside') %>%
+        add_trace(x = ~Gene, y = ~chr_lines, type = 'scatter', name = "Chromosomes", mode = 'lines', line = list(color = "lightgrey", dash = "1px"), hoverinfo = "skip") %>%
+        layout( title = targets.list[3], yaxis = list(title = "mRNA expression (Z-score)"), xaxis = list(title = "Chromosome", showticklabels = FALSE), annotations = chr_nos, barmode = 'group', bargap = 0, margin = list(l=50, r=50, b=100, t=50, pad=4), autosize = F, legend = list(orientation = 'h', y = 1.07, tracegroupgap=0), showlegend=FALSE)
 
-        p1_2 <- subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE) %>%
-  layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
-          yaxis = list(title = "Cumulative fraction"),
-          legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
-          yaxis2 = list( title =""), xaxis2 = list(title = paste0(gene, " mRNA expression (Z-score)")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = FALSE,
-         showlegend=TRUE, showlegend2=FALSE)
-        
-  return( p )
+  return( list(p1, p2, p3) )
 }
 ```
 
@@ -779,7 +788,6 @@ suppressMessages(library(preprocessCore))
 suppressMessages(library(rapportools))
 suppressMessages(library(plotly))
 suppressMessages(library(edgeR))
-suppressMessages(library(org.Hs.eg.db))
 suppressMessages(library(kableExtra))
 suppressMessages(library(EnsDb.Hsapiens.v86))
 suppressMessages(library(tidyverse))
@@ -900,28 +908,22 @@ for ( ref in names(ref_datasets.list) ) {
   data <- ref_datasets.list[[ref]][[3]]
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
-  
-  ##### Extract the gene annotation information
-  gene_info <-  AnnotationDbi::select(org.Hs.eg.db, rownames(data), c("SYMBOL", "GENENAME", "ENSEMBL", "ENTREZID"), "ENSEMBL")
-  
-  ##### Merge the gene annotation with expression data
-  data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = TRUE)
-  
-  ##### Get genes genomic locations (Use Ensembl annotation version 86 (Oct 2016), the most recent as of Oct 2018)
+
+  ##### Get genes annotation and genomic locations (Use Ensembl annotation version 86 (Oct 2016), the most recent as of Oct 2018)
   edb <- EnsDb.Hsapiens.v86
   
   ##### Get keytypes for gene SYMBOL
   keys <- keys(edb, keytype="GENEID")
   
   ##### Get genes genomic coordiantes
-  gene_pos <- ensembldb::select(edb, keys=keys, columns=c("SEQNAME", "GENESEQSTART", "GENESEQEND"),
-keytype="GENEID")
-  names(gene_pos)[1] <- "ENSEMBL"
+  gene_info <- ensembldb::select(edb, keys=keys, columns=c("GENEID", "GENEBIOTYPE", "GENENAME", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND"), keytype="GENEID")
+  names(gene_info)[1] <- "ENSEMBL"
   
   ##### Merge genes genomic coordinates info with their annotation and expression data
-  data.annot <- merge(gene_pos, data.annot, by = "ENSEMBL", all.x = FALSE)
+  data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = FALSE)
   
   ##### Keep only genes fo which gene symbol is available
+  names(data.annot)[3] <- "SYMBOL"
   data.annot <- data.annot[!(is.na(data.annot$SYMBOL) | data.annot$SYMBOL==""), ]
   
   ##### Remove rows with duplicated gene symbols
@@ -934,7 +936,7 @@ keytype="GENEID")
   #rownames(data) <- data.annot$SYMBOL
   ref_datasets.list[[ref]][[3]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
   rownames(ref_datasets.list[[ref]][[3]]) <- data.annot$SYMBOL
-  ref_datasets.list[[ref]][[5]] <- data.annot[, c("SYMBOL", "GENENAME", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+  ref_datasets.list[[ref]][[5]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
 }
 ```
 
@@ -969,7 +971,7 @@ ref_genes.list[["oncokb_genes"]] <- cancer_genes
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
 #read in the pizzly fusion calls
-pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName.orig, "-flat-filtered.tsv"), sep = "/"), header = TRUE)
+pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName.orig, "-flat.tsv"), sep = "/"), header = TRUE)
 quant <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
 #sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
@@ -1135,20 +1137,20 @@ fusions_abundant[ c(1:nrow(deduped.result)) ] <- "Yes"
 fusions_cancer <- c(rep("-", nrow(pizzly.fusions2)))
 fusions_cancer[ c((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes))) ] <- "Yes"
 
-pizzly.fusions.annot <- cbind(pizzly.fusions2, fusions_abundant, fusions_cancer)
+pizzly.fusions3 <- cbind(pizzly.fusions2, fusions_abundant, fusions_cancer)
 
 ##### Indicate duplicated rows and flag them as both, those which involve both highly abundant transcripts and cancer genes
-pizzly.fusions.annot$fusions_abundant[ dup.index  ] <- "Yes"
-pizzly.fusions.annot$fusions_cancer[ dup.index ] <- "Yes"
+pizzly.fusions3$fusions_abundant[ dup.index  ] <- "Yes"
+pizzly.fusions3$fusions_cancer[ dup.index ] <- "Yes"
 
 ##### Remove duplicated rows
-if ( any(duplicated(pizzly.fusions.annot)) ) {
+if ( any(duplicated(pizzly.fusions3)) ) {
   
-  pizzly.fusions.annot <- pizzly.fusions.annot[ -c(which( duplicated(pizzly.fusions.annot) )), ]
+  pizzly.fusions3 <- pizzly.fusions3[ -c(which( duplicated(pizzly.fusions3) )), ]
 }
 
 ##### Re-order data frame to prioritise fusions with highly abundant transcripts and cancer genes
-pizzly.fusions.annot <- pizzly.fusions.annot[ rev(with(pizzly.fusions.annot, order(fusions_abundant, fusions_cancer))), ]
+pizzly.fusions3 <- pizzly.fusions3[ rev(with(pizzly.fusions3, order(fusions_abundant, fusions_cancer))), ]
 ```
 
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
@@ -1172,6 +1174,26 @@ for (row in 1:nrow(deduped.result)){
 
 ##### Rearrange the table to move the transcripts list at the end
 result_reads <- result_reads%>%select(-"transcriptID","transcriptID")
+```
+
+```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE}
+##### Annotate fusion genes
+##### Get data to annotate fusion genes
+fusion_genes_annot <- ref_datasets.list[[ref]][[5]][ , c("SYMBOL", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
+
+##### Keep only fusions for which both genes have gene symbol (and genomics location) available
+pizzly.fusions.annot <- pizzly.fusions3[ pizzly.fusions3$geneA.name %in% fusion_genes_annot$SYMBOL, ]
+pizzly.fusions.annot <- pizzly.fusions.annot[ pizzly.fusions.annot$geneB.name %in% fusion_genes_annot$SYMBOL, ]
+pizzly.fusions.annot$order <- 1:nrow(pizzly.fusions.annot)
+
+##### Get genomic info for fusions genes
+fusion_annot1 <- merge(fusion_genes_annot, pizzly.fusions.annot[ , c("geneA.name", "order")], by = 1, sort=FALSE)
+fusion_annot1 <- fusion_annot1[ order(fusion_annot1$order), ]
+fusion_annot2 <- merge(fusion_genes_annot, pizzly.fusions.annot[ , c("geneB.name", "order")], by = 1, sort=FALSE)
+fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
+
+fusion_annot <- cbind(fusion_annot1, fusion_annot2, pizzly.fusions.annot$fusions_abundant, pizzly.fusions.annot$fusions_cancer)
+colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
 ```
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -1672,6 +1694,8 @@ select those which have a decent Transcripts Per Kilobase Million (TPM) support.
 the ones that are present in this list.
 </details>
 
+### Fusion genes summary
+
 ```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
 # #create a nice table output (with kableExtra, lack of results filtering)
 # kable(pizzly.fusions2, row.names = FALSE) %>%
@@ -1685,7 +1709,7 @@ the ones that are present in this list.
 #   scroll_box(width = "100%", height = "400px")
 
 ##### Remove some columns and rename column names for better presentation
-pizzly.fusions.clean <- pizzly.fusions.annot[ , names(pizzly.fusions.annot) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
+pizzly.fusions.clean <- pizzly.fusions3[ , names(pizzly.fusions3) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
 pizzly.fusions.clean <- pizzly.fusions.clean[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
 
 ##### Create a nice table output (with dataTable)
@@ -1728,12 +1752,54 @@ Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusi
 
 ***
 
-<details>
-<summary>Genomic view</summary>
+### Genomic view
 
-```{r bezier_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4}
+```{r bezier_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
+fusion_annot_top <- fusion_annot[ fusion_annot$pizzly.fusions.annot.fusions_abundant == "Yes" | fusion_annot$pizzly.fusions.annot.fusions_abundant == "Yes" , ]
+
 ##### Generate bezier curves-like plot representing gene fusion events
-bezierPlot(pizzly.fusions.annot, ref_datasets.list[[ref]][[5]])
+fusionsBezierPlot(fusion_annot_top, ref_datasets.list[[ref]][[5]])
+```
+
+```{r expr_table_fusions, comment = NA, message=FALSE, warning=FALSE}
+##### Clean the table for better presentation
+fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "pizzly.fusions.annot.fusions_abundant", "pizzly.fusions.annot.fusions_cancer") ]
+
+##### Order fusions based on the genomic location (chrom and start positions)
+chrOrder <-c((1:22),"X","Y","M")
+
+fusion_annot_top.clean$SEQNAME <- factor(fusion_annot_top.clean$SEQNAME, chrOrder, ordered=TRUE)
+fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
+fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
+
+names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (gene A)", "End (gene A)", "Gene B", "Chrom (gene B)", "Start (gene B)", "End (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
+
+DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800,  escape = FALSE) %>%
+    DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
+  
+    ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
+    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) )
+```
+
+***
+
+<details>
+<summary>mRNA expression levels</summary>
+
+```{r expr_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = FALSE}
+suppressMessages(library(plotly))
+##### Generate plots with genome-wide expression profile (Z-score) for each group
+
+fuiosnExprProfile <- exprProfilePlot(unique(c(fusion_annot_top$SYMBOL, fusion_annot_top$SYMBOL.1)), data, target, params$sample_name, params$normal_group, params$cancer_group, ref_datasets.list[[ref]][[5]])
+
+fuiosnExprProfile[[1]]
+fuiosnExprProfile[[2]]
+fuiosnExprProfile[[3]]
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
 ```
 
 </details>
