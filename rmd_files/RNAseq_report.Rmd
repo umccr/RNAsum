@@ -566,6 +566,210 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
   
   return( list(dt.table,  drug.info) )
 }
+
+##### Generate bezier curves-like plot representing gene fusion events
+bezierPlot <- function(fusion_data, genes_annot) {
+  
+  ##### Keep only fusions for which both genes have gene symbol available
+  fusion_data <- fusion_data[ fusion_data$geneA.name %in% genes_annot$SYMBOL, ]
+  fusion_data <- fusion_data[ fusion_data$geneB.name %in% genes_annot$SYMBOL, ]
+  
+  ##### Get genomic info for fusions genes
+  fusion_annot1 <- merge(as.data.frame(fusion_data$geneA.name), genes_annot, by = 1, sort=FALSE)
+  fusion_annot2 <- merge(as.data.frame(fusion_data$geneB.name), genes_annot, by = 1, sort=FALSE)
+  
+  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusion_data$fusions_abundant, fusion_data$fusions_cancer)
+  colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
+  
+  ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
+  fusion_annot <- fusion_annot[ fusion_annot$fusion_data.fusions_abundant == "Yes" | fusion_annot$fusion_data.fusions_cancer == "Yes" , ]
+  
+  ##### Get the genes chromosomes...
+  chr1 <- paste0("chr", fusion_annot$SEQNAME)
+  chr2 <- paste0("chr", fusion_annot$SEQNAME.1)
+  
+  ##### ...positions
+  pos1 <- fusion_annot$GENESEQSTART
+  pos2 <- fusion_annot$GENESEQSTART.1
+  
+  ##### ... and the events type
+  type <- paste(fusion_annot$fusion_data.fusions_abundant, fusion_annot$fusion_data.fusions_cancer, sep = "-") 
+  type <- gsub("Yes-Yes","Abundant and cancer gene(s)", type)
+  type <- gsub("Yes--","Abundant transcript(s)", type)
+  type <- gsub("--Yes","Cancer gene(s)", type)
+  type <- gsub("---","Other", type)
+
+  #### Prepare x-axis coordinates info for ggplot
+  ##### This part of the script converts the genomic positions from hg38 to coordinates that can be plotted on the ggplot x-axis.
+  ##### Start with calculating the whole genome length. Here we consider chromosomes 1-22, X and Y
+  genome.length <- sum(seqlengths(Hsapiens)[1:24])
+  
+  ##### Now calculate fake chromosomes' start positions so that they match with the x-axis coordinates in the ggplot
+  chrs_fake_starts <- vector("list", 24)
+  chrs_fake_starts  <- setNames(chrs_fake_starts,  names(Hsapiens)[1:24] )
+  
+  ##### Chromosome 1 has coordingate 0
+  chrs_fake_starts[["chr1"]] <- 0
+  
+  ##### The coordinates for the remaining chromosomes will be calculated by adding the lengths of individual preceding chromosomes
+  length_sum <- 0
+  for ( i in 2:length(chrs_fake_starts) ) {
+  	#cat(paste("\nThe fake start position for " , names(chrs_fake_starts)[i], " is ", length_sum + as.numeric(seqlengths(Hsapiens)[[i-1]]), sep=""))
+  #	cat(paste("\nLength of " , names(chrs_fake_starts)[i-1], " = ", as.numeric(seqlengths(Hsapiens)[[i-1]]), " and the sum of the preceding chromosomes = ", length_sum, ".\n\n", sep=""))
+  	length_sum <- length_sum + as.numeric(seqlengths(Hsapiens)[[i-1]])
+  	chrs_fake_starts[[names(Hsapiens)[i]]] <- length_sum
+  }
+  
+  ##### Calculate the coordinates for x-axis labels (chr1, chr2...) for ggplot by adding the half-lenght of each chrosomome to its fake start
+  chrs_fake_label.pos <- vector("list", 24)
+  chrs_fake_label.pos  <- setNames(chrs_fake_label.pos,  names(Hsapiens)[1:24] )
+  for ( i in 1:length(chrs_fake_starts) ) {
+  	chrs_fake_label.pos[[names(Hsapiens)[i]]] <- seqlengths(Hsapiens)[[i]]/2 + chrs_fake_starts[[names(Hsapiens)[i]]]
+  	# cat(paste("\nThe x-axis coordinate for " , names(chrs_fake_starts)[i], " label is ", chrs_fake_label.pos[[names(Hsapiens)[i]]], " = ",  seqlengths(Hsapiens)[[i]]/2, " (half-length) + ", chrs_fake_starts[[names(Hsapiens)[i]]]," (fake start)", sep=""))
+  }
+  
+  #### Calculate ggplot x-axis coordinates for fusion events
+  ##### Calculate the coordinates to draw bezier curves by adding the fusion events position info to the fake start coordinates of corresponding chromosomes
+  pos1_fake <- vector("list", nrow(fusion_annot))
+  pos2_fake <- vector("list", nrow(fusion_annot))
+  
+  for ( i in 1:nrow(fusion_annot) ) {
+  	# cat(paste("\nCalculations for fusion event: " , paste( chr1[i], pos1[i], sep=" " ), "-",  paste( chr2[i], pos2[i], sep=" " ), sep=""))
+  	# cat(paste("\nThe x-axis coordinate for position 1 is ", chrs_fake_starts[[chr1[i]]] + pos1[i], " = ",  chrs_fake_starts[[chr1[i]]], " (the fake start of ", chr1[i],") + ", pos1[i], " (the real position 1)", sep=""))
+  	# cat(paste("\nThe x-axis coordinate for position 2 is ", chrs_fake_starts[[chr2[i]]] + pos2[i], " = ",  chrs_fake_starts[[chr2[i]]], " (the fake start of ", chr2[i],") + ", pos2[i], " (the real position 2).\n", sep=""))
+  	pos1_fake[[i]] <- chrs_fake_starts[[chr1[i]]] + pos1[i]
+  	pos2_fake[[i]] <- chrs_fake_starts[[chr2[i]]] + pos2[i]
+  }
+  
+  ##### Get random number for the bezier curves' heigths and caluclate the middle point for each bezier curve
+  beziers.height <- runif(nrow(fusion_annot), 1, 2)
+  beziers.mid <- unlist(pos1_fake)+(unlist(pos2_fake)-unlist(pos1_fake))/2
+  
+  ##### Create data-frame with beziers curves info
+  beziers <- data.frame(
+      x = c(rbind( unlist(pos1_fake), beziers.mid, unlist(pos2_fake) )),
+      y = c(rbind( 0.2, beziers.height, 0.2 ) ),
+      type = rep( paste( chr1, make.names(pos1, unique=TRUE), chr2, make.names(pos2, unique=TRUE), sep="_" ), each=3),
+  		group = rep( type, each=3)
+  )
+  
+  ##### Generate a bezier curves-like plot representing fusion events
+  p <- ggplot() + geom_bezier(aes(x= x, y = y, group = type, color = group ), data = beziers, show.legend = TRUE, size = 0.2) +
+  		##### Remove default axes labels and grey backgroud
+  		theme(axis.title.x=element_blank(), axis.text.x= element_blank(), axis.ticks.x=element_blank(), axis.title.y=element_blank(), axis.text.y= element_blank(), axis.ticks.y=element_blank(),
+  		##### ...and the grey backgroud
+  					panel.background = element_rect(fill = NA),
+  		##### ...change the legend parameters
+  					legend.title=element_text(size=6), legend.text=element_text(size=10), legend.key.size = unit(1,"line"), legend.key= element_blank(), legend.position = c(0.85,0.7) ) +
+  		##### Set the axes limits
+  		scale_x_continuous(limits = c(1, genome.length)) +
+  		scale_y_continuous(limits = c(0, 2)) +
+  		##### Add chromosomes boundaries
+  		geom_segment(aes(x = c(1,unlist(chrs_fake_starts)[2:24],genome.length) , xend = c(1,unlist(chrs_fake_starts)[2:24],genome.length), y = 0, yend = 0.2), colour = 'grey', size = 0.2) +
+  		labs( color = "") +
+  		##### Add chromosomes labels
+  		annotate(geom = 'text', label = names(chrs_fake_label.pos), x = unlist(chrs_fake_label.pos), y = 0.1, size = 2, angle = 45)
+      ##### Add gene fusion labels
+      #annotate(geom = 'text', label = paste(fusion_annot$fusion_data.geneA.name, fusion_annot$fusion_data.geneB.name, sep="-"), x = beziers.mid, y = beziers.height-0.5, size = 1.5)
+  
+  return( p )
+}
+
+
+##### Generate a plot with genome-wide expression profile (Z-score) for each group
+exprProfilePlot <- function(data, targets, sampleName, normal, cancer, genes_annot) {
+    
+    targets.list <- unique(targets$Target)
+  
+    ##### Initiate dataframe for expression mean values in each group
+    group.z <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = nrow(data)))
+    colnames(group.z) <- targets.list
+    rownames(group.z) <- sort(rownames(data))
+    
+    for ( group in targets.list ) {
+    
+      group.stats <- exprGroupStats(data[rownames(group.z), ], targets, group)
+      group.stats <- group.stats[order(rownames(group.stats)), ]
+      group.z[, group] <- round(group.stats$z, digits=2)
+    }
+    
+    ##### Change sample ID to "Patient" and normal sample to "Normal" for better visualisation
+    names(group.z)[names(group.z)==sampleName] <- "Patient"
+    targets.list[targets.list==sampleName] <- "Patient"
+    names(group.z)[names(group.z)==normal] <- "Normal"
+    targets.list[targets.list==normal] <- "Normal"
+    
+    ##### Merge expression data with gene genomic coordinates info
+    group.z <- merge(genes_annot, group.z, by = "row.names", all.x = FALSE)
+    group.z <- group.z[, -1]
+    
+    ###### Change chromosomes X and Y to numbers 23 and 24, respectively
+    group.z$SEQNAME[ group.z$SEQNAME  %in% "X" ] <- 23
+    group.z$SEQNAME[ group.z$SEQNAME %in% "Y" ] <- 24
+    
+    ##### Order the data accordingly to genomic postions
+    group.z = group.z[order(as.numeric(group.z$SEQNAME),as.numeric(group.z$GENESEQSTART)),]
+    
+    ##### Label chromosomes
+    chr_bins <- data.matrix(summary(as.factor(group.z$SEQNAME)))
+    chr_bins<- data.frame(chr_bins,row.names(chr_bins) )
+    colnames(chr_bins) = c("count","Chromosome")
+    
+    data.chr_bins <- data.frame(unique(group.z$SEQNAME))
+    colnames(data.chr_bins) = c("Chromosome")
+  
+    chr_annot <- merge(data.chr_bins,chr_bins, by.x="Chromosome", by.y="Chromosome", sort=FALSE)
+    
+    for(k in 2:length(row.names(chr_annot))) {
+
+        chr_annot[k,2] = chr_annot[k-1,2] + chr_annot[k,2]
+    }
+
+    chr_annot[1,3] <- chr_annot[1,2] / 2
+
+    for (k in 2:length(row.names(chr_annot))) {
+
+        chr_annot[k,3] <- (chr_annot[k,2]+chr_annot[k-1,2])/2
+    }
+
+    ##### Create a list with chromosme boundaries info
+    levels(chr_annot$Chromosome)[ levels(chr_annot$Chromosome) == 23 ] <- "X"
+    levels(chr_annot$Chromosome)[ levels(chr_annot$Chromosome) == 24 ] <- "Y"
+    chr_nos <- list( x = chr_annot[, 3], y = -1.1, text = chr_annot$Chromosome, xref = "x", yref = "y", showarrow = FALSE )
+
+    ##### Prepare vector to indicate chromosome boundaries
+    chr_lines <- rep(0, nrow(group.z))
+    chr_lines[ chr_annot$count - 1 ] <- 1
+    chr_lines[ chr_annot$count ] <- -1
+  
+    ##### Prepare data for plotting with plotly
+    data2plot <- data.frame(group.z[ , c("SYMBOL", "Normal", cancer, "Patient" )], chr_lines)
+    names(data2plot)[names(data2plot)=="SYMBOL"] <- "Gene"
+    
+    ##### Use the genomic positions order for bars
+    data2plot$Gene <- factor(data2plot$Gene, levels = data2plot$Gene)
+    
+    ##### Report only genes with Z-scores > 1 or < -1
+    data2plot[ any(data2plot[, c(2:4) ] < 1 && data2plot[, c(2:4) ] > -1) ] <- 
+    
+    
+    
+    p <- plot_ly(data2plot, x = ~Gene, y = ~Patient, type = 'bar', name = "mRNA expression (mRNA)", color = I("red"), width = 800, height = 400) %>%
+        add_trace(y = ~Loss, name = "Loss/Deletion", color = I("blue")) %>%
+        add_trace(x = ~Gene, y = ~chr_lines, type = 'scatter', name = "Chromosomes", mode = 'lines', line = list(color = "lightgrey", dash = "1px"), hoverinfo = "skip") %>%
+        layout( title = paste0(target.sel, " (n=", (ncol(cnData.subset.sel)-4),")"), yaxis = list(title = "Fraction of samples"), xaxis = list(title = "Chromosome number", showticklabels = FALSE), annotations = chr_nos, barmode = 'group', bargap = 0, margin = list(l=50, r=50, b=100, t=50, pad=4), autosize = F, legend = list(orientation = 'h', y = 1.07, tracegroupgap=0), showlegend=TRUE)
+
+      
+
+        p1_2 <- subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE) %>%
+  layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
+          yaxis = list(title = "Cumulative fraction"),
+          legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
+          yaxis2 = list( title =""), xaxis2 = list(title = paste0(gene, " mRNA expression (Z-score)")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = FALSE,
+         showlegend=TRUE, showlegend2=FALSE)
+        
+  return( p )
+}
 ```
 
 ```{r load_libraries, warning=FALSE}
@@ -577,10 +781,14 @@ suppressMessages(library(plotly))
 suppressMessages(library(edgeR))
 suppressMessages(library(org.Hs.eg.db))
 suppressMessages(library(kableExtra))
+suppressMessages(library(EnsDb.Hsapiens.v86))
 suppressMessages(library(tidyverse))
 suppressMessages(library(knitr))
 suppressMessages(library(magick))
 suppressMessages(library(matrixStats))
+suppressMessages(library(ggplot2))
+suppressMessages(library(ggforce))
+suppressMessages(library(BSgenome.Hsapiens.UCSC.hg38))
 ```
 
 ```{r load_ref_data, message=FALSE, warning=FALSE}
@@ -699,6 +907,20 @@ for ( ref in names(ref_datasets.list) ) {
   ##### Merge the gene annotation with expression data
   data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = TRUE)
   
+  ##### Get genes genomic locations (Use Ensembl annotation version 86 (Oct 2016), the most recent as of Oct 2018)
+  edb <- EnsDb.Hsapiens.v86
+  
+  ##### Get keytypes for gene SYMBOL
+  keys <- keys(edb, keytype="GENEID")
+  
+  ##### Get genes genomic coordiantes
+  gene_pos <- ensembldb::select(edb, keys=keys, columns=c("SEQNAME", "GENESEQSTART", "GENESEQEND"),
+keytype="GENEID")
+  names(gene_pos)[1] <- "ENSEMBL"
+  
+  ##### Merge genes genomic coordinates info with their annotation and expression data
+  data.annot <- merge(gene_pos, data.annot, by = "ENSEMBL", all.x = FALSE)
+  
   ##### Keep only genes fo which gene symbol is available
   data.annot <- data.annot[!(is.na(data.annot$SYMBOL) | data.annot$SYMBOL==""), ]
   
@@ -712,7 +934,7 @@ for ( ref in names(ref_datasets.list) ) {
   #rownames(data) <- data.annot$SYMBOL
   ref_datasets.list[[ref]][[3]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
   rownames(ref_datasets.list[[ref]][[3]]) <- data.annot$SYMBOL
-  ref_datasets.list[[ref]][[5]] <- data.annot[, c("SYMBOL", "GENENAME", "ENSEMBL", "ENTREZID")]
+  ref_datasets.list[[ref]][[5]] <- data.annot[, c("SYMBOL", "GENENAME", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
 }
 ```
 
@@ -747,7 +969,7 @@ ref_genes.list[["oncokb_genes"]] <- cancer_genes
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
 #read in the pizzly fusion calls
-pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName.orig, "-flat.tsv"), sep = "/"), header = TRUE)
+pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName.orig, "-flat-filtered.tsv"), sep = "/"), header = TRUE)
 quant <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
 #sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
@@ -904,9 +1126,6 @@ for ( i in 1:nrow(pizzly.fusions2) ) {
 ##### Rearrange the table to move the transcripts list at the end
 pizzly.fusions2 <- pizzly.fusions2%>%select(-"transcripts.list","transcripts.list")
 
-##### Rearrange the table to move the transcripts list at the end
-pizzly.fusions2 <- pizzly.fusions2%>%select(-"transcripts.list","transcripts.list")
-
 ##### Index duplicated rows = these are fusions which involve both highly abundant transcripts and cancer genes and so are duplicated in  pizzly.fusions2 data frame
 dup.index <- which( duplicated(pizzly.fusions2) |  duplicated(pizzly.fusions2[nrow(pizzly.fusions2):1, ])[nrow(pizzly.fusions2):1] )
 
@@ -923,7 +1142,7 @@ pizzly.fusions.annot$fusions_abundant[ dup.index  ] <- "Yes"
 pizzly.fusions.annot$fusions_cancer[ dup.index ] <- "Yes"
 
 ##### Remove duplicated rows
-if ( duplicated(pizzly.fusions.annot) != 0 ) {
+if ( any(duplicated(pizzly.fusions.annot)) ) {
   
   pizzly.fusions.annot <- pizzly.fusions.annot[ -c(which( duplicated(pizzly.fusions.annot) )), ]
 }
@@ -1024,7 +1243,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r mut_genes.expr[[2]]$SYMBOL[1]`
 
-```{r cdf_plot_mut_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1043,7 +1262,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[2]`
 
-```{r cdf_plot_mut_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1062,7 +1281,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[3]`
 
-```{r cdf_plot_mut_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1081,7 +1300,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[4]`
 
-```{r cdf_plot_mut_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1100,7 +1319,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[5]`
 
-```{r cdf_plot_mut_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1119,7 +1338,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[6]`
 
-```{r cdf_plot_mut_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1138,7 +1357,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[7]`
 
-```{r cdf_plot_mut_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1157,7 +1376,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[8]`
 
-```{r cdf_plot_mut_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1176,7 +1395,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[9]`
 
-```{r cdf_plot_mut_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1195,7 +1414,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r mut_genes.expr[[2]]$SYMBOL[10]`
 
-```{r cdf_plot_mut_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_mut_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1247,7 +1466,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[1]`
 
-```{r cdf_plot_cancer_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1266,7 +1485,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[2]`
 
-```{r cdf_plot_cancer_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1285,7 +1504,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[3]`
 
-```{r cdf_plot_cancer_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1304,7 +1523,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[4]`
 
-```{r cdf_plot_cancer_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1323,7 +1542,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[5]`
 
-```{r cdf_plot_cancer_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1342,7 +1561,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[6]`
 
-```{r cdf_plot_cancer_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1361,7 +1580,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[7]`
 
-```{r cdf_plot_cancer_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1380,7 +1599,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[8]`
 
-```{r cdf_plot_cancer_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1399,7 +1618,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[9]`
 
-```{r cdf_plot_cancer_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1418,7 +1637,7 @@ detach("package:plotly", unload=FALSE)
 
 #### `r cancer_genes.expr[[2]]$SYMBOL[10]`
 
-```{r cdf_plot_cancer_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 3}
+```{r cdf_plot_cancer_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1466,37 +1685,57 @@ the ones that are present in this list.
 #   scroll_box(width = "100%", height = "400px")
 
 ##### Remove some columns and rename column names for better presentation
-pizzly.fusions.annot <- pizzly.fusions.annot[ , names(pizzly.fusions.annot) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
-pizzly.fusions.annot <- pizzly.fusions.annot[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
+pizzly.fusions.clean <- pizzly.fusions.annot[ , names(pizzly.fusions.annot) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
+pizzly.fusions.clean <- pizzly.fusions.clean[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
 
 ##### Create a nice table output (with dataTable)
-names(pizzly.fusions.annot) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transscript(s)", "Cancer gene(s)", "Reported fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
+names(pizzly.fusions.clean) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
 
-DT::datatable( data = pizzly.fusions.annot, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800,  escape = FALSE) %>%
-    DT::formatStyle( columns = names(pizzly.fusions.annot), `font-size` = '12px', 'text-align' = 'center' )
+DT::datatable( data = pizzly.fusions.clean, filter="none", rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE), width = 800,  escape = FALSE) %>%
+    DT::formatStyle( columns = names(pizzly.fusions.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
+  
+    ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
+    DT::formatStyle( columns = colnames(pizzly.fusions.clean) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+    DT::formatStyle( columns = colnames(pizzly.fusions.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) )
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> section includes **highly abundant** fusion transcripts, <span style="color:#0000ff">BLUE</span> section lists fusions containing **[Cancer genes]** and <span style="color:#00c900">GREEN</span> section lists **remaining** gene fusion events. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database.
+Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s) and those hihglighted in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database.
 
-**Reported**: genes known to be involved in tumorigenesis across cancer types via translocation
+**Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
-**Effector_gene**: gene most likely to promote the tumorigenesis between the two translocation partners
+**Cancer gene(s)**: gene fusion events involving [Cancer genes]
+
+**Fusion gene(s)**: gene(s) known to be involved in tumorigenesis across cancer types via translocation
+
+**Effector gene**: gene most likely to promote the tumorigenesis between the two translocation partners
 
 **Source**: source from which the information has been extracted
 
-* *Biomarker*: gene with mutations known to be biomarkers of response to drugs
-* *CGC*: gene obtained from the [Cancer Gene Census](http://cancer.sanger.ac.uk/cosmic){target="_blank"}
-* *In_silico_predicted*: gene identified by an ensemble of bioinformatics tools to have signals of positive selection in its mutational pattern across tumors (obtained from the [IntOGen](https://www.intogen.org/search){target="_blank"} repository)
-* *Predisposing*: gene with clinical evidence of predisposing to cancer (obtained from the literature)
-* *Validated*: experimentally validated cancer driver gene (obtained from the literature)
+* *biomarker*: gene with mutations known to be biomarkers of response to drugs
+* *cgc*: gene obtained from the [Cancer Gene Census](http://cancer.sanger.ac.uk/cosmic){target="_blank"}
+* *in silico predicted*: gene identified by an ensemble of bioinformatics tools to have signals of positive selection in its mutational pattern across tumors (obtained from the [IntOGen](https://www.intogen.org/search){target="_blank"} repository)
+* *predisposing*: gene with clinical evidence of predisposing to cancer (obtained from the literature)
+* *validated*: experimentally validated cancer driver gene (obtained from the literature)
 
-**Cancer_acronym**: acronym of cancer type in which the fusion event was detected and reported
+**Cancer acronym**: acronym of cancer type in which the fusion event was detected and reported
 
 **AA** adrenal adenoma, **ABC** aneurysmal bone cyst, **AC** adrenal cortex, **ACA** adrenal cortex adenoma, **ACC** adrenal cortex carcinoma, **ACML** atypical chronic myeloid leukemia, **AEL** acute erythroid leukemia, **ALCL** anaplastic large cell lymphoma, **ALL** acute lymphoblastic leukemia, **ALM** acral lentigious melanoma, **AML** acute myeloid lekemia, **APML** acute promyelocytic leukemia, **AS** angiosarcoma, **B** brain, **BCC** basal cell carcinoma, **BCL** b cell lymphoma, **BLCA** bladder , **BLTC** bladder transitional cell, **BLY** burkitt lymphoma, **BRCA** breast , **BRCA/OV-PR** breast/ovary predisposing, **BRCAL** breast lobular, **BRCALU** breast luminal, **BT** billiary tract, **CANCER** cancer, **CANCER-PR** cancer-predisposing, **CCS** clear cell sarcoma, **CER** cervix, **CESC** cervix squamous cell, **CH** cholangiocarcinoma, **CLL** chronic lymphocytic leukemia, **CM** cutaneous melanoma, **CM-PR** cutaneous melanoma – predisposing, **CML** chronic myeloid lekemia, **CMP** chronic myeloproliferative neoplasm, **CNL** chronic neutrophilic leukemia, **CNS** central nervous system, **CNSLY** central nervous system lymphoma, **COC** colon carcinoma, **COC-PR** colon carcinoma – predisposing, **COCA** colon adenocarcinoma, **COREAD** colorectal adenocarcinoma, **COREAD-PR** colorectal adenocarcinoma – predisposing, **CS** chondrosarcoma, **CTCL** cutaneous T-cell lymphoma, **DEST** desmoid tumor, **DFS** dermatofibrosarcoma, **DLBCL** diffuse large B cell lymphoma, **DNT** dysembryoplastic neuroephitelial tumor, **DSRCT** desmoplastic small round cell tumor, **ECL** eosinophilic chronic leukemia, **ED** endometrium, **EDA** endometrial adenocarcinoma, **EDS** endometrial stromal, **ES** endocrine system, **ESCA** esophagous, **ESCC** esophagous clear cell, **ESSC** esophagous squamous cell, **EWS** ewing sarcoma, **FGCT** female germ cell tumor, **FH** fibrous histiocytoma, **FIBS-PR** fibrosarcoma - predisposing, **FL** follicular lymphoma, **G** glioma, **GB** glioblastoma, **GBM** glioblastoma multiforme, **GIST** gastrointestinal stromal, **GIST-PR** gastrointestinal stromal – predisposing, **HA** hepatic adenoma, **HB** hepatic blastoma, **HC** hepatic carcinoma, **HC-PR** hepatic carcinoma – predisposing, **HCL** hairy cell leukemia, **HEMATO** hematological malignancy, **HEMATO-PR** hematological malignancy – predisposing, **HES** hyper eosinophilic advanced syndrome, **HGP** hemangiopericytoma, **HISEC** erdheim-chester histiocytosis, **HISLC** largerhans cell histiocytosis, **HLY** hodgkin lymphoma, **HNC** head and neck, **HNSC** head and neck squamous, **IM** immflamatory myofibroblastic, **L** lung, **LBCL** large b-cell lymphoma, **LGG** lower grade glioma, **LGLK** large granular leukemia, **LIP** liposarcoma, **LK** leukemia, **LUAD** lung adenocarcinoma, **LUSC** lung squamous cell, **LY** luymphoma, **MA** malignant astrocytoma, **MALT** malt lymphoma, **MAS** mastocytosis, **MB** medulloblastoma, **MCL** mantle cell lymphoma, **MCLK** mast cell leukemia, **MDPS** myelodisplatic proliferative syndrome, **MDS** myelodisplasicsyndrome, **MEN** meningioma, **MERC** merkel cell carcinoma, **MESO** mesothelioma, **MFH** myxoidfibrosarcoma, **MGCT** male germ cell tumor, **MKB** megakaryoblastic leukemia, **MM** multiple myeloma, **MML** myelomonocytic leukemia, **MPN** malignant peripheral nerve sheat tumor, **MRT** malignant rhaboid tumor, **MRT-PR** malignant rhaboid tumor – predisposing, **MUCM** mucosal melanoma, **MY** myelofibrosis, **MYEP** myoepithelioma, **MYMA** myeloma, **MYX** myxoma, **NB** neuroblastoma, **NF** neurofibromatosis, **NHLY** non-hodgkin lymphoma, **NMC** nut midline carcinoma, **NSCLC** non-small cell lung, **NSMGCT** non-seminomatous germ cell tumor, **NSPH** nasopharyngeal, **OCSC** oral cavity squamous cell, **OPH** ororpharynx squamous cell, **OS** osteosarcoma, **OV** ovary, **OVCC** ovary clear cell, **OVE** ovary ephitelial cell, **OVG** ovary granulosa cell, **OVSC** ovary small cell, **PA** pancreas, **PAAC** pancreas acinar, **PAAD** pancreas adenocarcinoma, **PAIS** pancreas islet, **PANC** pancreas neuroendocrine, **PARG** paraganglioma, **PATH** parathyroid adenoma, **PCPG** pheochromocytoma and paranganglioma, **PEC** perivascular epithelioid cell, **PG** pediatric glioma, **PHEO** pheochromacytoma, **PIA** pilocytic astrocytoma, **PIGA** pituitary gland adenoma, **PPB** pleuropulmonary blastoma, **PRAD** prostate adenocarcinoma, **PTCL** perypheral t-cell lymphoma, **PV** polycitemia vera, **R** renal, **R-PR** renal – predisposing, **RB** retinoblastoma, **RCCC** renal clear cell, **REC** rectal carcinoma, **RHBDS** rhabdomyosarcoma, **RPC** renal papillary cell, **S** sarcoma, **SCC** squamous cell carcinoma, **SCC-PR** squamous cell carcinoma – predisposing, **SCGS** sex-cord gonadal stromal, **SCHW** schwannoma, **SCLC** small cell lung, **SG** salivary glands, **SGA** salivary glands adenoma, **SGM** salivary glands mucoepidermoid, **SIN** small intestine, **SINNE** small intestine neuroendocrine, **SK** skin, **SK-PR** skin – predisposing, **SM** systemic mastocytosis, **SOLID** solid tumors, **SOLID-PR** solid tumors - predisposing , **ST** stomach, **ST-PR** stomach – predisposing, **STAD** stomach adenocarcinoma, **STS** soft tissue sarcoma, **SYNS** synovial sarcoma, **T** testis, **TCALL** t cell acute lymphoblastic leukemia, **TCPL** t cell prolymphocytic leukemia, **TER** teratoma, **TH** thyroid, **THA** thyroid adenoma, **THCA** thyroid carcinoma, **THF** thyroid follicular, **THM** thyroid medullary, **THYM** thymic, **TOSC** tongue squamous cell, **UCEC** uterine corpus endometroid carcinoma, **UCS** uterine carcinosarcoma, **UTH** urothelial, **UVM** uveal melanoma, **WM** waldenstrom macroglobullinemia, **WT** wilms tumor
 </font>
+</details>
+
+***
+
+<details>
+<summary>Genomic view</summary>
+
+```{r bezier_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4}
+##### Generate bezier curves-like plot representing gene fusion events
+bezierPlot(pizzly.fusions.annot, ref_datasets.list[[ref]][[5]])
+```
+
 </details>
 
 ***
@@ -1542,7 +1781,7 @@ if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
 
-```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
+```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1610,7 +1849,7 @@ if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
 
-```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
+```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
@@ -1678,7 +1917,7 @@ if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
 
-```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 2.5}
+```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 ref <- params$tissue
