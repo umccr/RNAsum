@@ -12,11 +12,12 @@
 
 ################################################################################
 #
-#	  Description: Script preparing expression data from normal pancreas samples from Genotype-Tissue Expression (GTEx) study using recount package (197 samples from study SRP012682, https://jhubiostatistics.shinyapps.io/recount/_w_c6ab1f3e/#tab-9377-6 and https://trace.ncbi.nlm.nih.gov/Traces/sra/?study=SRP012682). The script outputs read count and target files in user-defined directory.
+#	  Description: Script preparing expression data from normal samples from Genotype-Tissue Expression (GTEx) study using recount package (samples from study SRP012682, https://jhubiostatistics.shinyapps.io/recount/_w_c6ab1f3e/#tab-9377-6 and https://trace.ncbi.nlm.nih.gov/Traces/sra/?study=SRP012682). The script outputs read count and target files in user-defined directory.
 #
-#	  Command line use example: Rscript  recount2_normals_prep.R  --r_data /data/rse_gene_pancreas.Rdata  --out_dir /data
+#   Command line use example: Rscript  recount2_normals_prep.R  --r_data /data/rse_gene_pancreas.Rdata  --tissue pancreas  --out_dir /data
 #
-#   r_data:        Full path with name of the Rdata file with expression data from normal pancreas samples from Genotype-Tissue Expression (GTEx) 
+#   r_data:        Full path with name of the Rdata file with expression data from normal samples from Genotype-Tissue Expression (GTEx)
+#   tissue:        Tissue from which the samples were derived. It will be use for output files naming
 #   out_dir:       Desired location for the output files
 #
 ################################################################################
@@ -112,6 +113,8 @@ suppressMessages(library(recount))
 option_list = list(
   make_option(c("-r", "--r_data"), action="store", default=NA, type='character',
               help="Full path with name of the Rdata file from Genotype-Tissue Expression (GTEx)"),
+  make_option(c("-t", "--tissue"), action="store", default=NA, type='character',
+              help="Tissue from which the samples were derived. It will be use for output files naming"),
   make_option(c("-o", "--out_dir"), action="store", default=NA, type='character',
               help="Desired location for the output files")
 )
@@ -119,10 +122,10 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 ##### Read in argument from command line and check if all were provide by the user
-if ( is.na(opt$r_data) || is.na(opt$out_dir) ) {
+if ( is.na(opt$r_data) || is.na(opt$tissue) || is.na(opt$out_dir)) {
   
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript  recount2_normals_prep.R  --r_data /data/rse_gene_pancreas.Rdata  --out_dir /data\n\n")
+  cat("\ncommand example:\n\nRscript  recount2_normals_prep.R  --r_data /data/rse_gene_pancreas.Rdata  --tissue pancreas  --out_dir /data\n\n")
   
   q()
 }
@@ -131,10 +134,14 @@ if ( is.na(opt$r_data) || is.na(opt$out_dir) ) {
 #    Load and prepare data
 #===============================================================================
 
-##### Load the RangedSummarizedExperiment (RSE) object with expressin data at the gene level for GTEx study (SRP012682, https://jhubiostatistics.shinyapps.io/recount/_w_c6ab1f3e/#tab-9377-6) limited to pancreas tissue
-##### MOre info about RSE: https://www.bioconductor.org/packages/devel/bioc/vignettes/SummarizedExperiment/inst/doc/SummarizedExperiment.html
+##### Load the RangedSummarizedExperiment (RSE) object with expression data at the gene level for GTEx study (SRP012682, https://jhubiostatistics.shinyapps.io/recount/_w_c6ab1f3e/#tab-9377-6) limited to the tissue of interest
+##### More info about RSE: https://www.bioconductor.org/packages/devel/bioc/vignettes/SummarizedExperiment/inst/doc/SummarizedExperiment.html
 cat("\nLoading recount data...\n\n")
 load(opt$r_data)
+
+##### Get the R data file name
+fileInfo <- strsplit(opt$r_data, split='/', fixed=TRUE)
+file <- unlist(fileInfo)[length(unlist(fileInfo))]
 
 ##### Extract phenotype data provided by the recount project
 rse_GTEx.pheno <- colData(rse_gene)
@@ -157,14 +164,14 @@ rse_GTEx_counts  <- multiGeneFilter(rse_GTEx_counts)
 #===============================================================================
 
 ##### Write expression data into a file
-cat( paste( "\nWriting read count data from normal pancreas samples [ GTEx_normal_pancreas_Counts.exp ] and associated target file [ GTEx_normal_pancreas_Target.txt ] to [", opt$out_dir, "]...\n\n", sep=" ") )
-write.table( prepare2write(rse_GTEx_counts), file = paste(opt$out_dir, "/GTEx_normal_pancreas_Counts.exp", sep=""), quote=FALSE ,sep="\t", row.names=FALSE )
+cat( paste( "\nWriting read count data from", opt$tissue, "samples [ GTEx_normal", opt$tissue, "Counts.exp ] and associated target file [ GTEx_normal", opt$tissue, "Target.txt ] to [", opt$out_dir, "]...\n\n", sep=" ") )
+write.table( prepare2write(rse_GTEx_counts), file = paste(opt$out_dir, "/GTEx_normal_", opt$tissue, "_Counts.exp", sep=""), quote=FALSE ,sep="\t", row.names=FALSE )
 
 ##### Create target file
-rse_GTEx.pheno.df <- as.data.frame( cbind(rse_GTEx.pheno$run, rep("rse_gene_pancreas.Rdata", nrow(rse_GTEx.pheno)), rep("Pancreas (normal)", nrow(rse_GTEx.pheno)), rep("", nrow(rse_GTEx.pheno))) )
+rse_GTEx.pheno.df <- as.data.frame( cbind(rse_GTEx.pheno$run, rep(file, nrow(rse_GTEx.pheno)), rep(paste0(Hmisc::capitalize(opt$tissue), " (normal)"), nrow(rse_GTEx.pheno)), rep("", nrow(rse_GTEx.pheno))) )
 names(rse_GTEx.pheno.df) <- c("Sample_name", "File_name", "Target", "Replicates")
 
-write.table( rse_GTEx.pheno.df, file = paste(opt$out_dir, "/GTEx_normal_pancreas_Target.txt", sep=""), quote=FALSE ,sep="\t", row.names=FALSE )
+write.table( rse_GTEx.pheno.df, file = paste(opt$out_dir, "/GTEx_normal_", opt$tissue, "_Target.txt", sep=""), quote=FALSE ,sep="\t", row.names=FALSE )
 
 ##### Clear workspace
 rm(list=ls())
