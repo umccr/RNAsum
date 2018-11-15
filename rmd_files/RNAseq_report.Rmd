@@ -16,8 +16,8 @@ params:
   count_file:
   tissue:
   ref_data_dir: '../data'
-  genes_pmcc: 'Genes_PMCC.txt'
-  genes_immune: 'Genes_immune.txt'
+  genes_cancer: 'genes/cancer_genes.20181112.genes'
+  genes_immune: 'genes/Genes_immune.txt'
   oncokb_genes: 'OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: 'OncoKB/allActionableVariants.txt'
   oncokb_all_vars: 'OncoKB/allAnnotatedVariants.txt'
@@ -27,6 +27,32 @@ params:
 ---
 
 RNA-seq report for patient sample **`r params$sample_name`**.
+
+```{r script_description, eval=FALSE}
+##### We attempt to structure the script in the following way:
+
+# 1. Defining functions
+# 2. Loading libraries
+# 3. Loading sample data and reference datasets
+# Then... code chunks involving data processing
+# Then... code chunks calling the processed data to produce tables / plots / data summary
+
+
+##### The processed data is stored in "ref_datasets.list" list variable with elements holding the following data:
+
+# 1. ref_datasets.list[[tissue]][[1]] = combined read count data (reference datasets + sample data) ("combineDatasets" function output in the "load_ref_data chunk")
+
+# 2. ref_datasets.list[[tissue]][[2]] = combined data samples annotation ("combineDatasets" function output in the "load_ref_data chunk")
+
+# 3. ref_datasets.list[[tissue]][[3]] = transformed, filtered and normalised data (see "data_transformation" and "data_normalisation" chunks)
+
+# 4. ref_datasets.list[[tissue]][[4]] = PCA results
+
+# 5. ref_datasets.list[[tissue]][[5]] = transformed, filtered and normalised data annotated with "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND"
+
+# 6. ref_datasets.list[[tissue]][[6]] = combined expression, mutation and copy-number data
+
+```
 
 ```{r define_functions, comment=NA, message=FALSE, warning=FALSE}
 ##### Define functions
@@ -129,7 +155,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
 getTargetsColours <- function(targets) {
   
 ##### Predefined selection of colours for groups
-targets.colours <- c("red","blue","green","darkgoldenrod","darkred","deepskyblue", "coral", "cornflowerblue", "chartreuse4", "bisque4", "chocolate3", "cadetblue3", "darkslategrey", "lightgoldenrod4", "mediumpurple4", "orangered3","indianred1","blueviolet","darkolivegreen4","darkgoldenrod4","firebrick3","deepskyblue4", "coral3", "dodgerblue1", "chartreuse3", "bisque3", "chocolate4", "cadetblue", "darkslategray4", "lightgoldenrod3", "mediumpurple3", "orangered1")
+targets.colours <- c("red","cornflowerblue","green","darkred","darkgoldenrod","deepskyblue", "coral", "blue", "chartreuse4", "bisque4", "chocolate3", "cadetblue3", "darkslategrey", "lightgoldenrod4", "mediumpurple4", "orangered3","indianred1","blueviolet","darkolivegreen4","darkgoldenrod4","firebrick3","deepskyblue4", "coral3", "dodgerblue1", "chartreuse3", "bisque3", "chocolate4", "cadetblue", "darkslategray4", "lightgoldenrod3", "mediumpurple3", "orangered1")
   
   f.targets <- factor(targets)
   vec.targets <- targets.colours[1:length(levels(f.targets))]
@@ -444,7 +470,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
   }
   
-  ##### Subset the expression data to include only the cancer genes
+  ##### Subset the expression data to include only the user-defined genes
   group.z <- group.z[ rownames(group.z) %in% genes, ]
   names(group.z)[1] <- "Gene"
     
@@ -787,13 +813,13 @@ suppressMessages(library(rapportools))
 suppressMessages(library(plotly))
 suppressMessages(library(edgeR))
 suppressMessages(library(kableExtra))
-suppressMessages(library(EnsDb.Hsapiens.v86))
 suppressMessages(library(tidyverse))
 suppressMessages(library(knitr))
 suppressMessages(library(magick))
 suppressMessages(library(matrixStats))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggforce))
+suppressMessages(library(EnsDb.Hsapiens.v86))
 suppressMessages(library(BSgenome.Hsapiens.UCSC.hg38))
 ```
 
@@ -812,7 +838,7 @@ ref_datasets.list <- vector("list", length(ref_datasets))
 names(ref_datasets.list) <- ref_datasets
 
 ##### Create a list with various sets of genes
-ref_genes <- c("genes_pmcc", "oncokb_genes", "genes_immune")
+ref_genes <- c("genes_cancer", "oncokb_genes", "genes_immune")
 ref_genes.list <- vector("list", length(ref_genes))
 names(ref_genes.list) <- ref_genes
 
@@ -830,10 +856,28 @@ dataDir <- paste(dataDir[-c(length(dataDir))], collapse ="/")
 ref_datasets.list[[tissue]] <- combineDatasets(params$sample_name, params$count_file, ref_tissue[[tissue]][1])
 
 ##### Read in selected genes list
-ref_genes.list[["genes_pmcc"]] <- read.table(paste(params$ref_data_dir, params$genes_pmcc, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
+ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")[ ,1 ]
 ref_genes.list[["oncokb_genes"]] <- read.table(paste(params$ref_data_dir, params$oncokb_genes, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
 ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params$genes_immune, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
-ref_genes.list[["pcgr"]] <- read.table(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/"), sep=",", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+
+##### Read in mutation data for investigate sample
+##### Check if PCGR (mutation) output file exists
+if ( file.exists(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/")) ) {
+  
+  ref_genes.list[["pcgr"]] <- read.table(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/"), sep=",", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+  
+} else {
+  ref_genes.list[["pcgr"]] <- NULL
+}
+
+##### Check if purple (CN) output file exists
+if ( file.exists(paste(dataDir, "purple/purple.gene.cnv", sep = "/")) ) {
+  
+  ref_genes.list[["purple"]] <- read.table(paste(dataDir, "purple/purple.gene.cnv", sep = "/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+  
+} else {
+  ref_genes.list[["purple"]] <- NULL
+}
 
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_clin_vars, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
@@ -852,10 +896,10 @@ caner_genes_annot.list[["cancer_biomarkers_trans"]] <- read.table(paste(params$r
 ##### For differential expression and related analyses, gene expression is rarely considered at the level of raw counts since libraries sequenced at a greater depth will result in higher counts. Rather, it is common practice to transform raw counts onto a scale that accounts for such library size differences. Here we convert the read count data into log2-counts per million (***log-CPM***) using function from *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)* package. Genes with very low counts across all libraries provide little evidence for differential expression. In the biological point of view, a gene must be expressed at some minimal level before it is likely to be translated into a protein or to be biologically important. In addition, the pronounced discretenes of these counts interferes with some of the statistical approximations that are used later in the pipeline. These genes should be filtered out prior to further analysis.
 
 ##### Loop through combined datasets
-for ( ref in names(ref_datasets.list) ) {
+for ( tissue in names(ref_datasets.list) ) {
   
-  counts <- ref_datasets.list[[ref]][[1]]
-  target <- ref_datasets.list[[ref]][[2]]
+  counts <- ref_datasets.list[[tissue]][[1]]
+  target <- ref_datasets.list[[tissue]][[2]]
   
   ##### Create EdgeR DGEList object
   y <- DGEList(counts=counts,  group=target$Target)
@@ -867,7 +911,7 @@ for ( ref in names(ref_datasets.list) ) {
   keep <- rowSums(cpm(y)>1) >= ncol(counts)/10
   y.filtered <- y[keep, , keep.lib.sizes=FALSE]
   
-  ref_datasets.list[[ref]][[3]] <- y.filtered
+  ref_datasets.list[[tissue]][[3]] <- y.filtered
 }
 
 # cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
@@ -896,21 +940,21 @@ for ( ref in names(ref_datasets.list) ) {
 ```{r pca, comment = NA, message=FALSE, warning=FALSE}
 ##### Principal component analysis (PCA)
 ##### Loop through combined datasets and perform PCA
-for ( ref in names(ref_datasets.list) ) {
+for ( tissue in names(ref_datasets.list) ) {
   
-  target <- ref_datasets.list[[ref]][[2]]
-  data <- ref_datasets.list[[ref]][[3]]
+  target <- ref_datasets.list[[tissue]][[2]]
+  data <- ref_datasets.list[[tissue]][[3]]
   
-  ref_datasets.list[[ref]][[4]] <- pca(data, target)
+  ref_datasets.list[[tissue]][[4]] <- pca(data, target)
 }
 ```
 
 ```{r gene_annot, comment = NA, message=FALSE, warning=FALSE}
 ##### Loop through combined datasets and annotate genes
-for ( ref in names(ref_datasets.list) ) {
+for ( tissue in names(ref_datasets.list) ) {
   
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_datasets.list[[ref]][[3]]
+  data <- ref_datasets.list[[tissue]][[3]]
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
 
@@ -939,9 +983,9 @@ for ( ref in names(ref_datasets.list) ) {
   #data <- data.annot[, colnames(data)]
   #data <- apply(data.annot[, colnames(data)], 2, as.numeric)
   #rownames(data) <- data.annot$SYMBOL
-  ref_datasets.list[[ref]][[3]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
-  rownames(ref_datasets.list[[ref]][[3]]) <- data.annot$SYMBOL
-  ref_datasets.list[[ref]][[5]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+  ref_datasets.list[[tissue]][[3]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
+  rownames(ref_datasets.list[[tissue]][[3]]) <- data.annot$SYMBOL
+  ref_datasets.list[[tissue]][[5]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
 }
 ```
 
@@ -950,7 +994,7 @@ for ( ref in names(ref_datasets.list) ) {
 cancer_genes <- ref_genes.list[["oncokb_genes"]]
 cancer_genes$PMCC <- rep("No", nrow(cancer_genes))
 
-for ( gene in unlist(ref_genes.list[["genes_pmcc"]]) ) {
+for ( gene in unlist(ref_genes.list[["genes_cancer"]]) ) {
 
   ##### Check if the PMCC genes is aleady reported in OncoKB
   if ( gene %in% cancer_genes$Hugo.Symbol ) {
@@ -972,6 +1016,116 @@ cancer_genes[ cancer_genes=="No" ] <- "-"
 cancer_genes[ cancer_genes=="" ] <- "-"
 
 ref_genes.list[["oncokb_genes"]] <- cancer_genes
+```
+
+```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE}
+##### Combine expression data with mutation and CN data if available
+mut_data <- ref_genes.list[["pcgr"]]
+cn_data <- ref_genes.list[["purple"]]
+expr_data <- ref_datasets.list[[tissue]][[3]]
+expr_data <- expr_data[, ncol(expr_data)]
+
+##### Perform Z-score transformation of the expression values
+expr_data.z <- as.vector(scale(expr_data))
+names(expr_data.z) <- names(expr_data)
+  
+##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
+mut_data <- mut_data[ mut_data$SYMBOL %!in% "", ]
+cn_data <- cn_data[ cn_data$Gene %!in% "", ]
+
+##### Calculate the mean CN for each gene
+cn_data$MeanCopyNumber <- rowMeans(cbind(cn_data$MinCopyNumber, cn_data$MaxCopyNumber))
+
+##### Deal with negative CN values
+cn_data$MeanCopyNumber[ cn_data$MeanCopyNumber < 0 ] <- 0
+
+##### Simplify the variants types
+mut_data$CONSEQUENCE <- gsub("_variant", "", mut_data$CONSEQUENCE)
+mut_data$CONSEQUENCE <- gsub("_", " ", mut_data$CONSEQUENCE)
+
+##### Prepare mutation data to include multiple mutations per gene
+##### Initiate variable for the gene mutation status for each gene
+gene.mut <- as.matrix(rep("not mutated", length(expr_data.z)))
+colnames(gene.mut) <- "Mutation"
+rownames(gene.mut) <- names(expr_data.z)
+
+for ( i in 1:nrow(gene.mut) ) {
+  
+  ##### Check if any mutations are reported for each gene
+  if (  rownames(gene.mut)[i] %in% mut_data$SYMBOL ) {
+    
+    ##### Deal with multiple mutations per gene
+    if ( length(mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE) > 1 ) {
+
+      gene.mut[ rownames(gene.mut)[i],"Mutation" ] <- "multiple hits"
+
+    } else {
+      
+      gene.mut[ rownames(gene.mut)[i],"Mutation" ] <- mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE
+    }
+  }
+}
+
+##### If there is no expression value for a specific gene than assume it's not expressed at all and assign the lowest value observed in that sample
+for ( gene in unique(mut_data$SYMBOL) ) {
+  
+  if ( gene %!in% rownames(gene.mut) ) {
+        
+    expr_data.z <- c(expr_data.z, min(expr_data.z))
+    names(expr_data.z)[length(expr_data.z)] <- gene
+    
+    ##### Deal with multiple mutations per gene
+    if ( length(mut_data[ mut_data$SYMBOL %in% gene,  ]$CONSEQUENCE) > 1 ) {
+
+      gene.mut <- rbind( gene.mut,  "multiple hits")
+
+    } else {
+      
+      gene.mut <- rbind( gene.mut,  mut_data[ mut_data$SYMBOL %in% gene,  ]$CONSEQUENCE )
+    }
+    rownames(gene.mut)[nrow(gene.mut)] <- gene
+  }
+}
+
+##### Get the percentiles from from the CN values
+#cn_data.percent <- quantile(cn_data$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
+
+# ##### Draw histogram of CN data
+# p <- plot_ly(x = cn_data$MeanCopyNumber, type = 'histogram', name = "Copy-number data", width = 800, height = 500) %>%
+#   
+#   ##### Add 10th percentile threshold
+#   add_lines(y = seq(0,1000, 100), x = rep(cn_data.percent[2],11), 
+#               line = list(color = "black", dash = "dash"), opacity = 0.4,
+#               name = "10th percentile", showlegend = TRUE) %>%
+#   
+#   ##### Add 50th percentile
+#   add_lines(y = seq(0,1000, 100), x = rep(cn_data.percent[11],11), 
+#               line = list(color = "black", dash = "dash"), opacity = 0.7,
+#               name = "50th percentile", showlegend = TRUE) %>%
+#   
+#   ##### Add 90th percentile threshold
+#   add_lines(y = seq(0,1000, 100), x = rep(cn_data.percent[20],11), 
+#               line = list(color = "black", dash = "dash"), opacity = 1,
+#               name = "80th percentile", showlegend = TRUE) %>%
+#   
+#   layout(xaxis = list( range=c(0,3), title = "Copy-number values"), yaxis = list( title = "Frequency"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F)
+
+##### Keep only altered genes with CN values below 10th percentile and above 90th percentile
+#cn_data.sub <- cn_data[ cn_data$MaxCopyNumber < cn_data.percent[2] | cn_data$MinCopyNumber > #cn_data.percent[20], ]
+
+##### Keep only altered genes with CN values below 1 (loss) and above 4 (gain)
+cn_data.sub <- cn_data[ cn_data$MeanCopyNumber < 1 | cn_data$MeanCopyNumber > 4, ]
+
+##### Subset expression, mutation and copy-number data to include only overlapping genes
+genes.intersect <- intersect(intersect(rownames(gene.mut), cn_data.sub$Gene), names(expr_data.z))
+
+gene.mut.sub <- gene.mut[ rownames(gene.mut) %in% genes.intersect, ]
+cn_data.sub <- cn_data.sub[ cn_data.sub$Gene %in% genes.intersect, ]
+expr_data.z.sub <- expr_data.z[ names(expr_data.z) %in% genes.intersect ]
+
+##### Prepare data frame
+ref_datasets.list[[tissue]][[6]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, gene.mut.sub)
+colnames(ref_datasets.list[[tissue]][[6]]) <- c("Gene", "CN", "mRNA", "Mutation")
 ```
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -1131,7 +1285,7 @@ for ( i in 1:nrow(pizzly.fusions2) ) {
 }
 
 ##### Rearrange the table to move the transcripts list at the end
-pizzly.fusions2 <- pizzly.fusions2%>%select(-"transcripts.list","transcripts.list")
+pizzly.fusions2 <- pizzly.fusions2 %>% dplyr::select(-"transcripts.list","transcripts.list")
 
 ##### Index duplicated rows = these are fusions which involve both highly abundant transcripts and cancer genes and so are duplicated in  pizzly.fusions2 data frame
 dup.index <- which( duplicated(pizzly.fusions2) |  duplicated(pizzly.fusions2[nrow(pizzly.fusions2):1, ])[nrow(pizzly.fusions2):1] )
@@ -1178,13 +1332,13 @@ for (row in 1:nrow(deduped.result)){
 }
 
 ##### Rearrange the table to move the transcripts list at the end
-result_reads <- result_reads%>%select(-"transcriptID","transcriptID")
+result_reads <- result_reads %>% dplyr::select(-"transcriptID","transcriptID")
 ```
 
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE}
 ##### Annotate fusion genes
 ##### Get data to annotate fusion genes
-fusion_genes_annot <- ref_datasets.list[[ref]][[5]][ , c("SYMBOL", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
+fusion_genes_annot <- ref_datasets.list[[tissue]][[5]][ , c("SYMBOL", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
 
 ##### Keep only fusions for which both genes have gene symbol (and genomics location) available
 pizzly.fusions.annot <- pizzly.fusions3[ pizzly.fusions3$geneA.name %in% fusion_genes_annot$SYMBOL, ]
@@ -1203,8 +1357,7 @@ colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Summarise the reference cohorts samples
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
+target <- ref_datasets.list[[tissue]][[2]]
 
 ref_normal <- table(target$Target)[names(table(target$Target))==normal_group]
 ref_cancer <- table(target$Target)[names(table(target$Target))==cancer_group]
@@ -1242,14 +1395,13 @@ From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the e
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 
 ##### Report only mutations calssified within Tiers 1-4
 #ref_genes.list[["pcgr"]] <- ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("TIER 1", "TIER 2", "TIER 3", "TIER 4" ), ]
 
-mut_genes.expr <- exprTable(unique(ref_genes.list[["pcgr"]]$SYMBOL), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]])
+mut_genes.expr <- exprTable(unique(ref_genes.list[["pcgr"]]$SYMBOL), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]])
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1428,6 +1580,29 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
+### Copy-number alterations and mutations
+
+<span style="color:#ff0000">NOTE</span>: this section is in progress. The scatterplot presents per-gene mRNA expression values (y-axis, Z-score), copy-number values (x-axis, from PRUPLE), and mutation status information (colours, from PCGR). To do:
+
+- Limit genes to those with detected variants classified within tier 1-3
+- Add summary table
+
+```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
+plot_ly(ref_datasets.list[[tissue]][[6]], x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+  add_annotations( text="Variant consequence", xref="paper", yref="paper",
+                  x=1.02, xanchor="left",
+                  y=0.85, yanchor="top",
+                  legendtitle=TRUE, showarrow=FALSE ) %>%
+  layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
 ## Cancer genes
 
 mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. These include *[Peter Mac](https://www.petermac.org/){target="_blank"} comprehensive cancer (PMCC)* panel genes and genes considered to be cancer genes (listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data){target="_blank"}) by *[OncoKB](http://oncokb.org/#/about){target="_blank"}* based on their inclusion in the following sequencing panels: *[MSK-IMPACT](https://www.mskcc.org/msk-impact){target="_blank"}*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf){target="_blank"}*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx){target="_blank"}*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme){target="_blank"}*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full){target="_blank"}* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census){target="_blank"}* (CGC).
@@ -1438,11 +1613,10 @@ From the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression 
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 
-cancer_genes.expr <- exprTable(rownames(ref_genes.list[["oncokb_genes"]]), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]])
+cancer_genes.expr <- exprTable(rownames(ref_genes.list[["oncokb_genes"]]), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]])
 
 ##### Present the expression summary table
 cancer_genes.expr[[1]]
@@ -1706,7 +1880,7 @@ Gene fusion events involving highly abundant transcript(s) or [Cancer genes] are
 fusion_annot_top <- fusion_annot[ fusion_annot$pizzly.fusions.annot.fusions_abundant == "Yes" | fusion_annot$pizzly.fusions.annot.fusions_cancer == "Yes" , ]
 
 ##### Generate bezier curves-like plot representing gene fusion events
-fusionsBezierPlot(fusion_annot_top, ref_datasets.list[[ref]][[5]])
+fusionsBezierPlot(fusion_annot_top, ref_datasets.list[[tissue]][[5]])
 ```
 
 ```{r expr_table_fusions, comment = NA, message=FALSE, warning=FALSE}
@@ -1776,9 +1950,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 
 cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group)
 cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group)
@@ -1790,9 +1963,9 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- ref_datasets.list[[tissue]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -1804,13 +1977,15 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
+<!--This step is skipped for the moment, it's rather redundant.
+
 <details>
 <summary>Expression level - genomic view</summary>
 
 ```{r expr_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate plots with genome-wide expression profile (Z-score) for each group
-fuiosnExprProfile <- exprProfilePlot(c(as.vector(geneA), as.vector(geneB)), data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[ref]][[5]])
+fuiosnExprProfile <- exprProfilePlot(c(as.vector(geneA), as.vector(geneB)), data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]])
 
 fuiosnExprProfile[[1]]
 fuiosnExprProfile[[2]]
@@ -1821,6 +1996,8 @@ detach("package:plotly", unload=FALSE)
 ```
 
 </details>
+
+--> 
 
 ***
 
@@ -1874,9 +2051,9 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- ref_datasets.list[[tissue]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -1884,26 +2061,6 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, canc
 <font size="2">
 The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by decreasing values in the "Patient vs Normal" column. TSG - tumour suppressor gene; SD - standard deviation
 </font>
-</details>
-
-***
-
-<details>
-<summary>Expression level - genomic view</summary>
-
-```{r expr_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
-suppressMessages(library(plotly))
-##### Generate plots with genome-wide expression profile (Z-score) for each group
-fuiosnExprProfile <- exprProfilePlot(c(as.vector(geneA), as.vector(geneB)), data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[ref]][[5]])
-
-fuiosnExprProfile[[1]]
-fuiosnExprProfile[[2]]
-fuiosnExprProfile[[3]]
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
 </details>
 
 ***
@@ -1958,9 +2115,9 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- ref_datasets.list[[tissue]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -1968,26 +2125,6 @@ exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, canc
 <font size="2">
 The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by decreasing values in the "Patient vs Normal" column. TSG - tumour suppressor gene; SD - standard deviation
 </font>
-</details>
-
-***
-
-<details>
-<summary>Expression level - genomic view</summary>
-
-```{r expr_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
-suppressMessages(library(plotly))
-##### Generate plots with genome-wide expression profile (Z-score) for each group
-fuiosnExprProfile <- exprProfilePlot(c(as.vector(geneA), as.vector(geneB)), data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[ref]][[5]])
-
-fuiosnExprProfile[[1]]
-fuiosnExprProfile[[2]]
-fuiosnExprProfile[[3]]
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
 </details>
 
 ***
@@ -2042,9 +2179,9 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[ref]][[5]]
+fusion.df <- ref_datasets.list[[tissue]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -2056,37 +2193,16 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-<details>
-<summary>Expression level - genomic view</summary>
-
-```{r expr_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
-suppressMessages(library(plotly))
-##### Generate plots with genome-wide expression profile (Z-score) for each group
-fuiosnExprProfile <- exprProfilePlot(c(as.vector(geneA), as.vector(geneB)), data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[ref]][[5]])
-
-fuiosnExprProfile[[1]]
-fuiosnExprProfile[[2]]
-fuiosnExprProfile[[3]]
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-</details>
-
-***
-
 ## Immune Response Markers
 
 Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy (similar to [this report](https://trello-attachments.s3.amazonaws.com/5753fc730bff8d2b24f159df/59912803fd0e33e3395d05e7/dc9a81ae11a9d1825ab0028d01dc8c53/Advance-sample-report-card-final.pdf){target="_blank"})
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 
-immune_genes.expr <- exprTable(unlist(ref_genes.list[["genes_immune"]]), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[ref]][[5]][, c(1,3)])
+immune_genes.expr <- exprTable(unlist(ref_genes.list[["genes_immune"]]), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)])
 
 ##### Present the expression summary table
 immune_genes.expr[[1]]
@@ -2109,9 +2225,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genes <- mut_genes.expr[[2]]$SYMBOL
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
@@ -2138,7 +2253,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2150,9 +2265,8 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_mut_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genes <- mut_genes.expr[[2]]$SYMBOL
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
@@ -2179,7 +2293,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2191,9 +2305,8 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_mut_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genes <- mut_genes.expr[[2]]$SYMBOL
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
@@ -2220,7 +2333,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2232,9 +2345,8 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_mut_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genes <- mut_genes.expr[[2]]$SYMBOL
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
@@ -2261,7 +2373,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2277,9 +2389,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
@@ -2306,7 +2417,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2318,9 +2429,8 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
@@ -2347,7 +2457,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2359,9 +2469,8 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
@@ -2388,7 +2497,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2400,9 +2509,8 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
@@ -2429,7 +2537,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2447,9 +2555,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
@@ -2477,7 +2584,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2489,9 +2596,8 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
@@ -2519,7 +2625,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2531,9 +2637,8 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
@@ -2561,7 +2666,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2573,9 +2678,8 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
@@ -2603,7 +2707,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2617,9 +2721,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
@@ -2654,7 +2757,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2666,9 +2769,8 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
@@ -2703,7 +2805,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2715,9 +2817,8 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
@@ -2752,7 +2853,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
@@ -2764,9 +2865,8 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-ref <- tissue
-target <- ref_datasets.list[[ref]][[2]]
-data <- ref_datasets.list[[ref]][[3]]
+target <- ref_datasets.list[[tissue]][[2]]
+data <- ref_datasets.list[[tissue]][[3]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
@@ -2801,7 +2901,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* (CIViC Actionability Score)[https://civicdb.org/help/variants/actionability-score]{target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
 </font> 
 </details>
 
