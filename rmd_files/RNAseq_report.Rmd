@@ -36,21 +36,21 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 # 3. Loading sample data and reference datasets
 # Then... code chunks involving data processing
 # Then... code chunks calling the processed data to produce tables / plots / data summary
-
+# Finish with Session info in Addendum section
 
 ##### The processed data is stored in "ref_datasets.list" list variable with elements holding the following data:
 
-# 1. ref_datasets.list[[tissue]][[1]] = combined read count data (reference datasets + sample data) ("combineDatasets" function output in the "load_ref_data chunk")
+# 1. ref_datasets.list[[tissue]][["combined_data"]] = combined read count data (reference datasets + sample data) ("combineDatasets" function output in the "load_ref_data chunk")
 
-# 2. ref_datasets.list[[tissue]][[2]] = combined data samples annotation ("combineDatasets" function output in the "load_ref_data chunk")
+# 2. ref_datasets.list[[tissue]][["sample_annot"]] = combined data samples annotation ("combineDatasets" function output in the "load_ref_data chunk")
 
-# 3. ref_datasets.list[[tissue]][[3]] = transformed, filtered and normalised data (see "data_transformation" and "data_normalisation" chunks)
+# 3. ref_datasets.list[[tissue]][["combined_data_processed"]] = transformed, filtered and normalised data (see "data_transformation" and "data_normalisation" chunks)
 
-# 4. ref_datasets.list[[tissue]][[4]] = PCA results
+# 4. ref_datasets.list[[tissue]][["pca"]] = PCA results
 
-# 5. ref_datasets.list[[tissue]][[5]] = transformed, filtered and normalised data annotated with "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND"
+# 5. ref_datasets.list[[tissue]][["gene_annot"]] = transformed, filtered and normalised data annotated with "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND"
 
-# 6. ref_datasets.list[[tissue]][[6]] = combined expression, mutation and copy-number data
+# 6. ref_datasets.list[[tissue]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
 
 ```
 
@@ -877,6 +877,7 @@ dataDir <- paste(dataDir[-c(length(dataDir))], collapse ="/")
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
 ref_datasets.list[[tissue]] <- combineDatasets(params$sample_name, params$count_file, ref_tissue[[tissue]][1])
+names(ref_datasets.list[[tissue]]) <- c("combined_data", "sample_annot")
 
 ##### Read in selected genes list
 ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")[ ,1 ]
@@ -924,8 +925,8 @@ caner_genes_annot.list[["cancer_biomarkers_trans"]] <- read.table(paste(params$r
 ##### Loop through combined datasets
 for ( tissue in names(ref_datasets.list) ) {
   
-  counts <- ref_datasets.list[[tissue]][[1]]
-  target <- ref_datasets.list[[tissue]][[2]]
+  counts <- ref_datasets.list[[tissue]][["combined_data"]]
+  target <- ref_datasets.list[[tissue]][["sample_annot"]]
   
   ##### Create EdgeR DGEList object
   y <- DGEList(counts=counts,  group=target$Target)
@@ -937,7 +938,7 @@ for ( tissue in names(ref_datasets.list) ) {
   keep <- rowSums(cpm(y)>1) >= ncol(counts)/10
   y.filtered <- y[keep, , keep.lib.sizes=FALSE]
   
-  ref_datasets.list[[tissue]][[3]] <- y.filtered
+  ref_datasets.list[[tissue]][["combined_data_processed"]] <- y.filtered
 }
 
 # cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
@@ -950,16 +951,16 @@ for ( tissue in names(ref_datasets.list) ) {
 ##### Adjust for RNA composition effect. Calculate scaling factors for the library sizes with calcNormFactors function using trimmed mean of M-values (TMM) between each pair of samples. Note, that the raw read counts are used to calculate the normalisation factors
 
 ##### Loop through combined datasets
-for ( ref in names(ref_datasets.list) ) {
+for ( tissue in names(ref_datasets.list) ) {
   
-  y.filtered <- ref_datasets.list[[ref]][[3]]
+  y.filtered <- ref_datasets.list[[tissue]][[3]]
   
   y.filtered.norm <- calcNormFactors(y.filtered, method = "TMM")
   
   ##### Transformations from the raw-scale to CPM
   y.filtered.norm.cpm <- cpm(y.filtered.norm, normalized.lib.sizes=TRUE, log=TRUE, prior.count=0.25)
   
-  ref_datasets.list[[ref]][[3]] <- y.filtered.norm.cpm
+  ref_datasets.list[[tissue]][[3]] <- y.filtered.norm.cpm
 }
 ```
 
@@ -968,10 +969,10 @@ for ( ref in names(ref_datasets.list) ) {
 ##### Loop through combined datasets and perform PCA
 for ( tissue in names(ref_datasets.list) ) {
   
-  target <- ref_datasets.list[[tissue]][[2]]
-  data <- ref_datasets.list[[tissue]][[3]]
+  target <- ref_datasets.list[[tissue]][["sample_annot"]]
+  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
-  ref_datasets.list[[tissue]][[4]] <- pca(data, target)
+  ref_datasets.list[[tissue]][["pca"]] <- pca(data, target)
 }
 ```
 
@@ -980,7 +981,7 @@ for ( tissue in names(ref_datasets.list) ) {
 for ( tissue in names(ref_datasets.list) ) {
   
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_datasets.list[[tissue]][[3]]
+  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
 
@@ -1009,9 +1010,9 @@ for ( tissue in names(ref_datasets.list) ) {
   #data <- data.annot[, colnames(data)]
   #data <- apply(data.annot[, colnames(data)], 2, as.numeric)
   #rownames(data) <- data.annot$SYMBOL
-  ref_datasets.list[[tissue]][[3]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
-  rownames(ref_datasets.list[[tissue]][[3]]) <- data.annot$SYMBOL
-  ref_datasets.list[[tissue]][[5]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+  ref_datasets.list[[tissue]][["combined_data_processed"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
+  rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]) <- data.annot$SYMBOL
+  ref_datasets.list[[tissue]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
 }
 ```
 
@@ -1048,7 +1049,7 @@ ref_genes.list[["oncokb_genes"]] <- cancer_genes
 ##### Combine expression data with mutation and CN data if available
 mut_data <- ref_genes.list[["pcgr"]]
 cn_data <- ref_genes.list[["purple"]]
-expr_data <- ref_datasets.list[[tissue]][[3]]
+expr_data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 expr_data <- expr_data[, ncol(expr_data)]
 
 ##### Perform Z-score transformation of the expression values
@@ -1150,8 +1151,8 @@ cn_data.sub <- cn_data.sub[ cn_data.sub$Gene %in% genes.intersect, ]
 expr_data.z.sub <- expr_data.z[ names(expr_data.z) %in% genes.intersect ]
 
 ##### Prepare data frame
-ref_datasets.list[[tissue]][[6]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, gene.mut.sub)
-colnames(ref_datasets.list[[tissue]][[6]]) <- c("Gene", "CN", "mRNA", "Mutation")
+ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, gene.mut.sub)
+colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "mRNA", "Mutation")
 ```
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -1364,7 +1365,7 @@ result_reads <- result_reads %>% dplyr::select(-"transcriptID","transcriptID")
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE}
 ##### Annotate fusion genes
 ##### Get data to annotate fusion genes
-fusion_genes_annot <- ref_datasets.list[[tissue]][[5]][ , c("SYMBOL", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
+fusion_genes_annot <- ref_datasets.list[[tissue]][["gene_annot"]][ , c("SYMBOL", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
 
 ##### Keep only fusions for which both genes have gene symbol (and genomics location) available
 pizzly.fusions.annot <- pizzly.fusions3[ pizzly.fusions3$geneA.name %in% fusion_genes_annot$SYMBOL, ]
@@ -1383,7 +1384,7 @@ colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Summarise the reference cohorts samples
-target <- ref_datasets.list[[tissue]][[2]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
 
 ref_normal <- table(target$Target)[names(table(target$Target))==normal_group]
 ref_cancer <- table(target$Target)[names(table(target$Target))==cancer_group]
@@ -1417,14 +1418,14 @@ mRNA expression levels of genes containing single nucleotide variants (SNVs) or 
 
 ### Expression summary
 
-From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the expression of **`r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %in% rownames(ref_datasets.list[[ref]][[3]])))`** was reliably measured in patient's sample. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
+From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the expression of **`r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %in% rownames(ref_datasets.list[[tissue]][[3]])))`** was reliably measured in patient's sample. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c("SYMBOL", "ENSEMBL")], tiers = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER")])
+mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], tiers = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER")])
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1564,7 +1565,7 @@ detach("package:plotly", unload=FALSE)
 ```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and, where available, mutation status info (colours)
-plot_ly(ref_datasets.list[[tissue]][[6]], x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+plot_ly(ref_datasets.list[[tissue]][["expr_mut_cn_data"]], x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
   add_annotations( text="Variant consequence", xref="paper", yref="paper",
                   x=1.02, xanchor="left",
                   y=0.85, yanchor="top",
@@ -1589,14 +1590,14 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### Expression summary
 
-From the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[ref]][[3]])))`** was reliably measured in patient's sample.
+From the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[tissue]][[3]])))`** was reliably measured in patient's sample.
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cancer_genes.expr <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]])
+cancer_genes.expr <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]])
 
 ##### Present the expression summary table
 cancer_genes.expr[[1]]
@@ -1860,7 +1861,7 @@ Gene fusion events involving highly abundant transcript(s) or [Cancer genes] are
 fusion_annot_top <- fusion_annot[ fusion_annot$pizzly.fusions.annot.fusions_abundant == "Yes" | fusion_annot$pizzly.fusions.annot.fusions_cancer == "Yes" , ]
 
 ##### Generate bezier curves-like plot representing gene fusion events
-fusionsBezierPlot(fusion_annot_top, ref_datasets.list[[tissue]][[5]])
+fusionsBezierPlot(fusion_annot_top, ref_datasets.list[[tissue]][["gene_annot"]])
 ```
 
 ```{r expr_table_fusions, comment = NA, message=FALSE, warning=FALSE}
@@ -1930,8 +1931,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
 cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group)
 cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group)
@@ -1943,9 +1944,9 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[tissue]][[5]]
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -1965,7 +1966,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r expr_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate plots with genome-wide expression profile (Z-score) for each group
-fuiosnExprProfile <- exprProfilePlot(c(as.vector(geneA), as.vector(geneB)), data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]])
+fuiosnExprProfile <- exprProfilePlot(c(as.vector(geneA), as.vector(geneB)), data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][["gene_annot"]])
 
 fuiosnExprProfile[[1]]
 fuiosnExprProfile[[2]]
@@ -2031,9 +2032,9 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[tissue]][[5]]
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -2095,9 +2096,9 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[tissue]][[5]]
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -2159,9 +2160,9 @@ detach("package:plotly", unload=FALSE)
 ***
 
 ```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
-fusion.df <- ref_datasets.list[[tissue]][[5]]
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -2179,10 +2180,10 @@ Section presenting expression levels for immune response markers to assess pre-e
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-immune_genes.expr <- exprTable( genes = unlist(ref_genes.list[["genes_immune"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)])
+immune_genes.expr <- exprTable( genes = unlist(ref_genes.list[["genes_immune"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)])
 
 ##### Present the expression summary table
 immune_genes.expr[[1]]
@@ -2205,8 +2206,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- mut_genes.expr[[2]]$SYMBOL
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
@@ -2245,8 +2246,8 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_mut_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- mut_genes.expr[[2]]$SYMBOL
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
@@ -2285,8 +2286,8 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_mut_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- mut_genes.expr[[2]]$SYMBOL
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
@@ -2325,8 +2326,8 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_mut_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- mut_genes.expr[[2]]$SYMBOL
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
@@ -2369,8 +2370,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
@@ -2409,8 +2410,8 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
@@ -2449,8 +2450,8 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
@@ -2489,8 +2490,8 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr[[2]]$SYMBOL[1:50]
 
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
@@ -2535,8 +2536,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
@@ -2576,8 +2577,8 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
@@ -2617,8 +2618,8 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
@@ -2658,8 +2659,8 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
@@ -2701,8 +2702,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
@@ -2749,8 +2750,8 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
@@ -2797,8 +2798,8 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
@@ -2845,8 +2846,8 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-target <- ref_datasets.list[[tissue]][[2]]
-data <- ref_datasets.list[[tissue]][[3]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
