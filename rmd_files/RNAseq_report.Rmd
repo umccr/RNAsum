@@ -475,18 +475,26 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   names(group.z)[1] <- "Gene"
     
   #### Add tier information to the expression table
-  if(!is.null(tiers)){
-  tiers <- tiers[tiers$SYMBOL %in% genes,]
-  tiers$TIER <- gsub("TIER ", "", tiers$TIER)
-  tiers$TIER <- as.numeric(tiers$TIER)
-  #tiers <- tiers[order(tiers$TIER), ]
-  #### keep only genes that has the lowest tier value. Applies to the ones that may have multiple mutaions and hence tiers
-  tiers <- tiers[!duplicated(tiers$SYMBOL),]  
-  rownames(tiers) <- tiers$SYMBOL
-  #### merege the tier information with the dataframe
-  group.z <- merge(group.z, tiers, by = "row.names", all = FALSE, sort = FALSE)
-  group.z <- group.z[, colnames(group.z) %!in% "SYMBOL"]
-  group.z <- group.z[order(group.z$TIER, group.z$`Patient vs Normal`),]
+  if( !is.null(tiers) ){
+    
+    tiers <- tiers[tiers$SYMBOL %in% genes,]
+    tiers$TIER <- gsub("TIER ", "", tiers$TIER)
+    tiers$TIER <- as.numeric(tiers$TIER)
+    
+    #### keep only genes that has the lowest tier value. Applies to the ones that may have multiple mutaions and hence tiers
+    tiers <- tiers[!duplicated(tiers$SYMBOL),]  
+    rownames(tiers) <- tiers$SYMBOL
+    
+    #### merege the tier information with the dataframe
+    group.z <- merge(group.z, tiers, by = "row.names", all = FALSE, sort = FALSE)
+    group.z <- group.z[, colnames(group.z) %!in% "SYMBOL"]
+    
+    ##### Order the data by increasing TIER category and then by the highest absolute values for Patient vs Normal difference
+    group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(group.z$TIER), ]
+    
+    rownames(group.z) <- group.z$Row.names
+    group.z <- group.z[, -1]
   }
   
   ##### Generate a table with genes annotationa and coloured exprssion values in each group
@@ -1416,7 +1424,7 @@ From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the e
 target <- ref_datasets.list[[tissue]][[2]]
 data <- ref_datasets.list[[tissue]][[3]]
 
-mut_genes.expr <- exprTable(unique(ref_genes.list[["pcgr"]]$SYMBOL), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[tissue]][[5]][, c("SYMBOL", "ENSEMBL")], ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER")])
+mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c("SYMBOL", "ENSEMBL")], tiers = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER")])
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1588,7 +1596,7 @@ From the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression 
 target <- ref_datasets.list[[tissue]][[2]]
 data <- ref_datasets.list[[tissue]][[3]]
 
-cancer_genes.expr <- exprTable(rownames(ref_genes.list[["oncokb_genes"]]), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]])
+cancer_genes.expr <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]])
 
 ##### Present the expression summary table
 cancer_genes.expr[[1]]
@@ -1937,7 +1945,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -2025,7 +2033,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -2089,7 +2097,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -2153,7 +2161,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][[5]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable(fusion.df$SYMBOL, data, target, params$sample_name, normal_group, cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)], ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)])[[1]]
 ```
 
 <details>
@@ -2174,7 +2182,7 @@ Section presenting expression levels for immune response markers to assess pre-e
 target <- ref_datasets.list[[tissue]][[2]]
 data <- ref_datasets.list[[tissue]][[3]]
 
-immune_genes.expr <- exprTable(unlist(ref_genes.list[["genes_immune"]]), data, target, params$sample_name, normal_group , cancer_group, ref_datasets.list[[tissue]][[5]][, c(1,3)])
+immune_genes.expr <- exprTable( genes = unlist(ref_genes.list[["genes_immune"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][[5]][, c(1,3)])
 
 ##### Present the expression summary table
 immune_genes.expr[[1]]
