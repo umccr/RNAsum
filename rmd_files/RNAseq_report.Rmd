@@ -474,14 +474,14 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   group.z <- group.z[ rownames(group.z) %in% genes, ]
   names(group.z)[1] <- "Gene"
     
-  #### Add tier information to the expression table
+  #### Add tier information to the expression table - if exists 
   if( !is.null(tiers) ){
     
     tiers <- tiers[tiers$SYMBOL %in% genes,]
     tiers$TIER <- gsub("TIER ", "", tiers$TIER)
     tiers$TIER <- as.numeric(tiers$TIER)
     
-    #### keep only genes that has the lowest tier value. Applies to the ones that may have multiple mutaions and hence tiers
+    #### keep only genes that has the lowest tier value. Applies to the ones that may have multiple mutations and hence tiers
     tiers <- tiers[!duplicated(tiers$SYMBOL),]  
     rownames(tiers) <- tiers$SYMBOL
     
@@ -489,7 +489,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     group.z <- merge(group.z, tiers, by = "row.names", all = FALSE, sort = FALSE)
     group.z <- group.z[, colnames(group.z) %!in% "SYMBOL"]
     
-    ##### Order the data by increasing TIER category and then by the highest absolute values for Patient vs Normal difference
+    ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute     ##### values for Patient vs Normal difference (to allow filtering based on z-score differences)
     group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$TIER), ]
     
