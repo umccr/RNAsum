@@ -230,7 +230,7 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 
 Following the installation instructions at: `https://github.com/Oshlack/Clinker/wiki/1.-Installation`.
 
-The conda environement for clinker can be activated using `conda activate clinker`.
+The conda environement for clinker can be activated using `conda activate clinkerr`.
 The location to github repository for clinker is `/data/cephfs/punim0010/projects/Kanwal_Clinker/Clinker`.
 
 Clinker expects input in a specific format:
