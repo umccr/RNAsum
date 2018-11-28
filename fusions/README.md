@@ -260,13 +260,13 @@ Transcript support level [TSL](https://asia.ensembl.org/info/genome/genebuild/tr
 
 Also, the dependence on BioMart database for querying transcripts has been removed. This is great in a way that now the pipeline could run without running into any issues on worker nodes. 
 
-Before:
+Before update:
 
-![Alt text](./images/HP_ALB_Old.pdf)
+![Alt text](./images/HP_ALB_Old.jpg)
 
-After:
+After update:
 
-![Alt text](./images/HP_ALB.pdf)
+![Alt text](./images/HP_ALB.jpg)
 
 
 Few useful parameters to doument here are:
