@@ -256,7 +256,7 @@ Ongoing discussion at `https://github.com/Oshlack/Clinker/issues/6`. Currently t
 
 **Update**
 
-Transcript support level [TSL](https://asia.ensembl.org/info/genome/genebuild/transcript_quality_tags.html) has been incorporated into the clinkerr pipeline. I have been testing it rigorously and it looks stable now (Analysis directory: `/data/cephfs/punim0010/projects/Kanwal/Kanwal_Clinker/update4/Clinker/MH17T001P013/`).
+Transcript support level [TSL](https://asia.ensembl.org/info/genome/genebuild/transcript_quality_tags.html) has been incorporated into the clinker pipeline. I have been testing it rigorously and it looks stable now (Analysis directory: `/data/cephfs/punim0010/projects/Kanwal/Kanwal_Clinker/update4/Clinker/MH17T001P013/`).
 
 Also, the dependence on BioMart database for querying transcripts has been removed. This is great in a way that now the pipeline could run without running into any issues on worker nodes. 
 
@@ -269,12 +269,12 @@ After update:
 ![Alt text](./images/HP_ALB.jpg)
 
 
-Few useful parameters to doument here are:
+Few useful parameters to document here are:
 
-- `support` allows to specify the minimum read support wanted for splice junctions/fusion junctions. Any junction that has a read support of less than this number will not be represented.
+- `support` flag allows to specify the minimum read support wanted for splice junctions/fusion junctions. Any junction that has a read support of less than this number will not be represented.
 
-- `ratio` This one is a bit tricky, but essentially it is supposed to be the relative size of each track. For instance, if the track order was axis, coverage, gene track, domain track, transcript track, sashimi plot, its value could be specified as `ratio=1,3,1,2,1,6`.
-Need to play a little with this paarmeter to be able to decide on a value that makes the plot look nicer.
+- `ratio` flag is a bit tricky, but essentially it is supposed to be the relative size of each track. For instance, if the track order was axis, coverage, gene track, domain track, transcript track, sashimi plot, its value could be specified as `ratio=1,3,1,2,1,6`.
+Need to play a little with this parameter to be able to decide on a value that makes the plot look nicer.
 
 
 
