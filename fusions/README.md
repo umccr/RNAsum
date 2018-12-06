@@ -230,14 +230,14 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 
 Following the installation instructions at: `https://github.com/Oshlack/Clinker/wiki/1.-Installation`.
 
-The conda environement for clinker can be activated using `conda activate clinkerr`.
+The conda environment for clinker can be activated using `conda activate clinkerr`.
 The location to github repository for clinker is `/data/cephfs/punim0010/projects/Kanwal_Clinker/Clinker`.
 
 Clinker expects input in a specific format:
 
 `chrom1,base1,chrom2,base2`
 
-However the header of pizzly output looks like this:
+However, the header of pizzly output looks like this:
 
 ```
 geneA.name      geneA.id        geneB.name      geneB.id        paircount       splitcount      transcripts.list
