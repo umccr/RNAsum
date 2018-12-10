@@ -230,14 +230,14 @@ and even exporting/specifying `.libPaths()` did not solve the issue.
 
 Following the installation instructions at: `https://github.com/Oshlack/Clinker/wiki/1.-Installation`.
 
-The conda environement for clinker can be activated using `conda activate clinker`.
+The conda environment for clinker can be activated using `conda activate clinkerr`.
 The location to github repository for clinker is `/data/cephfs/punim0010/projects/Kanwal_Clinker/Clinker`.
 
 Clinker expects input in a specific format:
 
 `chrom1,base1,chrom2,base2`
 
-However the header of pizzly output looks like this:
+However, the header of pizzly output looks like this:
 
 ```
 geneA.name      geneA.id        geneB.name      geneB.id        paircount       splitcount      transcripts.list
@@ -248,10 +248,33 @@ To extract genomic cordinates for fusion gene pair, this [script](https://github
 
 Looks like, clinker uses all ensemble transcripts, most of which could be non-coding or hypothetical. Need to figure out ways to restrict it to use TSL1 transcripts only.   
 
-TO DO:
+**TO DO**
 
 Can the split read component be cleaned up by removing read support of intragenic events? Or just retaining 2-3 fusion arcs with the strongest support?
 
+Ongoing discussion at `https://github.com/Oshlack/Clinker/issues/6`. Currently testing the new `tsl` parameter and removed `Biomart` dependency.
+
+**Update**
+
+Transcript support level [TSL](https://asia.ensembl.org/info/genome/genebuild/transcript_quality_tags.html) has been incorporated into the clinker pipeline. I have been testing it rigorously and it looks stable now (Analysis directory: `/data/cephfs/punim0010/projects/Kanwal/Kanwal_Clinker/update4/Clinker/MH17T001P013/`).
+
+Also, the dependence on BioMart database for querying transcripts has been removed. This is great in a way that now the pipeline could run without running into any issues on worker nodes. 
+
+Before update:
+
+![Alt text](./images/HP_ALB_Old.jpg)
+
+After update:
+
+![Alt text](./images/HP_ALB.jpg)
+
+
+Few useful parameters to document here are:
+
+- `support` flag allows to specify the minimum read support wanted for splice junctions/fusion junctions. Any junction that has a read support of less than this number will not be represented.
+
+- `ratio` flag is a bit tricky, but essentially it is supposed to be the relative size of each track. For instance, if the track order was axis, coverage, gene track, domain track, transcript track, sashimi plot, its value could be specified as `ratio=1,3,1,2,1,6`.
+Need to play a little with this parameter to be able to decide on a value that makes the plot look nicer.
 
 
 
