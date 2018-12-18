@@ -382,7 +382,7 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, tiers = NULL, type = "z") {
+exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, type = "z") {
   
   ##### Check how many of the selected genes are present in the expression data
   genes <- genes[ genes %in% rownames(data) ]
@@ -401,15 +401,13 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     group.stats <- group.stats[order(rownames(group.stats)), ]
     
     #### Present expression data as percentiles or z-score values (default)
-    if ( expr_type == "perc" ) {
+    if ( type == "perc" ) {
       
       group.z[, group] <- round(group.stats$quantile, digits=1)
-      expr_type <- "(percentile)"
-      
+
     } else {
       
       group.z[, group] <- round(group.stats$z, digits=2)
-      expr_type <- "(z-score)"
     }
   } 
   
@@ -486,19 +484,44 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   group.z <- group.z[ rownames(group.z) %in% genes, ]
   names(group.z)[1] <- "Gene"
     
-  #### Add tier information to the expression table - if exists 
-  if( !is.null(tiers) ){
+  #### Add variants information to the expression table - if exists. Note, "TIER" and "CONSEQUENCE" columns are required
+  if( !is.null(mut_annot) && "TIER" %in% colnames(mut_annot) ) {
     
-    tiers <- tiers[tiers$SYMBOL %in% genes,]
-    tiers$TIER <- gsub("TIER ", "", tiers$TIER)
-    tiers$TIER <- as.numeric(tiers$TIER)
+    mut_annot <- mut_annot[mut_annot$SYMBOL %in% genes,]
     
-    #### keep only genes that has the lowest tier value. Applies to the ones that may have multiple mutations and hence tiers
-    tiers <- tiers[!duplicated(tiers$SYMBOL),]  
-    rownames(tiers) <- tiers$SYMBOL
+    #### keep only varaints that has the lowest tier value. Multiple varaints detected in same gene but with higher tier will be added to additional column "CONSEQUENCE_OTHER". Applies to the ones that may have multiple mutations and hence tiers
+    ##### First, create a list of genes to store multiple variants
+    mut_consequence <- vector("list", length(unique(mut_annot$SYMBOL)))
+    mut_consequence  <- setNames(mut_consequence,  unique(mut_annot$SYMBOL) )
     
-    #### merege the tier information with the dataframe
-    group.z <- merge(group.z, tiers, by = "row.names", all = FALSE, sort = FALSE)
+    ##### Record all varaints detected in individual genes
+    for ( i in 1:nrow(mut_annot) ) {
+      
+      mut_consequence[[ mut_annot$SYMBOL[i] ]] <- unique(c( mut_consequence[[ mut_annot$SYMBOL[i] ]], mut_annot$CONSEQUENCE[i] ))
+    }
+    
+    ##### Remove the first elements since these variant consequences will be reported as the "canonical" CONSEQUENCE
+    mut_consequence <- lapply(mut_consequence, function(x) x[-1])
+    
+    ##### Order variant entires based on tier info, to make sure that the varaints with the lowest tier are reported first
+    mut_annot <- mut_annot[ order(mut_annot$TIER), ]
+    
+    mut_annot <- mut_annot[!duplicated(mut_annot$SYMBOL),]  
+    rownames(mut_annot) <- mut_annot$SYMBOL
+    
+    ##### Add other provided variants consequences for individual genes
+    mut_annot$CONSEQUENCE_OTHER <- "-"
+    
+    for ( gene in rownames(mut_annot) ) {
+      
+      if ( length(mut_consequence[[ gene ]]) > 0 ) {
+        
+        mut_annot$CONSEQUENCE_OTHER[ match(gene, mut_annot$SYMBOL)  ] <- mut_consequence[[ gene ]]
+      }
+    }
+    
+    #### merge the variants information with the dataframe
+    group.z <- merge(group.z, mut_annot, by = "row.names", all = FALSE, sort = FALSE)
     group.z <- group.z[, colnames(group.z) %!in% "SYMBOL"]
     
     ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute     values for Patient vs Normal difference (to allow filtering based on z-score differences)
@@ -719,125 +742,6 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   
   return( p )
 }
-
-##### Generate a plot with genome-wide expression profile (Z-score) for each group
-exprProfilePlot <- function(genes, data, targets, sampleName, normal, cancer, genes_annot) {
-    
-    targets.list <- unique(targets$Target)
-    
-    ##### Keep only gene for which both genes have gene symbol available
-    genes <- genes[ genes %in% genes_annot$SYMBOL ]
-    genes <- unique(genes)
-    
-    ##### Initiate list for expression mean values in each group
-    group.z <- sapply(targets.list,function(x) NULL)
-    
-    for ( group in targets.list ) {
-      
-      group.z[[group]] <- as.data.frame(matrix(NA, ncol = 2, nrow = nrow(data)))
-      rownames(group.z[[group]]) <- sort(rownames(data))
-      
-      group.stats <- exprGroupStats(data[rownames(data), ], targets, group)
-      group.stats <- group.stats[order(rownames(group.stats)), ]
-      group.z[[group]][,1] <- round(group.stats$z, digits=2)
-      names(group.z[[group]]) <- c("Upregulated", "Downregulated")
-    }
-    
-    ##### Change sample ID to "Patient" and normal sample to "Normal" for better visualisation
-    targets.list[targets.list==sampleName] <- "Patient"
-    targets.list[targets.list==normal] <- "Normal"
-    names(group.z) <- targets.list
-    targets.list <- c("Patient", cancer, "Normal")
-    
-    ##### Merge expression data with gene genomic coordinates info
-    for ( group in targets.list ) {
-      
-      group.z[[group]] <- merge(genes_annot, group.z[[group]], by = "row.names", all.x = FALSE)
-      group.z[[group]] <- group.z[[group]][, -1]
-      
-      ###### Change chromosomes X and Y to numbers 23 and 24, respectively
-      group.z[[group]]$SEQNAME[ group.z[[group]]$SEQNAME  %in% "X" ] <- 23
-      group.z[[group]]$SEQNAME[ group.z[[group]]$SEQNAME %in% "Y" ] <- 24
-      
-      ##### Order the data accordingly to genomic postions
-      group.z[[group]] = group.z[[group]][order(as.numeric(group.z[[group]]$SEQNAME),as.numeric(group.z[[group]]$GENESEQSTART)),]
-    }
-    ##### Label chromosomes
-    chr_bins <- data.matrix(summary(as.factor(group.z[["Patient"]]$SEQNAME)))
-    chr_bins<- data.frame(chr_bins,row.names(chr_bins) )
-    colnames(chr_bins) = c("count","Chromosome")
-    
-    data.chr_bins <- data.frame(unique(group.z[["Patient"]]$SEQNAME))
-    colnames(data.chr_bins) = c("Chromosome")
-  
-    chr_annot <- merge(data.chr_bins,chr_bins, by.x="Chromosome", by.y="Chromosome", sort=FALSE)
-    
-    for(k in 2:length(row.names(chr_annot))) {
-
-        chr_annot[k,2] = chr_annot[k-1,2] + chr_annot[k,2]
-    }
-
-    chr_annot[1,3] <- chr_annot[1,2] / 2
-
-    for (k in 2:length(row.names(chr_annot))) {
-
-        chr_annot[k,3] <- (chr_annot[k,2]+chr_annot[k-1,2])/2
-    }
-
-    ##### Create a list with chromosme boundaries info
-    levels(chr_annot$Chromosome)[ levels(chr_annot$Chromosome) == 23 ] <- "X"
-    levels(chr_annot$Chromosome)[ levels(chr_annot$Chromosome) == 24 ] <- "Y"
-    chr_nos <- list( x = chr_annot[, 3], y = min(group.z[["Patient"]]$Upregulated), text = chr_annot$Chromosome, xref = "x", yref = "y", showarrow = FALSE )
-
-    ##### Prepare vector to indicate chromosome boundaries
-    chr_lines <- rep(0, nrow(group.z[["Patient"]]))
-    chr_lines[ chr_annot$count - 1 ] <- max(group.z[["Patient"]]$Upregulated)
-    chr_lines[ chr_annot$count ] <- min(group.z[["Patient"]]$Upregulated)
- 
-    ##### Initiate list for data to be ploted for each group
-    data2plot <- sapply(targets.list,function(x) NULL)
-    
-    ##### Prepare data for plotting with plotly
-    for ( group in targets.list ) {
-      
-      data2plot[[group]] <- data.frame(group.z[[group]][ , c("SYMBOL", "Upregulated", "Downregulated" )], chr_lines)
-      ##### Set the expression value of genes not of interest to 0
-      data2plot[[group]]$Upregulated[ data2plot[[group]]$SYMBOL %!in% genes ] <- 0
-      
-      data2plot[[group]]$GOI <- data2plot[[group]]$SYMBOL
-      data2plot[[group]]$GOI[ data2plot[[group]]$SYMBOL %!in% genes ] <- ""
-      
-      ##### Distinguish up- and dwon-regulated genes and report them in separate columns (for plotly)
-      data2plot[[group]]$Downregulated <- data2plot[[group]]$Upregulated
-      data2plot[[group]]$Upregulated[ data2plot[[group]]$Upregulated < 0 ] <- 0
-      data2plot[[group]]$Downregulated[ data2plot[[group]]$Downregulated >= 0 ] <- 0
-      
-      names(data2plot[[group]])[names(data2plot[[group]])=="SYMBOL"] <- "Gene"
-      
-      ##### Use the genomic positions order for bars
-      data2plot[[group]]$Gene <- factor(data2plot[[group]]$Gene, levels = data2plot[[group]]$Gene)
-    }
-    
-    ##### Generate genome-wide plot of expression (Z-score) values for Patient
-    p1 <- plot_ly(data2plot[["Patient"]], x = ~Gene, y = ~Upregulated, type = 'bar', name = "Upregulated", color = I("red"), text = ~GOI, textposition = 'bottom center', textfont = list( size = 10, color = "black"), constraintext = 'outside', width = 800, height = 400) %>%
-        add_trace(y = ~Downregulated, name = "Downregulated", type = 'bar', color = I("blue"), text = ~GOI, textposition = 'top center', textfont = list( size = 10, color = "black"), constraintext = 'outside') %>%
-        add_trace(x = ~Gene, y = ~chr_lines, type = 'scatter', name = "Chromosomes", mode = 'lines', line = list(color = "lightgrey", dash = "1px"), hoverinfo = "skip") %>%
-        layout( title = "Patient", yaxis = list(title = "mRNA expression (Z-score)"), xaxis = list(title = "Chromosome", showticklabels = FALSE), annotations = chr_nos, barmode = 'group', bargap = 0, margin = list(l=50, r=50, b=100, t=50, pad=4), autosize = F, legend = list(orientation = 'h', y = 1.07, tracegroupgap=0), showlegend=FALSE)
-    
-    ##### Generate genome-wide plot of expression (Z-score) values for cancer group
-    p2 <- plot_ly(data2plot[[targets.list[2]]], x = ~Gene, y = ~Upregulated, type = 'bar', name = "Upregulated", color = I("red"), text = ~GOI, textposition = 'bottom center', textfont = list( size = 10, color = "black"), constraintext = 'outside', width = 800, height = 400) %>%
-        add_trace(y = ~Downregulated, name = "Downregulated", type = 'bar', color = I("blue"), text = ~GOI, textposition = 'top center', textfont = list( size = 10, color = "black"), constraintext = 'outside') %>%
-        add_trace(x = ~Gene, y = ~chr_lines, type = 'scatter', name = "Chromosomes", mode = 'lines', line = list(color = "lightgrey", dash = "1px"), hoverinfo = "skip") %>%
-        layout( title = targets.list[2], yaxis = list(title = "mRNA expression (Z-score)"), xaxis = list(title = "Chromosome", showticklabels = FALSE), annotations = chr_nos, barmode = 'group', bargap = 0, margin = list(l=50, r=50, b=100, t=50, pad=4), autosize = F, legend = list(orientation = 'h', y = 1.07, tracegroupgap=0), showlegend=FALSE)
-    
-    ##### Generate genome-wide plot of expression (Z-score) values for normal group
-    p3 <- plot_ly(data2plot[[targets.list[3]]], x = ~Gene, y = ~Upregulated, type = 'bar', name = "Upregulated", color = I("red"), text = ~GOI, textposition = 'bottom center', textfont = list( size = 10, color = "black"), constraintext = 'outside', width = 800, height = 400) %>%
-        add_trace(y = ~Downregulated, name = "Downregulated", type = 'bar', color = I("blue"), text = ~GOI, textposition = 'top center', textfont = list( size = 10, color = "black"), constraintext = 'outside') %>%
-        add_trace(x = ~Gene, y = ~chr_lines, type = 'scatter', name = "Chromosomes", mode = 'lines', line = list(color = "lightgrey", dash = "1px"), hoverinfo = "skip") %>%
-        layout( title = targets.list[3], yaxis = list(title = "mRNA expression (Z-score)"), xaxis = list(title = "Chromosome", showticklabels = FALSE), annotations = chr_nos, barmode = 'group', bargap = 0, margin = list(l=50, r=50, b=100, t=50, pad=4), autosize = F, legend = list(orientation = 'h', y = 1.07, tracegroupgap=0), showlegend=FALSE)
-
-  return( list(p1, p2, p3) )
-}
 ```
 
 ```{r load_libraries, warning=FALSE}
@@ -908,6 +812,13 @@ if ( file.exists(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/")) ) {
   ##### Simplify the variants types
   ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_variant", "", ref_genes.list[["pcgr"]]$CONSEQUENCE)
   ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_", " ", ref_genes.list[["pcgr"]]$CONSEQUENCE)
+  
+  ##### Simplify tiers' annotations and AFs
+  ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
+  ref_genes.list[["pcgr"]]$TIER <- as.numeric(ref_genes.list[["pcgr"]]$TIER)
+  
+  ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
+  ref_genes.list[["pcgr"]]$AF_NORMAL <- round(ref_genes.list[["pcgr"]]$AF_NORMAL, digits = 2)
   
 } else {
   ref_genes.list[["pcgr"]] <- NULL
@@ -1442,7 +1353,7 @@ From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the e
 target <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], tiers = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER")], type = "z")
+mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1451,7 +1362,7 @@ mut_genes.expr[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. Genes are ordered by **increasing variants TIER**. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF_TUMOR), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. Genes are ordered by **increasing variants TIER**. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -1460,7 +1371,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], tiers = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER")], type = "perc")
+mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1469,7 +1380,7 @@ mut_genes.expr[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. Genes are ordered by **increasing variants TIER**. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF_TUMOR), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. Genes are ordered by **increasing variants TIER**. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -2489,7 +2400,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ### Dysregulated cancer genes {.tabset}
 
-<span style="color:#ff0000">NOTE</span>: currently, only the top 50 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy  individuals (see [Cancer genes expression profiles] section) were screened for suitable drugs.
+<span style="color:#ff0000">NOTE</span>: currently, only the top 50 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy  individuals (see [Cancer genes] section) were screened for suitable drugs.
 
 #### Predictive
 
