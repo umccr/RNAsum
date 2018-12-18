@@ -419,6 +419,10 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, normal]), digits = 2))
   names(group.z)[ncol(group.z)] <- "Patient vs Normal"
   
+  ##### Calculate Z-score differneces between investigated sample and cancer group mean values
+  group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, cancer]), digits = 2))
+  names(group.z)[ncol(group.z)] <- paste0("Patient vs ", cancer)
+  
   ##### Change sample ID to "Patient" and normal sample to "Normal" for better visualisation
   names(group.z)[names(group.z)==sampleName] <- "Patient"
   targets.list[targets.list==sampleName] <- "Patient"
@@ -426,7 +430,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   targets.list[targets.list==normal] <- "Normal"
   
   ##### Reorder groups
-  group.z <- cbind(group.z[ , c("Normal", cancer, "Patient")], group.z[, c(4,5)])
+  group.z <- cbind(group.z[ , c("Normal", cancer, "Patient")], group.z[, c(4,5,6)])
     
   ##### Add genes annotation
   if ( !is.null(genes_annot) ) {
@@ -467,7 +471,7 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
   clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
   colnames(clrs.q) <- targets.list
   
-  for ( group in c(targets.list, "Patient vs Normal") ) {
+  for ( group in c(targets.list, "Patient vs Normal", paste0("Patient vs ", cancer)) ) {
 
     brks.q[[group]] <- quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
     #brks.q[[group]] <- sort(group.z[, group])
@@ -544,7 +548,9 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     DT::formatStyle(columns = targets.list[3], 
                     backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
     DT::formatStyle(columns = "Patient vs Normal", 
-                    backgroundColor = DT::styleInterval(brks.q[["Patient vs Normal"]], clrs.q[["Patient vs Normal"]]))
+                    backgroundColor = DT::styleInterval(brks.q[["Patient vs Normal"]], clrs.q[["Patient vs Normal"]])) %>%
+    DT::formatStyle(columns = paste0("Patient vs ", cancer), 
+                    backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", cancer)]], clrs.q[[paste0("Patient vs ", cancer)]]))
     
   group.z$SYMBOL <- rownames(group.z)
     
@@ -1503,17 +1509,21 @@ detach("package:plotly", unload=FALSE)
 <span style="color:#ff0000">NOTE</span>: the work on this section is in progress. The aim of this section is to overlay the per-gene somatic copy-number variants (CNVs) with mRNA expression data and, where available, mutation status. The scatterplot compares the per-gene **mRNA expression** values (**y-axis**, Z-score) with **CN values** (**x-axis**, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple)). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr)).
 
 ```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and, where available, mutation status info (colours)
-plot_ly(ref_datasets.list[[tissue]][["expr_mut_cn_data"]], x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
-  add_annotations( text="Variant consequence", xref="paper", yref="paper",
-                  x=1.02, xanchor="left",
-                  y=0.85, yanchor="top",
-                  legendtitle=TRUE, showarrow=FALSE ) %>%
-  layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
+if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+  
+  suppressMessages(library(plotly))
+  
+  plot_ly(ref_datasets.list[[tissue]][["expr_mut_cn_data"]], x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    add_annotations( text="Variant consequence", xref="paper", yref="paper",
+                    x=1.02, xanchor="left",
+                    y=0.85, yanchor="top",
+                    legendtitle=TRUE, showarrow=FALSE ) %>%
+    layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
+  
+  ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
+}
 ```
 
 ***
