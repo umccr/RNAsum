@@ -382,7 +382,7 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, type = "z") {
+exprTable <- function(genes, data, cn_data = NULL, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, type = "z") {
   
   ##### Check how many of the selected genes are present in the expression data
   genes <- genes[ genes %in% rownames(data) ]
@@ -525,10 +525,10 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     }
     
     #### merge the variants information with the dataframe
-    group.z <- merge(group.z, mut_annot, by = "row.names", all = FALSE, sort = FALSE)
+    group.z <- merge(group.z, mut_annot, by = "row.names", all = TRUE, sort = FALSE)
     group.z <- group.z[, colnames(group.z) %!in% "SYMBOL"]
     
-    ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute     values for Patient vs Normal difference (to allow filtering based on z-score differences)
+    ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
     group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$TIER), ]
     
@@ -536,21 +536,58 @@ exprTable <- function(genes, data, targets, sampleName, normal, cancer, genes_an
     group.z <- group.z[, -1]
   }
   
-  ##### Generate a table with genes annotations and coloured expression values in each group
-  dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
-    DT::formatStyle( columns = names(group.z), `font-size` = '12px', 'text-align' = 'center' ) %>%
+  ##### Add CN data if provided
+  if ( !is.null(cn_data) ) {
     
-    ##### Colour cells according to the expression values quantiles in each group
-    DT::formatStyle(columns = targets.list[1], 
-                    backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])) %>%
-    DT::formatStyle(columns = targets.list[2], 
-                    backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
-    DT::formatStyle(columns = targets.list[3], 
-                    backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
-    DT::formatStyle(columns = "Patient vs Normal", 
-                    backgroundColor = DT::styleInterval(brks.q[["Patient vs Normal"]], clrs.q[["Patient vs Normal"]])) %>%
-    DT::formatStyle(columns = paste0("Patient vs ", cancer), 
-                    backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", cancer)]], clrs.q[[paste0("Patient vs ", cancer)]]))
+    ##### Get the position of "Patient vs Cancer" column
+    col_idx <- grep(paste0("Patient vs ", cancer), names(group.z))
+    
+    ##### Now place the CN data after the "Patient vs Cancer" column
+    group.z <- add_column(group.z, round(cn_data[ rownames(group.z), "CN"], digits=2), .after = col_idx)
+    colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
+    
+    ##### Order the data by decreasing CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
+    group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(group.z[ ,col_idx+1 ],  decreasing = TRUE), ]
+  }
+  
+  if ( !is.null(cn_data) ) {
+    
+    ##### Generate a table with genes annotations and coloured expression values in each group
+    dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(group.z), `font-size` = '12px', 'text-align' = 'center' ) %>%
+      
+      ##### Colour cells according to the expression values quantiles in each group
+      DT::formatStyle(columns = targets.list[1], 
+                      backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])) %>%
+      DT::formatStyle(columns = targets.list[2], 
+                      backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
+      DT::formatStyle(columns = targets.list[3], 
+                      backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
+      DT::formatStyle(columns = "Patient vs Normal", 
+                      backgroundColor = DT::styleInterval(brks.q[["Patient vs Normal"]], clrs.q[["Patient vs Normal"]])) %>%
+      DT::formatStyle(columns = paste0("Patient vs ", cancer), 
+                      backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", cancer)]], clrs.q[[paste0("Patient vs ", cancer)]])) %>%
+      DT::formatStyle(columns = "Patient (CN)", background = DT::styleColorBar(base::range(group.z[ ,"Patient (CN)" ], na.rm = TRUE), 'lightblue'), backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat', backgroundPosition = 'center')
+    
+  } else {
+    
+        ##### Generate a table with genes annotations and coloured expression values in each group
+    dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(group.z), `font-size` = '12px', 'text-align' = 'center' ) %>%
+      
+      ##### Colour cells according to the expression values quantiles in each group
+      DT::formatStyle(columns = targets.list[1], 
+                      backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])) %>%
+      DT::formatStyle(columns = targets.list[2], 
+                      backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
+      DT::formatStyle(columns = targets.list[3], 
+                      backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
+      DT::formatStyle(columns = "Patient vs Normal", 
+                      backgroundColor = DT::styleInterval(brks.q[["Patient vs Normal"]], clrs.q[["Patient vs Normal"]])) %>%
+      DT::formatStyle(columns = paste0("Patient vs ", cancer), 
+                      backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", cancer)]], clrs.q[[paste0("Patient vs ", cancer)]]))
+  }
     
   group.z$SYMBOL <- rownames(group.z)
     
@@ -806,16 +843,12 @@ if ( file.exists(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/")) ) {
   
   ref_genes.list[["pcgr"]] <- read.table(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/"), sep=",", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
   
-  ##### Consider only mutations calssified within Tiers 1-3
-  ref_genes.list[["pcgr"]] <- ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("TIER 1", "TIER 2", "TIER 3" ), ]
-
   ##### Simplify the variants types
   ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_variant", "", ref_genes.list[["pcgr"]]$CONSEQUENCE)
   ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_", " ", ref_genes.list[["pcgr"]]$CONSEQUENCE)
   
   ##### Simplify tiers' annotations and AFs
   ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
-  ref_genes.list[["pcgr"]]$TIER <- as.numeric(ref_genes.list[["pcgr"]]$TIER)
   
   ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
   ref_genes.list[["pcgr"]]$AF_NORMAL <- round(ref_genes.list[["pcgr"]]$AF_NORMAL, digits = 2)
@@ -974,9 +1007,8 @@ ref_genes.list[["oncokb_genes"]] <- cancer_genes
 
 ```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE}
 ##### Combine expression data with mutation and CN data if available
-if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+if ( !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_data <- ref_genes.list[["pcgr"]]
   cn_data <- ref_genes.list[["purple"]]
   expr_data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   expr_data <- expr_data[, ncol(expr_data)]
@@ -986,7 +1018,6 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   names(expr_data.z) <- names(expr_data)
     
   ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
-  mut_data <- mut_data[ mut_data$SYMBOL %!in% "", ]
   cn_data <- cn_data[ cn_data$Gene %!in% "", ]
   
   ##### Calculate the mean CN for each gene
@@ -994,50 +1025,6 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   
   ##### Deal with negative CN values
   cn_data$MeanCopyNumber[ cn_data$MeanCopyNumber < 0 ] <- 0
-  
-  ##### Prepare mutation data to include multiple mutations per gene
-  ##### Initiate variable for the gene mutation status for each gene
-  gene.mut <- as.matrix(rep("not mutated", length(expr_data.z)))
-  colnames(gene.mut) <- "Mutation"
-  rownames(gene.mut) <- names(expr_data.z)
-  
-  for ( i in 1:nrow(gene.mut) ) {
-    
-    ##### Check if any mutations are reported for each gene
-    if (  rownames(gene.mut)[i] %in% mut_data$SYMBOL ) {
-      
-      ##### Deal with multiple mutations per gene
-      if ( length(mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE) > 1 ) {
-  
-        gene.mut[ rownames(gene.mut)[i],"Mutation" ] <- "multiple hits"
-  
-      } else {
-        
-        gene.mut[ rownames(gene.mut)[i],"Mutation" ] <- mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE
-      }
-    }
-  }
-  
-  ##### If there is no expression value for a specific gene than assume it's not expressed at all and assign the lowest value observed in that sample
-  for ( gene in unique(mut_data$SYMBOL) ) {
-    
-    if ( gene %!in% rownames(gene.mut) ) {
-          
-      expr_data.z <- c(expr_data.z, min(expr_data.z))
-      names(expr_data.z)[length(expr_data.z)] <- gene
-      
-      ##### Deal with multiple mutations per gene
-      if ( length(mut_data[ mut_data$SYMBOL %in% gene,  ]$CONSEQUENCE) > 1 ) {
-  
-        gene.mut <- rbind( gene.mut,  "multiple hits")
-  
-      } else {
-        
-        gene.mut <- rbind( gene.mut,  mut_data[ mut_data$SYMBOL %in% gene,  ]$CONSEQUENCE )
-      }
-      rownames(gene.mut)[nrow(gene.mut)] <- gene
-    }
-  }
   
   ##### Get the percentiles from from the CN values
   #cn_data.percent <- quantile(cn_data$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
@@ -1062,22 +1049,99 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   #   
   #   layout(xaxis = list( range=c(0,3), title = "Copy-number values"), yaxis = list( title = "Frequency"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F)
   
-  ##### Keep only altered genes with CN values below 10th percentile and above 90th percentile
-  #cn_data.sub <- cn_data[ cn_data$MaxCopyNumber < cn_data.percent[2] | cn_data$MinCopyNumber > #cn_data.percent[20], ]
+ ##### Keep only altered genes with CN values below 10th percentile and above 90th percentile
+  #cn_data <- cn_data[ cn_data$MaxCopyNumber < cn_data.percent[2] | cn_data$MinCopyNumber > cn_data.percent[20], ]
+
+##### Keep only altered genes with CN values below 1 (loss) and above 4 (gain)
+  cn_data <- cn_data[ cn_data$MeanCopyNumber < 1 | cn_data$MeanCopyNumber > 4, ]
   
-  ##### Keep only altered genes with CN values below 1 (loss) and above 4 (gain)
-  cn_data.sub <- cn_data[ cn_data$MeanCopyNumber < 1 | cn_data$MeanCopyNumber > 4, ]
+  ##### Add mutation data if available
+  if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   
-  ##### Subset expression, mutation and copy-number data to include only overlapping genes
-  genes.intersect <- intersect(intersect(rownames(gene.mut), cn_data.sub$Gene), names(expr_data.z))
+    mut_data <- ref_genes.list[["pcgr"]]
+
+    ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
+    mut_data <- mut_data[ mut_data$SYMBOL %!in% "", ]
   
-  gene.mut.sub <- gene.mut[ rownames(gene.mut) %in% genes.intersect, ]
-  cn_data.sub <- cn_data.sub[ cn_data.sub$Gene %in% genes.intersect, ]
-  expr_data.z.sub <- expr_data.z[ names(expr_data.z) %in% genes.intersect ]
+    ##### Prepare mutation data to include multiple mutations per gene
+    ##### Initiate variable for the gene mutation status for each gene
+    gene.mut <- as.matrix(rep("not mutated", length(expr_data.z)))
+    colnames(gene.mut) <- "Mutation"
+    rownames(gene.mut) <- names(expr_data.z)
   
-  ##### Prepare data frame
-  ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, gene.mut.sub)
-  colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "mRNA", "Mutation")
+    for ( i in 1:nrow(gene.mut) ) {
+    
+      ##### Check if any mutations are reported for each gene
+      if (  rownames(gene.mut)[i] %in% mut_data$SYMBOL ) {
+      
+        ##### Deal with multiple mutations per gene
+        if ( length(mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE) > 1 ) {
+  
+          gene.mut[ rownames(gene.mut)[i],"Mutation" ] <- "multiple hits"
+  
+        } else {
+        
+          gene.mut[ rownames(gene.mut)[i],"Mutation" ] <- mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE
+        }
+      }
+    }
+  
+    ##### If there is no expression value for a specific gene than assume it's not expressed at all and assign the lowest value observed in that sample
+    for ( gene in unique(mut_data$SYMBOL) ) {
+    
+      if ( gene %!in% rownames(gene.mut) ) {
+          
+        expr_data.z <- c(expr_data.z, min(expr_data.z))
+        names(expr_data.z)[length(expr_data.z)] <- gene
+      
+        ##### Deal with multiple mutations per gene
+        if ( length(mut_data[ mut_data$SYMBOL %in% gene,  ]$CONSEQUENCE) > 1 ) {
+  
+          gene.mut <- rbind( gene.mut,  "multiple hits")
+  
+        } else {
+        
+          gene.mut <- rbind( gene.mut,  mut_data[ mut_data$SYMBOL %in% gene,  ]$CONSEQUENCE )
+        }
+        rownames(gene.mut)[nrow(gene.mut)] <- gene
+      }
+    }
+
+    ##### Subset expression, mutation and copy-number data to include only overlapping genes
+    genes.intersect <- intersect(intersect(rownames(gene.mut), cn_data$Gene), names(expr_data.z))
+    
+    gene.mut.sub <- gene.mut[ rownames(gene.mut) %in% genes.intersect, ]
+    cn_data.sub <- cn_data[ cn_data$Gene %in% genes.intersect, ]
+    expr_data.z.sub <- expr_data.z[ names(expr_data.z) %in% genes.intersect ]
+    
+    ##### Make sure thay are all in the same order
+    gene.mut.sub <- gene.mut.sub[ genes.intersect ]
+    rownames(cn_data.sub) <- cn_data.sub$Gene
+    cn_data.sub <- cn_data.sub[ genes.intersect,  ]
+    expr_data.z.sub <- expr_data.z.sub[ genes.intersect  ]
+    
+    ##### Prepare data frame
+    ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, gene.mut.sub)
+    colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "mRNA", "Mutation")
+    
+  } else {
+    
+    ##### Skip the step for processing mutation info and deal with expression and copy-number data
+    ##### Subset expression and copy-number data to include only overlapping genes
+    genes.intersect <- intersect(cn_data$Gene, names(expr_data.z))
+    
+    cn_data.sub <- cn_data[ cn_data$Gene %in% genes.intersect, ]
+    expr_data.z.sub <- expr_data.z[ names(expr_data.z) %in% genes.intersect ]
+    
+    ##### Make sure thay are all in the same order
+    rownames(cn_data.sub) <- cn_data.sub$Gene
+    cn_data.sub <- cn_data.sub[ genes.intersect,  ]
+    expr_data.z.sub <- expr_data.z.sub[ genes.intersect  ]
+    
+    ##### Prepare data frame
+    ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub)
+    colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "mRNA")
+  }
 }
 ```
 
@@ -1353,7 +1417,10 @@ From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the e
 target <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
+##### Consider only genes with mutations calssified within Tiers 1-3
+genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)
+
+mut_genes.expr <- exprTable( genes = genes, data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1371,7 +1438,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-mut_genes.expr <- exprTable( genes = unique(ref_genes.list[["pcgr"]]$SYMBOL), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+mut_genes.expr <- exprTable( genes = genes, data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1504,33 +1571,146 @@ detach("package:plotly", unload=FALSE)
 
 ## Copy-number altered genes {.tabset}
 
+The aim of this section is to overlay the per-gene somatic copy-number (CN) data with mRNA expression data and, where available, mutation status. <span style="color:#ff0000">NOTE</span>: the work on this section is in progress. 
+
 ### Plot
 
-<span style="color:#ff0000">NOTE</span>: the work on this section is in progress. The aim of this section is to overlay the per-gene somatic copy-number variants (CNVs) with mRNA expression data and, where available, mutation status. The scatterplot compares the per-gene **mRNA expression** values (**y-axis**, Z-score) with **CN values** (**x-axis**, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple)). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr)).
+Scatterplot comparing the per-gene **mRNA expression** values (*y-axis*, Z-scores), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple)). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr)). Genes with CN values > 10 or < 0.5 are annotated.
 
 ```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and, where available, mutation status info (colours)
+##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
+suppressMessages(library(plotly))
+
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  suppressMessages(library(plotly))
+  data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
+
+  ##### Keep only altered genes with CN values below 1 (loss) and above 4 (gain)
+  cn_data.sub <- cn_data[ cn_data$MeanCopyNumber < 1 | cn_data$MeanCopyNumber > 4, ]
   
-  plot_ly(ref_datasets.list[[tissue]][["expr_mut_cn_data"]], x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+  plot_ly(data, x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
     add_annotations( text="Variant consequence", xref="paper", yref="paper",
                     x=1.02, xanchor="left",
                     y=0.85, yanchor="top",
                     legendtitle=TRUE, showarrow=FALSE ) %>%
+    
+    add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
+                    x=~CN, xanchor="left",
+                    y=~mRNA, yanchor="top",
+                    font = list(color = "Grey",
+                              size = 10),
+                    legendtitle=TRUE, showarrow=FALSE ) %>%
+    
     layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
+
+##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
+} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
   
-  ##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
+  data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
+  
+  plot_ly(data, x = ~CN, y = ~mRNA, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    
+    add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
+                    x=~CN, xanchor="left",
+                    y=~mRNA, yanchor="top",
+                    font = list(color = "Grey",
+                              size = 10),
+                    legendtitle=TRUE, showarrow=FALSE ) %>%
+    
+    layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
 }
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
 ```
 
 ***
 
-### Table
+### Table {.tabset}
 
-<span style="color:#ff0000">NOTE</span>: to be added.
+Table summarising the per-gene **mRNA expression** values in normal, cancer and patient samples, the **CN values** based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple)), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
+
+#### Z-scores
+
+```{r mut_cn_expr_data_table, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
+if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+  
+  cn_data <- as.data.frame(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$CN)
+  rownames(cn_data) <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$Gene
+  names(cn_data) <- "CN"
+  
+  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
+  
+  ##### Present the expression, CN and mutation data summary table
+  mut_cn_expr_genes.expr[[1]]
+
+##### Generate expression summary table for per-gene expression values and CN values
+} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+  
+  cn_data <- as.data.frame(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$CN)
+  rownames(cn_data) <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$Gene
+  names(cn_data) <- "CN"
+  
+  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
+  
+  ##### Present the expression, CN and mutation data summary table
+  mut_cn_expr_genes.expr[[1]]
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr) report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+</font>
+</details>
+
+***
+
+#### Percentiles
+
+```{r mut_cn_expr_data_table_perc, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
+if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+  
+  cn_data <- as.data.frame(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$CN)
+  rownames(cn_data) <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$Gene
+  names(cn_data) <- "CN"
+  
+  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+  
+  ##### Present the expression, CN and mutation data summary table
+  mut_cn_expr_genes.expr[[1]]
+
+##### Generate expression summary table for per-gene expression values and CN values
+} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+  
+  cn_data <- as.data.frame(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$CN)
+  rownames(cn_data) <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$Gene
+  names(cn_data) <- "CN"
+  
+  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
+  
+  ##### Present the expression, CN and mutation data summary table
+  mut_cn_expr_genes.expr[[1]]
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr) report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+</font>
+</details>
 
 ***
 
