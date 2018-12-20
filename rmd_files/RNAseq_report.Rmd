@@ -48,9 +48,11 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 4. ref_datasets.list[[tissue]][["pca"]] = PCA results
 
-# 5. ref_datasets.list[[tissue]][["gene_annot"]] = transformed, filtered and normalised data annotated with "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND"
+# 5. ref_datasets.list[[tissue]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
 
-# 6. ref_datasets.list[[tissue]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
+# 6. ref_datasets.list[[tissue]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+
+# 7. ref_datasets.list[[tissue]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
 
 ```
 
@@ -795,6 +797,7 @@ suppressMessages(library(magick))
 suppressMessages(library(matrixStats))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggforce))
+suppressMessages(library(NOISeq))
 suppressMessages(library(EnsDb.Hsapiens.v86))
 suppressMessages(library(BSgenome.Hsapiens.UCSC.hg38))
 ```
@@ -936,7 +939,39 @@ for ( tissue in names(ref_datasets.list) ) {
 }
 ```
 
-```{r gene_annot, comment = NA, message=FALSE, warning=FALSE}
+```{r gene_annot_count_data, comment = NA, message=FALSE, warning=FALSE}
+##### Loop through combined, BUT NOT PROCESSED, datasets and annotate ALL genes. This part is mainly required for biotype detection step
+for ( tissue in names(ref_datasets.list) ) {
+  
+  ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
+  data <- ref_datasets.list[[tissue]][["combined_data"]]
+  data.df <- as.data.frame(cbind(rownames(data), data))
+  colnames(data.df)[1] <- "ENSEMBL"
+
+  ##### Get genes annotation and genomic locations (Use Ensembl annotation version 86 (Oct 2016), the most recent as of Oct 2018)
+  edb <- EnsDb.Hsapiens.v86
+  
+  ##### Get keytypes for gene SYMBOL
+  keys <- keys(edb, keytype="GENEID")
+  
+  ##### Get genes genomic coordiantes
+  gene_info <- ensembldb::select(edb, keys=keys, columns=c("GENEID", "GENEBIOTYPE", "GENENAME", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND"), keytype="GENEID")
+  names(gene_info)[1] <- "ENSEMBL"
+  
+  ##### Merge genes genomic coordinates info with their annotation and expression data
+  data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = FALSE)
+  names(data.annot)[3] <- "SYMBOL"
+  
+  ##### Remove rows with duplicated gene symbols
+  data.annot = data.annot[!duplicated(data.annot$ENSEMBL),]
+  rownames(data.annot) <- data.annot$ENSEMBL
+  
+  ##### Get data matrix with gene symbols
+  ref_datasets.list[[tissue]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+}
+```
+
+```{r gene_annot_processed_data, comment = NA, message=FALSE, warning=FALSE}
 ##### Loop through combined datasets and annotate genes
 for ( tissue in names(ref_datasets.list) ) {
   
@@ -1382,7 +1417,7 @@ ref_cancer <- table(target$Target)[names(table(target$Target))==cancer_group]
 
 ***
 
-### Input data
+## Input data
 
 <details>
 <summary>Summary</summary>
@@ -1398,6 +1433,132 @@ From the `r nrow(counts)` input genes:
 * `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 * **`r nrow(data.annot)` genes** remained for the analysis
 
+</details>
+
+***
+
+### Biotype detection {.tabset}
+
+Summary of biological classification of detected features in patient’s sample, as well as in samples from cancer patients and healthy individuals. This may facilitate identification of potential abnormal contamination in the data. In RNA-seq data it is expected that most of the genes will be protein-coding so detecting an enrichment in the sample of any other biotype could point to a potential contamination.
+
+```{r biotype_detection, comment=NA, message=FALSE, warning=FALSE, results='hide'}
+##### Use NOISeq package () https://bioconductor.org/packages/release/bioc/vignettes/NOISeq/inst/doc/NOISeq.pdf ) to perfrom biotype detection analysis
+##### Get the data and genes annotation info
+data <- ref_datasets.list[[tissue]][["combined_data"]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]][, c("Dataset", "Target")]
+target$Target[target$Target==normal_group] <- "Normal"
+target$Target[target$Target==params$sample_name] <- "Patient"
+target$Target <- as.factor(target$Target)
+
+##### Use the genes annotation to define gene biotypes
+data_annot <- ref_datasets.list[[tissue]][["gene_annot_all"]]
+
+##### Keep only genes for which annotation is available
+gene_biotypes <- data_annot$GENEBIOTYPE
+names(gene_biotypes) <- rownames(data_annot)
+
+##### Convert data into a NOISeq object
+NOISeq_data <- readData( data = data, biotype = gene_biotypes, factors = target)
+
+##### Perfrom biotype detection analysis
+NOISeq_biodetection <- NOISeq::dat(NOISeq_data, k = 0, type = "biodetection", factor = "Target")
+
+##### Compute expression distribution per biotype
+NOISeq_countsbio = NOISeq::dat(NOISeq_data, factor = "Target", type = "countsbio")
+```
+
+#### Per-sample {.tabset}
+
+##### Biodetection plot
+
+Proportion of various features detected within each sample/cohort.
+
+```{r biotype_detection_per_sample, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4}
+##### Generate per-sample biodetection plot
+for ( sample in c("Patient", cancer_group, "Normal") ) {
+
+  explo.plot(NOISeq_biodetection, samples = sample, plottype = "persample", verbose=FALSE)
+}
+```
+
+<details>
+<summary>Plot legend</summary>
+<font size="2">
+The <span style="color:#808080">GRAY</span> bar corresponds to the **percentage of each biotype** in the genome (i.e. in the whole set of features detected), the stripped <span style="color:#ff0000">RED</span> colour bar is the **proportion of detected biotypes in the sample**, and the solid <span style="color:#ff0000">RED</span> colour bar is the **percentage of each biotype within the sample**. The vertical <span style="color:#008000">GREEN</span> line separates the **most abundant biotypes** (in the left-hand side, corresponding to the left axis scale) from the rest (in the right-hand side, corresponding to the right axis scale).
+</font>
+</details>
+
+***
+
+##### Features distribution
+
+Distribution of expression values in each feature type within each sample/cohort.
+ 
+```{r biotype_detection_distribution, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4}
+##### Generate per-sample biodetection plot
+for ( sample in c("Patient", cancer_group, "Normal") ) {
+  
+  explo.plot(NOISeq_countsbio, samples = sample, plottype = "boxplot", norm = FALSE)
+}
+```
+
+<details>
+<summary>Plots legend</summary>
+<font size="2">
+Box-plot illustrating the distribution of expression values (*counts per million* (CPM), *y-axis*) in each feature type. The number of detected features is presented in the upper side of the plot.
+</font>
+</details>
+
+***
+
+#### Cross-groups comparison {.tabset}
+
+Proportion test for **protein coding** features to test if the relative abundance of that biotype is different in two samples/cohorts.
+
+##### Patient vs Normal
+
+```{r biotype_detection_comparison_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4}
+##### Generate cross-groups biodetection plot (patient vs normal)
+explo.plot(NOISeq_biodetection, samples = c(2, 1), plottype = "comparison", toplot = "protein_coding")
+```
+
+<details>
+<summary>Plots legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> sets of bars correspond to the relative abundance of **protein coding** features in **patient** and **normal** samples, respectively
+</font>
+</details>
+
+***
+
+##### Patient vs Cancer
+
+```{r biotype_detection_comparison_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4}
+##### Generate cross-groups biodetection plot (patient vs cancer)
+explo.plot(NOISeq_biodetection, samples = c(2, 3), plottype = "comparison", toplot = "protein_coding")
+```
+
+<details>
+<summary>Plots legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> sets of bars correspond to the relative abundance of **protein coding** features in **patient** and **cancer** samples, respectively
+</font>
+</details>
+
+***
+
+##### Cancer vs Normal
+
+```{r biotype_detection_comparison_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4}
+##### Generate cross-groups biodetection plot (cancer vs normal)
+explo.plot(NOISeq_biodetection, samples = c(3, 1), plottype = "comparison", toplot = "protein_coding")
+```
+
+<details>
+<summary>Plots legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> sets of bars correspond to the relative abundance of **protein coding** features in **cancer** and **normal** samples, respectively
+</font>
 </details>
 
 ***
