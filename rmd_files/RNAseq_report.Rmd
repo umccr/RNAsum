@@ -15,6 +15,7 @@ params:
   sample_name: 
   count_file: 
   tissue: 
+  plots_mode: 
   ref_data_dir: '../data'
   genes_cancer: 'genes/cancer_genes.20181112.genes'
   genes_immune: 'genes/Genes_immune.txt'
@@ -261,7 +262,7 @@ exprGroupStats <- function(data, targets, target) {
 }
 
 ##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
-cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot = FALSE) {
+cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot = FALSE, plot_mode = "static") {
   
   ##### Get expression-related stats for each group
   sample.expr.cum <- exprGroupStats(data, targets, sampleName)
@@ -359,11 +360,60 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
           yaxis2 = list( title =""), xaxis2 = list(title = paste0(gene, " mRNA expression (Z-score)")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = FALSE,
          showlegend=TRUE, showlegend2=FALSE)
     
-    return( p1_2 )
+    ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. TO this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). 
+    if ( plot_mode == "static" ) {
+
+      ##### Create directory for CDF plots
+      cdfPlotsDir <- paste(params$report_dir, "CDF_plots", sep = "/")
+      if ( !file.exists(cdfPlotsDir) ) {
+
+        dir.create(cdfPlotsDir, recursive=TRUE)
+      }
+  
+      ##### Add access token, required by orca function, to the shell environment
+      Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  
+      ##### Change directory to folder with CDF plots
+      setwd(cdfPlotsDir)
+  
+      ##### Save the static image into a file
+      orca(p1, format = "png", file = paste0(gene, "_cdf_plot.png"), width = 800, height = 600)
+  
+      ##### Present the static plot in the report
+      include_graphics(paste(cdfPlotsDir, paste0(gene, "_cdf_plot.png"), sep = "/"), dpi = 72)
+  
+    } else if ( plot_mode == "interactive" ) {
+
+      return( p1_2 )
+    }
     
   } else {
    
-    return( p1 )
+    if ( plot_mode == "static") {
+
+      ##### Create directory for CDF plots
+      cdfPlotsDir <- paste(params$report_dir, "CDF_plots", sep = "/")
+      if ( !file.exists(cdfPlotsDir) ) {
+
+        dir.create(cdfPlotsDir, recursive=TRUE)
+      }
+  
+      ##### Add access token, required by orca function, to the shell environment
+      Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  
+      ##### Change directory to folder with CDF plots
+      setwd(cdfPlotsDir)
+  
+      ##### Save the static image into a file
+      orca(p1, format = "png", file = paste0(gene, "_cdf_plot.png"), width = 800, height = 200)
+  
+      ##### Present the static plot in the report
+      include_graphics(paste(cdfPlotsDir, paste0(gene, "_cdf_plot.png"), sep = "/"), dpi = 72)
+  
+    } else if ( plot_mode == "interactive" ) {
+
+      return( p1 )
+    }
   }
 }
 
@@ -788,7 +838,6 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
 suppressMessages(library(edgeR))
 suppressMessages(library(preprocessCore))
 suppressMessages(library(rapportools))
-suppressMessages(library(plotly))
 suppressMessages(library(edgeR))
 suppressMessages(library(kableExtra))
 suppressMessages(library(tidyverse))
@@ -1626,7 +1675,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[1]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1642,7 +1691,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1658,7 +1707,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1674,7 +1723,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1690,7 +1739,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1706,7 +1755,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1722,7 +1771,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1746,10 +1795,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   
   data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 
-  ##### Keep only altered genes with CN values below 1 (loss) and above 4 (gain)
-  cn_data.sub <- cn_data[ cn_data$MeanCopyNumber < 1 | cn_data$MeanCopyNumber > 4, ]
-  
-  plot_ly(data, x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+  p <- plot_ly(data, x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
     add_annotations( text="Variant consequence", xref="paper", yref="paper",
                     x=1.02, xanchor="left",
                     y=0.85, yanchor="top",
@@ -1769,7 +1815,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   
   data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
   
-  plot_ly(data, x = ~CN, y = ~mRNA, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+  p <- plot_ly(data, x = ~CN, y = ~mRNA, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
     
     add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
                     x=~CN, xanchor="left",
@@ -1779,6 +1825,33 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
                     legendtitle=TRUE, showarrow=FALSE ) %>%
     
     layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
+}
+
+##### Embed static rather interactive plots into the html report if requested by user
+if ( params$plots_mode == "static") {
+
+  ##### Create directory for CDF plots
+  mutCNexprDir <- paste(params$report_dir, "mut_cn_expr_plot", sep = "/")
+  if ( !file.exists(mutCNexprDir) ) {
+
+    dir.create(mutCNexprDir, recursive=TRUE)
+  }
+  
+  ##### Add access token, required by orca function, to the shell environment
+  Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  
+  ##### Change directory to folder with CDF plots
+  setwd(mutCNexprDir)
+  
+  ##### Save the static image into a file
+  orca(p, format = "png", file = "mut_cn_expr_plot.png", width = 800, height = 600)
+  
+  ##### Present the static plot in the report
+  include_graphics(paste(mutCNexprDir, "mut_cn_expr_plot.png", sep = "/"), dpi = 72)
+  
+} else if ( params$plots_mode == "interactive" ) {
+
+  p
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -1935,7 +2008,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[1]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1951,7 +2024,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1967,7 +2040,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1983,7 +2056,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1999,7 +2072,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2015,7 +2088,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2031,7 +2104,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2047,7 +2120,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2063,7 +2136,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2079,7 +2152,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE)
+cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2234,8 +2307,8 @@ suppressMessages(library(plotly))
 target <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group)
-cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group)
+cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
+cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2317,8 +2390,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group)
-cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group)
+cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
+cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2400,8 +2473,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group)
-cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group)
+cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
+cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2483,8 +2556,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group)
-cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group)
+cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
+cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
