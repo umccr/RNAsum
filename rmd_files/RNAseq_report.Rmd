@@ -1095,6 +1095,8 @@ if ( !is.null(ref_genes.list[["purple"]]) ) {
   
   cn_data <- ref_genes.list[["purple"]]
   expr_data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  
+  ##### Extract partient sample data
   expr_data <- expr_data[, ncol(expr_data)]
   
   ##### Perform Z-score transformation of the expression values
@@ -1136,10 +1138,10 @@ if ( !is.null(ref_genes.list[["purple"]]) ) {
  ##### Keep only altered genes with CN values below 10th percentile and above 90th percentile
   #cn_data <- cn_data[ cn_data$MaxCopyNumber < cn_data.percent[2] | cn_data$MinCopyNumber > cn_data.percent[20], ]
 
-##### Keep only altered genes with CN values below 1 (loss) and above 4 (gain)
-  cn_data <- cn_data[ cn_data$MeanCopyNumber < 1 | cn_data$MeanCopyNumber > 4, ]
+ ##### Keep only altered genes with CN values below 1 (loss) and above 4 (gain)
+ cn_data <- cn_data[ cn_data$MeanCopyNumber < 1 | cn_data$MeanCopyNumber > 4, ]
   
-  ##### Add mutation data if available
+ ##### Add mutation data if available
   if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   
     mut_data <- ref_genes.list[["pcgr"]]
@@ -1473,8 +1475,8 @@ ref_cancer <- table(target$Target)[names(table(target$Target))==cancer_group]
 
 The following reference patient cohorts were used for the analysis:
 
-* **`r paste (ref_normal, normal_group, sep=" ")`** samples from [The Genotype-Tissue Expression](https://commonfund.nih.gov/gtex){target="_blank"} (GTEx) program ([related publication](https://www.mdpi.com/2075-4426/5/1/22){target="_blank"})
-* **`r paste (ref_cancer, cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga){target="_blank"} (TCGA) project ([related publication](https://www.nature.com/articles/ng.2764){target="_blank"})
+* **`r paste(ref_normal, normal_group, sep=" ")`** samples from [The Genotype-Tissue Expression](https://commonfund.nih.gov/gtex){target="_blank"} (GTEx) program ([related publication](https://www.mdpi.com/2075-4426/5/1/22){target="_blank"})
+* **`r paste(ref_cancer, cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga){target="_blank"} (TCGA) project ([related publication](https://www.nature.com/articles/ng.2764){target="_blank"})
 
 From the `r nrow(counts)` input genes:
 
@@ -1614,11 +1616,11 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 ## Mutated genes
 
-mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
+mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
 
 ### Expression summary {.tabset}
 
-From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes the expression of **`r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %in% rownames(ref_datasets.list[[tissue]][[3]])))`** was reliably measured in patient's sample. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
+From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes (with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants) the expression of **`r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
 
 #### Z-scores
 
@@ -1954,7 +1956,7 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### Expression summary {.tabset}
 
-From the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[tissue]][[3]])))`** was reliably measured in patient's sample.
+From the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
 
 #### Z-scores
 
@@ -2602,6 +2604,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ## Immune Response Markers {.tabset}
 
 Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy (similar to [this report](https://trello-attachments.s3.amazonaws.com/5753fc730bff8d2b24f159df/59912803fd0e33e3395d05e7/dc9a81ae11a9d1825ab0028d01dc8c53/Advance-sample-report-card-final.pdf){target="_blank"})
+
+From the `r length(unique(unlist(ref_genes.list[["genes_immune"]])))` immune response markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
 
 ### Z-scores
 
