@@ -1478,7 +1478,7 @@ The following reference patient cohorts were used for the analysis:
 * **`r paste(ref_normal, normal_group, sep=" ")`** samples from [The Genotype-Tissue Expression](https://commonfund.nih.gov/gtex){target="_blank"} (GTEx) program ([related publication](https://www.mdpi.com/2075-4426/5/1/22){target="_blank"})
 * **`r paste(ref_cancer, cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga){target="_blank"} (TCGA) project ([related publication](https://www.nature.com/articles/ng.2764){target="_blank"})
 
-From the `r nrow(counts)` input genes:
+Out of the `r nrow(counts)` input genes:
 
 * `r nrow(counts) - nrow(y.filtered$counts)` genes were filtered out due to low expression
 * `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
@@ -1496,10 +1496,10 @@ Summary of biological classification of detected features in patient’s sample,
 ##### Use NOISeq package () https://bioconductor.org/packages/release/bioc/vignettes/NOISeq/inst/doc/NOISeq.pdf ) to perfrom biotype detection analysis
 ##### Get the data and genes annotation info
 data <- ref_datasets.list[[tissue]][["combined_data"]]
-target <- ref_datasets.list[[tissue]][["sample_annot"]][, c("Dataset", "Target")]
-target$Target[target$Target==normal_group] <- "Normal"
-target$Target[target$Target==params$sample_name] <- "Patient"
-target$Target <- as.factor(target$Target)
+targets <- ref_datasets.list[[tissue]][["sample_annot"]][, c("Dataset", "Target")]
+targets$Target[targets$Target==normal_group] <- "Normal"
+targets$Target[targets$Target==params$sample_name] <- "Patient"
+targets$Target <- as.factor(targets$Target)
 
 ##### Use the genes annotation to define gene biotypes
 data_annot <- ref_datasets.list[[tissue]][["gene_annot_all"]]
@@ -1509,7 +1509,7 @@ gene_biotypes <- data_annot$GENEBIOTYPE
 names(gene_biotypes) <- rownames(data_annot)
 
 ##### Convert data into a NOISeq object
-NOISeq_data <- readData( data = data, biotype = gene_biotypes, factors = target)
+NOISeq_data <- readData( data = data, biotype = gene_biotypes, factors = targets)
 
 ##### Perfrom biotype detection analysis
 NOISeq_biodetection <- NOISeq::dat(NOISeq_data, k = 0, type = "biodetection", factor = "Target")
@@ -1620,19 +1620,19 @@ mRNA expression levels of genes containing single nucleotide variants (SNVs) or 
 
 ### Expression summary {.tabset}
 
-From the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes (with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants) the expression of **`r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(ref_genes.list[["pcgr"]]$SYMBOL) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
+Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))` include [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants. Of these, the expression of **`r length(which(unique(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
 
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-target <- ref_datasets.list[[tissue]][["sample_annot"]]
+targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
 ##### Consider only genes with mutations calssified within Tiers 1-3
 genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)
 
-mut_genes.expr <- exprTable( genes = genes, data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
+mut_genes.expr <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1650,7 +1650,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-mut_genes.expr <- exprTable( genes = genes, data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+mut_genes.expr <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
 
 ##### Present the expression summary table
 mut_genes.expr[[1]]
@@ -1677,7 +1677,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[1]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1693,7 +1693,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1709,7 +1709,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1725,7 +1725,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1741,7 +1741,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1757,7 +1757,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1773,7 +1773,7 @@ suppressMessages(library(plotly))
 gene <- mut_genes.expr[[2]]$SYMBOL[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -1878,7 +1878,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   
   data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
   
   ##### Present the expression, CN and mutation data summary table
   mut_cn_expr_genes.expr[[1]]
@@ -1892,7 +1892,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   
   data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
   
   ##### Present the expression, CN and mutation data summary table
   mut_cn_expr_genes.expr[[1]]
@@ -1920,7 +1920,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   
   data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
   
   ##### Present the expression, CN and mutation data summary table
   mut_cn_expr_genes.expr[[1]]
@@ -1934,7 +1934,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
   
   data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
   
   ##### Present the expression, CN and mutation data summary table
   mut_cn_expr_genes.expr[[1]]
@@ -1956,16 +1956,16 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### Expression summary {.tabset}
 
-From the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
+Out of the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
 
 #### Z-scores
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-target <- ref_datasets.list[[tissue]][["sample_annot"]]
+targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cancer_genes.expr <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]], type = "z")
+cancer_genes.expr <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]], type = "z")
 
 ##### Present the expression summary table
 cancer_genes.expr[[1]]
@@ -1983,7 +1983,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r cancer_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-cancer_genes.expr <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]], type = "perc")
+cancer_genes.expr <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]], type = "perc")
 
 ##### Present the expression summary table
 cancer_genes.expr[[1]]
@@ -2010,7 +2010,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[1]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2026,7 +2026,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2042,7 +2042,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2058,7 +2058,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2074,7 +2074,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2090,7 +2090,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2106,7 +2106,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2122,7 +2122,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2138,7 +2138,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2154,7 +2154,7 @@ suppressMessages(library(plotly))
 gene <- cancer_genes.expr[[2]]$SYMBOL[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-cdfPlot(gene, data, target, params$sample_name, normal_group, cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2306,11 +2306,11 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-target <- ref_datasets.list[[tissue]][["sample_annot"]]
+targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
-cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2323,7 +2323,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -2340,7 +2340,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r gene_table_fusions_1_perc, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -2392,8 +2392,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
-cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2406,7 +2406,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -2423,7 +2423,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r gene_table_fusions_2_perc, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -2475,8 +2475,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
-cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2489,7 +2489,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -2506,7 +2506,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r gene_table_fusions_3_perc, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -2558,8 +2558,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(geneA, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
-cdfPlot(geneB, data, target, params$sample_name, normal_group, cancer_group, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2572,7 +2572,7 @@ detach("package:plotly", unload=FALSE)
 ```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -2589,7 +2589,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r gene_table_fusions_4_perc, comment = NA, message=FALSE, warning=FALSE}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = target, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -2605,16 +2605,16 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy)
 
-From the `r length(unique(unlist(ref_genes.list[["genes_immune"]])))` immune response markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]])))` immune response markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected.
 
 ### Z-scores
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-target <- ref_datasets.list[[tissue]][["sample_annot"]]
+targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-immune_genes.expr <- exprTable( genes = unlist(ref_genes.list[["genes_immune"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], type = "z")
+immune_genes.expr <- exprTable( genes = unlist(ref_genes.list[["genes_immune"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], type = "z")
 
 ##### Present the expression summary table
 immune_genes.expr[[1]]
@@ -2633,10 +2633,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-target <- ref_datasets.list[[tissue]][["sample_annot"]]
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-
-immune_genes.expr <- exprTable( genes = unlist(ref_genes.list[["genes_immune"]]), data = data, targets = target, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], type = "perc")
+immune_genes.expr <- exprTable( genes = unlist(ref_genes.list[["genes_immune"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], type = "perc")
 
 ##### Present the expression summary table
 immune_genes.expr[[1]]
