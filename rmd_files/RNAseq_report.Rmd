@@ -25,6 +25,8 @@ params:
   civic_var_summaries: 'CIViC/01-Oct-2018-VariantSummaries.tsv'
   civic_clin_evid: 'CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv'
   cancer_biomarkers_trans: 'cancer_biomarkers_database/cancer_genes_upon_trans.tsv'
+  cn_loss: 1
+  cn_gain: 4
 ---
 
 RNA-seq report for patient sample **`r params$sample_name`**.
@@ -434,7 +436,7 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, cn_data = NULL, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, type = "z") {
+exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, type = "z") {
   
   ##### Check how many of the selected genes are present in the expression data
   genes <- genes[ genes %in% rownames(data) ]
@@ -598,8 +600,8 @@ exprTable <- function(genes, data, cn_data = NULL, targets, sampleName, normal, 
     group.z <- add_column(group.z, round(cn_data[ rownames(group.z), "CN"], digits=2), .after = col_idx)
     colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
     
-    ##### Order the data by decreasing CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
-    group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
+    ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
+    group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = cn_decrease), ]
     group.z <- group.z[ order(group.z[ ,col_idx+1 ],  decreasing = TRUE), ]
   }
   
@@ -1138,8 +1140,8 @@ if ( !is.null(ref_genes.list[["purple"]]) ) {
  ##### Keep only altered genes with CN values below 10th percentile and above 90th percentile
   #cn_data <- cn_data[ cn_data$MaxCopyNumber < cn_data.percent[2] | cn_data$MinCopyNumber > cn_data.percent[20], ]
 
- ##### Keep only altered genes with CN values below 1 (loss) and above 4 (gain)
- cn_data <- cn_data[ cn_data$MeanCopyNumber < 1 | cn_data$MeanCopyNumber > 4, ]
+ ##### Keep only altered genes with CN values below loss threshold (default CN value = 1) and above gain threshold (default CN value = 4)
+ cn_data <- cn_data[ cn_data$MeanCopyNumber < params$cn_loss | cn_data$MeanCopyNumber > params$cn_gain, ]
   
  ##### Add mutation data if available
   if ( !is.null(ref_genes.list[["pcgr"]]) ) {
@@ -1669,7 +1671,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ### - Expression profiles {.tabset}
 
-<span style="color:#ff0000">NOTE</span>: currently, displaying the top 10 mutated genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy  individuals.
+<span style="color:#ff0000">NOTE</span>: currently, displaying the top mutated genes with variants annotated with the lowest [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy  individuals.
 
 #### `r mut_genes.expr.z[[2]]$SYMBOL[1]`
 
@@ -1787,7 +1789,7 @@ detach("package:plotly", unload=FALSE)
 
 Section overlaying the per-gene mRNA expression data with somatic copy-number (CN) data and, where available, mutation status.
 
-### - Expression vs copy-number values
+### - Expression vs copy-number
 
 Scatterplot comparing the per-gene **mRNA expression** values (*y-axis*, Z-scores), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 10 or < 0.5 are annotated.
 
@@ -1795,9 +1797,9 @@ Scatterplot comparing the per-gene **mRNA expression** values (*y-axis*, Z-score
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
 
+data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
+
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
-  
-  data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 
   p <- plot_ly(data, x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
     add_annotations( text="Variant consequence", xref="paper", yref="paper",
@@ -1816,9 +1818,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
 
 ##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
-  
-  data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
-  
+
   p <- plot_ly(data, x = ~CN, y = ~mRNA, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
     
     add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
@@ -1866,21 +1866,25 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Table summarising the per-gene **mRNA expression** values in normal, cancer and patient samples, the **CN values** based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+#### Gains {.tabset}
 
-#### Z-scores
+Table summarising the **mRNA expression** values in normal, cancer and patient samples for genes with **CN values** > `r params$cn_gain` (**gains**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
-```{r mut_cn_expr_data_table, comment = NA, message=FALSE, warning=FALSE}
+##### Z-scores
+
+```{r mut_cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
+##### Keep only genes within CN gains
+cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
+cn_data <- cn_data[ cn_data$CN > params$cn_gain, ]
+cn_data <- cn_data[, "CN", drop=FALSE]
+
+##### Get expression data
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  cn_data <- as.data.frame(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$CN)
-  rownames(cn_data) <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$Gene
-  names(cn_data) <- "CN"
-  
-  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-  
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
   
   ##### Present the expression, CN and mutation data summary table
   mut_cn_expr_genes.expr[[1]]
@@ -1888,13 +1892,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
   
-  cn_data <- as.data.frame(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$CN)
-  rownames(cn_data) <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$Gene
-  names(cn_data) <- "CN"
-  
-  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-  
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
   
   ##### Present the expression, CN and mutation data summary table
   mut_cn_expr_genes.expr[[1]]
@@ -1904,7 +1902,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -1912,17 +1910,53 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### Percentiles
 
-```{r mut_cn_expr_data_table_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r mut_cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  cn_data <- as.data.frame(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$CN)
-  rownames(cn_data) <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$Gene
-  names(cn_data) <- "CN"
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
   
-  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  ##### Present the expression, CN and mutation data summary table
+  mut_cn_expr_genes.expr[[1]]
+
+##### Generate expression summary table for per-gene expression values and CN values
+} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+  ##### Present the expression, CN and mutation data summary table
+  mut_cn_expr_genes.expr[[1]]
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+</font>
+</details>
+
+***
+
+#### Losses {.tabset}
+
+Table summarising the **mRNA expression** values in normal, cancer and patient samples for genes with **CN values** < `r params$cn_loss` (**losses**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+
+##### Z-scores
+
+```{r mut_cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
+##### Keep only genes within CN losses
+cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
+cn_data <- cn_data[ cn_data$CN < params$cn_loss, ]
+cn_data <- cn_data[, "CN", drop=FALSE]
+
+##### Get expression data
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  
+if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+  
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
   
   ##### Present the expression, CN and mutation data summary table
   mut_cn_expr_genes.expr[[1]]
@@ -1930,13 +1964,37 @@ if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
   
-  cn_data <- as.data.frame(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$CN)
-  rownames(cn_data) <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]$Gene
-  names(cn_data) <- "CN"
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
   
-  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  ##### Present the expression, CN and mutation data summary table
+  mut_cn_expr_genes.expr[[1]]
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+</font>
+</details>
+
+***
+
+#### Percentiles
+
+```{r mut_cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
+if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+  
+  ##### Present the expression, CN and mutation data summary table
+  mut_cn_expr_genes.expr[[1]]
+
+##### Generate expression summary table for per-gene expression values and CN values
+} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+
+  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
   
   ##### Present the expression, CN and mutation data summary table
   mut_cn_expr_genes.expr[[1]]
