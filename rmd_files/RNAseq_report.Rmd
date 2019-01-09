@@ -419,6 +419,71 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
   }
 }
 
+##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
+mutCNexprPlot <- function(data, mut_data = FALSE, plot_mode = "static") {
+  
+  ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
+  if ( mut_data ) {
+  
+    p <- plot_ly(data, x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+      
+      add_annotations( text="Variant consequence", xref="paper", yref="paper",
+                      x=1.02, xanchor="left",
+                      y=0.85, yanchor="top",
+                      legendtitle=TRUE, showarrow=FALSE ) %>%
+      
+      add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
+                      x=~CN, xanchor="left",
+                      y=~mRNA, yanchor="top",
+                      font = list(color = "Grey",
+                                size = 10),
+                      legendtitle=TRUE, showarrow=FALSE ) %>%
+      
+      layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
+  
+  ##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
+  } else {
+  
+    p <- plot_ly(data, x = ~CN, y = ~mRNA, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+      
+      add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
+                      x=~CN, xanchor="left",
+                      y=~mRNA, yanchor="top",
+                      font = list(color = "Grey",
+                                size = 10),
+                      legendtitle=TRUE, showarrow=FALSE ) %>%
+      
+      layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
+  }
+
+  ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. TO this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). 
+  if ( plot_mode == "static" ) {
+
+    ##### Create directory for the plots
+    mutCNexprPlotDir <- paste(params$report_dir, "mut_cn_expr_plot", sep = "/")
+    if ( !file.exists(mutCNexprPlotDir) ) {
+
+      dir.create(mutCNexprPlotDir, recursive=TRUE)
+    }
+
+    ##### Add access token, required by orca function, to the shell environment
+    Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+
+    ##### Change directory to folder with CDF plots
+    setwd(mutCNexprPlotDir)
+
+    ##### Save the static image into a file
+    orca(p, format = "png", file = "mut_cn_expr_plot.png", width = 800, height = 600)
+
+    ##### Present the static plot in the report
+    include_graphics(paste(mutCNexprPlotDir, "mut_cn_expr_plot.png", sep = "/"), dpi = 72)
+  
+  } else if ( plot_mode == "interactive" ) {
+
+    return( p )
+  }
+}
+
 ##### Fusion visualisation 
 fusion_png <- function(geneA, geneB, clinker_results ) {
 
@@ -1787,7 +1852,7 @@ detach("package:plotly", unload=FALSE)
 
 ## Copy-number altered genes
 
-Section overlaying the per-gene mRNA expression data with somatic copy-number (CN) data and, where available, mutation status.
+Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data and, where available, mutation status.
 
 ### - Expression vs copy-number
 
@@ -1800,62 +1865,12 @@ suppressMessages(library(plotly))
 data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
-
-  p <- plot_ly(data, x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
-    add_annotations( text="Variant consequence", xref="paper", yref="paper",
-                    x=1.02, xanchor="left",
-                    y=0.85, yanchor="top",
-                    legendtitle=TRUE, showarrow=FALSE ) %>%
-    
-    add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
-                    x=~CN, xanchor="left",
-                    y=~mRNA, yanchor="top",
-                    font = list(color = "Grey",
-                              size = 10),
-                    legendtitle=TRUE, showarrow=FALSE ) %>%
-    
-    layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
-
-##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
+  
+  mutCNexprPlot(data = data, mut_data = TRUE, plot_mode = params$plots_mode)
+  
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
-
-  p <- plot_ly(data, x = ~CN, y = ~mRNA, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
-    
-    add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
-                    x=~CN, xanchor="left",
-                    y=~mRNA, yanchor="top",
-                    font = list(color = "Grey",
-                              size = 10),
-                    legendtitle=TRUE, showarrow=FALSE ) %>%
-    
-    layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
-}
-
-##### Embed static rather interactive plots into the html report if requested by user
-if ( params$plots_mode == "static") {
-
-  ##### Create directory for CDF plots
-  mutCNexprDir <- paste(params$report_dir, "mut_cn_expr_plot", sep = "/")
-  if ( !file.exists(mutCNexprDir) ) {
-
-    dir.create(mutCNexprDir, recursive=TRUE)
-  }
   
-  ##### Add access token, required by orca function, to the shell environment
-  Sys.setenv('MAPBOX_TOKEN' = 'secret token')
-  
-  ##### Change directory to folder with CDF plots
-  setwd(mutCNexprDir)
-  
-  ##### Save the static image into a file
-  orca(p, format = "png", file = "mut_cn_expr_plot.png", width = 800, height = 600)
-  
-  ##### Present the static plot in the report
-  include_graphics(paste(mutCNexprDir, "mut_cn_expr_plot.png", sep = "/"), dpi = 72)
-  
-} else if ( params$plots_mode == "interactive" ) {
-
-  p
+  mutCNexprPlot(data = data, mut_data = FALSE, plot_mode = params$plots_mode)
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -1886,19 +1901,16 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
-  
-  ##### Present the expression, CN and mutation data summary table
-  mut_cn_expr_genes.expr[[1]]
+  mut_cn_expr_genes.expr.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
-  
-  ##### Present the expression, CN and mutation data summary table
-  mut_cn_expr_genes.expr[[1]]
+  mut_cn_expr_genes.expr.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
 }
+
+##### Present the expression, CN and mutation data summary table
+mut_cn_expr_genes.expr.z[[1]]
 ```
 
 <details>
@@ -1916,19 +1928,16 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
-  
-  ##### Present the expression, CN and mutation data summary table
-  mut_cn_expr_genes.expr[[1]]
+  mut_cn_expr_genes.expr.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
 
   mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
-  
-  ##### Present the expression, CN and mutation data summary table
-  mut_cn_expr_genes.expr[[1]]
 }
+
+##### Present the expression, CN and mutation data summary table
+mut_cn_expr_genes.expr.perc[[1]]
 ```
 
 <details>
@@ -1958,19 +1967,16 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
-  
-  ##### Present the expression, CN and mutation data summary table
-  mut_cn_expr_genes.expr[[1]]
+  mut_cn_expr_genes.expr.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
-  
-  ##### Present the expression, CN and mutation data summary table
-  mut_cn_expr_genes.expr[[1]]
+  mut_cn_expr_genes.expr.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
 }
+
+##### Present the expression, CN and mutation data summary table
+mut_cn_expr_genes.expr.z[[1]]
 ```
 
 <details>
@@ -1988,19 +1994,16 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
-  
-  ##### Present the expression, CN and mutation data summary table
-  mut_cn_expr_genes.expr[[1]]
+  mut_cn_expr_genes.expr.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
 
-  mut_cn_expr_genes.expr <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
-  
-  ##### Present the expression, CN and mutation data summary table
-  mut_cn_expr_genes.expr[[1]]
+  mut_cn_expr_genes.expr.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
 }
+
+##### Present the expression, CN and mutation data summary table
+mut_cn_expr_genes.expr.perc[[1]]
 ```
 
 <details>
