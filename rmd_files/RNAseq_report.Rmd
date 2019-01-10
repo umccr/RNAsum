@@ -51,9 +51,9 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 4. ref_datasets.list[[tissue]][["pca"]] = PCA results
 
-# 5. ref_datasets.list[[tissue]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
+# 5. ref_datasets.list[[tissue]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
 
-# 6. ref_datasets.list[[tissue]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+# 6. ref_datasets.list[[tissue]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
 
 # 7. ref_datasets.list[[tissue]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
 
@@ -1071,19 +1071,26 @@ for ( tissue in names(ref_datasets.list) ) {
   keys <- keys(edb, keytype="GENEID")
   
   ##### Get genes genomic coordiantes
-  gene_info <- ensembldb::select(edb, keys=keys, columns=c("GENEID", "GENEBIOTYPE", "GENENAME", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND"), keytype="GENEID")
-  names(gene_info)[1] <- "ENSEMBL"
+  gene_info <- ensembldb::select(edb, keys=keys, columns=c("GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME", "GENESEQSTART", "GENESEQEND"), keytype="GENEID")
+  names(gene_info) <- gsub("GENEID", "ENSEMBL", names(gene_info))
+  names(gene_info) <- gsub("GENENAME", "SYMBOL", names(gene_info))
+  
+  ##### Limit genes annotation to those genes for which sample expression measurments are available
+  gene_info <-  gene_info[ gene_info$ENSEMBL %in% data.df$ENSEMBL,  ]
+  
+  ##### Remove rows with duplicated ENSEMBL IDs
+  gene_info = gene_info[!duplicated(gene_info$ENSEMBL),]
+  rownames(gene_info) <- gene_info$ENSEMBL
+  
+  ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc)
+  gene_info = gene_info[!duplicated(gene_info$SYMBOL),]
   
   ##### Merge genes genomic coordinates info with their annotation and expression data
   data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = FALSE)
-  names(data.annot)[3] <- "SYMBOL"
-  
-  ##### Remove rows with duplicated gene symbols
-  data.annot = data.annot[!duplicated(data.annot$ENSEMBL),]
   rownames(data.annot) <- data.annot$ENSEMBL
   
   ##### Get data matrix with gene symbols
-  ref_datasets.list[[tissue]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+  ref_datasets.list[[tissue]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
 }
 ```
 
@@ -1095,26 +1102,12 @@ for ( tissue in names(ref_datasets.list) ) {
   data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
-
-  ##### Get genes annotation and genomic locations (Use Ensembl annotation version 86 (Oct 2016), the most recent as of Oct 2018)
-  edb <- EnsDb.Hsapiens.v86
-  
-  ##### Get keytypes for gene SYMBOL
-  keys <- keys(edb, keytype="GENEID")
-  
-  ##### Get genes genomic coordiantes
-  gene_info <- ensembldb::select(edb, keys=keys, columns=c("GENEID", "GENEBIOTYPE", "GENENAME", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND"), keytype="GENEID")
-  names(gene_info)[1] <- "ENSEMBL"
   
   ##### Merge genes genomic coordinates info with their annotation and expression data
   data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = FALSE)
   
   ##### Keep only genes fo which gene symbol is available
-  names(data.annot)[3] <- "SYMBOL"
   data.annot <- data.annot[!(is.na(data.annot$SYMBOL) | data.annot$SYMBOL==""), ]
-  
-  ##### Remove rows with duplicated gene symbols
-  data.annot = data.annot[!duplicated(data.annot$SYMBOL),]
   rownames(data.annot) <- data.annot$SYMBOL
   
   ##### Get data matrix with gene symbols
@@ -1123,7 +1116,7 @@ for ( tissue in names(ref_datasets.list) ) {
   #rownames(data) <- data.annot$SYMBOL
   ref_datasets.list[[tissue]][["combined_data_processed"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
   rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]) <- data.annot$SYMBOL
-  ref_datasets.list[[tissue]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "ENTREZID", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+  ref_datasets.list[[tissue]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
 }
 ```
 
@@ -1508,17 +1501,19 @@ result_reads <- result_reads %>% dplyr::select(-"transcriptID","transcriptID")
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE}
 ##### Annotate fusion genes
 ##### Get data to annotate fusion genes
-fusion_genes_annot <- ref_datasets.list[[tissue]][["gene_annot"]][ , c("SYMBOL", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
+fusion_genes_annot <- ref_datasets.list[[tissue]][["gene_annot_all"]][ , c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
 
 ##### Keep only fusions for which both genes have gene symbol (and genomics location) available
-pizzly.fusions.annot <- pizzly.fusions3[ pizzly.fusions3$geneA.name %in% fusion_genes_annot$SYMBOL, ]
-pizzly.fusions.annot <- pizzly.fusions.annot[ pizzly.fusions.annot$geneB.name %in% fusion_genes_annot$SYMBOL, ]
+pizzly.fusions3 <- pizzly.fusions3[ pizzly.fusions3$geneA.id %in% fusion_genes_annot$ENSEMBL, ]
+pizzly.fusions3 <- pizzly.fusions3[ pizzly.fusions3$geneB.id %in% fusion_genes_annot$ENSEMBL, ]
+
+pizzly.fusions.annot <- pizzly.fusions3
 pizzly.fusions.annot$order <- 1:nrow(pizzly.fusions.annot)
 
 ##### Get genomic info for fusions genes
-fusion_annot1 <- merge(fusion_genes_annot, pizzly.fusions.annot[ , c("geneA.name", "order")], by = 1, sort=FALSE)
+fusion_annot1 <- merge(fusion_genes_annot, pizzly.fusions.annot[ , c("geneA.id", "order")], by = 1, sort=FALSE)
 fusion_annot1 <- fusion_annot1[ order(fusion_annot1$order), ]
-fusion_annot2 <- merge(fusion_genes_annot, pizzly.fusions.annot[ , c("geneB.name", "order")], by = 1, sort=FALSE)
+fusion_annot2 <- merge(fusion_genes_annot, pizzly.fusions.annot[ , c("geneB.id", "order")], by = 1, sort=FALSE)
 fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
 
 fusion_annot <- cbind(fusion_annot1, fusion_annot2, pizzly.fusions.annot$fusions_abundant, pizzly.fusions.annot$fusions_cancer)
@@ -2677,7 +2672,7 @@ Gene fusion events involving highly abundant transcript(s) or [Cancer genes] are
 fusion_annot_top <- fusion_annot[ fusion_annot$pizzly.fusions.annot.fusions_abundant == "Yes" | fusion_annot$pizzly.fusions.annot.fusions_cancer == "Yes" , ]
 
 ##### Generate bezier curves-like plot representing gene fusion events
-fusionsBezierPlot(fusion_annot_top, ref_datasets.list[[tissue]][["gene_annot"]])
+fusionsBezierPlot(fusion_annot_top, ref_datasets.list[[tissue]][["gene_annot_all"]])
 ```
 
 ```{r expr_table_fusions, comment = NA, message=FALSE, warning=FALSE}
@@ -2764,6 +2759,9 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+
 exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
@@ -2843,6 +2841,9 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+
 exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
@@ -2922,6 +2923,9 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+
 exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
@@ -3001,6 +3005,9 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+
 exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
@@ -3034,8 +3041,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r fusions_figs_5, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[1]
-geneB <- pizzly.fusions2$geneB.name[1]
+geneA <- pizzly.fusions2$geneA.name[5]
+geneB <- pizzly.fusions2$geneB.name[5]
 
 ##### Check if clinker fusion plot exists. Skip this section in it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
@@ -3080,6 +3087,9 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r gene_table_fusions_5, comment = NA, message=FALSE, warning=FALSE}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+
 exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
@@ -3372,8 +3382,8 @@ detach("package:plotly", unload=FALSE)
 
 ## Drug matching
 
-List of suitable drugs based on actionable targets identified among [mutated genes](#Mutated genes), 
-[copy-number (CN) altered genes](#Copy-number altered genes), [dysregulated cancer genes](#Cancer genes) and [fusion events](#Gene fusion events), which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}).
+List of suitable drugs based on actionable targets identified among [Mutated genes], 
+[Copy-number altered genes], dysregulated [Cancer genes] and [Gene fusion events], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}).
 
 ### - Mutated genes {.tabset}
 
