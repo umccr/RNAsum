@@ -27,6 +27,8 @@ params:
   cancer_biomarkers_trans: 'cancer_biomarkers_database/cancer_genes_upon_trans.tsv'
   cn_loss: 1
   cn_gain: 4
+  ensembl_version: 86
+  ucsc_genome_assembly: 19
 ---
 
 RNA-seq report for patient sample **`r params$sample_name`**.
@@ -914,8 +916,8 @@ suppressMessages(library(matrixStats))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggforce))
 suppressMessages(library(NOISeq))
-suppressMessages(library(EnsDb.Hsapiens.v86))
-suppressMessages(library(BSgenome.Hsapiens.UCSC.hg38))
+suppressMessages(library(package=paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE))
+suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)) # required to get chromosomes lengts for fusionsBezierPlot function generating Bezier plot to present gene fusions in the genomics context
 ```
 
 ```{r load_ref_data, message=FALSE, warning=FALSE}
@@ -2616,6 +2618,8 @@ select those which have a decent Transcripts Per Kilobase Million (TPM) support.
 the ones that are present in this list.
 </details>
 
+<span style="color:#ff0000">NOTE</span>: Only fusion events including genes with available genomics coordinates in [Ensembl database verion](https://ensembl.org/info/website/archives/index.html) `r params$ensembl_version` are reported.
+
 ### - Summary
 
 ```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
@@ -2700,9 +2704,9 @@ DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, e
 
 ### - Fusion genes {.tabset}
 
-Expression profiles for the top 5 gene fusion events detected in patient's sample and listed within (<span style="color:#ff0000">red</span> (abundant transcripts and <span style="color:#0000ff">blue</span> (cancer genes) sections in the [Gene fusion events] table). 
+Expression profiles for the top 5 gene fusion events detected in patient's sample and listed within <span style="color:#ff0000">red</span> (abundant transcripts and <span style="color:#0000ff">blue</span> (cancer genes) sections in the [Gene fusion events] table). 
 
-<span style="color:#ff0000">NOTE</span>: no plot in the *Fusion events visualisation* section is available for gene fusions for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
+<span style="color:#ff0000">NOTE</span>: the *Fusion events visualisation* is not available for gene fusions for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
 #### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
 
