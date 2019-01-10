@@ -505,9 +505,9 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 ##### Generate table with coloured cells indicating expression values for selected genes
 exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, type = "z") {
   
-  ##### Check how many of the selected genes are present in the expression data
-  genes <- genes[ genes %in% rownames(data) ]
-    
+  ##### Check which of the selected genes are not present in the expression data
+  genes.absent <- genes[ genes %!in% rownames(data) ]
+  
   targets.list <- unique(targets$Target)
   
   ##### Initiate dataframe for expression mean values in each group
@@ -527,7 +527,6 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
       group.z[, group] <- round(group.stats$quantile, digits=1)
 
     } else {
-      
       group.z[, group] <- round(group.stats$z, digits=2)
     }
   } 
@@ -544,6 +543,17 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
   group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, cancer]), digits = 2))
   names(group.z)[ncol(group.z)] <- paste0("Patient vs ", cancer)
   
+  ##### Add NAs for genes that are absent in the expression matrix. In the "Patient vs Normal" and "Patient vs PDAC" columns provide "0"s to facilitate interactive sorting the table. These will appear in blank cells in the table
+  if ( length(genes.absent) > 0 ) {
+    
+    NAs.df <- data.frame(matrix(NA, ncol = ncol(group.z), nrow = length(genes.absent)))
+    names(NAs.df) <- names(group.z)
+    rownames(NAs.df) <- genes.absent
+    NAs.df[ names(NAs.df) %in% c("Patient vs Normal", "Patient vs PDAC")] <- 0
+    
+    group.z <- rbind( group.z,  NAs.df)
+  }
+  
   ##### Change sample ID to "Patient" and normal sample to "Normal" for better visualisation
   names(group.z)[names(group.z)==sampleName] <- "Patient"
   targets.list[targets.list==sampleName] <- "Patient"
@@ -551,15 +561,26 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
   targets.list[targets.list==normal] <- "Normal"
   
   ##### Reorder groups
-  group.z <- cbind(group.z[ , c("Normal", cancer, "Patient")], group.z[, c(4,5,6)])
+  group.z <- cbind(group.z[ , c("Normal", cancer, "Patient")], group.z[, c("SD", "Patient vs Normal", "Patient vs PDAC" )])
     
   ##### Add genes annotation
   if ( !is.null(genes_annot) ) {
     
+    ##### Remove rows with duplicated gene symbols
+    if ( "SYMBOL" %in% names(genes_annot) ) {
+      
+      genes_annot <- genes_annot[!duplicated(genes_annot$SYMBOL),]  
+      rownames(genes_annot) <- genes_annot$SYMBOL
+      genes_annot <- genes_annot[ , -c(match("SYMBOL", names(genes_annot))), drop=FALSE]
+    }
+    
     ##### Merge the dataframe with groups mean expression values and gene annotations
-    group.z <- merge(genes_annot, group.z, by="row.names", all = FALSE, sort = FALSE)
+    group.z <- merge(genes_annot, group.z, by="row.names", all = TRUE, sort = FALSE)
     rownames(group.z) <- group.z$Row.names
-    group.z <- group.z[, -1]
+    names(group.z) <- gsub("Row.names", "Gene", names(group.z))
+    
+    ##### Include only queried genes
+    group.z <- group.z[ genes, ]
     
   } else {
     group.z <- cbind(rownames(group.z), group.z)
@@ -570,14 +591,14 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     
     group.z <- merge(group.z, OncoKB_genes, by="row.names", all = TRUE, sort = FALSE)
     rownames(group.z) <- group.z$Row.names
-    group.z <- group.z[, -1]
+    group.z <- group.z[ , -c(match("Row.names", names(group.z))), drop=FALSE]
     
     ##### Provide link to OncoKB for reported cancer genes
     for ( gene in genes ) {
       
       if ( gene %in% rownames(OncoKB_genes) & OncoKB_genes[gene, "OncoKB"] == "Yes" ) {
         
-        group.z$SYMBOL[ group.z$SYMBOL==gene] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
+        group.z$Gene[ group.z$Gene==gene] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
       }
     }
   }
@@ -631,6 +652,7 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     ##### Order variant entires based on tier info, to make sure that the varaints with the lowest tier are reported first
     mut_annot <- mut_annot[ order(mut_annot$TIER), ]
     
+    ##### Remove rows with duplicated gene symbols
     mut_annot <- mut_annot[!duplicated(mut_annot$SYMBOL),]  
     rownames(mut_annot) <- mut_annot$SYMBOL
     
@@ -647,14 +669,14 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     
     #### merge the variants information with the dataframe
     group.z <- merge(group.z, mut_annot, by = "row.names", all = TRUE, sort = FALSE)
-    group.z <- group.z[, colnames(group.z) %!in% "SYMBOL"]
+    group.z <- group.z[, colnames(group.z) %!in% "Gene"]
     
     ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
     group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$TIER), ]
     
     rownames(group.z) <- group.z$Row.names
-    group.z <- group.z[, -1]
+    group.z <- group.z[ , -c(match("Row.names", names(group.z))), drop=FALSE]
   }
   
   ##### Add CN data if provided
@@ -1548,7 +1570,7 @@ Out of the `r nrow(counts)` input genes:
 * `r nrow(counts) - nrow(y.filtered$counts)` are either not expressed or their expression level is too low to be detected
 * `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
-NOTE: the `r nrow(counts) - nrow(y.filtered$counts)` genes with no/low expression are indicated by <span style="color:#808080">GRAY</span> cells with missing values in *expression summary tables* in [Mutated genes], [Copy-number altered genes], [Cancer genes] and [Immune Response Markers] sections.
+NOTE: the `r nrow(counts) - nrow(y.filtered$counts)` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Copy-number altered genes], [Cancer genes] and [Immune Response Markers] sections.
 
 </details>
 
@@ -1686,7 +1708,7 @@ mRNA expression levels of genes containing single nucleotide variants (SNVs) or 
 
 ### - Summary table {.tabset}
 
-Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))` include [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants. Of these, the expression of **`r length(which(unique(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated by <span style="color:#808080">GRAY</span> cells with missing values).
+Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))` include [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants. Of these, the expression of **`r length(which(unique(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
@@ -1698,7 +1720,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 ##### Consider only genes with mutations calssified within Tiers 1-3
 genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)
 
-mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
+mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
 
 ##### Present the expression summary table
 mut_genes.expr.z[[1]]
@@ -1707,7 +1729,7 @@ mut_genes.expr.z[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER**. SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER**. SD - standard deviation
 </font>
 </details>
 
@@ -1716,7 +1738,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
 
 ##### Present the expression summary table
 mut_genes.expr.perc[[1]]
@@ -1725,7 +1747,7 @@ mut_genes.expr.perc[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER**. SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER**. SD - standard deviation
 </font>
 </details>
 
@@ -1976,7 +1998,7 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_datasets.list[[tissue]][["expr_mut_cn_data"]])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions the expression of **`r length(which(rownames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated by <span style="color:#808080">GRAY</span> cells with missing values).
+Out of the `r nrow(ref_datasets.list[[tissue]][["expr_mut_cn_data"]])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions the expression of **`r length(which(rownames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
@@ -1996,12 +2018,12 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
+  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
   
-  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
+  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "z")
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -2011,7 +2033,7 @@ mut_cn_expr_genes.expr.gains.z[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -2023,12 +2045,12 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
 
-  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
+  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -2038,7 +2060,7 @@ mut_cn_expr_genes.expr.gains.perc[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -2062,12 +2084,12 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
+  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
   
-  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "z")
+  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "z")
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -2077,7 +2099,7 @@ mut_cn_expr_genes.expr.losses.z[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -2089,12 +2111,12 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
   
-  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
+  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
 
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
 
-  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
+  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -2104,7 +2126,7 @@ mut_cn_expr_genes.expr.losses.perc[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -2344,7 +2366,7 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated by <span style="color:#808080">GRAY</span> cells with missing values).
+Out of the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
@@ -2353,7 +2375,7 @@ Out of the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expressio
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]], type = "z")
+cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], type = "z")
 
 ##### Present the expression summary table
 cancer_genes.expr.z[[1]]
@@ -2362,7 +2384,7 @@ cancer_genes.expr.z[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -2371,7 +2393,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r cancer_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]], type = "perc")
+cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], type = "perc")
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
@@ -2380,7 +2402,7 @@ cancer_genes.expr.perc[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -2618,7 +2640,9 @@ select those which have a decent Transcripts Per Kilobase Million (TPM) support.
 the ones that are present in this list.
 </details>
 
-<span style="color:#ff0000">NOTE</span>: Only fusion events including genes with available genomics coordinates in [Ensembl database verion](https://ensembl.org/info/website/archives/index.html) `r params$ensembl_version` are reported.
+***
+
+<span style="color:#ff0000">NOTE</span>: Only fusion events including genes with available genomics coordinates in [Ensembl database version](https://ensembl.org/info/website/archives/index.html){target="_blank"} `r params$ensembl_version` are reported.
 
 ### - Summary
 
@@ -2766,7 +2790,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -2781,7 +2805,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_1_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -2848,7 +2872,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -2863,7 +2887,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_2_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -2930,7 +2954,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -2945,7 +2969,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_3_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -3012,7 +3036,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -3027,7 +3051,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_4_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -3094,7 +3118,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
 ```
 
 <details>
@@ -3109,7 +3133,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_5_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
 ```
 
 <details>
@@ -3125,7 +3149,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy)
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]])))` immune response markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated by <span style="color:#808080">GRAY</span> cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]])))` immune response markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -3136,9 +3160,8 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]])))` immune r
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- unique(unlist(ref_genes.list[["genes_immune"]]))
-genes <- genes[which(genes %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))]
 
-immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], type = "z")
+immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "z")
 
 ##### Present the expression summary table
 immune_genes.expr.z[[1]]
@@ -3147,7 +3170,7 @@ immune_genes.expr.z[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. SD - standard deviation
 </font>
 </details>
 
@@ -3157,7 +3180,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot"]][, c(1,3)], type = "perc")
+immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
 
 ##### Present the expression summary table
 immune_genes.expr.perc[[1]]
@@ -3166,7 +3189,7 @@ immune_genes.expr.perc[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">GRAY</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -3391,7 +3414,7 @@ List of suitable drugs based on actionable targets identified among [Mutated gen
 
 ### - Mutated genes {.tabset}
 
-Genes with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants were screened for suitable drugs.
+Genes with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants were screened for suitable drugs (see [Mutated genes] section).
 
 #### Predictive
 
@@ -3541,7 +3564,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ### - CN altered genes {.tabset}
 
-Genes with **CN** values > `r params$cn_gain` (**gains**) and  or < `r params$cn_loss` (**losses**) were screened for suitable drugs.
+Genes with CN values > `r params$cn_gain` (**gains**) and  or < `r params$cn_loss` (**losses**) were screened for suitable drugs (see [Copy-number altered genes] section).
 
 #### Gains {.tabset}
 
@@ -3869,7 +3892,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ### - Cancer genes {.tabset}
 
-The top 50 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals (see [Cancer genes] section) were screened for suitable drugs.
+The top 50 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals were screened for suitable drugs (see [Cancer genes] section).
 
 #### Predictive
 
