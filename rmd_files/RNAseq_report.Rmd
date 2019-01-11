@@ -503,7 +503,7 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, type = "z") {
+exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, ext_links = FALSE, type = "z") {
   
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[ genes %!in% rownames(data) ]
@@ -579,30 +579,10 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     rownames(group.z) <- group.z$Row.names
     names(group.z) <- gsub("Row.names", "Gene", names(group.z))
     
-    ##### Include only queried genes
-    group.z <- group.z[ genes, ]
-    
   } else {
     group.z <- cbind(rownames(group.z), group.z)
   }
   
-  ##### Add cancer gene resources info
-  if ( !is.null(OncoKB_genes) ) {
-    
-    group.z <- merge(group.z, OncoKB_genes, by="row.names", all = TRUE, sort = FALSE)
-    rownames(group.z) <- group.z$Row.names
-    group.z <- group.z[ , -c(match("Row.names", names(group.z))), drop=FALSE]
-    
-    ##### Provide link to OncoKB for reported cancer genes
-    for ( gene in genes ) {
-      
-      if ( gene %in% rownames(OncoKB_genes) & OncoKB_genes[gene, "OncoKB"] == "Yes" ) {
-        
-        group.z$Gene[ group.z$Gene==gene] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
-      }
-    }
-  }
-      
   ##### Order table by the highest absolute values for Patient vs Normal difference
   group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
   
@@ -668,8 +648,8 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     }
     
     #### merge the variants information with the dataframe
+    mut_annot <- mut_annot[ , -c(match("SYMBOL", names(mut_annot))), drop=FALSE]
     group.z <- merge(group.z, mut_annot, by = "row.names", all = TRUE, sort = FALSE)
-    group.z <- group.z[, colnames(group.z) %!in% "Gene"]
     
     ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
     group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
@@ -692,6 +672,61 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
     group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = cn_decrease), ]
     group.z <- group.z[ order(group.z[ ,col_idx+1 ],  decreasing = cn_decrease), ]
+  }
+  
+  ##### Add cancer gene resources info
+  if ( !is.null(OncoKB_genes) ) {
+    
+    group.z <- merge(group.z, OncoKB_genes, by="row.names", all = TRUE, sort = FALSE)
+    rownames(group.z) <- group.z$Row.names
+    group.z <- group.z[ , -c(match("Row.names", names(group.z))), drop=FALSE]
+  }
+  
+  ##### Include only queried genes
+  group.z <- group.z[ genes, ]
+    
+  ##### Add links to external gene annotation resourses
+  if ( ext_links ) {
+    
+    ##### Place the external links after the "Patient vs Cancer" column
+    ##### Get the position of "Patient vs Cancer" column
+    col_idx <- grep(paste0("Patient vs ", cancer), names(group.z))
+    group.z <- add_column(group.z, NA, .after = col_idx)
+    names(group.z)[ col_idx+1 ] <- "ext_links"
+    
+    for ( gene in genes ) {
+
+      ##### Provide link to VICC meta-knowledgebase ( https://search.cancervariants.org )
+      group.z$ext_links[ group.z$Gene==gene ] <- paste0("<a href='https://search.cancervariants.org/#", gene, "' target='_blank'>VICC</a>")
+      
+      ##### Provide link to OncoKB
+      if ( gene %in% rownames(ref_genes.list[["oncokb_genes"]]) & ref_genes.list[["oncokb_genes"]][gene, "OncoKB"] == "Yes" ) {
+        
+        group.z$ext_links[ group.z$Gene == gene ] <- paste( group.z$ext_links[ group.z$Gene==gene ] , paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>OncoKB</a>"), sep = ", ")
+      }
+      
+      ##### Provide link to CIViC database druggable genes ( https://civicdb.org )
+      if ( gene %in% caner_genes_annot.list[["civic_clin_evid"]]$gene ) {
+    
+        group.z$ext_links[ group.z$Gene==gene ] <- paste( group.z$ext_links[ group.z$Gene==gene ] , paste0("<a href='", unique(caner_genes_annot.list[["civic_clin_evid"]][ caner_genes_annot.list[["civic_clin_evid"]]$gene == gene , "gene_civic_url"]), "' target='_blank'>CIViC</a>"), sep = ", ")
+      }
+    }
+    
+    names(group.z) <- gsub("ext_links", "External resources", names(group.z))
+  }
+  
+  ##### Attach links to GeneCards and Ensembl (if provided). Here we assume that gene names are
+  for ( gene in genes ) {
+    
+    if ( "ENSEMBL" %in% names(group.z) ) {
+      
+        if ( !is.na(group.z$ENSEMBL[ group.z$Gene==gene ]) ) {
+          
+        group.z$ENSEMBL[ group.z$Gene==gene ] <- paste0("<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=", group.z$ENSEMBL[ group.z$Gene==gene], "' target='_blank'>", group.z$ENSEMBL[ group.z$Gene == gene ], "</a>")
+      }
+    }
+    
+    group.z$Gene[ group.z$Gene==gene ] <- paste0("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene=", gene, "' target='_blank'>", gene, "</a>")
   }
   
   if ( !is.null(cn_data) ) {
@@ -2790,7 +2825,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "z")[[1]]
 ```
 
 <details>
@@ -2805,7 +2840,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_1_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "perc")[[1]]
 ```
 
 <details>
@@ -2872,7 +2907,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "z")[[1]]
 ```
 
 <details>
@@ -2887,7 +2922,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_2_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "perc")[[1]]
 ```
 
 <details>
@@ -2954,7 +2989,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "z")[[1]]
 ```
 
 <details>
@@ -2969,7 +3004,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_3_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "perc")[[1]]
 ```
 
 <details>
@@ -3036,7 +3071,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "z")[[1]]
 ```
 
 <details>
@@ -3051,7 +3086,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_4_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "perc")[[1]]
 ```
 
 <details>
@@ -3118,7 +3153,7 @@ detach("package:plotly", unload=FALSE)
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "z")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "z")[[1]]
 ```
 
 <details>
@@ -3133,7 +3168,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_5_perc, comment = NA, message=FALSE, warning=FALSE}
-exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c(1,2,4)], type = "perc")[[1]]
+exprTable( genes = fusion.df$SYMBOL, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], type = "perc")[[1]]
 ```
 
 <details>
