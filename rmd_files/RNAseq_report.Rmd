@@ -648,10 +648,6 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     mut_annot <- mut_annot[ , -c(match("SYMBOL", names(mut_annot))), drop=FALSE]
     group.z <- merge(group.z, mut_annot, by = "row.names", all = TRUE, sort = FALSE)
     
-    ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
-    group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
-    group.z <- group.z[ order(group.z$TIER), ]
-    
     rownames(group.z) <- group.z$Row.names
     group.z <- group.z[ , -c(match("Row.names", names(group.z))), drop=FALSE]
   }
@@ -722,16 +718,22 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     group.z$Gene[ group.z$Gene==gene ] <- paste0("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene=", gene, "' target='_blank'>", gene, "</a>")
   }
 
-  ##### Order table by the highest absolute values for Patient vs Normal difference
-  if ( is.null(cn_data) ) {
-    
-    group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
-  
   ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
-  } else {
+  if ( !is.null(cn_data) ) {
     
     group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = cn_decrease), ]
     group.z <- group.z[ order(group.z[ ,col_idx+1 ],  decreasing = cn_decrease), ]
+    
+  ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs Normal difference (to allow filtering based on z-score differences)
+  } else if  ( !is.null(mut_annot) ) {
+    
+    group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(group.z$TIER), ]
+    
+  ##### Otherwise order table by the highest absolute values for Patient vs Normal difference
+  } else {
+    
+    group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
   }
   
   if ( !is.null(cn_data) ) {
