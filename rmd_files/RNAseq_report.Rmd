@@ -1059,7 +1059,7 @@ caner_genes_annot.list[["oncokb_all_vars"]] <- read.table(paste(params$ref_data_
 caner_genes_annot.list[["civic_var_summaries"]] <- read.table(paste(params$ref_data_dir, params$civic_var_summaries, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 caner_genes_annot.list[["civic_clin_evid"]] <- read.table(paste(params$ref_data_dir, params$civic_clin_evid, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 
-##### Read in Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers) annotations
+##### Read in Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers) annotations. This is mainly used to annotate reported fusion events
 caner_genes_annot.list[["cancer_biomarkers_trans"]] <- read.table(paste(params$ref_data_dir, params$cancer_biomarkers_trans, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 ```
 
@@ -1434,7 +1434,7 @@ for ( i in 1:nrow(pizzly.fusions2) ) {
   geneA <- pizzly.fusions2$geneA.name[i]
   geneB <- pizzly.fusions2$geneB.name[i]
         
-    ##### First check if the exact reported gene pairs were detected by pizzly
+  ##### First check if the exact reported gene pairs were detected by pizzly
   if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
     
     pizzly.fusions2$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneA, geneB, sep="-") ]
@@ -2696,6 +2696,10 @@ pizzly.fusions.clean <- pizzly.fusions.clean[ , c("geneA.name", "geneB.name", "p
 ##### Create a nice table output (with dataTable)
 names(pizzly.fusions.clean) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
 
+##### Provide links to the external resources (in the "Source" column)
+pizzly.fusions.clean$Source <- gsub( "cgc", paste0("<a href='https://cancer.sanger.ac.uk/cosmic/fusion' target='_blank'>cgc</a>"), pizzly.fusions.clean$Source)
+pizzly.fusions.clean$Source <- gsub( "biomarker", paste0("<a href='https://www.cancergenomeinterpreter.org/biomarkers' target='_blank'>biomarker</a>"), pizzly.fusions.clean$Source)
+
 DT::datatable( data = pizzly.fusions.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
     DT::formatStyle( columns = names(pizzly.fusions.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
   
@@ -2719,10 +2723,8 @@ Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusi
 
 **Source**: source from which the information has been extracted
 
-* *biomarker*: gene with mutations known to be biomarkers of response to drugs
-* *cgc*: gene obtained from the [Cancer Gene Census](http://cancer.sanger.ac.uk/cosmic){target="_blank"}
-* *in silico predicted*: gene identified by an ensemble of bioinformatics tools to have signals of positive selection in its mutational pattern across tumors (obtained from the [IntOGen](https://www.intogen.org/search){target="_blank"} repository)
-* *predisposing*: gene with clinical evidence of predisposing to cancer (obtained from the literature)
+* *biomarker*: gene with mutations known to be biomarkers of response to drugs (from [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"})
+* *cgc*: gene obtained from the [Cancer Gene Census](https://cancer.sanger.ac.uk/cosmic/fusion){target="_blank"}
 * *validated*: experimentally validated cancer driver gene (obtained from the literature)
 
 **Cancer acronym**: acronym of cancer type in which the fusion event was detected and reported
@@ -2772,7 +2774,7 @@ DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, e
 
 Expression profiles for the top 5 gene fusion events detected in patient's sample and listed within <span style="color:#ff0000">red</span> (abundant transcripts and <span style="color:#0000ff">blue</span> (cancer genes) sections in the [Gene fusion events] table). 
 
-<span style="color:#ff0000">NOTE</span>: the *Fusion events visualisation* is not available for gene fusions for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
+<span style="color:#ff0000">NOTE</span>: the *Fusion events visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
 #### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
 
