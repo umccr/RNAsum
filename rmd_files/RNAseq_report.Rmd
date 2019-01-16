@@ -16,7 +16,8 @@ params:
   count_file: 
   tissue: 
   plots_mode: 
-  ref_data_dir: '../data'
+  ref_data_dir: 
+  batch: 
   genes_cancer: 'genes/cancer_genes.20181112.genes'
   genes_immune: 'genes/Genes_immune.txt'
   oncokb_genes: 'OncoKB/CancerGenesList.txt'
@@ -788,7 +789,7 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
 }
 
 ##### Generate table with drugs targeting selected set of genes using info from CIViC database (https://civicdb.org/)
-civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive") {
+civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive", var_type = "mutation") {
   
   ##### Initialize data frame to the about drug-target info from CIViC
   drug.info <- setNames(data.frame(matrix(ncol = 18, nrow = 0)), c("Gene", "Variant", "variant_types", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "civic_actionability_score", "Disease", "phenotypes", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
@@ -1018,7 +1019,7 @@ names(caner_genes_annot.list) <- caner_genes_annot
 
 ##### Get patient data dir and sample file name
 dataDir <- unlist(strsplit(params$count_file, split='/', fixed=TRUE))
-sampleName.orig <- gsub("-ready.counts", "", dataDir[length(dataDir)])
+sampleName <- gsub("-ready.counts", "", dataDir[length(dataDir)])
 dataDir <- paste(dataDir[-c(length(dataDir))], collapse ="/")
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
@@ -1031,10 +1032,16 @@ ref_genes.list[["oncokb_genes"]] <- read.table(paste(params$ref_data_dir, params
 ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params$genes_immune, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
 
 ##### Read in mutation data for investigate sample
-##### Check if PCGR (mutation) output file exists
-if ( file.exists(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/")) ) {
+##### Get the WGS data batch name
+batch <- unlist(strsplit(params$batch, split='/', fixed=TRUE))
+batch <- batch[length(batch)]
   
-  ref_genes.list[["pcgr"]] <- read.table(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/"), sep=",", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+##### Check if PCGR (mutation) output file exists
+pcgr_file <- paste(params$batch, "pcgr", paste0(batch, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
+
+if ( file.exists(pcgr_file) ) {
+  
+  ref_genes.list[["pcgr"]] <- read.table(pcgr_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
   
   ##### Simplify the variants types
   ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_variant", "", ref_genes.list[["pcgr"]]$CONSEQUENCE)
@@ -1051,12 +1058,25 @@ if ( file.exists(paste(dataDir, "pcgr/pcgr-somatic.csv", sep = "/")) ) {
 }
 
 ##### Check if purple (CN) output file exists
-if ( file.exists(paste(dataDir, "purple/purple.gene.cnv", sep = "/")) ) {
+purple_file <- paste(params$batch, "purple", paste0(batch, ".purple.gene.cnv"), sep = "/")
+
+if ( file.exists(purple_file) ) {
   
-  ref_genes.list[["purple"]] <- read.table(paste(dataDir, "purple/purple.gene.cnv", sep = "/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+  ref_genes.list[["purple"]] <- read.table(purple_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
   
 } else {
   ref_genes.list[["purple"]] <- NULL
+}
+
+##### Check if manta (structural variants (SVs)) file exists
+sv_file <- paste(params$batch, "structural", paste0(batch, "-sv-prioritize-manta-pass.tsv"), sep = "/")
+
+if ( file.exists(sv_file) ) {
+  
+  ref_genes.list[["sv"]] <- read.table(sv_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+  
+} else {
+  ref_genes.list[["sv"]] <- NULL
 }
 
 ##### Read in OncoKB (http://oncokb.org) annotations
@@ -1367,7 +1387,7 @@ if ( !is.null(ref_genes.list[["purple"]]) ) {
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
 #read in the pizzly fusion calls
-pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName.orig, "-flat.tsv"), sep = "/"), header = TRUE)
+pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/"), header = TRUE)
 quant <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
 #sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
@@ -3506,7 +3526,7 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 ##### Generate table with drugs targeting mutated cancer genes
 genes <- mut_genes.expr.z[[2]]$SYMBOL
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
+civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive", var_type = "mutation")[[1]]
 ```
 
 <details>
