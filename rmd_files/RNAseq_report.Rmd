@@ -1056,6 +1056,7 @@ if ( file.exists(pcgr_file) ) {
 } else {
   
   ref_genes.list[["pcgr"]] <- NULL
+  runPcgrChunk <- FALSE
 }
 
 ##### Check if purple (CN) output file exists
@@ -1066,7 +1067,9 @@ if ( file.exists(purple_file) ) {
   ref_genes.list[["purple"]] <- read.table(purple_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
   
 } else {
+  
   ref_genes.list[["purple"]] <- NULL
+  runPurpleChunk <- FALSE
 }
 
 ##### Check if manta (structural variants (SVs)) file exists
@@ -1077,7 +1080,9 @@ if ( file.exists(sv_file) ) {
   ref_genes.list[["sv"]] <- read.table(sv_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
   
 } else {
+  
   ref_genes.list[["sv"]] <- NULL
+  runSVsChunk <- FALSE
 }
 
 ##### Read in OncoKB (http://oncokb.org) annotations
@@ -1244,7 +1249,7 @@ cancer_genes[ cancer_genes=="" ] <- "-"
 ref_genes.list[["oncokb_genes"]] <- cancer_genes
 ```
 
-```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE}
+```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Combine expression data with mutation and CN data if available
 if ( !is.null(ref_genes.list[["purple"]]) ) {
   
@@ -1383,11 +1388,6 @@ if ( !is.null(ref_genes.list[["purple"]]) ) {
     ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub)
     colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "mRNA")
   }
- 
-##### Otherwise do not execute CN related chunks 
-} else {
-  
-  runChunk <- FALSE
 }
 ```
 
@@ -1812,13 +1812,15 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
 
+<span style="color:#ff0000">NOTE</span>: This section is available for samples with accompanying [PCGR](https://github.com/sigven/pcgr){target="_blank"} results.
+
 ### - Summary table {.tabset}
 
 Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))` include [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants. Of these, the expression of **`r length(which(unique(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
-```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE}
+```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
@@ -1843,7 +1845,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### Percentiles
 
-```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
@@ -1863,9 +1865,9 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 Expression profiles for the top 10 mutated genes with variants annotated with the lowest [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[1]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[1] }`
 
-```{r cdf_plot_mut_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[1]
@@ -1884,9 +1886,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[2]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[2] }`
 
-```{r cdf_plot_mut_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[2]
@@ -1905,9 +1907,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[3]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[3] }`
 
-```{r cdf_plot_mut_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[3]
@@ -1926,9 +1928,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[4]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[4] }`
 
-```{r cdf_plot_mut_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[4]
@@ -1947,9 +1949,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[5]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[5] }`
 
-```{r cdf_plot_mut_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[5]
@@ -1968,9 +1970,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[6]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[6] }`
 
-```{r cdf_plot_mut_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[6]
@@ -1989,9 +1991,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[7]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[7] }`
 
-```{r cdf_plot_mut_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[7]
@@ -2010,9 +2012,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[8]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[8] }`
 
-```{r cdf_plot_mut_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[8]
@@ -2031,9 +2033,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[9]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[9] }`
 
-```{r cdf_plot_mut_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[9]
@@ -2052,9 +2054,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r mut_genes.expr.z[[2]]$SYMBOL[10]`
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[10] }`
 
-```{r cdf_plot_mut_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_genes.expr.z[[2]]$SYMBOL[10]
@@ -2075,13 +2077,15 @@ detach("package:plotly", unload=FALSE)
 
 ## Copy-number altered genes
 
-Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data and, where available, mutation status. `r if ( !runChunk) { cat("No CN data was provided.\n\n") }`
+Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data and mutation status, if available.
+
+<span style="color:#ff0000">NOTE</span>: This section is available for samples with accompanying [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"} results.
 
 ### - Expression vs copy-number
 
 Scatterplot comparing the per-gene **mRNA expression** values (*y-axis*, Z-scores), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 10 or < 0.5 are annotated.
 
-```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
 
@@ -2112,7 +2116,7 @@ Table summarising the **mRNA expression** values in normal, cancer and patient s
 
 ##### Z-scores
 
-```{r mut_cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r mut_cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN gains
 cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
@@ -2147,7 +2151,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ##### Percentiles
 
-```{r mut_cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r mut_cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
     
@@ -2178,7 +2182,7 @@ Table summarising the **mRNA expression** values in normal, cancer and patient s
 
 ##### Z-scores
 
-```{r mut_cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r mut_cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN losses
 cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
@@ -2213,7 +2217,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ##### Percentiles
 
-```{r mut_cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r mut_cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
     
@@ -2244,9 +2248,9 @@ Expression profiles for 5 genes with the highest (**gains**) and 5 genes with th
 
 #### Gains {.tabset}
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[1] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[1] }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_gains_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2266,9 +2270,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[2] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[2] }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_gains_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2288,9 +2292,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[3] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[3] }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_gains_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2310,9 +2314,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[4] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[4] }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_gains_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2332,9 +2336,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[5] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[5] }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_gains_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2356,9 +2360,9 @@ detach("package:plotly", unload=FALSE)
 
 #### Losses {.tabset}
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[1] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[1] }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_losses_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2378,9 +2382,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[2] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[2] }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_losses_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2400,9 +2404,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[3] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[3] }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_losses_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2422,9 +2426,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[4] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[4] }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_losses_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2444,9 +2448,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[5] } else { cat("No CN data was provided.\n\n") }`
+##### `r if ( runPurpleChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[5] }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
+```{r cdf_plot_mut_cn_expr_losses_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -3528,7 +3532,7 @@ Genes with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.ht
 
 Evidence pertaining to a variant’s effect on therapeutic response.
 
-```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
 genes <- mut_genes.expr.z[[2]]$SYMBOL
 
@@ -3556,7 +3560,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3566,7 +3570,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
 
-```{r drugs_prognostic_mut_genes, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_prognostic_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
 ```
@@ -3592,7 +3596,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3602,7 +3606,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on patient diagnosis.
 
-```{r drugs_diagnostic_mut_genes, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_diagnostic_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
 ```
@@ -3628,7 +3632,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3638,7 +3642,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
-```{r drugs_predisposing_mut_genes, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_predisposing_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
 ```
@@ -3664,7 +3668,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3680,7 +3684,7 @@ Genes with CN values > `r params$cn_gain` (**gains**) and  or < `r params$cn_los
 
 Evidence pertaining to a variant’s effect on therapeutic response.
 
-```{r drugs_predictive_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r drugs_predictive_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
@@ -3708,7 +3712,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3718,7 +3722,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
 
-```{r drugs_prognostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r drugs_prognostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
 ```
@@ -3744,7 +3748,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3754,7 +3758,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on patient diagnosis.
 
-```{r drugs_diagnostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r drugs_diagnostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
 ```
@@ -3780,7 +3784,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3790,7 +3794,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
-```{r drugs_predisposing_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r drugs_predisposing_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
 ```
@@ -3816,7 +3820,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3828,7 +3832,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s effect on therapeutic response.
 
-```{r drugs_predictive_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r drugs_predictive_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
@@ -3863,7 +3867,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3873,7 +3877,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
 
-```{r drugs_prognostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r drugs_prognostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
 ```
@@ -3906,7 +3910,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3916,7 +3920,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on patient diagnosis.
 
-```{r drugs_diagnostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r drugs_diagnostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
 ```
@@ -3949,7 +3953,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -3959,7 +3963,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
-```{r drugs_predisposing_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
+```{r drugs_predisposing_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
 ```
@@ -3992,7 +3996,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4035,7 +4039,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4074,7 +4078,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4113,7 +4117,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4152,7 +4156,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4198,7 +4202,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4238,7 +4242,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4278,7 +4282,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4318,7 +4322,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4367,7 +4371,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4414,7 +4418,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4461,7 +4465,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
@@ -4508,7 +4512,7 @@ civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]
 
 **[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
 
-* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (Each Star = 1 point).
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
 </font> 
 </details>
 
