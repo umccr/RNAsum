@@ -11,13 +11,13 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: 
-  sample_name: 
-  count_file: 
-  tissue: 
-  plots_mode: 
-  ref_data_dir: 
-  batch: 
+  report_dir: '/Users/jmarzec/data/Patients/final/CCR180038_SV18T002P006_RNA/RNAseq_report'
+  sample_name: 'CCR180038_SV18T002P006_RNA'
+  count_file: '/Users/jmarzec/data/Patients/final/CCR180038_SV18T002P006_RNA/CCR180038_SV18T002P006_RNA-ready.counts'
+  tissue: 'pancreas'
+  plots_mode: 'static'
+  ref_data_dir: '../data'
+  batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_18_SV_P006_1__CCR180038_SV18T002P006'
   genes_cancer: 'genes/cancer_genes.20181112.genes'
   genes_immune: 'genes/Genes_immune.txt'
   oncokb_genes: 'OncoKB/CancerGenesList.txt'
@@ -1054,6 +1054,7 @@ if ( file.exists(pcgr_file) ) {
   ref_genes.list[["pcgr"]]$AF_NORMAL <- round(ref_genes.list[["pcgr"]]$AF_NORMAL, digits = 2)
   
 } else {
+  
   ref_genes.list[["pcgr"]] <- NULL
 }
 
@@ -1382,6 +1383,11 @@ if ( !is.null(ref_genes.list[["purple"]]) ) {
     ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub)
     colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "mRNA")
   }
+ 
+##### Otherwise do not execute CN related chunks 
+} else {
+  
+  runChunk <- FALSE
 }
 ```
 
@@ -2069,13 +2075,13 @@ detach("package:plotly", unload=FALSE)
 
 ## Copy-number altered genes
 
-Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data and, where available, mutation status.
+Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data and, where available, mutation status. `r if ( !runChunk) { cat("No CN data was provided.\n\n") }`
 
 ### - Expression vs copy-number
 
 Scatterplot comparing the per-gene **mRNA expression** values (*y-axis*, Z-scores), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 10 or < 0.5 are annotated.
 
-```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
 
@@ -2106,26 +2112,26 @@ Table summarising the **mRNA expression** values in normal, cancer and patient s
 
 ##### Z-scores
 
-```{r mut_cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE}
+```{r mut_cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN gains
 cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 cn_data <- cn_data[ cn_data$CN > params$cn_gain, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
-
+  
 ##### Get expression data
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-  
+    
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
-  
+    
   mut_cn_expr_genes.expr.gains.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
-
+  
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
-  
+    
   mut_cn_expr_genes.expr.gains.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "z")
 }
-
+  
 ##### Present the expression, CN and mutation data summary table
 mut_cn_expr_genes.expr.gains.z[[1]]
 ```
@@ -2141,18 +2147,18 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ##### Percentiles
 
-```{r mut_cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r mut_cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
-  
+    
   mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
-
+  
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
-
+  
   mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
 }
-
+  
 ##### Present the expression, CN and mutation data summary table
 mut_cn_expr_genes.expr.gains.perc[[1]]
 ```
@@ -2172,26 +2178,26 @@ Table summarising the **mRNA expression** values in normal, cancer and patient s
 
 ##### Z-scores
 
-```{r mut_cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE}
+```{r mut_cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN losses
 cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 cn_data <- cn_data[ cn_data$CN < params$cn_loss, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
-
+  
 ##### Get expression data
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-  
+    
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
-  
+    
   mut_cn_expr_genes.expr.losses.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "z")
-
+  
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
-  
+    
   mut_cn_expr_genes.expr.losses.z <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "z")
 }
-
+  
 ##### Present the expression, CN and mutation data summary table
 mut_cn_expr_genes.expr.losses.z[[1]]
 ```
@@ -2207,18 +2213,18 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ##### Percentiles
 
-```{r mut_cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r mut_cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
-  
+    
   mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], type = "perc")
-
+  
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( !is.null(ref_genes.list[["purple"]] ) ) {
-
+  
   mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = rownames(cn_data), data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], type = "perc")
 }
-
+  
 ##### Present the expression, CN and mutation data summary table
 mut_cn_expr_genes.expr.losses.perc[[1]]
 ```
@@ -2238,18 +2244,18 @@ Expression profiles for 5 genes with the highest (**gains**) and 5 genes with th
 
 #### Gains {.tabset}
 
-##### `r mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[1]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[1] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_gains_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[1]
-
+  
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
 }
@@ -2260,18 +2266,18 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[2]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[2] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_gains_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[2]
-
+  
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
 }
@@ -2282,18 +2288,18 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[3]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[3] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_gains_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[3]
-
+  
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
 }
@@ -2304,9 +2310,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[4]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[4] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_gains_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2315,7 +2321,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[4]
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
 }
@@ -2326,18 +2332,18 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[5]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[5] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_gains_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_gains_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[5]
-
+  
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
 }
@@ -2350,18 +2356,18 @@ detach("package:plotly", unload=FALSE)
 
 #### Losses {.tabset}
 
-##### `r mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[1]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[1] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_losses_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[1]
-
+  
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
 }
@@ -2372,18 +2378,18 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[2]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[2] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_losses_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[2]
-
+  
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
 }
@@ -2394,9 +2400,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[3]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[3] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_losses_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2405,7 +2411,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[3]
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
 }
@@ -2416,18 +2422,18 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[4]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[4] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_losses_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[4]
-
+  
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
 }
@@ -2438,9 +2444,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### `r mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[5]`
+##### `r if ( runChunk) { mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[5] } else { cat("No CN data was provided.\n\n") }`
 
-```{r cdf_plot_mut_cn_expr_losses_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r cdf_plot_mut_cn_expr_losses_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runChunk}
 suppressMessages(library(plotly))
 
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
@@ -2449,7 +2455,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[5]
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
+  
 } else {
   cat(paste("There are only", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
 }
@@ -3674,7 +3680,7 @@ Genes with CN values > `r params$cn_gain` (**gains**) and  or < `r params$cn_los
 
 Evidence pertaining to a variant’s effect on therapeutic response.
 
-```{r drugs_predictive_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_predictive_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
@@ -3712,7 +3718,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
 
-```{r drugs_prognostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_prognostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
 ```
@@ -3748,7 +3754,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on patient diagnosis.
 
-```{r drugs_diagnostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_diagnostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
 ```
@@ -3784,7 +3790,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
-```{r drugs_predisposing_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_predisposing_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
 ```
@@ -3822,7 +3828,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s effect on therapeutic response.
 
-```{r drugs_predictive_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_predictive_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
@@ -3867,7 +3873,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on disease progression, severity, or patient survival.
 
-```{r drugs_prognostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_prognostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
 ```
@@ -3910,7 +3916,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertaining to a variant’s impact on patient diagnosis.
 
-```{r drugs_diagnostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_diagnostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
 ```
@@ -3953,7 +3959,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
-```{r drugs_predisposing_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_predisposing_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runChunk}
 ##### Generate table with drugs targeting CN altered genes
 civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
 ```
