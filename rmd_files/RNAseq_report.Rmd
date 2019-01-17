@@ -423,7 +423,7 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
 }
 
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
-mutCNexprPlot <- function(data, mut_data = FALSE, plot_mode = "static") {
+mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, plot_mode = "static") {
   
   ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
   if ( mut_data ) {
@@ -435,7 +435,7 @@ mutCNexprPlot <- function(data, mut_data = FALSE, plot_mode = "static") {
                       y=0.85, yanchor="top",
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
+      add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
                       x=~CN, xanchor="left",
                       y=~mRNA, yanchor="top",
                       font = list(color = "Grey",
@@ -449,7 +449,7 @@ mutCNexprPlot <- function(data, mut_data = FALSE, plot_mode = "static") {
   
     p <- plot_ly(data, x = ~CN, y = ~mRNA, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
       
-      add_annotations( data = data[ data$CN > 10 | data$CN < 0.5 ,], text=~Gene,
+      add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
                       x=~CN, xanchor="left",
                       y=~mRNA, yanchor="top",
                       font = list(color = "Grey",
@@ -1228,31 +1228,32 @@ for ( tissue in names(ref_datasets.list) ) {
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
 ##### Combine PMCC gene panel and OncoKB cancer genes
-cancer_genes <- ref_genes.list[["oncokb_genes"]]
-cancer_genes$PMCC <- rep("No", nrow(cancer_genes))
+genes_cancer <- ref_genes.list[["oncokb_genes"]]
+genes_cancer$PMCC <- rep("No", nrow(genes_cancer))
 
 for ( gene in unlist(ref_genes.list[["genes_cancer"]]) ) {
 
   ##### Check if the PMCC genes is aleady reported in OncoKB
-  if ( gene %in% cancer_genes$Hugo.Symbol ) {
+  if ( gene %in% genes_cancer$Hugo.Symbol ) {
    
-    cancer_genes[ cancer_genes$Hugo.Symbol==gene, ]$PMCC <- "Yes"
-    cancer_genes[ cancer_genes$Hugo.Symbol==gene, 2] <- as.numeric(cancer_genes[ cancer_genes$Hugo.Symbol==gene, 2]) + 1
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$PMCC <- "Yes"
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, 2] <- as.numeric(genes_cancer[ genes_cancer$Hugo.Symbol==gene, 2]) + 1
     
   ##### Add if not present
   } else {
     
-    cancer_genes <- rbind(cancer_genes, c(gene, 1, "No", rep("", 8), "Yes"))
+    genes_cancer <- rbind(genes_cancer, c(gene, 1, "No", rep("", 8), "Yes"))
   }
 }
 
-rownames(cancer_genes) <- cancer_genes$Hugo.Symbol
-names(cancer_genes) <- c("Gene", "No. of resources", "OncoKB", "Oncogene", "TSG", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "PMCC")
-cancer_genes <- cancer_genes[,c("Oncogene", "TSG", "No. of resources", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "PMCC")]
-cancer_genes[ cancer_genes=="No" ] <- "-"
-cancer_genes[ cancer_genes=="" ] <- "-"
+rownames(genes_cancer) <- genes_cancer$Hugo.Symbol
+names(genes_cancer) <- c("Gene", "No. of resources", "OncoKB", "Oncogene", "TSG", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "PMCC")
+genes_cancer <- genes_cancer[,c("Oncogene", "TSG", "No. of resources", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "PMCC")]
+genes_cancer[ genes_cancer=="No" ] <- "-"
+genes_cancer[ genes_cancer=="" ] <- "-"
 
-ref_genes.list[["oncokb_genes"]] <- cancer_genes
+ref_genes.list[["genes_cancer"]] <- genes_cancer
+ref_genes.list[["oncokb_genes"]] <- genes_cancer[ rownames(genes_cancer) %in% ref_genes.list[["oncokb_genes"]]$Hugo.Symbol, ]
 ```
 
 ```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
@@ -1427,7 +1428,7 @@ deduped.sorted.result <- deduped.result[idx, ]
 #Extract only those fusion genes that are in cancer genes list
 result.cancer_genes <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% rownames(ref_genes.list[["oncokb_genes"]]) | pizzly.fusions[row,3] %in% rownames(ref_genes.list[["oncokb_genes"]])) {
+  if(pizzly.fusions[row,1] %in% rownames(ref_genes.list[["genes_cancer"]]) | pizzly.fusions[row,3] %in% rownames(ref_genes.list[["genes_cancer"]])) {
     #creating a new dataframe for extracting pizzly rows with cancer gene hits
     result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
   }
@@ -2104,13 +2105,21 @@ suppressMessages(library(plotly))
 
 data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 
-if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+##### Limit the data to include only cancer genes
+genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
+
+if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   
-  mutCNexprPlot(data = data, mut_data = TRUE, plot_mode = params$plots_mode)
+  ##### Add mutated genes with vatiants tier 1-3
+  genes <- c( genes, unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))
+  data <- data[ data$Gene %in% genes, ]
+ 
+  mutCNexprPlot(data = data, mut_data = TRUE, cn_bottom = 0.5, cn_top = 3, plot_mode = params$plots_mode)
   
-} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+} else {
   
-  mutCNexprPlot(data = data, mut_data = FALSE, plot_mode = params$plots_mode)
+  data <- data[ data$Gene %in% genes, ]
+  mutCNexprPlot(data = data, mut_data = FALSE, cn_bottom = 0.5, cn_top = 3, plot_mode = params$plots_mode)
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -2503,7 +2512,7 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["oncokb_genes"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
@@ -2512,7 +2521,7 @@ Out of the `r nrow(ref_genes.list[["oncokb_genes"]])` cancer genes the expressio
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], ext_links = TRUE, type = "z")
+cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 cancer_genes.expr.z[[1]]
@@ -2530,7 +2539,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r cancer_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["oncokb_genes"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], ext_links = TRUE, type = "perc")
+cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
@@ -3593,7 +3602,7 @@ List of suitable drugs based on actionable targets identified among [Mutated gen
 
 ### - Mutated genes {.tabset}
 
-Genes with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants were screened for suitable drugs (see [Mutated genes] section).
+**`r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))`** genes with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants were screened for suitable drugs (see [Mutated genes] section).
 
 #### Predictive
 
@@ -3743,7 +3752,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ### - CN altered genes {.tabset}
 
-Genes with CN values > `r params$cn_gain` (**gains**) and  or < `r params$cn_loss` (**losses**) were screened for suitable drugs (see [Copy-number altered genes] section).
+**`r length(ref_datasets.list[[tissue]][["expr_mut_cn_data"]][,1])`** genes with CN values > `r params$cn_gain` (**gains**) and  or < `r params$cn_loss` (**losses**) were screened for suitable drugs (see [Copy-number altered genes] section).
 
 #### Gains {.tabset}
 
@@ -4071,7 +4080,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ### - Cancer genes {.tabset}
 
-The top 50 cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals were screened for suitable drugs (see [Cancer genes] section).
+The top **50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals were screened for suitable drugs (see [Cancer genes] section).
 
 #### Predictive
 
@@ -4231,7 +4240,7 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ### - Gene fusion events {.tabset}
 
-Gene fusion events involving highly abundant transcripts and cancer genes (<span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> sections in [Gene fusion events] table) were screened for suitable drugs.
+**`r nrow(fusion_annot_top.clean)`** gene fusion events involving highly abundant transcripts and/or cancer genes (<span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> sections in [Gene fusion events] table) were screened for suitable drugs.
 
 #### Highly abundant {.tabset}
 
