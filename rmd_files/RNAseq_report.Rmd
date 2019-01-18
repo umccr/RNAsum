@@ -814,54 +814,122 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
         clin.evid.info$evidence_level[ clin.evid.info$evidence_level == level ] <- evid_levels[[ level ]]
       }
       
-      evid_type.list <- c(clin.evid.info$evidence_type == evid_type)
-      
-      ##### Provide link to CIViC clinical evidence summary
-      clin.evid.info$evidence_type <- paste0("<a href='", clin.evid.info$evidence_civic_url, "' target='_blank'>", clin.evid.info$evidence_type, "</a>")
-      
-      ##### Provide link to CIViC gene summary
-      clin.evid.info$gene_civic_url <- paste0("<a href='", clin.evid.info$gene_civic_url, "' target='_blank'>", gene, "</a>")
-      names(clin.evid.info)[ names(clin.evid.info) =="gene_civic_url" ] <- "Gene"
-      
-      ##### Provide link to CIViC variants summary
-      clin.evid.info$variant_civic_url <- paste0("<a href='", clin.evid.info$variant_civic_url, "' target='_blank'>", clin.evid.info$variant, "</a>")
-      names(clin.evid.info)[ names(clin.evid.info) =="variant_civic_url" ] <- "Variant"
-      
-      ##### Provide link to ClinicalTrials.gov variants summary based on NCT IDs
-      for ( nct_id in clin.evid.info$nct_ids ) {
+      ##### Subset table to include only variants with the evidence type of interest
+      clin.evid.info <- clin.evid.info[ clin.evid.info$evidence_type == evid_type,  ]
         
-        if ( !is.empty(nct_id) ) {
+      if ( nrow(clin.evid.info) > 0 ) {
+        
+        ##### Provide link to CIViC clinical evidence summary
+        clin.evid.info$evidence_type <- paste0("<a href='", clin.evid.info$evidence_civic_url, "' target='_blank'>", clin.evid.info$evidence_type, "</a>")
+        
+        ##### Provide link to CIViC gene summary
+        clin.evid.info$gene_civic_url <- paste0("<a href='", clin.evid.info$gene_civic_url, "' target='_blank'>", gene, "</a>")
+        names(clin.evid.info)[ names(clin.evid.info) =="gene_civic_url" ] <- "Gene"
+        
+        ##### Provide link to CIViC variants summary
+        clin.evid.info$variant_civic_url <- paste0("<a href='", clin.evid.info$variant_civic_url, "' target='_blank'>", clin.evid.info$variant, "</a>")
+        names(clin.evid.info)[ names(clin.evid.info) =="variant_civic_url" ] <- "Variant"
+        
+        ##### Provide link to ClinicalTrials.gov variants summary based on NCT IDs
+        for ( nct_id in clin.evid.info$nct_ids ) {
           
-          ##### Deal with multiple NCT IDs (separated by comma)
-          nct_id_url <- gsub(" '" , "'", paste(gsub("/ " , "/", paste("<a href='https://clinicaltrials.gov/ct2/show/", unlist(strsplit(nct_id, split=",", fixed=TRUE)) , "' target='_blank'>", unlist(strsplit(nct_id, split=",", fixed=TRUE)), "</a>")), collapse = ", "))
-          clin.evid.info$nct_ids[ clin.evid.info$nct_ids==nct_id ] <- nct_id_url
+          if ( !is.empty(nct_id) ) {
+            
+            ##### Deal with multiple NCT IDs (separated by comma)
+            nct_id_url <- gsub(" '" , "'", paste(gsub("/ " , "/", paste("<a href='https://clinicaltrials.gov/ct2/show/", unlist(strsplit(nct_id, split=",", fixed=TRUE)) , "' target='_blank'>", unlist(strsplit(nct_id, split=",", fixed=TRUE)), "</a>")), collapse = ", "))
+            clin.evid.info$nct_ids[ clin.evid.info$nct_ids==nct_id ] <- nct_id_url
+          }
+        }
+        
+        ##### Provide link to PubMed variants summary
+        clin.evid.info$pubmed_id <- paste0("<a href='https://www.ncbi.nlm.nih.gov/pubmed/", clin.evid.info$pubmed_id, "' target='_blank'>", clin.evid.info$pubmed_id, "</a>")
+        
+        ##### Provide link to Disease Ontology
+        clin.evid.info$doid <- paste0("<a href='http://www.disease-ontology.org/?id=DOID:", clin.evid.info$doid, "' target='_blank'>", clin.evid.info$disease, "</a>")
+        names(clin.evid.info)[ names(clin.evid.info) =="doid" ] <- "Disease"
+        
+        ##### Extract info about all variants it that gene
+        var.info <- civic_var_summaries[ civic_var_summaries$gene == gene , ]
+        var.info <- var.info[, c("variant", "variant_types", "civic_actionability_score")]
+        var.info[,"variant_types"] <- gsub("_", " ", var.info[,"variant_types"])
+        var.info[,"variant_types"] <- gsub(",", ", ", var.info[,"variant_types"])
+        
+        ##### Merge about all variants it that gene and clinical evidence info
+        clin.evid.info <- merge(clin.evid.info, var.info, by = "variant", all.x = TRUE)
+        
+        ##### Filter drug matching info depending on the variant type
+        var_type.keep <- NULL
+        
+        if ( var_type == "mutation" ) {
+          
+          ##### Remove entries containing "EXPRESSION", "AMPLIFICATION", "DELETION", "METHYLATION", "WILD TYPE", "FUSION", "COPY", "REARRANGEMENT", "PHOSPHORYLATION", "TRANSCRIPT", "GAIN", "LOSS"
+          var_type.keep <- c(var_type.keep, grep( "EXPRESSION", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "AMPLIFICATION", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "DELETION", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "METHYLATION", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "WILD TYPE", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "FUSION", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "REARRANGEMENT", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "PHOSPHORYLATION", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "COPY", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "TRANSCRIPT", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "GAIN", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "LOSS", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
+          
+          clin.evid.info <- clin.evid.info[ -c(unique(var_type.keep)), ]
+          
+        } else if ( var_type == "expression" ) {
+          
+          ##### Keep only entries containing "EXPRESSION", "FUSION", "TRANSCRIPT", "ALTERATION"
+          var_type.keep <- c(var_type.keep, grep( "EXPRESSION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "FUSION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "TRANSCRIPT", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "ALTERATION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          
+          clin.evid.info <- clin.evid.info[ c(unique(var_type.keep)), ]
+          
+        } else if ( var_type == "fusion" ) {
+          
+          ##### Keep only entries containing "FUSION", "ALTERATION", "[gene]-", "-[gene]"
+          
+          ##### Keep only entries containing "FUSION", "ALTERATION", "-"
+          var_type.keep <- c(var_type.keep, grep( "FUSION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( paste0(gene, "-"), clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( paste0("-", gene), clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "ALTERATION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          
+          clin.evid.info <- clin.evid.info[ c(unique(var_type.keep)), ]
+          
+        } else if ( var_type == "copy_gain" ) {
+          
+          ##### Keep only entries containing "AMPLIFICATION", "COPY", "GAIN", "ALTERATION"
+          var_type.keep <- c(var_type.keep, grep( "AMPLIFICATION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "COPY", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "GAIN", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "ALTERATION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          
+          clin.evid.info <- clin.evid.info[ c(unique(var_type.keep)), ]
+          
+        } else if ( var_type == "copy_loss" ) {
+          
+          ##### Keep only entries containing "DELETION", "COPY", "LOSS", "ALTERATION"
+          var_type.keep <- c(var_type.keep, grep( "DELETION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "COPY", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "LOSS", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          var_type.keep <- c(var_type.keep, grep( "ALTERATION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+          
+          clin.evid.info <- clin.evid.info[ c(unique(var_type.keep)), ]
         }
       }
       
-      ##### Provide link to PubMed variants summary
-      clin.evid.info$pubmed_id <- paste0("<a href='https://www.ncbi.nlm.nih.gov/pubmed/", clin.evid.info$pubmed_id, "' target='_blank'>", clin.evid.info$pubmed_id, "</a>")
-      
-      ##### Provide link to Disease Ontology
-      clin.evid.info$doid <- paste0("<a href='http://www.disease-ontology.org/?id=DOID:", clin.evid.info$doid, "' target='_blank'>", clin.evid.info$disease, "</a>")
-      names(clin.evid.info)[ names(clin.evid.info) =="doid" ] <- "Disease"
-      
-      ##### Extract info about all variants it that gene
-      var.info <- civic_var_summaries[ civic_var_summaries$gene == gene , ]
-      var.info <- var.info[, c("variant", "variant_types", "civic_actionability_score")]
-      var.info[,"variant_types"] <- gsub("_", " ", var.info[,"variant_types"])
-      var.info[,"variant_types"] <- gsub(",", ", ", var.info[,"variant_types"])
-      
-      ##### Merge about all variants it that gene and clinical evidence info
-      clin.evid.info <- merge(clin.evid.info, var.info, by = "variant", all.x = TRUE)
-      
-      ##### Subset table to include only most important info
-      clin.evid.info <- clin.evid.info[ , names(drug.info)]
-      
-      ##### Subset table to include only variants with the evidence type of interest
-      clin.evid.info <- clin.evid.info[ evid_type.list,  ]
-      
-      ##### Add drugs info for subsequent gene
-      drug.info <- rbind(drug.info, clin.evid.info)
+      if ( nrow(clin.evid.info) > 0 ) {
+        
+        ##### Subset table to include only most important info
+        clin.evid.info <- clin.evid.info[ , names(drug.info)]
+        
+        ##### Add drugs info for subsequent gene
+        drug.info <- rbind(drug.info, clin.evid.info)
+      }
     }
   }
   
@@ -3611,7 +3679,7 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 ##### Generate table with drugs targeting mutated cancer genes
 genes <- mut_genes.expr.z[[2]]$SYMBOL
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive", var_type = "mutation")[[1]]
+civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "mutation")[[1]]
 ```
 
 <details>
@@ -3647,7 +3715,7 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "mutation")[[1]]
 ```
 
 <details>
@@ -3683,7 +3751,7 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "mutation")[[1]]
 ```
 
 <details>
@@ -3719,7 +3787,7 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "mutation")[[1]]
 ```
 
 <details>
@@ -3762,7 +3830,7 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "expression")[[1]]
 ```
 
 <details>
@@ -3801,7 +3869,7 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "expression")[[1]]
 ```
 
 <details>
@@ -3840,7 +3908,7 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "expression")[[1]]
 ```
 
 <details>
@@ -3879,7 +3947,7 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "expression")[[1]]
 ```
 
 <details>
@@ -3925,7 +3993,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
+civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")[[1]]
 ```
 
 <details>
@@ -3965,7 +4033,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "fusion")[[1]]
 ```
 
 <details>
@@ -4005,7 +4073,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "fusion")[[1]]
 ```
 
 <details>
@@ -4045,7 +4113,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
 genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "fusion")[[1]]
 ```
 
 <details>
@@ -4087,7 +4155,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
+civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")[[1]]
 ```
 
 <details>
@@ -4134,7 +4202,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "fusion")[[1]]
 ```
 
 <details>
@@ -4181,7 +4249,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "fusion")[[1]]
 ```
 
 <details>
@@ -4228,7 +4296,7 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
 genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
 
-civicDrugTable(c(genesA, genesB), caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "fusion")[[1]]
 ```
 
 <details>
@@ -4279,7 +4347,7 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "copy_gain")[[1]]
 ```
 
 <details>
@@ -4315,7 +4383,7 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "copy_gain")[[1]]
 ```
 
 <details>
@@ -4351,7 +4419,7 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "copy_gain")[[1]]
 ```
 
 <details>
@@ -4387,7 +4455,7 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "copy_gain")[[1]]
 ```
 
 <details>
@@ -4427,7 +4495,7 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predictive")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "copy_loss")[[1]]
 ```
 
 <details>
@@ -4470,7 +4538,7 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Prognostic")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "copy_loss")[[1]]
 ```
 
 <details>
@@ -4513,7 +4581,7 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Diagnostic")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "copy_loss")[[1]]
 ```
 
 <details>
@@ -4556,7 +4624,7 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
-civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_genes_annot.list[["civic_clin_evid"]], "Predisposing")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "copy_loss")[[1]]
 ```
 
 <details>
@@ -4593,8 +4661,10 @@ civicDrugTable(genes, caner_genes_annot.list[["civic_var_summaries"]], caner_gen
 
 ***
 
+## Addendum
+
 <details>
-<summary>Addendum</summary>
+<summary>Parameters</summary>
 <font size="2">
 
 ```{r params_info, comment = NA}
@@ -4603,6 +4673,13 @@ for ( i in 1:length(params) ) {
   cat(paste("Parameter: ", names(params)[i], "\nValue: ", paste(unlist(params[i]), collapse = ","), "\n\n", sep=""))
 }
 ```
+
+</font>
+</details>
+
+<details>
+<summary>Session info</summary>
+<font size="2">
 
 ```{r sessioninfo, comment = NA}
 devtools::session_info()
