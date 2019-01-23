@@ -959,6 +959,9 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
   ##### Use more friendly column names for the table
   names(drug.info) <- c("Gene", "Variant", "Variant type", "Drugs", "Clinical trials", "Evidence level", "Evidence type", "Evidence direction", "Clinical significance", "Trust rating", "Actionability score", "Disease", "Phenotypes", "PubMed ID",  "Variant origin", "Representative transcript", "Representative transcript 2", "Review date")
   
+  ##### Limit the info to fewer columns
+  drug.info <- drug.info[ , c("Gene", "Variant", "Variant type", "Drugs", "Clinical trials", "Evidence level", "Evidence direction", "Clinical significance", "Trust rating", "Actionability score", "Disease", "Phenotypes", "PubMed ID",  "Representative transcript", "Representative transcript 2")] 
+  
   ##### Generate a table
   dt.table <- DT::datatable( data = drug.info, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
     DT::formatStyle( columns = names(drug.info), `font-size` = '12px', 'text-align' = 'center' ) %>%
@@ -1098,6 +1101,7 @@ suppressMessages(library(rapportools))
 suppressMessages(library(edgeR))
 suppressMessages(library(kableExtra))
 suppressMessages(library(tidyverse))
+suppressMessages(library(DataCombine))
 suppressMessages(library(knitr))
 suppressMessages(library(magick))
 suppressMessages(library(matrixStats))
@@ -1779,8 +1783,26 @@ pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "pairc
 pizzly.fusions.cut$Source <- gsub( "cgc", paste0("<a href='https://cancer.sanger.ac.uk/cosmic/fusion' target='_blank'>cgc</a>"), pizzly.fusions.cut$Source)
 pizzly.fusions.cut$Source <- gsub( "biomarker", paste0("<a href='https://www.cancergenomeinterpreter.org/biomarkers' target='_blank'>biomarker</a>"), pizzly.fusions.cut$Source)
 
+##### Deal with MANTA results
+##### Add row for gene fusion events so that there is one row per gene
+manta_sv <- ref_genes.list[["manta"]]
+manta_sv$event <- manta_sv$gene
 
+i <- 1
 
+while ( i <= nrow(manta_sv) ) {
+  
+  if ( length(strsplit(manta_sv$gene[i], split='&', fixed=TRUE)[[1]]) > 1 ) {
+    
+    ##### Insert new row for events involving two genes
+    manta_sv <- InsertRow(manta_sv, manta_sv[i,], RowNum = i)
+    
+    manta_sv$gene[i] <- strsplit(manta_sv$event[i], split='&', fixed=TRUE)[[1]][1]
+    manta_sv$gene[i+1] <- strsplit(manta_sv$event[i], split='&', fixed=TRUE)[[1]][2]
+    
+  }
+  i <- i + 1
+}
 ```
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -1809,7 +1831,7 @@ Out of the `r nrow(counts)` input genes:
 * `r nrow(counts) - nrow(y.filtered$counts)` are either not expressed or their expression level is too low to be detected
 * `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
-NOTE: the `r nrow(counts) - nrow(y.filtered$counts)` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Copy-number altered genes] and [Immune Response Markers] sections.
+NOTE: the `r nrow(counts) - nrow(y.filtered$counts)` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [Copy-number altered genes] and [Immune Response Markers] sections.
 
 </details>
 
@@ -1950,7 +1972,7 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
 
-[PCGR](https://github.com/sigven/pcgr){target="_blank"} report for this sample `r if ( runPcgrChunk ) { c("IS AVAILABLE") } else { c("IS NOT AVAILABLE") }`. 
+[PCGR](https://github.com/sigven/pcgr){target="_blank"} report for this sample `r if ( runPcgrChunk ) { c("is AVAILABLE") } else { c("is NOT AVAILABLE") }`. 
 
 ### - Summary table {.tabset}
 
@@ -3022,35 +3044,25 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 
 
-
-
-<!-- 
-
-
 ## Structural variants
 
-mRNA expression levels of genes within detected structural variants, obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
+mRNA expression levels of genes within detected structural variants (SVs), obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
 
-[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample `r if ( runSVsChunk ) { c("IS AVAILABLE") } else { c("IS NOT AVAILABLE") }`. 
+[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample `r if ( runSVsChunk ) { c("are AVAILABLE") } else { c("are NOT AVAILABLE") }`. 
 
 ### - Summary table {.tabset}
 
-Out of the `r length(unique(ref_genes.list[["manta"]]$gene))` genes affected by detected structural variants, the expression of **`r length(which(unique(ref_genes.list[["manta"]]$gene) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
-
-
-
-var_type.keep <- c(var_type.keep, grep( "COPY", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
-
+Out of the `r length(unique(manta_sv$gene))` genes affected by detected SVs, the expression of **`r length(which(unique(manta_sv$gene) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(manta_sv$gene) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
-```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
+```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
 ##### Consider only genes with mutations calssified within Tiers 1-3
-genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)
+genes <- unique(manta_sv$gene)
 
 ##### Deal with no genes
 if ( length(genes) == 0 ) {
@@ -3058,7 +3070,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-sv_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], ext_links = TRUE, type = "z")
+sv_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 sv_genes.expr.z[[1]]
@@ -3067,7 +3079,7 @@ sv_genes.expr.z[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER**. SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -3075,8 +3087,9 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### Percentiles
 
-```{r sv_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
-sv_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], ext_links = TRUE, type = "perc")
+```{r sv_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+sv_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
@@ -3085,7 +3098,7 @@ sv_genes.expr.perc[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER**. SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing absolute values in the Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -3093,11 +3106,11 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ### - Expression profiles {.tabset}
 
-Expression profiles for the top 10 mutated genes with variants annotated with the lowest [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+Expression profiles for the top 10 SVs-affected genes demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[1] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[1] }`
 
-```{r cdf_plot_sv_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[1]
@@ -3116,9 +3129,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[2] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[2] }`
 
-```{r cdf_plot_sv_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[2]
@@ -3137,9 +3150,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[3] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[3] }`
 
-```{r cdf_plot_sv_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[3]
@@ -3158,9 +3171,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[4] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[4] }`
 
-```{r cdf_plot_sv_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[4]
@@ -3179,9 +3192,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[5] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[5] }`
 
-```{r cdf_plot_sv_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[5]
@@ -3200,9 +3213,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[6] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[6] }`
 
-```{r cdf_plot_sv_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[6]
@@ -3221,9 +3234,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[7] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[7] }`
 
-```{r cdf_plot_sv_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[7]
@@ -3242,9 +3255,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[8] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[8] }`
 
-```{r cdf_plot_sv_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[8]
@@ -3263,9 +3276,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[9] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[9] }`
 
-```{r cdf_plot_sv_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[9]
@@ -3284,9 +3297,9 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runPcgrChunk) { sv_genes.expr.z[[2]]$SYMBOL[10] }`
+#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[10] }`
 
-```{r cdf_plot_sv_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+```{r cdf_plot_sv_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 gene <- sv_genes.expr.z[[2]]$SYMBOL[10]
@@ -3305,21 +3318,11 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-
-
-
-
-
--->
-
-
-
-
 ## Copy-number altered genes
 
 Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}) and mutation status, if available.
 
-[PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"} report for this sample `r if ( runPurpleChunk ) { c("IS AVAILABLE") } else { c("IS NOT AVAILABLE") }`.
+[PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"} report for this sample `r if ( runPurpleChunk ) { c("is AVAILABLE") } else { c("is NOT AVAILABLE") }`.
 
 ### - Expression vs copy-number
 
@@ -4002,7 +4005,7 @@ detach("package:plotly", unload=FALSE)
 
 ## Drug matching
 
-List of drugs targeting variants in identified [Mutated genes], dysregulated [Cancer genes], [Gene fusion events] and [Copy-number altered genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
+List of drugs targeting variants in identified [Mutated genes], dysregulated [Cancer genes], [Gene fusion events], [Structural variants]-affected genes and [Copy-number altered genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
 
 ### - Mutated genes
 
