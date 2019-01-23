@@ -60,6 +60,26 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 7. ref_datasets.list[[tissue]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
 
+
+##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
+
+# 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from OncoKB portal (http://oncokb.org/#/cancerGenes) and Peter Mac comprehensive cancer (PMCC) gene panel
+
+# 2. ref_genes.list[["oncokb_genes"]] = list of cancer genes derived from OncoKB portal (http://oncokb.org/#/cancerGenes) alone (although genes present on the PMCC gene panel are also flagged)
+
+# 3. ref_genes.list[["genes_immune"]] = list of immune reponse markers provided in OmniSeq report (https://trello-attachments.s3.amazonaws.com/5753fc730bff8d2b24f159df/59912803fd0e33e3395d05e7/dc9a81ae11a9d1825ab0028d01dc8c53/Advance-sample-report-card-final.pdf)
+
+# 4. ref_genes.list[["pcgr"]] = list and PCGR annotation of mutated genes in given patient based on PCGR report
+
+# 5. ref_genes.list[["purple"]] = list and PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results
+
+# 6. ref_genes.list[["manta"]] = list and MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
+
+# 7. ref_genes.list[["pizzly"]] = list and PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
+
+# 8. ref_genes.list[["kallisto"]] = genes quantification file from KALLISTO This is required for gene fusion events filtering
+
+# 9. ref_genes.list[["pizzly_manta"]] = list and annotation of gene fusion events detected in given patient based on both PIZZLY and MANTA results
 ```
 
 ```{r define_functions, comment=NA, message=FALSE, warning=FALSE}
@@ -1044,6 +1064,27 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   
   return( p )
 }
+
+##### Code from UMCCRISE to prioritise SV events https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd
+sv_prioritize <- function(sv_file) {
+
+  col_types <- "ccciicccccc"
+  sv_all = NULL
+  
+  if (length(readLines(con = sv_file, n = 2)) > 1) {
+    sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
+      tidyr::unnest(annotation = strsplit(annotation, ',')) %>% # Unpack multiple annotations per region
+      tidyr::separate(annotation,
+                      c('type', 'annotation', 'gene', 'transcript', 'priority', 'score'),
+                      sep = '\\|', convert = TRUE) %>% # Unpack annotation columns %>%
+      dplyr::mutate(SR = split_read_support, PR = paired_support_PR) %>%
+      dplyr::select(chrom, start, end, gene, priority, score, annotation, type, lof, SR, PR) %>%
+      dplyr::distinct() %>%
+      dplyr::mutate(chrom = factor(chrom, levels = c(1:22, "X", "Y", "MT")))
+  }
+
+  return( sv_all )
+}
 ```
 
 ```{r load_libraries, warning=FALSE}
@@ -1102,6 +1143,13 @@ ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params
 ref_genes.list[["oncokb_genes"]] <- read.table(paste(params$ref_data_dir, params$oncokb_genes, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
 ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params$genes_immune, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
 
+##### Read in gene fusion data for investigate sample
+##### Read in the pizzly fusion calls
+ref_genes.list[["pizzly"]] <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/"), header = TRUE)
+
+##### Read in the quantification file from kallisto
+ref_genes.list[["kallisto"]] <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
+
 ##### Read in mutation data for investigate sample
 ##### Get the WGS data batch name
 batch <- unlist(strsplit(params$batch, split='/', fixed=TRUE))
@@ -1151,11 +1199,11 @@ runSVsChunk <- TRUE
 
 if ( file.exists(sv_file) ) {
   
-  ref_genes.list[["sv"]] <- read.table(sv_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+  ref_genes.list[["manta"]] <- sv_prioritize(sv_file)
   
 } else {
   
-  ref_genes.list[["sv"]] <- NULL
+  ref_genes.list[["manta"]] <- NULL
   runSVsChunk <- FALSE
 }
 
@@ -1464,8 +1512,8 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
 #read in the pizzly fusion calls
-pizzly.fusions <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/"), header = TRUE)
-quant <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
+pizzly.fusions <- ref_genes.list[["pizzly"]]
+quant <- ref_genes.list[["kallisto"]]
 #sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
 quant.sorted.filtered <- dplyr::filter(arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.99)))
@@ -1478,7 +1526,7 @@ result <- data.frame()
 #this will increase speed
 
 for (row in 1:nrow(pizzly.fusions)){
-  y <- strsplit(as.character(pizzly.fusions[row, 7]), "\\;")
+  y <- strsplit(as.character(pizzly.fusions[row, "transcripts.list"]), "\\;")
   y <- unname(y)
   for (i in 1:length(y[[1]])){
     if (y[[1]][i] %in% quant.sorted.filtered$target_id){
@@ -1496,7 +1544,7 @@ deduped.sorted.result <- deduped.result[idx, ]
 #Extract only those fusion genes that are in cancer genes list
 result.cancer_genes <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,1] %in% rownames(ref_genes.list[["genes_cancer"]]) | pizzly.fusions[row,3] %in% rownames(ref_genes.list[["genes_cancer"]])) {
+  if(pizzly.fusions[row,"geneA.name"] %in% rownames(ref_genes.list[["genes_cancer"]]) | pizzly.fusions[row,"geneB.name"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
     #creating a new dataframe for extracting pizzly rows with cancer gene hits
     result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
   }
@@ -1514,7 +1562,7 @@ idx3 <- order(result.other_genes$splitcount, result.other_genes$paircount, decre
 result.sorted.other_genes <- result.other_genes[idx3,]
 
 #combing all the three above sorted dataframes
-pizzly.fusions2 <- rbind(deduped.sorted.result, result.sorted.cancer_genes, result.sorted.other_genes)
+pizzly.fusions <- rbind(deduped.sorted.result, result.sorted.cancer_genes, result.sorted.other_genes)
 
 ##### Flag known fusions based on info from Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers)
 known_translocations <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
@@ -1529,28 +1577,28 @@ known_translocations <- cbind(known_translocations, trans.pairs)
 trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "" )
   
 ##### Add columns for info about reported fusions
-pizzly.fusions2 <- cbind(pizzly.fusions2, data.frame(matrix("", ncol = 4, nrow = nrow(pizzly.fusions2)), stringsAsFactors = FALSE))
-colnames(pizzly.fusions2)[-c(1:7)] <- c("Reported", "Effector_gene", "Source", "Cancer_acronym")
+pizzly.fusions <- cbind(pizzly.fusions, data.frame(matrix("", ncol = 4, nrow = nrow(pizzly.fusions)), stringsAsFactors = FALSE))
+colnames(pizzly.fusions)[-c(1:7)] <- c("Reported", "Effector_gene", "Source", "Cancer_acronym")
 
 ##### Add annotations about known fusion events
 ##### Loop through all genes involved in reported gene fusions and check if present in pizzly results
-for ( i in 1:nrow(pizzly.fusions2) ) {
+for ( i in 1:nrow(pizzly.fusions) ) {
   
-  geneA <- pizzly.fusions2$geneA.name[i]
-  geneB <- pizzly.fusions2$geneB.name[i]
+  geneA <- pizzly.fusions$geneA.name[i]
+  geneB <- pizzly.fusions$geneB.name[i]
         
   ##### First check if the exact reported gene pairs were detected by pizzly
   if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
     
-    pizzly.fusions2$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneA, geneB, sep="-") ]
+    pizzly.fusions$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneA, geneB, sep="-") ]
     
-    pizzly.fusions2[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneA, geneB, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
+    pizzly.fusions[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneA, geneB, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
     
  } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
     
-    pizzly.fusions2$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneB, geneA, sep="-") ]
+    pizzly.fusions$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneB, geneA, sep="-") ]
     
-    pizzly.fusions2[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneB, geneA, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
+    pizzly.fusions[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneB, geneA, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
     
   ##### Now check is at lease one of the pizzly results genes was previously reporeted
   } else {
@@ -1559,14 +1607,14 @@ for ( i in 1:nrow(pizzly.fusions2) ) {
       
       known_gene <- known_translocations$geneA %in% geneA
       
-      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
+      pizzly.fusions$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
       
-      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
+      pizzly.fusions[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
         
         ##### Flag if it's effector gene
         if ( geneA == known_translocations[ known_gene , "effector_gene" ]  ) {
           
-          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneA)
+          pizzly.fusions[ i, "Effector_gene"] <- as.character(geneA)
         }
       
     ##### Check pizzly genes A and genes B in reported fusions
@@ -1574,14 +1622,14 @@ for ( i in 1:nrow(pizzly.fusions2) ) {
       
       known_gene <- known_translocations$geneB %in% geneA
       
-      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
+      pizzly.fusions$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
       
-      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
+      pizzly.fusions[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
         
         ##### Flag if it's effector gene
         if ( geneA == known_translocations[ known_gene , "effector_gene" ]  ) {
           
-          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneA)
+          pizzly.fusions[ i, "Effector_gene"] <- as.character(geneA)
         }
     }
     
@@ -1590,14 +1638,14 @@ for ( i in 1:nrow(pizzly.fusions2) ) {
       
       known_gene <- known_translocations$geneA %in% geneB
       
-      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
+      pizzly.fusions$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
       
-      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
+      pizzly.fusions[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
         
         ##### Flag if it's effector gene
         if ( geneB == known_translocations[ known_gene , "effector_gene" ]  ) {
           
-          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneB)
+          pizzly.fusions[ i, "Effector_gene"] <- as.character(geneB)
         }
       
     ##### Check pizzly genes B and genes B in reported fusions
@@ -1605,68 +1653,65 @@ for ( i in 1:nrow(pizzly.fusions2) ) {
       
       known_gene <- known_translocations$geneB %in% geneB
       
-      pizzly.fusions2$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
+      pizzly.fusions$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
       
-      pizzly.fusions2[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
+      pizzly.fusions[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
         
         ##### Flag if it's effector gene
         if ( geneB == known_translocations[ known_gene , "effector_gene" ]  ) {
           
-          pizzly.fusions2[ i, "Effector_gene"] <- as.character(geneB)
+          pizzly.fusions[ i, "Effector_gene"] <- as.character(geneB)
         }
     }
   }
 }
 
 ##### Rearrange the table to move the transcripts list at the end
-pizzly.fusions2 <- pizzly.fusions2 %>% dplyr::select(-"transcripts.list","transcripts.list")
+pizzly.fusions <- pizzly.fusions %>% dplyr::select(-"transcripts.list","transcripts.list")
 
-##### Index duplicated rows = these are fusions which involve both highly abundant transcripts and cancer genes and so are duplicated in  pizzly.fusions2 data frame
-dup.index <- which( duplicated(pizzly.fusions2) |  duplicated(pizzly.fusions2[nrow(pizzly.fusions2):1, ])[nrow(pizzly.fusions2):1] )
+##### Index duplicated rows = these are fusions which involve both highly abundant transcripts and cancer genes and so are duplicated in  pizzly.fusions data frame
+dup.index <- which( duplicated(pizzly.fusions) |  duplicated(pizzly.fusions[nrow(pizzly.fusions):1, ])[nrow(pizzly.fusions):1] )
 
 ##### Add column indicating fusions containing high abundant transcripts and known cancer genes
-fusions_abundant <- c(rep("-", nrow(pizzly.fusions2)))
+fusions_abundant <- c(rep("-", nrow(pizzly.fusions)))
 fusions_abundant[ c(1:nrow(deduped.result)) ] <- "Yes"
-fusions_cancer <- c(rep("-", nrow(pizzly.fusions2)))
+fusions_cancer <- c(rep("-", nrow(pizzly.fusions)))
 fusions_cancer[ c((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes))) ] <- "Yes"
 
-pizzly.fusions3 <- cbind(pizzly.fusions2, fusions_abundant, fusions_cancer)
+pizzly.fusions <- cbind(pizzly.fusions, fusions_abundant, fusions_cancer)
 
 ##### Indicate duplicated rows and flag them as both, those which involve both highly abundant transcripts and cancer genes
-pizzly.fusions3$fusions_abundant[ dup.index  ] <- "Yes"
-pizzly.fusions3$fusions_cancer[ dup.index ] <- "Yes"
+pizzly.fusions$fusions_abundant[ dup.index  ] <- "Yes"
+pizzly.fusions$fusions_cancer[ dup.index ] <- "Yes"
 
 ##### Remove duplicated rows
-if ( any(duplicated(pizzly.fusions3)) ) {
+if ( any(duplicated(pizzly.fusions)) ) {
   
-  pizzly.fusions3 <- pizzly.fusions3[ -c(which( duplicated(pizzly.fusions3) )), ]
+  pizzly.fusions <- pizzly.fusions[ -c(which( duplicated(pizzly.fusions) )), ]
 }
-
-##### Re-order data frame to prioritise fusions with highly abundant transcripts and cancer genes
-pizzly.fusions3 <- pizzly.fusions3[ rev(with(pizzly.fusions3, order(fusions_abundant, fusions_cancer))), ]
 ```
 
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
 ##### Get the number of reads supporting fusions of interest
-result_reads <- data.frame()
+fusion_reads <- data.frame()
 
 for (row in 1:nrow(deduped.result)){
-  y <- strsplit(as.character(deduped.result[row, 7]), "\\;")
+  y <- strsplit(as.character(deduped.result[row, "transcripts.list"]), "\\;")
   y <- unname(y)
   for (i in 1:length(y[[1]])){
     if (y[[1]][i] %in% quant.sorted.filtered$target_id){
       #creating a new dataframe for the reads supporting individual transcript ID for each filtered fusion gene pair 
-      result_reads_inter <- data.frame(deduped.result[row,1:6])
-      result_reads_inter$transcriptID = y[[1]][i]
+      fusion_reads_inter <- data.frame(deduped.result[ row, names(deduped.result) %!in% "transcripts.list" ])
+      fusion_reads_inter$transcriptID = y[[1]][i]
       tpm = quant.sorted.filtered[grep(y[[1]][i], quant.sorted.filtered$target_id), ]$tpm 
-      result_reads_inter$tpm = tpm
-      result_reads <- rbind(result_reads, result_reads_inter)
+      fusion_reads_inter$tpm = tpm
+      fusion_reads <- rbind(fusion_reads, fusion_reads_inter)
     }
   }
 }
 
 ##### Rearrange the table to move the transcripts list at the end
-result_reads <- result_reads %>% dplyr::select(-"transcriptID","transcriptID")
+fusion_reads <- fusion_reads %>% dplyr::select(-"transcriptID","transcriptID")
 ```
 
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE}
@@ -1675,10 +1720,10 @@ result_reads <- result_reads %>% dplyr::select(-"transcriptID","transcriptID")
 fusion_genes_annot <- ref_datasets.list[[tissue]][["gene_annot_all"]][ , c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
 
 ##### Keep only fusions for which both genes have gene symbol (and genomics location) available
-pizzly.fusions3 <- pizzly.fusions3[ pizzly.fusions3$geneA.id %in% fusion_genes_annot$ENSEMBL, ]
-pizzly.fusions3 <- pizzly.fusions3[ pizzly.fusions3$geneB.id %in% fusion_genes_annot$ENSEMBL, ]
+pizzly.fusions <- pizzly.fusions[ pizzly.fusions$geneA.id %in% fusion_genes_annot$ENSEMBL, ]
+pizzly.fusions <- pizzly.fusions[ pizzly.fusions$geneB.id %in% fusion_genes_annot$ENSEMBL, ]
 
-pizzly.fusions.annot <- pizzly.fusions3
+pizzly.fusions.annot <- pizzly.fusions
 pizzly.fusions.annot$order <- 1:nrow(pizzly.fusions.annot)
 
 ##### Get genomic info for fusions genes
@@ -1719,6 +1764,19 @@ for( i in 1:nrow(fusion_annot_reported) ) {
 fusion_annot_reported <- fusion_annot_reported[ !duplicated(fusion_annot_reported$"Reported fusion") , ]
 rownames(fusion_annot_reported) <- fusion_annot_reported$"Reported fusion"
 fusion_annot_reported$"Reported fusion" <- "Yes"
+```
+
+```{r pizzly_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+##### Clean the pizzly data first
+##### Remove some columns and rename column names for better presentation
+pizzly.fusions.cut <- pizzly.fusions[ , names(pizzly.fusions) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
+pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
+
+##### Provide links to the external resources (in the "Source" column)
+pizzly.fusions.cut$Source <- gsub( "cgc", paste0("<a href='https://cancer.sanger.ac.uk/cosmic/fusion' target='_blank'>cgc</a>"), pizzly.fusions.cut$Source)
+pizzly.fusions.cut$Source <- gsub( "biomarker", paste0("<a href='https://www.cancergenomeinterpreter.org/biomarkers' target='_blank'>biomarker</a>"), pizzly.fusions.cut$Source)
+
+
 ```
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -1892,7 +1950,7 @@ mRNA expression levels of genes containing single nucleotide variants (SNVs) or 
 
 ### - Summary table {.tabset}
 
-Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))` include [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants. Of these, the expression of **`r length(which(unique(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))` include [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants. Of these, the expression of **`r length(which(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
@@ -2444,23 +2502,16 @@ the ones that are present in this list.
 ### - Summary
 
 ```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
-##### Remove some columns and rename column names for better presentation
-pizzly.fusions.clean <- pizzly.fusions3[ , names(pizzly.fusions3) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
-pizzly.fusions.clean <- pizzly.fusions.clean[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
-
 ##### Create a nice table output (with dataTable)
-names(pizzly.fusions.clean) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
+names(pizzly.fusions.cut) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
 
-##### Provide links to the external resources (in the "Source" column)
-pizzly.fusions.clean$Source <- gsub( "cgc", paste0("<a href='https://cancer.sanger.ac.uk/cosmic/fusion' target='_blank'>cgc</a>"), pizzly.fusions.clean$Source)
-pizzly.fusions.clean$Source <- gsub( "biomarker", paste0("<a href='https://www.cancergenomeinterpreter.org/biomarkers' target='_blank'>biomarker</a>"), pizzly.fusions.clean$Source)
-
-DT::datatable( data = pizzly.fusions.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
-    DT::formatStyle( columns = names(pizzly.fusions.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
+##### Present gene fusion events in a table
+DT::datatable( data = pizzly.fusions.cut, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
+    DT::formatStyle( columns = names(pizzly.fusions.cut), `font-size` = '12px', 'text-align' = 'center' ) %>%
   
     ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
-    DT::formatStyle( columns = colnames(pizzly.fusions.clean) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) )
+    DT::formatStyle( columns = colnames(pizzly.fusions.cut) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+    DT::formatStyle( columns = colnames(pizzly.fusions.cut) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) )
 ```
 
 <details>
@@ -2531,34 +2582,31 @@ Expression profiles for the top 5 gene fusion events detected in patient's sampl
 
 <span style="color:#ff0000">NOTE</span>: the *Fusion events visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
-#### `r paste(pizzly.fusions2$geneA.name[1], pizzly.fusions2$geneB.name[1], sep="-")`
+#### `r paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-")`
 
 ##### Fusion events visualisation 
 
 ```{r fusions_figs_1, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[1]
-geneB <- pizzly.fusions2$geneB.name[1]
+geneA <- pizzly.fusions$geneA.name[1]
+geneB <- pizzly.fusions$geneB.name[1]
 
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
+##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 }
 ```
 
-```{r fusions_tables_1, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_tables_1, comment = NA, message=TRUE, warning=FALSE, eval=FALSE}
 ##### Present a table with number of reads supporting this fusion
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
-if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+##### Check if the fusion has abundant transcript(s)
+fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
 
-  fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-
-  if( nrow(fusion_result_reads) !=0 ) {
-    kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+if( nrow(fusion_reads.top) !=0 ) {
+    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
     kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-  }
 }
 ```
 
@@ -2623,34 +2671,31 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r paste(pizzly.fusions2$geneA.name[2], pizzly.fusions2$geneB.name[2], sep="-")`
+#### `r paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-")`
 
 ##### Fusion events visualisation 
 
 ```{r fusions_figs_2, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[2]
-geneB <- pizzly.fusions2$geneB.name[2]
+geneA <- pizzly.fusions$geneA.name[2]
+geneB <- pizzly.fusions$geneB.name[2]
 
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
+##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 }
 ```
 
-```{r fusions_tables_2, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_tables_2, comment = NA, message=TRUE, warning=FALSE, eval=FALSE}
 ##### Present a table with number of reads supporting this fusion
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
-if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
-  
-  fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-  
-  if( nrow(fusion_result_reads) !=0 ) {
-    kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+##### Check if the fusion has abundant transcript(s)
+fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
+
+if( nrow(fusion_reads.top) !=0 ) {
+    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
     kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-  }
 }
 ```
 
@@ -2712,34 +2757,31 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r paste(pizzly.fusions2$geneA.name[3], pizzly.fusions2$geneB.name[3], sep="-")`
+#### `r paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-")`
 
 ##### Fusion events visualisation 
 
 ```{r fusions_figs_3, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[3]
-geneB <- pizzly.fusions2$geneB.name[3]
+geneA <- pizzly.fusions$geneA.name[3]
+geneB <- pizzly.fusions$geneB.name[3]
 
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
+##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 }
 ```
 
-```{r fusions_tables_3, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_tables_3, comment = NA, message=TRUE, warning=FALSE, eval=FALSE}
 ##### Present a table with number of reads supporting this fusion
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
-if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
-  
-  fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-  
-  if( nrow(fusion_result_reads) !=0 ) {
-    kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+##### Check if the fusion has abundant transcript(s)
+fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
+
+if( nrow(fusion_reads.top) !=0 ) {
+    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
     kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-  }
 }
 ```
 
@@ -2800,34 +2842,31 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r paste(pizzly.fusions2$geneA.name[4], pizzly.fusions2$geneB.name[4], sep="-")`
+#### `r paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-")`
 
 ##### Fusion events visualisation 
 
 ```{r fusions_figs_4, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[4]
-geneB <- pizzly.fusions2$geneB.name[4]
+geneA <- pizzly.fusions$geneA.name[4]
+geneB <- pizzly.fusions$geneB.name[4]
 
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
+##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 }
 ```
 
-```{r fusions_tables_4, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_tables_4, comment = NA, message=TRUE, warning=FALSE, eval=FALSE}
 ##### Present a table with number of reads supporting this fusion
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
-if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+##### Check if the fusion has abundant transcript(s)
+fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
 
-  fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-
-  if( nrow(fusion_result_reads) !=0 ) {
-    kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+if( nrow(fusion_reads.top) !=0 ) {
+    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
     kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-  }
 }
 ```
 
@@ -2889,34 +2928,31 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r paste(pizzly.fusions2$geneA.name[5], pizzly.fusions2$geneB.name[5], sep="-")`
+#### `r paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-")`
 
 ##### Fusion events visualisation 
 
 ```{r fusions_figs_5, comment = NA, message=TRUE, warning=FALSE}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions2$geneA.name[5]
-geneB <- pizzly.fusions2$geneB.name[5]
+geneA <- pizzly.fusions$geneA.name[5]
+geneB <- pizzly.fusions$geneB.name[5]
 
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
+##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 }
 ```
 
-```{r fusions_tables_5, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_tables_5, comment = NA, message=TRUE, warning=FALSE, eval=FALSE}
 ##### Present a table with number of reads supporting this fusion
-##### Check if clinker fusion plot exists. Skip this section in it doesn't
-if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+##### Check if the fusion has abundant transcript(s)
+fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
 
-  fusion_result_reads <- result_reads[ result_reads$geneA.name == geneA & result_reads$geneB.name == geneB, ]
-
-  if( nrow(fusion_result_reads) !=0 ) {
-    kable(fusion_result_reads, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
+if( nrow(fusion_reads.top) !=0 ) {
+    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
     kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-  }
 }
 ```
 
@@ -2977,6 +3013,303 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </details>
 
 ***
+
+
+
+
+
+
+
+
+
+
+## Structural variants
+
+mRNA expression levels of genes within detected structural variants, obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
+
+[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample `r if ( runSVsChunk ) { c("IS AVAILABLE") } else { c("IS NOT AVAILABLE") }`. 
+
+### - Summary table {.tabset}
+
+Out of the `r length(unique(ref_genes.list[["manta"]]$gene))` genes affected by detected structural variants, the expression of **`r length(which(unique(ref_genes.list[["manta"]]$gene) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+
+
+
+var_type.keep <- c(var_type.keep, grep( "COPY", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
+
+
+#### Z-scores
+
+```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+targets <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+
+##### Consider only genes with mutations calssified within Tiers 1-3
+genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)
+
+##### Deal with no genes
+if ( length(genes) == 0 ) {
+  
+  genes <- NULL
+}
+
+mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], ext_links = TRUE, type = "z")
+
+##### Present the expression summary table
+mut_genes.expr.z[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER**. SD - standard deviation
+</font>
+</details>
+
+***
+
+#### Percentiles
+
+```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
+mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], ext_links = TRUE, type = "perc")
+
+##### Present the expression summary table
+mut_genes.expr.perc[[1]]
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER**. SD - standard deviation
+</font>
+</details>
+
+***
+
+### - Expression profiles {.tabset}
+
+Expression profiles for the top 10 mutated genes with variants annotated with the lowest [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[1] }`
+
+```{r cdf_plot_mut_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[1]
+
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[2] }`
+
+```{r cdf_plot_mut_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[2]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[3] }`
+
+```{r cdf_plot_mut_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[3]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[4] }`
+
+```{r cdf_plot_mut_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[4]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+  } else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[5] }`
+
+```{r cdf_plot_mut_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[5]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[6] }`
+
+```{r cdf_plot_mut_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[6]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[7] }`
+
+```{r cdf_plot_mut_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[7]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[8] }`
+
+```{r cdf_plot_mut_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[8]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[9] }`
+
+```{r cdf_plot_mut_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[9]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r if ( runPcgrChunk) { mut_genes.expr.z[[2]]$SYMBOL[10] }`
+
+```{r cdf_plot_mut_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- mut_genes.expr.z[[2]]$SYMBOL[10]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+
+} else {
+  cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+
+
+
+
+
+
+
+
+
 
 ## Copy-number altered genes
 
@@ -3866,9 +4199,6 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
-
 civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "expression")[[1]]
 ```
 
@@ -3905,9 +4235,6 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
-
 civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "expression")[[1]]
 ```
 
@@ -3944,9 +4271,6 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
-
 civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "expression")[[1]]
 ```
 
@@ -3990,8 +4314,8 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 ```{r drugs_predictive_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
-genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
+genesA <- pizzly.fusions$geneA.name
+genesB <- pizzly.fusions$gene.name
 
 civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")[[1]]
 ```
@@ -4029,10 +4353,6 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
-genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
-
 civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "fusion")[[1]]
 ```
 
@@ -4069,10 +4389,6 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
-genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
-
 civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "fusion")[[1]]
 ```
 
@@ -4109,10 +4425,6 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_fusion_genes_abundant, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genesA <- levels(deduped.result$geneA.name)[deduped.result$geneA.name]
-genesB <- levels(deduped.result$geneB.name)[deduped.result$geneB.name]
-
 civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "fusion")[[1]]
 ```
 
@@ -4151,10 +4463,6 @@ Evidence pertaining to a variant’s effect on therapeutic response.
 
 ```{r drugs_predictive_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
-genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
-
 civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")[[1]]
 ```
 
@@ -4198,10 +4506,6 @@ Evidence pertaining to a variant’s impact on disease progression, severity, or
 
 ```{r drugs_prognostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
-genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
-
 civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Prognostic", var_type = "fusion")[[1]]
 ```
 
@@ -4245,10 +4549,6 @@ Evidence pertaining to a variant’s impact on patient diagnosis.
 
 ```{r drugs_diagnostic_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
-genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
-
 civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Diagnostic", var_type = "fusion")[[1]]
 ```
 
@@ -4292,10 +4592,6 @@ Evidence pertains to a variant's role in conferring susceptibility to a disease.
 
 ```{r drugs_predisposing_fusion_genes_cancer, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genesA <- levels(result.cancer_genes$geneA.name)[result.cancer_genes$geneA.name]
-genesB <- levels(result.cancer_genes$geneB.name)[result.cancer_genes$geneB.name]
-
 civicDrugTable(c(genesA, genesB), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predisposing", var_type = "fusion")[[1]]
 ```
 
