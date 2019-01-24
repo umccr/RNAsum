@@ -524,7 +524,7 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z") {
+exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, normal, cancer, genes_annot = NULL, OncoKB_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z") {
   
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[ genes %!in% rownames(data) ]
@@ -583,7 +583,10 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
   
   ##### Reorder groups
   group.z <- cbind(group.z[ , c("Normal", cancer, "Patient")], group.z[, c("SD", "Patient vs Normal", "Patient vs PDAC" )])
-    
+  
+  ##### Add "Gene" column to facilitate adding annotations
+  group.z$Gene <- rownames(group.z)
+  
   ##### Add genes annotation
   if ( !is.null(genes_annot) ) {
     
@@ -591,17 +594,12 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     if ( "SYMBOL" %in% names(genes_annot) ) {
       
       genes_annot <- genes_annot[!duplicated(genes_annot$SYMBOL),]  
-      rownames(genes_annot) <- genes_annot$SYMBOL
-      genes_annot <- genes_annot[ , -c(match("SYMBOL", names(genes_annot))), drop=FALSE]
     }
     
     ##### Merge the dataframe with groups mean expression values and gene annotations
-    group.z <- merge(genes_annot, group.z, by="row.names", all = TRUE, sort = FALSE)
-    rownames(group.z) <- group.z$Row.names
-    names(group.z) <- gsub("Row.names", "Gene", names(group.z))
+    group.z <- merge(genes_annot, group.z, by.x="SYMBOL", by.y="Gene", all = TRUE, sort = FALSE)
+    names(group.z) <- gsub("SYMBOL", "Gene", names(group.z))
     
-  } else {
-    group.z <- cbind(rownames(group.z), group.z)
   }
   
   ##### Define colours for cells background for each group and the patient vs normal difference
@@ -625,8 +623,7 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
   }
   
   ##### Subset the expression data to include only the user-defined genes
-  group.z <- group.z[ rownames(group.z) %in% genes, ]
-  names(group.z)[1] <- "Gene"
+  group.z <- group.z[ group.z$Gene %in% genes, ]
     
   #### Add variants information to the expression table - if exists. Note, "TIER" and "CONSEQUENCE" columns are required
   if( !is.null(mut_annot) && "TIER" %in% colnames(mut_annot) && length(genes) > 0 ) {
@@ -669,10 +666,7 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     }
     
     #### merge the variants information with the dataframe
-    mut_annot <- mut_annot[ , -c(match("SYMBOL", names(mut_annot))), drop=FALSE]
-    group.z <- merge(group.z, mut_annot, by = "row.names", all = TRUE, sort = FALSE)
-    
-    rownames(group.z) <- group.z$Row.names
+    group.z <- merge(group.z, mut_annot, by.x = "row.names", by.y = "SYMBOL", all = TRUE, sort = FALSE)
     group.z <- group.z[ , -c(match("Row.names", names(group.z))), drop=FALSE]
   }
   
@@ -683,29 +677,34 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
     col_idx <- grep(paste0("Patient vs ", cancer), names(group.z))
     
     ##### Now place the CN data after the "Patient vs Cancer" column
-    group.z <- add_column(group.z, round(cn_data[ rownames(group.z), "CN"], digits=2), .after = col_idx)
+    group.z <- add_column(group.z, round(cn_data[ group.z$Gene, "CN"], digits=2), .after = col_idx)
     colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
+  }
+
+  ##### Add structural variants results from MANTA
+  if ( !is.null(sv_data) && length(genes) > 0 ) {
+    
+    ##### NOTE: when merging per-gene exprssion data with SV data from MANTA the "gene" column is used since multiple entires are possible for one gene in MANTA output
+    group.z <- merge(group.z, sv_data, by.x="Gene", by.y="gene", all = TRUE, sort = FALSE)
   }
   
   ##### Add fusion genes annotation
   if ( !is.null(fusion_genes) && length(genes) > 0 ) {
     
-    group.z <- merge(group.z, fusion_genes, by="row.names", all = TRUE, sort = FALSE)
-    rownames(group.z) <- group.z$Row.names
-    group.z <- group.z[ , -c(match("Row.names", names(group.z))), drop=FALSE]
+    group.z <- merge(group.z, fusion_genes, by.x="Gene", by.y="row.names", all = TRUE, sort = FALSE)
   }
   
   ##### Add cancer gene resources info
   if ( !is.null(OncoKB_genes) && length(genes) > 0 ) {
     
-    group.z <- merge(group.z, OncoKB_genes, by="row.names", all = TRUE, sort = FALSE)
-    rownames(group.z) <- group.z$Row.names
-    group.z <- group.z[ , -c(match("Row.names", names(group.z))), drop=FALSE]
+    group.z <- merge(group.z, OncoKB_genes, by.x="Gene", by.y="row.names", all = TRUE, sort = FALSE)
   }
   
   ##### Include only queried genes
-  group.z <- group.z[ genes, ]
+  group.z <- group.z[ group.z$Gene %in% genes, ]
     
+  group.z$SYMBOL <- group.z$Gene
+  
   ##### Add links to external gene annotation resourses
   if ( ext_links && length(genes) > 0 ) {
     
@@ -771,8 +770,8 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
   if ( !is.null(cn_data) ) {
     
     ##### Generate a table with genes annotations and coloured expression values in each group
-    dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
-      DT::formatStyle( columns = names(group.z), `font-size` = '12px', 'text-align' = 'center' ) %>%
+    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% "SYMBOL"], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(group.z)[names(group.z) %!in% "SYMBOL"], `font-size` = '12px', 'text-align' = 'center' ) %>%
       
       ##### Colour cells according to the expression values quantiles in each group
       DT::formatStyle(columns = targets.list[1], 
@@ -790,8 +789,8 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
   } else {
     
     ##### Generate a table with genes annotations and coloured expression values in each group
-    dt.table <- DT::datatable( data = group.z, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
-      DT::formatStyle( columns = names(group.z), `font-size` = '12px', 'text-align' = 'center' ) %>%
+    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% "SYMBOL"], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(group.z)[names(group.z) %!in% "SYMBOL"], `font-size` = '12px', 'text-align' = 'center' ) %>%
       
       ##### Colour cells according to the expression values quantiles in each group
       DT::formatStyle(columns = targets.list[1], 
@@ -805,14 +804,12 @@ exprTable <- function(genes, data, cn_data = NULL, cn_decrease = TRUE, targets, 
       DT::formatStyle(columns = paste0("Patient vs ", cancer), 
                       backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", cancer)]], clrs.q[[paste0("Patient vs ", cancer)]]))
   }
-    
-  group.z$SYMBOL <- rownames(group.z)
-    
+  
   return( list(dt.table,  group.z) )
 }
 
 ##### Generate table with drugs targeting selected set of genes using info from CIViC database (https://civicdb.org/)
-civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive", var_type = "mutation") {
+civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive", var_type = NULL) {
   
   ##### Initialize data frame to the about drug-target info from CIViC
   drug.info <- setNames(data.frame(matrix(ncol = 18, nrow = 0)), c("Gene", "Variant", "variant_types", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "civic_actionability_score", "Disease", "phenotypes", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
@@ -883,7 +880,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
         ##### Filter drug matching info depending on the variant type
         var_type.keep <- NULL
         
-        if ( var_type == "mutation" ) {
+        if ( !is.null(var_type) && var_type == "mutation" ) {
           
           ##### Remove entries containing "EXPRESSION", "AMPLIFICATION", "DELETION", "METHYLATION", "WILD TYPE", "FUSION", "COPY", "REARRANGEMENT", "PHOSPHORYLATION", "TRANSCRIPT", "GAIN", "LOSS"
           var_type.keep <- c(var_type.keep, grep( "EXPRESSION", clin.evid.info$variant, invert=TRUE, ignore.case=TRUE))
@@ -901,7 +898,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
           
           clin.evid.info <- clin.evid.info[ -c(unique(var_type.keep)), ]
           
-        } else if ( var_type == "expression" ) {
+        } else if ( !is.null(var_type) && var_type == "expression" ) {
           
           ##### Keep only entries containing "EXPRESSION", "FUSION", "TRANSCRIPT", "ALTERATION"
           var_type.keep <- c(var_type.keep, grep( "EXPRESSION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
@@ -911,7 +908,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
           
           clin.evid.info <- clin.evid.info[ c(unique(var_type.keep)), ]
           
-        } else if ( var_type == "fusion" ) {
+        } else if ( !is.null(var_type) && var_type == "fusion" ) {
           
           ##### Keep only entries containing "FUSION", "ALTERATION", "[gene]-", "-[gene]"
           
@@ -923,7 +920,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
           
           clin.evid.info <- clin.evid.info[ c(unique(var_type.keep)), ]
           
-        } else if ( var_type == "copy_gain" ) {
+        } else if ( !is.null(var_type) && var_type == "copy_gain" ) {
           
           ##### Keep only entries containing "AMPLIFICATION", "COPY", "GAIN", "ALTERATION"
           var_type.keep <- c(var_type.keep, grep( "AMPLIFICATION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
@@ -933,7 +930,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
           
           clin.evid.info <- clin.evid.info[ c(unique(var_type.keep)), ]
           
-        } else if ( var_type == "copy_loss" ) {
+        } else if ( !is.null(var_type) && var_type == "copy_loss" ) {
           
           ##### Keep only entries containing "DELETION", "COPY", "LOSS", "ALTERATION"
           var_type.keep <- c(var_type.keep, grep( "DELETION", clin.evid.info$variant, invert=FALSE, ignore.case=TRUE))
@@ -3040,10 +3037,6 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-
-
-
-
 ## Structural variants
 
 mRNA expression levels of genes within detected structural variants (SVs), obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
@@ -3070,7 +3063,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-sv_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")
+sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% c("lof", "SR", "PR") ], targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 sv_genes.expr.z[[1]]
@@ -3089,7 +3082,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r sv_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-sv_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")
+sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% c("lof", "SR", "PR") ], targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG", "OncoKB")], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
@@ -3108,19 +3101,19 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 Expression profiles for the top 10 SVs-affected genes demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[1] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[1] }`
 
 ```{r cdf_plot_sv_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[1]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[1]
 
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3129,19 +3122,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[2] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[2] }`
 
 ```{r cdf_plot_sv_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[2]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3150,19 +3143,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[3] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[3] }`
 
 ```{r cdf_plot_sv_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[3]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3171,19 +3164,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[4] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[4] }`
 
 ```{r cdf_plot_sv_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[4]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
   } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3192,19 +3185,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[5] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[5] }`
 
 ```{r cdf_plot_sv_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[5]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3213,19 +3206,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[6] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[6] }`
 
 ```{r cdf_plot_sv_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[6]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3234,19 +3227,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[7] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[7] }`
 
 ```{r cdf_plot_sv_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[7]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3255,19 +3248,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[8] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[8] }`
 
 ```{r cdf_plot_sv_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[8]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3276,19 +3269,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[9] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[9] }`
 
 ```{r cdf_plot_sv_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[9]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3297,19 +3290,19 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### `r if ( runSVsChunk) { sv_genes.expr.z[[2]]$SYMBOL[10] }`
+#### `r if ( runSVsChunk) { unique(sv_genes.expr.z[[2]]$SYMBOL)[10] }`
 
 ```{r cdf_plot_sv_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- sv_genes.expr.z[[2]]$SYMBOL[10]
+gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
-  cat(paste("There are", length(sv_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+  cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4172,7 +4165,7 @@ civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_g
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- unique(manta_sv$gene)
 
-civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "expression")[[1]]
+civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = NULL)[[1]]
 ```
 
 <details>
