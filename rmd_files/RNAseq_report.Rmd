@@ -989,6 +989,7 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   type <- gsub("Yes-Yes-Yes-Yes","Abundant, cancer and SVs-affected gene(s)", type)
   type <- gsub("Yes-Yes---Yes","Abundant, cancer and SVs-affected gene(s)", type)
   type <- gsub("Yes-Yes-Yes--","Abundant, cancer and SVs-affected gene(s)", type)
+  type <- gsub("Yes-Yes----","Abundant and cancer gene(s)", type)
   type <- gsub("Yes---Yes-Yes","Abundant and SVs-affected gene(s)", type)
   type <- gsub("Yes---Yes--","Abundant and SVs-affected gene(s)", type)
   type <- gsub("Yes-----Yes","Abundant and SVs-affected gene(s)", type)
@@ -1159,7 +1160,7 @@ ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params
 
 ##### Read in gene fusion data for investigate sample
 ##### Read in the pizzly fusion calls
-ref_genes.list[["pizzly"]] <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/"), header = TRUE)
+ref_genes.list[["pizzly"]] <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName, "-flat-filtered.tsv"), sep = "/"), header = TRUE)
 
 ##### Read in the quantification file from kallisto
 ref_genes.list[["kallisto"]] <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
@@ -1553,7 +1554,7 @@ for (row in 1:nrow(pizzly.fusions)){
 #remove duplicated values from result filtered using expression count (as multiple transcripts might support fusion between same gene) and sort the results by number of events (first by split count and then paircount)
 deduped.result <- unique(result)
 idx <- order(deduped.result$splitcount, deduped.result$paircount, decreasing = TRUE)
-deduped.sorted.result <- deduped.result[idx, ]
+deduped.result <- deduped.result[idx, ]
 
 #Extract only those fusion genes that are in cancer genes list
 result.cancer_genes <- data.frame()
@@ -1564,19 +1565,26 @@ for (row in 1:nrow(pizzly.fusions)){
   }
 }
 
-#ordering pizzly's cancer genes results on the basis of read count values
-idx2 <- order(result.cancer_genes$splitcount, result.cancer_genes$paircount, decreasing = TRUE)
-result.sorted.cancer_genes <- result.cancer_genes[idx2,]
+##### Ordering pizzly's cancer genes results on the basis of read count values
+##### Skip ordering if no of the fusion genes is a cancer gene
+if ( nrow(result.cancer_genes) > 0 ) {
+  
+  idx2 <- order(result.cancer_genes$splitcount, result.cancer_genes$paircount, decreasing = TRUE)
+  result.cancer_genes <- result.cancer_genes[idx2,]
+}
 
-#extracting rows from pizzly results that are not in re-quant i.e. deduped.sorted.result or cancer genes list i.e. result.sorted.cancer_genes
-result.other_genes <- pizzly.fusions[ rownames(pizzly.fusions) %!in% c(rownames(result.sorted.cancer_genes), rownames(deduped.sorted.result)), ]
+#extracting rows from pizzly results that are not in re-quant i.e. deduped.result or cancer genes list i.e. result.cancer_genes
+result.other_genes <- pizzly.fusions[ rownames(pizzly.fusions) %!in% c(rownames(result.cancer_genes), rownames(deduped.result)), ]
 
-#ordering pizzly's other genes results on the basis of read count values
-idx3 <- order(result.other_genes$splitcount, result.other_genes$paircount, decreasing = TRUE)
-result.sorted.other_genes <- result.other_genes[idx3,]
+##### Ordering pizzly's other genes results on the basis of read count values
+##### Skip ordering if no of the fusion genes is a cancer gene
+if ( nrow(result.other_genes) > 0 ) {
+  idx3 <- order(result.other_genes$splitcount, result.other_genes$paircount, decreasing = TRUE)
+  result.other_genes <- result.other_genes[idx3,]
+}
 
 #combing all the three above sorted dataframes
-pizzly.fusions <- rbind(deduped.sorted.result, result.sorted.cancer_genes, result.sorted.other_genes)
+pizzly.fusions <- rbind(deduped.result, result.cancer_genes, result.other_genes)
 
 ##### Flag known fusions based on info from Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers)
 known_translocations <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
@@ -2084,7 +2092,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2109,7 +2117,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2134,7 +2142,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2159,7 +2167,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2184,7 +2192,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2209,7 +2217,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2234,7 +2242,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2259,7 +2267,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2284,7 +2292,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2309,7 +2317,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variantsd!", sep=" "))
+    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
   } else if ( gene %!in% rownames(data) ) {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
   }
@@ -2746,7 +2754,7 @@ Expression profiles for the top 5 gene fusion events detected in patient's sampl
 
 <span style="color:#ff0000">NOTE</span>: the *Fusion events visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
-#### `r paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-")`
+#### `r if ( !is.na(pizzly.fusions$geneA.name[1]) ) { paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-") }`
 
 ##### Fusion events visualisation 
 
@@ -2786,8 +2794,14 @@ suppressMessages(library(plotly))
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+
+} else {
+    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
+}
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2835,7 +2849,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-")`
+#### `r ( !is.na(pizzly.fusions$geneA.name[2]) ) { paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-") }`
 
 ##### Fusion events visualisation 
 
@@ -2872,8 +2886,15 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+
+} else {
+
+    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
+}
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2921,7 +2942,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-")`
+#### `r ( !is.na(pizzly.fusions$geneA.name[3]) ) { paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-") }`
 
 ##### Fusion events visualisation 
 
@@ -2958,8 +2979,15 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+
+} else {
+
+    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
+}
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3006,7 +3034,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-")`
+#### `r ( !is.na(pizzly.fusions$geneA.name[4]) ) { paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-") }`
 
 ##### Fusion events visualisation 
 
@@ -3043,8 +3071,15 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+
+} else {
+
+    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
+}
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3092,7 +3127,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-")`
+#### `r ( !is.na(pizzly.fusions$geneA.name[5]) ) { paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-") }`
 
 ##### Fusion events visualisation 
 
@@ -3129,8 +3164,15 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r cdf_plot_fusions_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+
+} else {
+
+    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
+}
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
