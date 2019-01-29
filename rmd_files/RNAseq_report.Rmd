@@ -1160,7 +1160,7 @@ ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params
 
 ##### Read in gene fusion data for investigate sample
 ##### Read in the pizzly fusion calls
-ref_genes.list[["pizzly"]] <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName, "-flat-filtered.tsv"), sep = "/"), header = TRUE)
+ref_genes.list[["pizzly"]] <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/"), header = TRUE)
 
 ##### Read in the quantification file from kallisto
 ref_genes.list[["kallisto"]] <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
@@ -2766,6 +2766,13 @@ Expression profiles for the top 5 gene fusion events detected in patient's sampl
 geneA <- pizzly.fusions$geneA.name[1]
 geneB <- pizzly.fusions$geneB.name[1]
 
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  runPizzlyChunk <- TRUE
+} else {
+  runPizzlyChunk <- FALSE
+}
+
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
@@ -2791,20 +2798,14 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
 
-```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
+```{r cdf_plot_fusions_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-
-if ( !is.na(geneA) && !is.na(geneB) ) {
   
-  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-
-} else {
-    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
-}
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2814,15 +2815,12 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE}
-if ( !is.na(geneA) && !is.na(geneB) ) {
+```{r gene_table_fusions_1, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+genes = fusion.df$SYMBOL
   
-  fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
-  fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-  genes = fusion.df$SYMBOL
-  
-  exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
-}
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -2836,7 +2834,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r gene_table_fusions_1_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r gene_table_fusions_1_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
 ```
 
@@ -2857,6 +2855,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions$geneA.name[2]
 geneB <- pizzly.fusions$geneB.name[2]
+
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  runPizzlyChunk <- TRUE
+} else {
+  runPizzlyChunk <- FALSE
+}
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
@@ -2883,18 +2888,11 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
 
-```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
+```{r cdf_plot_fusions_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-if ( !is.na(geneA) && !is.na(geneB) ) {
-  
-  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-
-} else {
-
-    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
-}
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2904,15 +2902,12 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE}
-if ( !is.na(geneA) && !is.na(geneB) ) {
+```{r gene_table_fusions_2, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+genes = fusion.df$SYMBOL
   
-  fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
-  fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-  genes = fusion.df$SYMBOL
-  
-  exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
-}
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -2926,7 +2921,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r gene_table_fusions_2_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r gene_table_fusions_2_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
 ```
 
@@ -2947,6 +2942,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions$geneA.name[3]
 geneB <- pizzly.fusions$geneB.name[3]
+
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  runPizzlyChunk <- TRUE
+} else {
+  runPizzlyChunk <- FALSE
+}
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
@@ -2973,18 +2975,11 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
 
-```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
+```{r cdf_plot_fusions_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-if ( !is.na(geneA) && !is.na(geneB) ) {
-  
-  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-
-} else {
-
-    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
-}
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2994,15 +2989,12 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE}
-if ( !is.na(geneA) && !is.na(geneB) ) {
+```{r gene_table_fusions_3, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+genes = fusion.df$SYMBOL
   
-  fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
-  fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-  genes = fusion.df$SYMBOL
-  
-  exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
-}
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3016,11 +3008,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r gene_table_fusions_3_perc, comment = NA, message=FALSE, warning=FALSE}
-if ( !is.na(geneA) && !is.na(geneB) ) {
-  
-  exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
-}
+```{r gene_table_fusions_3_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
@@ -3040,6 +3029,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions$geneA.name[4]
 geneB <- pizzly.fusions$geneB.name[4]
+
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  runPizzlyChunk <- TRUE
+} else {
+  runPizzlyChunk <- FALSE
+}
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
@@ -3066,18 +3062,11 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
 
-```{r cdf_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
+```{r cdf_plot_fusions_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-if ( !is.na(geneA) && !is.na(geneB) ) {
-  
-  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-
-} else {
-
-    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
-}
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3087,15 +3076,12 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE}
-if ( !is.na(geneA) && !is.na(geneB) ) {
+```{r gene_table_fusions_4, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+genes = fusion.df$SYMBOL
   
-  fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
-  fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-  genes = fusion.df$SYMBOL
-  
-  exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
-}
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3109,7 +3095,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r gene_table_fusions_4_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r gene_table_fusions_4_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes  = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
 ```
 
@@ -3130,6 +3116,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions$geneA.name[5]
 geneB <- pizzly.fusions$geneB.name[5]
+
+if ( !is.na(geneA) && !is.na(geneB) ) {
+  
+  runPizzlyChunk <- TRUE
+} else {
+  runPizzlyChunk <- FALSE
+}
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
@@ -3156,18 +3149,11 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer patients and healthy individuals.
 
-```{r cdf_plot_fusions_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5}
+```{r cdf_plot_fusions_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-if ( !is.na(geneA) && !is.na(geneB) ) {
-  
-  cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-  cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-
-} else {
-
-    cat(paste("There are", nrow(pizzly.fusions), " gene fusion events detected!", sep=" "))
-}
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3177,16 +3163,13 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r gene_table_fusions_5, comment = NA, message=FALSE, warning=FALSE}
-if ( !is.na(geneA) && !is.na(geneB) ) {
-  
-  fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
-  fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-  genes = fusion.df$SYMBOL
+```{r gene_table_fusions_5, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
+genes = fusion.df$SYMBOL
   
   
-  exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
-}
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3200,7 +3183,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r gene_table_fusions_5_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r gene_table_fusions_5_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]][,c("Oncogene", "TSG")], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
 ```
 
