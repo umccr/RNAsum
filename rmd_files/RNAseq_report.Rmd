@@ -2529,6 +2529,28 @@ the ones that are present in this list.
 
 ```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Create a nice table output (with dataTable)
+pizzly.fusions.table <- pizzly.fusions.cut
+pizzly.fusions.table$geneA.name <- as.vector(pizzly.fusions.table$geneA.name)
+pizzly.fusions.table$geneB.name <- as.vector(pizzly.fusions.table$geneB.name)
+
+##### Provide link to OncoKB for genes A
+for ( gene in pizzly.fusions.table$geneA.name ) {
+  
+    if ( gene %in% rownames(ref_genes.list[["oncokb_genes"]]) & ref_genes.list[["oncokb_genes"]][gene, "OncoKB"] == "Yes" ) {
+        
+      pizzly.fusions.table$geneA.name[ pizzly.fusions.table$geneA.name == gene ] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
+    }
+}
+
+##### Provide link to OncoKB for genes B
+for ( gene in pizzly.fusions.table$geneB.name ) {
+  
+    if ( gene %in% rownames(ref_genes.list[["oncokb_genes"]]) & ref_genes.list[["oncokb_genes"]][gene, "OncoKB"] == "Yes" ) {
+        
+      pizzly.fusions.table$geneB.name[ pizzly.fusions.table$geneB.name == gene ] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
+    }
+}
+
 names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transcript(s)", "Cancer gene(s)", "DNA evidence (gene A)", "DNA evidence (gene B)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
 
 ##### Present gene fusion events in a table
@@ -2545,7 +2567,7 @@ DT::datatable( data = pizzly.fusions.table, filter="none", rownames = FALSE, ext
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), cells in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]** and those hihglighted in <span style="color:#02d653">GREEN</span> indicate genes affected by detected DNA **[Structural variants]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database.
+Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), cells in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]** and those hihglighted in <span style="color:#02d653">GREEN</span> indicate genes affected by detected DNA **[Structural variants]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Genes considered to be oncogenes or tumour suppressor genes are indicated by hyperlink to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database.
 
 **Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
