@@ -985,22 +985,22 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   pos2 <- fusion_annot$GENESEQSTART.1
   
   ##### ... and the events type
-  type <- paste(fusion_annot$pizzly.fusions.annot.fusions_abundant, fusion_annot$pizzly.fusions.annot.fusions_cancer, fusion_annot$geneA_dna_evidence, fusion_annot$geneB_dna_evidence, sep = "-") 
-  type <- gsub("Yes-Yes-Yes-Yes","Abundant, cancer and SVs-affected gene(s)", type)
-  type <- gsub("Yes-Yes---Yes","Abundant, cancer and SVs-affected gene(s)", type)
-  type <- gsub("Yes-Yes-Yes--","Abundant, cancer and SVs-affected gene(s)", type)
+  type <- paste(fusion_annot$pizzly.fusions.annot.fusions_abundant, fusion_annot$pizzly.fusions.annot.fusions_cancer, fusion_annot$geneA_dna_support, fusion_annot$geneB_dna_support, sep = "-") 
+  type <- gsub("Yes-Yes-Yes-Yes","Abundant, cancer and DNA-supported gene(s)", type)
+  type <- gsub("Yes-Yes---Yes","Abundant, cancer and DNA-supported gene(s)", type)
+  type <- gsub("Yes-Yes-Yes--","Abundant, cancer and DNA-supported gene(s)", type)
   type <- gsub("Yes-Yes----","Abundant and cancer gene(s)", type)
-  type <- gsub("Yes---Yes-Yes","Abundant and SVs-affected gene(s)", type)
-  type <- gsub("Yes---Yes--","Abundant and SVs-affected gene(s)", type)
-  type <- gsub("Yes-----Yes","Abundant and SVs-affected gene(s)", type)
+  type <- gsub("Yes---Yes-Yes","Abundant and DNA-supported gene(s)", type)
+  type <- gsub("Yes---Yes--","Abundant and DNA-supported gene(s)", type)
+  type <- gsub("Yes-----Yes","Abundant and DNA-supported gene(s)", type)
   type <- gsub("Yes------","Abundant transcript(s)", type)
-  type <- gsub("--Yes-Yes-Yes","Cancer and SVs-affected gene(s)", type)
-  type <- gsub("--Yes-Yes--","Cancer and SVs-affected gene(s)", type)
-  type <- gsub("--Yes---Yes","Cancer and SVs-affected gene(s)", type)
+  type <- gsub("--Yes-Yes-Yes","Cancer and DNA-supported gene(s)", type)
+  type <- gsub("--Yes-Yes--","Cancer and DNA-supported gene(s)", type)
+  type <- gsub("--Yes---Yes","Cancer and DNA-supported gene(s)", type)
   type <- gsub("--Yes----","Cancer gene(s)", type)
-  type <- gsub("----Yes-Yes","SVs-affected gene(s)", type)
-  type <- gsub("----Yes--","SVs-affected gene(s)", type)
-  type <- gsub("------Yes","SVs-affected gene(s)", type)
+  type <- gsub("----Yes-Yes","DNA-supported gene(s)", type)
+  type <- gsub("----Yes--","DNA-supported gene(s)", type)
+  type <- gsub("------Yes","DNA-supported gene(s)", type)
   type <- gsub("-------","Other", type)
 
   #### Prepare x-axis coordinates info for ggplot
@@ -1761,8 +1761,8 @@ fusion_annot <- cbind(fusion_annot1, fusion_annot2, pizzly.fusions.annot$fusions
 colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
-fusion_annot$geneA_dna_evidence <- "-"
-fusion_annot$geneB_dna_evidence <- "-"
+fusion_annot$geneA_dna_support <- "-"
+fusion_annot$geneB_dna_support <- "-"
 ```
 
 ```{r fusions_reported_annot, comment = NA, message=TRUE, warning=FALSE}
@@ -1801,10 +1801,10 @@ fusion_annot_reported$"Reported fusion" <- "Yes"
 pizzly.fusions.cut <- pizzly.fusions[ , names(pizzly.fusions) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
-pizzly.fusions.cut$geneA_dna_evidence <- "-"
-pizzly.fusions.cut$geneB_dna_evidence <- "-"
+pizzly.fusions.cut$geneA_dna_support <- "-"
+pizzly.fusions.cut$geneB_dna_support <- "-"
 
-pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "geneA_dna_evidence", "geneB_dna_evidence", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
+pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "geneA_dna_support", "geneB_dna_support", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
 
 ##### Provide links to the external resources (in the "Source" column)
 pizzly.fusions.cut$Source <- gsub( "cgc", paste0("<a href='https://cancer.sanger.ac.uk/cosmic/fusion' target='_blank'>cgc</a>"), pizzly.fusions.cut$Source)
@@ -1843,14 +1843,14 @@ manta_pizzly.fusions <- manta_pizzly.fusions[ manta_pizzly.fusions %in% unique(c
 ##### Flag PIZZLY fusions that were also reported in MANTA
 if ( length(manta_pizzly.fusions) > 0 ) {
     
-  pizzly.fusions.cut$geneA_dna_evidence[ sort( match( manta_pizzly.fusions , pizzly.fusions.cut$geneA.name ), na.last = NA ) ] <- "Yes"
-  pizzly.fusions.cut$geneB_dna_evidence[ sort( match( manta_pizzly.fusions , pizzly.fusions.cut$geneB.name ), na.last = NA ) ] <- "Yes"
+  pizzly.fusions.cut$geneA_dna_support[ sort( match( manta_pizzly.fusions , pizzly.fusions.cut$geneA.name ), na.last = NA ) ] <- "Yes"
+  pizzly.fusions.cut$geneB_dna_support[ sort( match( manta_pizzly.fusions , pizzly.fusions.cut$geneB.name ), na.last = NA ) ] <- "Yes"
     
-  fusion_annot$geneA_dna_evidence[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL ), na.last = NA ) ] <- "Yes"
-  fusion_annot$geneB_dna_evidence[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL.1 ), na.last = NA ) ] <- "Yes"
+  fusion_annot$geneA_dna_support[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL ), na.last = NA ) ] <- "Yes"
+  fusion_annot$geneB_dna_support[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL.1 ), na.last = NA ) ] <- "Yes"
 
   ##### Re-order pizzly dataframe with MANTA supporting fusions on top
-  idx <- order(pizzly.fusions.cut$geneA_dna_evidence, pizzly.fusions.cut$geneB_dna_evidence, decreasing = TRUE)
+  idx <- order(pizzly.fusions.cut$geneA_dna_support, pizzly.fusions.cut$geneB_dna_support, decreasing = TRUE)
   pizzly.fusions.cut <- pizzly.fusions.cut[ idx, ]
   fusion_annot <- fusion_annot[ idx, ]
   pizzly.fusions <- pizzly.fusions[ idx, ]
@@ -2551,29 +2551,29 @@ for ( gene in pizzly.fusions.table$geneB.name ) {
     }
 }
 
-names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transcript(s)", "Cancer gene(s)", "DNA evidence (gene A)", "DNA evidence (gene B)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
+names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transcript(s)", "Cancer gene(s)", "DNA support (gene A)", "DNA support (gene B)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
 
 ##### Present gene fusion events in a table
 DT::datatable( data = pizzly.fusions.table, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
     DT::formatStyle( columns = names(pizzly.fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
   
-    ##### Highlight rows with fusions involving hihgly abundant transcripts (red), cancer genes (blue) or DNA evidence (from MANTA)
+    ##### Highlight rows with fusions involving hihgly abundant transcripts (red), cancer genes (blue) or DNA support (from MANTA)
     DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
     DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA evidence (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA evidence (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
+    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
+    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), cells in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]** and those hihglighted in <span style="color:#02d653">GREEN</span> indicate genes affected by detected DNA **[Structural variants]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Genes considered to be oncogenes or tumour suppressor genes are indicated by hyperlink to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database.
+Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), cells in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]** and those hihglighted in <span style="color:#02d653">GREEN</span> indicate DNA-supported fusion genes (see **[Structural variants]** section). Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Genes considered to be oncogenes or tumour suppressor genes are indicated by hyperlink to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database.
 
 **Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
 **Cancer gene(s)**: gene fusion events involving [Cancer genes]
 
-**DNA evidence (gene A/B)**: gene(s) affected by DNA [Structural variants] detected by [Manta](https://github.com/sigven/pcgr){target="_blank"}
+**DNA support (gene A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section)
 
 **Fusion gene(s)**: gene(s) known to be involved in tumorigenesis across cancer types via translocation
 
@@ -2601,7 +2601,7 @@ Gene fusion events involving genes located within detected [Structural variants]
 
 ```{r bezier_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
-fusion_annot_top <- fusion_annot[ fusion_annot$geneA_dna_evidence == "Yes" | fusion_annot$geneB_dna_evidence == "Yes" , ]
+fusion_annot_top <- fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
 
 ##### Generate bezier curves-like plot representing gene fusion events
 fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
@@ -2609,7 +2609,7 @@ fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.li
 
 ```{r expr_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Clean the table for better presentation
-fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "pizzly.fusions.annot.fusions_abundant", "pizzly.fusions.annot.fusions_cancer", "geneA_dna_evidence", "geneB_dna_evidence") ]
+fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "pizzly.fusions.annot.fusions_abundant", "pizzly.fusions.annot.fusions_cancer", "geneA_dna_support", "geneB_dna_support") ]
 
 ##### Order fusions based on the genomic location (chrom and start positions)
 chrOrder <-c((1:22),"X","Y","M")
@@ -2618,7 +2618,7 @@ fusion_annot_top.clean$SEQNAME <- factor(fusion_annot_top.clean$SEQNAME, chrOrde
 fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
 fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
 
-names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Abundant transcript(s)", "Cancer gene(s)", "DNA evidence (gene A)", "DNA evidence (gene B)")
+names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Abundant transcript(s)", "Cancer gene(s)", "DNA support (gene A)", "DNA support (gene B)")
 
 DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
     DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
@@ -2626,20 +2626,20 @@ DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, e
     ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
     DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
     DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
-    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA evidence (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
-    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA evidence (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
+    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
+    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), cells in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]** and those hihglighted in <span style="color:#02d653">GREEN</span> indicate genes affected by detected DNA **[Structural variants]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database.
+Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), cells in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]** and those hihglighted in <span style="color:#02d653">GREEN</span> indicate DNA-supported fusion genes (see **[Structural variants]** section). Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database.
 
 **Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
 **Cancer gene(s)**: gene fusion events involving [Cancer genes]
 
-**DNA evidence (gene A/B)**: gene(s) affected by DNA [Structural variants] detected by [Manta](https://github.com/sigven/pcgr){target="_blank"}
+**DNA support (gene A/B)**: DNA-supported fusion gene(s) (see) [Structural variants] section)
 </font>
 </details>
 
