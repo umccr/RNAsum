@@ -991,7 +991,7 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   pos2 <- fusion_annot$GENESEQSTART.1
   
   ##### ... and the events type
-  type <- paste(fusion_annot$pizzly.fusions.annot.fusions_abundant, fusion_annot$pizzly.fusions.annot.fusions_cancer, fusion_annot$geneA_dna_support, fusion_annot$geneB_dna_support, sep = "-") 
+  type <- paste( fusion_annot$pizzly.fusions.annot.fusions_abundant, fusion_annot$pizzly.fusions.annot.fusions_cancer, fusion_annot$geneA_dna_support, fusion_annot$geneB_dna_support, sep = "-") 
   type <- gsub("Yes-Yes-Yes-Yes","Abundant, cancer and DNA-supported gene(s)", type)
   type <- gsub("Yes-Yes---Yes","Abundant, cancer and DNA-supported gene(s)", type)
   type <- gsub("Yes-Yes-Yes--","Abundant, cancer and DNA-supported gene(s)", type)
@@ -1810,7 +1810,7 @@ pizzly.fusions.cut <- pizzly.fusions[ , names(pizzly.fusions) %!in% c("geneA.id"
 pizzly.fusions.cut$geneA_dna_support <- "-"
 pizzly.fusions.cut$geneB_dna_support <- "-"
 
-pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "fusions_abundant", "fusions_cancer", "geneA_dna_support", "geneB_dna_support", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
+pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "geneA_dna_support", "geneB_dna_support", "fusions_abundant", "fusions_cancer", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
 
 ##### Provide links to the external resources (in the "Source" column)
 pizzly.fusions.cut$Source <- gsub( "cgc", paste0("<a href='https://cancer.sanger.ac.uk/cosmic/fusion' target='_blank'>cgc</a>"), pizzly.fusions.cut$Source)
@@ -2557,7 +2557,7 @@ for ( gene in pizzly.fusions.table$geneB.name ) {
     }
 }
 
-names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "Abundant transcript(s)", "Cancer gene(s)", "DNA support (gene A)", "DNA support (gene B)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
+names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
 
 ##### Present gene fusion events in a table
 DT::datatable( data = pizzly.fusions.table, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
@@ -2573,13 +2573,13 @@ DT::datatable( data = pizzly.fusions.table, filter="none", rownames = FALSE, ext
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), cells in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]** and those hihglighted in <span style="color:#02d653">GREEN</span> indicate DNA-supported fusion genes (see **[Structural variants]** section). Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Genes considered to be oncogenes or tumour suppressor genes are indicated by hyperlink to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database. Fusion events are ordered by **DNA support (gene A/B)**,  **Abundant transcript(s)**, **Cancer gene(s)**, **Split count** and **Pair count** columns.
+Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Genes considered to be oncogenes or tumour suppressor genes are indicated by hyperlink to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database. Fusion events are ordered by **DNA support (gene A/B)**,  **Abundant transcript(s)**, **Cancer gene(s)**, **Split count** and **Pair count** columns.
+
+**DNA support (gene A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section)
 
 **Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
 **Cancer gene(s)**: gene fusion events involving [Cancer genes]
-
-**DNA support (gene A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section)
 
 **Fusion gene(s)**: gene(s) known to be involved in tumorigenesis across cancer types via translocation
 
@@ -2613,12 +2613,15 @@ fusion_annot_top <- fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusi
 if ( nrow(fusion_annot_top) > 0 ) {
   
   fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
+} else {
+  
+  cat("None of the fusion events detected in transcriptomics data have supporting evidence from DNA sequencing")
 }
 ```
 
 ```{r expr_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Clean the table for better presentation
-fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "pizzly.fusions.annot.fusions_abundant", "pizzly.fusions.annot.fusions_cancer", "geneA_dna_support", "geneB_dna_support") ]
+fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "geneA_dna_support", "geneB_dna_support", "pizzly.fusions.annot.fusions_abundant", "pizzly.fusions.annot.fusions_cancer") ]
 
 ##### Order fusions based on the genomic location (chrom and start positions)
 chrOrder <-c((1:22),"X","Y","M")
@@ -2627,7 +2630,7 @@ fusion_annot_top.clean$SEQNAME <- factor(fusion_annot_top.clean$SEQNAME, chrOrde
 fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
 fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
 
-names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Abundant transcript(s)", "Cancer gene(s)", "DNA support (gene A)", "DNA support (gene B)")
+names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
 
 DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
     DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
@@ -2642,13 +2645,13 @@ DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, e
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), cells in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]** and those hihglighted in <span style="color:#02d653">GREEN</span> indicate DNA-supported fusion genes (see **[Structural variants]** section). Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**.
+Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**.
+
+**DNA support (gene A/B)**: DNA-supported fusion gene(s) (see) [Structural variants] section)
 
 **Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
 **Cancer gene(s)**: gene fusion events involving [Cancer genes]
-
-**DNA support (gene A/B)**: DNA-supported fusion gene(s) (see) [Structural variants] section)
 </font>
 </details>
 
@@ -2656,7 +2659,7 @@ Cell in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusi
 
 ### - Fusion genes {.tabset}
 
-Expression profiles for 5 gene fusion events involving DNA-supported fusion genes (see [Structural variants] section), abundant transcripts or cancer genes (see [Cancer genes] section) (indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> columns in the [Gene fusion events] table, respectively) and with the highest *Split count* and *Pair count* values. 
+Expression profiles for 5 gene fusion events involving DNA-supported fusion genes (see [Structural variants] section), abundant transcripts or cancer genes (see [Cancer genes] section), indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> columns in the [Gene fusion events] table, respectively, and with the highest *Split count* and *Pair count* values. 
 
 <span style="color:#ff0000">NOTE</span>: the *Fusion events visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
@@ -3506,7 +3509,7 @@ mut_cn_expr_genes.expr.gains.z[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -3606,7 +3609,7 @@ mut_cn_expr_genes.expr.losses.perc[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section).  Genes are ordered by **Patient (CN)** column. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -4272,7 +4275,7 @@ civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_
 
 ### - Gene fusion events {.tabset}
 
-**`r nrow(fusion_annot_top.clean)`** gene fusion events involving DNA-supported fusion genes (see [Structural variants] section), abundant transcripts or cancer genes (see [Cancer genes] section) (indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> columns in the [Gene fusion events] table, respectively) and with the highest *Split count* and *Pair count* values were screened for suitable drugs.
+**`r nrow(fusion_annot_top.clean)`** gene fusion events involving DNA-supported fusion genes (see [Structural variants] section), abundant transcripts or cancer genes (see [Cancer genes] section), indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> columns in the [Gene fusion events] table, respectively, and with the highest *Split count* and *Pair count* values were screened for suitable drugs.
 
 #### Highly abundant
 
