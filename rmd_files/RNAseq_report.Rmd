@@ -760,7 +760,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
     group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$TIER), ]
     
-  ##### Order the data by MANTA increasing score (to prioritise SVs) and then by the highest absolute values for Patient vs Normal difference
+  ##### Order the data by MANTA increasing score (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py) and then by the highest absolute values for Patient vs Normal difference
   } else if  ( !is.null(sv_data) && length(genes) > 0 ) {
     
     group.z <- group.z[ order(abs(group.z[, "Patient vs Normal"]),  decreasing = TRUE), ]
@@ -2523,9 +2523,9 @@ select those which have a decent [Transcripts Per Kilobase Million](http://www.a
   and fusions.
   * Select only the fusions with a high [TPM](http://www.arrayserver.com/wiki/index.php?title=TPM){target="_blank"} value as reported by previous step.
 
-2. In the second step, fusion genes reported by [pizzly](https://github.com/pmelsted/pizzly){target="_blank"} (transcriptome-based evidence) are compared with fusion events reported by [manta](https://github.com/sigven/pcgr) (DNA-based evidence), if available.
+2. In the second step, fusion genes reported by [pizzly](https://github.com/pmelsted/pizzly){target="_blank"} (transcriptome-based evidence) are compared with fusion events reported by [manta](https://github.com/sigven/pcgr){target="_blank"} (DNA-based evidence), if available.
 
-3. Finally, fusion genes reported by [pizzly](https://github.com/pmelsted/pizzly){target="_blank"} are annotated with cancer genes from *[Peter Mac](https://www.petermac.org/){target="_blank"} comprehensive cancer (PMCC)* panel, [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} (listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data){target="_blank"}) and other resources summarised in [UMCCR Cancer Genes trello card](https://trello.com/c/7j3KFMiL/184-umccr-cancer-genes).
+3. Finally, fusion events reported by [pizzly](https://github.com/pmelsted/pizzly){target="_blank"} are annotated with cancer genes from *[Peter Mac](https://www.petermac.org/){target="_blank"} comprehensive cancer (PMCC)* panel, *[OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"}* (listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data){target="_blank"}) and other resources summarised in *[UMCCR Cancer Genes](https://trello.com/c/7j3KFMiL/184-umccr-cancer-genes){target="_blank"}* trello card.
 
 </details>
 
@@ -2617,7 +2617,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
 } else {
   
-  cat("None of the fusion events detected in transcriptomics data have supporting evidence from DNA sequencing")
+  cat("None of the transcriptome-based fusion events have supporting evidence from DNA sequencing.")
 }
 ```
 
@@ -3149,7 +3149,10 @@ sv_genes.expr.z[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing score** and then by **decreasing** absolute values in the **Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
+
+**Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36) script; *1 = high* and *3 = low priority*
+
 </font>
 </details>
 
@@ -3168,7 +3171,10 @@ sv_genes.expr.perc[[1]]
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing score** and then by **decreasing** absolute values in the **Patient vs Normal** columns. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs Normal** columns. TSG - tumour suppressor gene; SD - standard deviation
+
+**Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36) script; *1 = high* and *3 = low priority*
+
 </font>
 </details>
 
@@ -3176,7 +3182,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ### - Expression profiles {.tabset}
 
-Expression profiles for the 10 SVs-affected genes with the highest priority (the lowest score) and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+Expression profiles for the 10 SVs-affected genes with the highest priority (low [score](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36)) and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
 
 #### `r if ( runSVsChunk && !is.na(unique(sv_genes.expr.z[[2]]$SYMBOL)[1]) ) { unique(sv_genes.expr.z[[2]]$SYMBOL)[1] }`
 
