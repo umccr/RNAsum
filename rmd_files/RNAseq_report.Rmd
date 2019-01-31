@@ -18,7 +18,7 @@ params:
   plots_mode: 'static'
   batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_17_AH_P001_1__CCR170057_AH17T001P001'
   ref_data_dir: '../data'
-  genes_cancer: 'genes/cancer_genes.20181112.genes'
+  genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
   oncokb_genes: 'OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: 'OncoKB/allActionableVariants.txt'
@@ -63,7 +63,7 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
 
-# 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from OncoKB portal (http://oncokb.org/#/cancerGenes) and Peter Mac comprehensive cancer (PMCC) gene panel
+# 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from OncoKB portal (http://oncokb.org/#/cancerGenes), Peter Mac comprehensive cancer (PMCC) gene panel and UMCCR Cancer Gene list (https://trello.com/c/7j3KFMiL/184-umccr-cancer-genes)
 
 # 2. ref_genes.list[["oncokb_genes"]] = list of cancer genes derived from OncoKB portal (http://oncokb.org/#/cancerGenes) alone (although genes present on the PMCC gene panel are also flagged)
 
@@ -1160,7 +1160,7 @@ ref_datasets.list[[tissue]] <- combineDatasets(params$sample_name, params$count_
 names(ref_datasets.list[[tissue]]) <- c("combined_data", "sample_annot")
 
 ##### Read in selected genes list
-ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")[ ,1 ]
+ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 ref_genes.list[["oncokb_genes"]] <- read.table(paste(params$ref_data_dir, params$oncokb_genes, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
 ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params$genes_immune, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
 
@@ -1364,11 +1364,11 @@ for ( tissue in names(ref_datasets.list) ) {
 ```
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
-##### Combine PMCC gene panel and OncoKB cancer genes
+##### Combine PMCC gene panel, OncoKB cancer genes and UMCCR cancer gene list
 genes_cancer <- ref_genes.list[["oncokb_genes"]]
 genes_cancer$PMCC <- rep("No", nrow(genes_cancer))
 
-for ( gene in unlist(ref_genes.list[["genes_cancer"]]) ) {
+for ( gene in unlist(ref_genes.list[["genes_cancer"]]$symbol) ) {
 
   ##### Check if the PMCC genes is aleady reported in OncoKB
   if ( gene %in% genes_cancer$Hugo.Symbol ) {
@@ -1565,7 +1565,7 @@ deduped.result <- deduped.result[idx, ]
 #Extract only those fusion genes that are in cancer genes list
 result.cancer_genes <- data.frame()
 for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,"geneA.name"] %in% rownames(ref_genes.list[["genes_cancer"]]) | pizzly.fusions[row,"geneB.name"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
+  if(pizzly.fusions[row,"geneA.name"] %in% ref_genes.list[["genes_cancer"]]$symbol | pizzly.fusions[row,"geneB.name"] %in% ref_genes.list[["genes_cancer"]]$symbol) {
     #creating a new dataframe for extracting pizzly rows with cancer gene hits
     result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
   }
@@ -2214,7 +2214,7 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(ref_genes.list[["genes_cancer"]]$symbol %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["genes_cancer"]]$symbol %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
@@ -2223,7 +2223,7 @@ Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expressio
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], ext_links = TRUE, type = "z")
+cancer_genes.expr.z <- exprTable( genes = ref_genes.list[["genes_cancer"]]$symbol, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 cancer_genes.expr.z[[1]]
@@ -2241,7 +2241,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r cancer_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], ext_links = TRUE, type = "perc")
+cancer_genes.expr.perc <- exprTable( genes = ref_genes.list[["genes_cancer"]]$symbol, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], OncoKB_genes = ref_genes.list[["oncokb_genes"]], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
@@ -2531,9 +2531,11 @@ select those which have a decent [Transcripts Per Kilobase Million](http://www.a
 
 ***
 
-<span style="color:#ff0000">NOTE</span>: Only fusion events including genes with available genomics coordinates in [Ensembl database version](https://ensembl.org/info/website/archives/index.html){target="_blank"} `r params$ensembl_version` are reported.
-
 ### - Summary
+
+Out of the `r nrow(fusion_annot)` fusion event(s) <span style="color:#02d653">**`r nrow(fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ])`**</span>) involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#ff0000">**`r nrow(fusion_annot[ fusion_annot$pizzly.fusions.annot.fusions_abundant == "Yes" , ])`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#0000ff">**`r nrow(fusion_annot[ fusion_annot$pizzly.fusions.annot.fusions_cancer == "Yes" , ])`**</span> involve **[Cancer genes]**.
+
+NOTE: Only fusion events including genes with available genomics coordinates in [Ensembl database version](https://ensembl.org/info/website/archives/index.html){target="_blank"} `r params$ensembl_version` are reported.
 
 ```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Create a nice table output (with dataTable)
@@ -2617,7 +2619,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
 } else {
   
-  cat("None of the transcriptome-based fusion events have supporting evidence from DNA sequencing.")
+  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
 }
 ```
 
@@ -3151,7 +3153,7 @@ sv_genes.expr.z[[1]]
 <font size="2">
 The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
 
-**Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36) script; *1 = high* and *3 = low priority*
+**Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"} script; **1 = high** and **3 = low priority**
 
 </font>
 </details>
@@ -3182,7 +3184,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ### - Expression profiles {.tabset}
 
-Expression profiles for the 10 SVs-affected genes with the highest priority (low [score](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36)) and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+Expression profiles for 10 SVs-affected genes with the highest priority (low [score](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"}) and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
 
 #### `r if ( runSVsChunk && !is.na(unique(sv_genes.expr.z[[2]]$SYMBOL)[1]) ) { unique(sv_genes.expr.z[[2]]$SYMBOL)[1] }`
 
@@ -3451,7 +3453,7 @@ suppressMessages(library(plotly))
 data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 
 ##### Limit the data to include only cancer genes
-genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
+genes <- as.vector(data$Gene[ data$Gene %in% ref_genes.list[["genes_cancer"]]$symbol ])
 
 if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   
