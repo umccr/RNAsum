@@ -1626,14 +1626,14 @@ trans.pairs <-  strsplit(known_translocations$translocation, split='__', fixed=T
 trans.pairs <- data.frame(matrix(unlist(trans.pairs), nrow=length(trans.pairs), byrow=TRUE), stringsAsFactors = FALSE)
 names(trans.pairs) <- c("geneA", "geneB")
 known_translocations <- cbind(known_translocations, trans.pairs)
-trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "" )
+trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "-" )
   
 ##### Add columns for info about reported fusions
 pizzly.fusions <- cbind(pizzly.fusions, data.frame(matrix("", ncol = 4, nrow = nrow(pizzly.fusions)), stringsAsFactors = FALSE))
 colnames(pizzly.fusions)[-c(1:7)] <- c("Reported", "Effector_gene", "Source", "Cancer_acronym")
 
 ##### Add annotations about known fusion events
-##### Loop through all genes involved in reported gene fusions and check if present in pizzly results
+##### Loop through all genes involved in deteced gene fusions (pizzly results) and check which are already reported
 for ( i in 1:nrow(pizzly.fusions) ) {
   
   geneA <- pizzly.fusions$geneA.name[i]
@@ -1652,8 +1652,9 @@ for ( i in 1:nrow(pizzly.fusions) ) {
     
     pizzly.fusions[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneB, geneA, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
     
-  ##### Now check is at lease one of the pizzly results genes was previously reporeted
+  ##### Now check if any ofthe pizzly detected fusion genes are reported
   } else {
+    ##### Check the Cancer Genome Interpreter (CGI) database first
     ##### Check pizzly genes A and genes A in reported fusions
     if ( geneA %in% known_translocations$geneA ) {
       
@@ -1715,8 +1716,31 @@ for ( i in 1:nrow(pizzly.fusions) ) {
           pizzly.fusions[ i, "Effector_gene"] <- as.character(geneB)
         }
     }
+    
+    ##### Now check the fusion genes in the UMCCR Cancer Gene list
+    ##### Both genes are reported
+    if ( geneA %in% rownames(ref_genes.list[["genes_cancer"]])[ ref_genes.list[["genes_cancer"]]$Fusion=="Yes" ] && geneB %in% rownames(ref_genes.list[["genes_cancer"]])[ ref_genes.list[["genes_cancer"]]$Fusion=="Yes" ] ) {
+      
+      pizzly.fusions$Reported[i] <- paste(as.vector(geneA), as.vector(geneB), sep=",")
+      pizzly.fusions$Source[i] <- paste("UMCCR", pizzly.fusions$Source[i], sep = ",")
+      
+    ##### Gene A is reported
+    } else if ( geneA %in% rownames(ref_genes.list[["genes_cancer"]])[ ref_genes.list[["genes_cancer"]]$Fusion=="Yes" ] ) {
+      
+      pizzly.fusions$Reported[i] <- as.vector(geneA)
+      pizzly.fusions$Source[i] <- paste("UMCCR", pizzly.fusions$Source[i], sep = ",")
+      
+    ##### Gene B is reported
+    } else if ( geneB %in% rownames(ref_genes.list[["genes_cancer"]])[ ref_genes.list[["genes_cancer"]]$Fusion=="Yes" ] ) {
+      
+      pizzly.fusions$Reported[i] <- as.vector(geneB)
+      pizzly.fusions$Source[i] <- paste("UMCCR", pizzly.fusions$Source[i], sep = ",")
+    }
   }
 }
+
+##### remove redundant commas in the Source column
+pizzly.fusions$Source[ pizzly.fusions$Source == "UMCCR," ] <- "UMCCR"
 
 ##### Rearrange the table to move the transcripts list at the end
 pizzly.fusions <- pizzly.fusions %>% dplyr::select(-"transcripts.list","transcripts.list")
