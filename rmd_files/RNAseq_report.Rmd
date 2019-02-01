@@ -478,17 +478,20 @@ mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, p
       
       layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
   }
+  
+  ##### Create directory for the plots
+  mutCNexprPlotDir <- paste(params$report_dir, "mut_cn_expr_plot", sep = "/")
+  if ( !file.exists(mutCNexprPlotDir) ) {
 
+    dir.create(mutCNexprPlotDir, recursive=TRUE)
+  }
+    
+  ##### Save interactive plot as html file
+  htmlwidgets::saveWidget(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
+  
   ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. TO this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). 
   if ( plot_mode == "static" ) {
-
-    ##### Create directory for the plots
-    mutCNexprPlotDir <- paste(params$report_dir, "mut_cn_expr_plot", sep = "/")
-    if ( !file.exists(mutCNexprPlotDir) ) {
-
-      dir.create(mutCNexprPlotDir, recursive=TRUE)
-    }
-
+    
     ##### Add access token, required by orca function, to the shell environment
     Sys.setenv('MAPBOX_TOKEN' = 'secret token')
 
@@ -1082,6 +1085,18 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
       ##### Add gene fusion labels
       #annotate(geom = 'text', label = paste(fusion_annot$fusion_data.geneA.name, fusion_annot$fusion_data.geneB.name, sep="-"), x = beziers.mid, y = beziers.height-0.5, size = 1.5)
   
+  ##### Also save the plot as png
+  fusionsPlotDir <- paste(params$report_dir, "fusionsPlot", sep = "/")
+
+  if ( !file.exists(fusionsPlotDir) ) {
+
+        dir.create(fusionsPlotDir, recursive=TRUE)
+  }
+
+  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
+  bezierPlot
+  dev.off()
+  
   return( p )
 }
 
@@ -1330,6 +1345,9 @@ for ( tissue in names(ref_datasets.list) ) {
   
   ##### Add info about immune response markers
   gene_info <- merge(gene_info, ref_genes.list[["genes_immune"]], by = "SYMBOL", all.x = TRUE)
+  
+  ##### Kep only immune response marjers for which there is available annotation
+  ref_genes.list[["genes_immune"]] <- ref_genes.list[["genes_immune"]][ ref_genes.list[["genes_immune"]]$SYMBOL %in% gene_info$SYMBOL, ]
   
   ##### Merge genes genomic coordinates info with their annotation and expression data
   data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = FALSE)
@@ -1950,7 +1968,7 @@ NOTE: the `r nrow(counts) - nrow(y.filtered$counts)` genes with no/low expressio
 
 mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
 
-[PCGR](https://github.com/sigven/pcgr){target="_blank"} report for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ### - Summary table {.tabset}
 
@@ -1976,6 +1994,17 @@ mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sa
 
 ##### Present the expression summary table
 mut_genes.expr.z[[1]]
+
+##### Create directory for saving tables
+exprTableDir <- paste(params$report_dir, "exprTables", sep = "/")
+
+if ( !file.exists(exprTableDir) ) {
+
+        dir.create(exprTableDir, recursive=TRUE)
+}
+
+##### Save the expression table as html file
+DT::saveWidget(widget=mut_genes.expr.z[[1]], file=paste(exprTableDir, "mut_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -1994,6 +2023,10 @@ mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets,
 
 ##### Present the expression summary table
 mut_genes.expr.perc[[1]]
+
+##### Save the expression table as html file
+##### Create directory for tables
+DT::saveWidget(widget=mut_genes.expr.perc[[1]], file=paste(exprTableDir, "mut_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -2278,6 +2311,9 @@ cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer
 
 ##### Present the expression summary table
 cancer_genes.expr.z[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=cancer_genes.expr.z[[1]], file=paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -2296,6 +2332,9 @@ cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_can
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=cancer_genes.expr.perc[[1]], file=paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -2615,7 +2654,7 @@ for ( gene in pizzly.fusions.table$geneB.name ) {
 names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
 
 ##### Present gene fusion events in a table
-DT::datatable( data = pizzly.fusions.table, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
+pizzly.fusions.summary <- DT::datatable( data = pizzly.fusions.table, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
     DT::formatStyle( columns = names(pizzly.fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
   
     ##### Highlight rows with fusions involving hihgly abundant transcripts (red), cancer genes (blue) or DNA support (from MANTA)
@@ -2623,6 +2662,19 @@ DT::datatable( data = pizzly.fusions.table, filter="none", rownames = FALSE, ext
     DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
     DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
     DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
+
+pizzly.fusions.summary
+
+##### Create directory for tables
+fusionsTableDir <- paste(params$report_dir, "fusionsTables", sep = "/")
+
+if ( !file.exists(fusionsTableDir) ) {
+
+        dir.create(fusionsTableDir, recursive=TRUE)
+}
+
+##### Save the table as html file
+DT::saveWidget(widget=pizzly.fusions.summary, file=paste(fusionsTableDir, "pizzly.fusions.summary.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -2659,7 +2711,7 @@ Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fus
 
 **`r nrow(fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ])`** fusion events involving `r length(unique(c(fusion_annot$SYMBOL[ fusion_annot$geneA_dna_support == "Yes"], fusion_annot$SYMBOL.1[ fusion_annot$geneB_dna_support == "Yes"])))` genes located within detected [Structural variants] (obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"}) are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
-[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample are **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ```{r bezier_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
@@ -2669,6 +2721,7 @@ fusion_annot_top <- fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusi
 if ( nrow(fusion_annot_top) > 0 ) {
   
   fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
+
 } else {
   
   cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
@@ -2690,7 +2743,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   
   names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
   
-  DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
+pizzly.fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
     
       ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
@@ -2698,6 +2751,11 @@ if ( nrow(fusion_annot_top) > 0 ) {
       DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
       DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
       DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
+
+pizzly.fusions.genomicView
+  
+##### Save the table as html file
+DT::saveWidget(widget=pizzly.fusions.genomicView, file=paste(fusionsTableDir, "pizzly.fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
 }
 ```
 
@@ -3175,7 +3233,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 mRNA expression levels of genes within detected structural variants (SVs), obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
 
-[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample are **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ### - Summary table {.tabset}
 
@@ -3201,6 +3259,9 @@ sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , 
 
 ##### Present the expression summary table
 sv_genes.expr.z[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=sv_genes.expr.z[[1]], file=paste(exprTableDir, "sv_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -3223,6 +3284,9 @@ sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv[
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=sv_genes.expr.perc[[1]], file=paste(exprTableDir, "sv_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -3495,7 +3559,7 @@ detach("package:plotly", unload=FALSE)
 
 Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}) and mutation status, if available.
 
-[PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"} report for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+CN information this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
 ### - Expression vs copy-number
 
@@ -3575,6 +3639,9 @@ if ( runPcgrChunk && runPurpleChunk ) {
   
 ##### Present the expression, CN and mutation data summary table
 mut_cn_expr_genes.expr.gains.z[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=mut_cn_expr_genes.expr.gains.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.z.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -3602,6 +3669,9 @@ if ( runPcgrChunk && runPurpleChunk ) {
   
 ##### Present the expression, CN and mutation data summary table
 mut_cn_expr_genes.expr.gains.perc[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=mut_cn_expr_genes.expr.gains.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.perc.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -3642,6 +3712,9 @@ if ( runPcgrChunk && runPurpleChunk ) {
   
 ##### Present the expression, CN and mutation data summary table
 mut_cn_expr_genes.expr.losses.z[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=mut_cn_expr_genes.expr.losses.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.z.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -3669,6 +3742,9 @@ if ( runPcgrChunk && runPurpleChunk ) {
   
 ##### Present the expression, CN and mutation data summary table
 mut_cn_expr_genes.expr.losses.perc[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=mut_cn_expr_genes.expr.losses.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.perc.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -3952,7 +4028,7 @@ detach("package:plotly", unload=FALSE)
 
 Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy)
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]])))` immune response markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]])) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune response markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -3962,7 +4038,7 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]])))` immune r
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genes <- unique(unlist(ref_genes.list[["genes_immune"]]))
+genes <- unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL))
 
 ##### Deal with no genes
 if ( length(genes) == 0 ) {
@@ -3974,6 +4050,9 @@ immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets,
 
 ##### Present the expression summary table
 immune_genes.expr.z[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=immune_genes.expr.z[[1]], file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -3993,6 +4072,9 @@ immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targe
 
 ##### Present the expression summary table
 immune_genes.expr.perc[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=immune_genes.expr.perc[[1]], file=paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -4259,11 +4341,11 @@ detach("package:plotly", unload=FALSE)
 
 ## Drug matching
 
-List of drugs targeting variants in identified [Mutated genes], dysregulated [Cancer genes], [Gene fusion events], [Structural variants]-affected genes and [Copy-number altered genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
+List of drugs targeting variants in detected [Mutated genes], dysregulated [Cancer genes], [Gene fusion events], [Structural variants]-affected genes and [Copy-number altered genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
 
 ### - Mutated genes
 
-[PCGR](https://github.com/sigven/pcgr){target="_blank"} report for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
 **`r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))`** genes with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants were screened for suitable drugs (see [Mutated genes] section).
 
@@ -4271,7 +4353,20 @@ List of drugs targeting variants in identified [Mutated genes], dysregulated [Ca
 ##### Generate table with drugs targeting mutated cancer genes
 genes <- mut_genes.expr.z[[2]]$SYMBOL
 
-civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "mutation")[[1]]
+drugsTable.mut_genes <- civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "mutation")
+
+drugsTable.mut_genes[[1]]
+
+##### Create directory for tables
+drugsTableDir <- paste(params$report_dir, "drugsTables", sep = "/")
+
+if ( !file.exists(drugsTableDir) ) {
+
+        dir.create(drugsTableDir, recursive=TRUE)
+}
+
+##### Save the expression table as html file
+DT::saveWidget(widget=drugsTable.mut_genes[[1]], file=paste(drugsTableDir, "drugsTable.mut_genes.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -4310,7 +4405,12 @@ civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_s
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
-civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "expression")[[1]]
+drugsTable.cancer_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "expression")
+
+drugsTable.cancer_genes[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=drugsTable.cancer_genes[[1]], file=paste(drugsTableDir, "drugsTable.cancer_genes.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -4352,7 +4452,12 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- as.vector(pizzly.fusions[ pizzly.fusions$fusions_abundant == "Yes", ]$geneA.name)
 genesB <- as.vector(pizzly.fusions[ pizzly.fusions$fusions_abundant == "Yes", ]$geneB.name)
 
-civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")[[1]]
+drugsTable.fusion_genes_abundant <- civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")
+
+drugsTable.fusion_genes_abundant[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=drugsTable.fusion_genes_abundant[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes_abundant.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -4389,7 +4494,12 @@ civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_g
 genesA <- as.vector(pizzly.fusions[ pizzly.fusions$fusions_cancer == "Yes", ]$geneA.name)
 genesB <- as.vector(pizzly.fusions[ pizzly.fusions$fusions_cancer == "Yes", ]$geneB.name)
 
-civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")[[1]]
+drugsTable.fusion_genes_cancer <- civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")
+
+drugsTable.fusion_genes_cancer[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=drugsTable.fusion_genes_cancer[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes_cancer.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -4421,7 +4531,7 @@ civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_g
 
 ### - Structural variants
 
-[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample are **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 **`r if ( runSVsChunk ) { length(unique(manta_sv$gene)) } else { length(NULL) }`** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).
 
@@ -4430,7 +4540,12 @@ civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_g
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genes <- unique(manta_sv$gene)
 
-civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = NULL)[[1]]
+drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = NULL)
+
+drugsTable.sv_genes[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=drugsTable.sv_genes[[1]], file=paste(drugsTableDir, "drugsTable.sv_genes.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -4462,7 +4577,7 @@ civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_
 
 ### - CN altered genes {.tabset}
 
-[PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"} report for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
 **`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r params$cn_gain` (**gains**) or < `r params$cn_loss` (**losses**, see [Copy-number altered genes] section), and reported as either [Cancer genes], [Mutated genes] with [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants (if mutation information is available) or involved in [Gene fusion events] or [Structural variants] (if SV information is available) were screened for suitable drugs.
 
@@ -4472,7 +4587,12 @@ civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
-civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "copy_gain")[[1]]
+drugsTable.CN_altered_genes_gains <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "copy_gain")
+
+drugsTable.CN_altered_genes_gains[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=drugsTable.CN_altered_genes_gains[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_gains.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
@@ -4508,7 +4628,12 @@ civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
-civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "copy_loss")[[1]]
+drugsTable.CN_altered_genes_losses <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "copy_loss")
+
+drugsTable.CN_altered_genes_losses[[1]]
+
+##### Save the expression table as html file
+DT::saveWidget(widget=drugsTable.CN_altered_genes_losses[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_losses.html", sep = "/"), selfcontained=TRUE)
 ```
 
 <details>
