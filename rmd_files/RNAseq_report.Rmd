@@ -1162,7 +1162,7 @@ names(ref_datasets.list[[tissue]]) <- c("combined_data", "sample_annot")
 ##### Read in selected genes list
 ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 ref_genes.list[["genes_oncokb"]] <- read.table(paste(params$ref_data_dir, params$oncokb_genes, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
-ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params$genes_immune, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="")
+ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params$genes_immune, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 
 ##### Read in gene fusion data for investigate sample
 ##### Read in the pizzly fusion calls
@@ -1328,12 +1328,15 @@ for ( tissue in names(ref_datasets.list) ) {
   ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc)
   gene_info = gene_info[!duplicated(gene_info$SYMBOL),]
   
+  ##### Add info about immune response markers
+  gene_info <- merge(gene_info, ref_genes.list[["genes_immune"]], by = "SYMBOL", all.x = TRUE)
+  
   ##### Merge genes genomic coordinates info with their annotation and expression data
   data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = FALSE)
   rownames(data.annot) <- data.annot$ENSEMBL
   
   ##### Get data matrix with gene symbols
-  ref_datasets.list[[tissue]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+  ref_datasets.list[[tissue]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
 }
 ```
 
@@ -1947,7 +1950,7 @@ NOTE: the `r nrow(counts) - nrow(y.filtered$counts)` genes with no/low expressio
 
 mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
 
-[PCGR](https://github.com/sigven/pcgr){target="_blank"} report for this sample `r if ( runPcgrChunk ) { c("is AVAILABLE") } else { c("is NOT AVAILABLE") }`. 
+[PCGR](https://github.com/sigven/pcgr){target="_blank"} report for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ### - Summary table {.tabset}
 
@@ -2642,6 +2645,7 @@ Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fus
 * *biomarker*: gene with mutations known to be biomarkers of response to drugs (from [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"})
 * *cgc*: gene obtained from the [Cancer Gene Census](https://cancer.sanger.ac.uk/cosmic/fusion){target="_blank"}
 * *validated*: experimentally validated cancer driver gene (obtained from the literature)
+* *UMCCR*: fusion genes listed among the UMCCR Cancer Genes
 
 **Cancer acronym**: acronym of cancer type in which the fusion event was detected and reported
 
@@ -2655,7 +2659,7 @@ Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fus
 
 **`r nrow(fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ])`** fusion events involving `r length(unique(c(fusion_annot$SYMBOL[ fusion_annot$geneA_dna_support == "Yes"], fusion_annot$SYMBOL.1[ fusion_annot$geneB_dna_support == "Yes"])))` genes located within detected [Structural variants] (obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"}) are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
-[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample `r if ( runSVsChunk ) { c("are AVAILABLE") } else { c("are NOT AVAILABLE") }`. 
+[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample are **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ```{r bezier_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
@@ -2672,26 +2676,29 @@ if ( nrow(fusion_annot_top) > 0 ) {
 ```
 
 ```{r expr_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-##### Clean the table for better presentation
-fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "geneA_dna_support", "geneB_dna_support", "pizzly.fusions.annot.fusions_abundant", "pizzly.fusions.annot.fusions_cancer") ]
-
-##### Order fusions based on the genomic location (chrom and start positions)
-chrOrder <-c((1:22),"X","Y","M")
-
-fusion_annot_top.clean$SEQNAME <- factor(fusion_annot_top.clean$SEQNAME, chrOrder, ordered=TRUE)
-fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
-fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
-
-names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
-
-DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
-    DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
+if ( nrow(fusion_annot_top) > 0 ) {
   
-    ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
-    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
-    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
-    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
-    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
+  ##### Clean the table for better presentation
+  fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "geneA_dna_support", "geneB_dna_support", "pizzly.fusions.annot.fusions_abundant", "pizzly.fusions.annot.fusions_cancer") ]
+  
+  ##### Order fusions based on the genomic location (chrom and start positions)
+  chrOrder <-c((1:22),"X","Y","M")
+  
+  fusion_annot_top.clean$SEQNAME <- factor(fusion_annot_top.clean$SEQNAME, chrOrder, ordered=TRUE)
+  fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
+  fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
+  
+  names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
+  
+  DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
+      DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
+    
+      ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
+      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
+      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
+      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
+}
 ```
 
 <details>
@@ -3168,7 +3175,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 mRNA expression levels of genes within detected structural variants (SVs), obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
 
-[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample `r if ( runSVsChunk ) { c("are AVAILABLE") } else { c("are NOT AVAILABLE") }`. 
+[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample are **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ### - Summary table {.tabset}
 
@@ -3488,11 +3495,11 @@ detach("package:plotly", unload=FALSE)
 
 Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}) and mutation status, if available.
 
-[PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"} report for this sample `r if ( runPurpleChunk ) { c("is AVAILABLE") } else { c("is NOT AVAILABLE") }`.
+[PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"} report for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
 ### - Expression vs copy-number
 
-Scatterplot comparing the per-gene **mRNA expression** values (*y-axis*, Z-scores), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 4 or < 0.5 are annotated. NOTE: only [Cancer genes] and [Mutated genes] with [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants (if mutation data is available) are presented.
+Scatterplot comparing the per-gene **mRNA expression** values (*y-axis*, Z-scores), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 3 or < 0.5 are annotated. NOTE: only [Cancer genes], [Mutated genes] with [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants (if mutation information is available), genes involved in [Gene fusion events] and [Structural variants] (if SV information is available) are presented.
 
 ```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
@@ -3501,20 +3508,32 @@ suppressMessages(library(plotly))
 data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 
 ##### Limit the data to include only cancer genes
-genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
+cn_genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
 
-if ( !is.null(ref_genes.list[["pcgr"]]) ) {
+##### Add fusion genes
+cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneA.name) )
+cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneB.name) )
+            
+##### Add genes involved in SVs
+cn_genes <- c( unique(cn_genes, unique(manta_sv$gene)) )
+
+if ( runPcgrChunk && length(cn_genes) > 0 ) {
   
   ##### Add mutated genes with vatiants tier 1-3
-  genes <- c( genes, unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))
-  data <- data[ data$Gene %in% genes, ]
+  cn_genes <- c( unique(cn_genes, ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL) )
+  data <- data[ data$Gene %in% cn_genes, ]
  
-  mutCNexprPlot(data = data, mut_data = TRUE, cn_bottom = 0.5, cn_top = 4, plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, mut_data = TRUE, cn_bottom = 0.5, cn_top = 3, plot_mode = params$plots_mode)
+  
+} else if ( length(cn_genes) > 0) {
+  
+  data <- data[ data$Gene %in% cn_genes, ]
+  mutCNexprPlot(data = data, mut_data = FALSE, cn_bottom = 0.5, cn_top = 3, plot_mode = params$plots_mode)
   
 } else {
   
-  data <- data[ data$Gene %in% genes, ]
-  mutCNexprPlot(data = data, mut_data = FALSE, cn_bottom = 0.5, cn_top = 4, plot_mode = params$plots_mode)
+  cn_genes <- NULL
+  cat("None of the genes of interest are affected by changes in CN.")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3525,7 +3544,7 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_datasets.list[[tissue]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions the expression of **`r length(which(rownames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_datasets.list[[tissue]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants (if mutation information is available) or are involved in [Gene fusion events] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
@@ -3539,23 +3558,17 @@ Table summarising the **mRNA expression** values in normal, cancer and patient s
 cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 cn_data <- cn_data[ cn_data$CN > params$cn_gain, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
-genes = rownames(cn_data)
-
-##### Deal with no genes
-if ( length(genes) == 0 ) {
-  
-  genes <- NULL
-}
+genes = cn_genes[ cn_genes %in% rownames(cn_data) ]
 
 ##### Get expression data
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+if ( runPcgrChunk && runPurpleChunk ) {
     
   mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], type = "z")
   
 ##### Generate expression summary table for per-gene expression values and CN values
-} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+} else if ( runPurpleChunk ) {
     
   mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], type = "z")
 }
@@ -3577,12 +3590,12 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r mut_cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
-if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+if ( runPcgrChunk && runPurpleChunk ) {
     
   mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], type = "perc")
   
 ##### Generate expression summary table for per-gene expression values and CN values
-} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+} else if ( runPurpleChunk ) {
   
   mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], type = "perc")
 }
@@ -3612,23 +3625,17 @@ Table summarising the **mRNA expression** values in normal, cancer and patient s
 cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 cn_data <- cn_data[ cn_data$CN < params$cn_loss, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
-genes = rownames(cn_data)
-
-##### Deal with no genes
-if ( length(genes) == 0 ) {
-  
-  genes <- NULL
-}
+genes = cn_genes[ cn_genes %in% rownames(cn_data) ]
 
 ##### Get expression data
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
     
-if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+if ( runPcgrChunk && runPurpleChunk ) {
     
   mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], type = "z")
   
 ##### Generate expression summary table for per-gene expression values and CN values
-} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+} else if ( runPurpleChunk ) {
     
   mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], type = "z")
 }
@@ -3650,12 +3657,12 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r mut_cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
-if ( !is.null(ref_genes.list[["pcgr"]]) && !is.null(ref_genes.list[["purple"]]) ) {
+if ( runPcgrChunk && runPurpleChunk ) {
     
   mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], type = "perc")
   
 ##### Generate expression summary table for per-gene expression values and CN values
-} else if ( !is.null(ref_genes.list[["purple"]] ) ) {
+} else if ( runPurpleChunk ) {
   
   mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], type = "perc")
 }
@@ -3963,7 +3970,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "z")
+immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 immune_genes.expr.z[[1]]
@@ -3982,7 +3989,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "perc")
+immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 immune_genes.expr.perc[[1]]
@@ -4256,6 +4263,8 @@ List of drugs targeting variants in identified [Mutated genes], dysregulated [Ca
 
 ### - Mutated genes
 
+[PCGR](https://github.com/sigven/pcgr){target="_blank"} report for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+
 **`r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))`** genes with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants were screened for suitable drugs (see [Mutated genes] section).
 
 ```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
@@ -4333,7 +4342,7 @@ civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_
 
 ### - Gene fusion events {.tabset}
 
-**`r nrow(fusion_annot_top.clean)`** gene fusion events involving DNA-supported fusion genes (see [Structural variants] section), abundant transcripts or cancer genes (see [Cancer genes] section), indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> columns in the [Gene fusion events] table, respectively, and with the highest *Split count* and *Pair count* values were screened for suitable drugs.
+**`r nrow(fusion_annot_top)`** gene fusion events involving DNA-supported fusion genes (see [Structural variants] section), abundant transcripts or cancer genes (see [Cancer genes] section), indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> columns in the [Gene fusion events] table, respectively, and with the highest *Split count* and *Pair count* values were screened for suitable drugs.
 
 #### Highly abundant
 
@@ -4412,7 +4421,9 @@ civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_g
 
 ### - Structural variants
 
-**`r if ( runSVsChunk ) { length(unique(manta_sv$gene)) } else { cat("0") }`** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).
+[Manta](https://github.com/sigven/pcgr){target="_blank"} results for this sample are **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+
+**`r if ( runSVsChunk ) { length(unique(manta_sv$gene)) } else { length(NULL) }`** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).
 
 ```{r drugs_predictive_sv_genes, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate table with drugs targeting dysregulated cancer genes
@@ -4451,7 +4462,9 @@ civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_
 
 ### - CN altered genes {.tabset}
 
-**`r length(ref_datasets.list[[tissue]][["expr_mut_cn_data"]][,1])`** genes with CN values > `r params$cn_gain` (**gains**) and  or < `r params$cn_loss` (**losses**) were screened for suitable drugs (see [Copy-number altered genes] section).
+[PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"} report for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+
+**`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r params$cn_gain` (**gains**) or < `r params$cn_loss` (**losses**, see [Copy-number altered genes] section), and reported as either [Cancer genes], [Mutated genes] with [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants (if mutation information is available) or involved in [Gene fusion events] or [Structural variants] (if SV information is available) were screened for suitable drugs.
 
 #### Gains
 
