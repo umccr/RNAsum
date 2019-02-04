@@ -91,7 +91,7 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 prepare2write <- function (x) {
   
   x2write <- cbind(rownames(x), x)
-  colnames(x2write) <- c("Gene",colnames(x))
+  colnames(x2write) <- c("",colnames(x))
   return(x2write)
 }
 
@@ -1085,18 +1085,6 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
       ##### Add gene fusion labels
       #annotate(geom = 'text', label = paste(fusion_annot$fusion_data.geneA.name, fusion_annot$fusion_data.geneB.name, sep="-"), x = beziers.mid, y = beziers.height-0.5, size = 1.5)
   
-  ##### Also save the plot as png
-  fusionsPlotDir <- paste(params$report_dir, "fusionsPlot", sep = "/")
-
-  if ( !file.exists(fusionsPlotDir) ) {
-
-        dir.create(fusionsPlotDir, recursive=TRUE)
-  }
-
-  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
-  bezierPlot
-  dev.off()
-  
   return( p )
 }
 
@@ -1380,7 +1368,11 @@ for ( tissue in names(ref_datasets.list) ) {
   #rownames(data) <- data.annot$SYMBOL
   ref_datasets.list[[tissue]][["combined_data_processed"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
   rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]) <- data.annot$SYMBOL
-  ref_datasets.list[[tissue]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+  ref_datasets.list[[tissue]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  
+  ##### Save the combined expression matrix and associated targets into txt files
+  write.table(prepare2write(ref_datasets.list[[tissue]][["combined_data_processed"]]), file = paste0(params$report_dir, "/", params$sample_name,".combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_datasets.list[[tissue]][["sample_annot"]]), file = paste0(params$report_dir, "/", params$sample_name,".sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 ```
 
@@ -1436,6 +1428,32 @@ genes_cancer[ genes_cancer=="" ] <- "-"
 
 ref_genes.list[["genes_cancer"]] <- genes_cancer
 ref_genes.list[["genes_oncokb"]] <- genes_cancer[ rownames(genes_cancer) %in% ref_genes.list[["genes_oncokb"]]$Hugo.Symbol, ]
+```
+
+```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE}
+##### Save the entire expression data with cancer genes annotaiton as a data table html file
+##### Generate expression summary table for mutated genes
+targets <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_datasets.list[[tissue]][["gene_annot"]])) ], 2, as.numeric)
+rownames(data) <- ref_datasets.list[[tissue]][["gene_annot"]]$SYMBOL
+  
+genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z")
+
+genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc")
+
+##### Create directory for saving tables
+exprTableDir <- paste(params$report_dir, "exprTables", sep = "/")
+
+if ( !file.exists(exprTableDir) ) {
+
+        dir.create(exprTableDir, recursive=TRUE)
+}
+
+##### Save the expression tables as html file
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=genes.expr.z[[1]], file=paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+  DT::saveWidget(widget=genes.expr.perc[[1]], file=paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 ```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
@@ -1995,22 +2013,16 @@ mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sa
 ##### Present the expression summary table
 mut_genes.expr.z[[1]]
 
-##### Create directory for saving tables
-exprTableDir <- paste(params$report_dir, "exprTables", sep = "/")
-
-if ( !file.exists(exprTableDir) ) {
-
-        dir.create(exprTableDir, recursive=TRUE)
-}
-
 ##### Save the expression table as html file
-DT::saveWidget(widget=mut_genes.expr.z[[1]], file=paste(exprTableDir, "mut_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=mut_genes.expr.z[[1]], file=paste(exprTableDir, "mut_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs Normal** column. SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs Normal** column. SD - standard deviation
 </font>
 </details>
 
@@ -2026,13 +2038,15 @@ mut_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 ##### Create directory for tables
-DT::saveWidget(widget=mut_genes.expr.perc[[1]], file=paste(exprTableDir, "mut_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=mut_genes.expr.perc[[1]], file=paste(exprTableDir, "mut_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs Normal** column. SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs Normal** column. SD - standard deviation
 </font>
 </details>
 
@@ -2313,7 +2327,9 @@ cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer
 cancer_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=cancer_genes.expr.z[[1]], file=paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=cancer_genes.expr.z[[1]], file=paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -2334,7 +2350,9 @@ cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_can
 cancer_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=cancer_genes.expr.perc[[1]], file=paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=cancer_genes.expr.perc[[1]], file=paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -2613,7 +2631,7 @@ select those which have a decent [Transcripts Per Kilobase Million](http://www.a
   and fusions.
   * Select only the fusions with a high [TPM](http://www.arrayserver.com/wiki/index.php?title=TPM){target="_blank"} value as reported by previous step.
 
-2. In the second step, fusion genes reported by [pizzly](https://github.com/pmelsted/pizzly){target="_blank"} (transcriptome-based evidence) are compared with fusion events reported by [manta](https://github.com/sigven/pcgr){target="_blank"} (DNA-based evidence), if available.
+2. In the second step, fusion genes reported by [pizzly](https://github.com/pmelsted/pizzly){target="_blank"} (transcriptome-based evidence) are compared with fusion events reported by [manta](https://github.com/Illumina/manta){target="_blank"} (DNA-based evidence), if available.
 
 3. Finally, fusion events reported by [pizzly](https://github.com/pmelsted/pizzly){target="_blank"} are annotated with cancer genes from *[Peter Mac](https://www.petermac.org/){target="_blank"} comprehensive cancer (PMCC)* panel, *[OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"}* (listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data){target="_blank"}) and other resources summarised in *[UMCCR Cancer Genes](https://trello.com/c/7j3KFMiL/184-umccr-cancer-genes){target="_blank"}* trello card.
 
@@ -2674,7 +2692,9 @@ if ( !file.exists(fusionsTableDir) ) {
 }
 
 ##### Save the table as html file
-DT::saveWidget(widget=pizzly.fusions.summary, file=paste(fusionsTableDir, "pizzly.fusions.summary.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=pizzly.fusions.summary, file=paste(fusionsTableDir, "pizzly.fusions.summary.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -2709,26 +2729,44 @@ Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fus
 
 #### Genomic view
 
-**`r nrow(fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ])`** fusion events involving `r length(unique(c(fusion_annot$SYMBOL[ fusion_annot$geneA_dna_support == "Yes"], fusion_annot$SYMBOL.1[ fusion_annot$geneB_dna_support == "Yes"])))` genes located within detected [Structural variants] (obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"}) are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
+**`r nrow(fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ])`** fusion events involving `r length(unique(c(fusion_annot$SYMBOL[ fusion_annot$geneA_dna_support == "Yes"], fusion_annot$SYMBOL.1[ fusion_annot$geneB_dna_support == "Yes"])))` genes located within detected [Structural variants] (obtained from [Manta](https://github.com/Illumina/manta){target="_blank"}) are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-```{r bezier_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
+```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
 fusion_annot_top <- fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
 
 ##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
 if ( nrow(fusion_annot_top) > 0 ) {
   
-  fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
-
+  BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
+  BezierPlot
+  
 } else {
   
   cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
 }
 ```
 
-```{r expr_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+```{r genomic_view_plot_fusions_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
+##### Save the BezierPlot as png
+if ( nrow(fusion_annot_top) > 0 ) {
+  
+  fusionsPlotDir <- paste(params$report_dir, "fusionsPlot", sep = "/")
+  
+  if ( !file.exists(fusionsPlotDir) ) {
+  
+        dir.create(fusionsPlotDir, recursive=TRUE)
+  }
+  
+  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
+  BezierPlot
+}
+
+```
+
+```{r genomic_view_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 if ( nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
@@ -2743,7 +2781,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   
   names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
   
-pizzly.fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
+  pizzly.fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
     
       ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
@@ -2753,9 +2791,13 @@ pizzly.fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filt
       DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
 
 pizzly.fusions.genomicView
-  
+}
+```
+
+```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Save the table as html file
-DT::saveWidget(widget=pizzly.fusions.genomicView, file=paste(fusionsTableDir, "pizzly.fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
+if ( nrow(fusion_annot_top) > 0 && params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=pizzly.fusions.genomicView, file=paste(fusionsTableDir, "pizzly.fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
 }
 ```
 
@@ -3231,7 +3273,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ## Structural variants
 
-mRNA expression levels of genes within detected structural variants (SVs), obtained from [Manta](https://github.com/sigven/pcgr){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
+mRNA expression levels of genes within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer patients and healthy individuals.
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
@@ -3261,13 +3303,15 @@ sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , 
 sv_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=sv_genes.expr.z[[1]], file=paste(exprTableDir, "sv_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=sv_genes.expr.z[[1]], file=paste(exprTableDir, "sv_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
 
 **Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"} script; **1 = high** and **3 = low priority**
 
@@ -3286,13 +3330,15 @@ sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv[
 sv_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=sv_genes.expr.perc[[1]], file=paste(exprTableDir, "sv_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=sv_genes.expr.perc[[1]], file=paste(exprTableDir, "sv_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs Normal** columns. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs Normal** columns. TSG - tumour suppressor gene; SD - standard deviation
 
 **Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36) script; *1 = high* and *3 = low priority*
 
@@ -3641,13 +3687,15 @@ if ( runPcgrChunk && runPurpleChunk ) {
 mut_cn_expr_genes.expr.gains.z[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=mut_cn_expr_genes.expr.gains.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.z.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=mut_cn_expr_genes.expr.gains.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.z.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -3671,13 +3719,15 @@ if ( runPcgrChunk && runPurpleChunk ) {
 mut_cn_expr_genes.expr.gains.perc[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=mut_cn_expr_genes.expr.gains.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.perc.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=mut_cn_expr_genes.expr.gains.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.perc.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -3714,13 +3764,15 @@ if ( runPcgrChunk && runPurpleChunk ) {
 mut_cn_expr_genes.expr.losses.z[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=mut_cn_expr_genes.expr.losses.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.z.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=mut_cn_expr_genes.expr.losses.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.z.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -3744,13 +3796,15 @@ if ( runPcgrChunk && runPurpleChunk ) {
 mut_cn_expr_genes.expr.losses.perc[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=mut_cn_expr_genes.expr.losses.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.perc.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=mut_cn_expr_genes.expr.losses.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.perc.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs Normal** columns. SD - standard deviation; CN - copy-number
 </font>
 </details>
 
@@ -4026,7 +4080,7 @@ detach("package:plotly", unload=FALSE)
 
 ## Immune Response Markers
 
-Section presenting expression levels for immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy)
+Section presenting expression levels of immune response markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer patients and healthy individuals.
 
 Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune response markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
@@ -4052,13 +4106,15 @@ immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets,
 immune_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=immune_genes.expr.z[[1]], file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=immune_genes.expr.z[[1]], file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes are ordered by **decreasing** absolute values in the **Patient vs Normal** column. SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each immune response marker. Genes are ordered by **decreasing** absolute values in the **Patient vs Normal** column. SD - standard deviation
 </font>
 </details>
 
@@ -4074,13 +4130,15 @@ immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targe
 immune_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=immune_genes.expr.perc[[1]], file=paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=immune_genes.expr.perc[[1]], file=paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Genes are ordered by **decreasing** absolute values in the **Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs Normal** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each immune response marker. Genes are ordered by **decreasing** absolute values in the **Patient vs Normal** column. TSG - tumour suppressor gene; SD - standard deviation
 </font>
 </details>
 
@@ -4366,7 +4424,9 @@ if ( !file.exists(drugsTableDir) ) {
 }
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=drugsTable.mut_genes[[1]], file=paste(drugsTableDir, "drugsTable.mut_genes.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=drugsTable.mut_genes[[1]], file=paste(drugsTableDir, "drugsTable.mut_genes.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -4410,7 +4470,9 @@ drugsTable.cancer_genes <- civicDrugTable(genes, civic_var_summaries  = caner_ge
 drugsTable.cancer_genes[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=drugsTable.cancer_genes[[1]], file=paste(drugsTableDir, "drugsTable.cancer_genes.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=drugsTable.cancer_genes[[1]], file=paste(drugsTableDir, "drugsTable.cancer_genes.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -4457,7 +4519,9 @@ drugsTable.fusion_genes_abundant <- civicDrugTable(genes = unique(c(genesA, gene
 drugsTable.fusion_genes_abundant[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=drugsTable.fusion_genes_abundant[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes_abundant.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=drugsTable.fusion_genes_abundant[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes_abundant.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -4499,7 +4563,9 @@ drugsTable.fusion_genes_cancer <- civicDrugTable(genes = unique(c(genesA, genesB
 drugsTable.fusion_genes_cancer[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=drugsTable.fusion_genes_cancer[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes_cancer.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=drugsTable.fusion_genes_cancer[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes_cancer.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -4545,7 +4611,9 @@ drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_
 drugsTable.sv_genes[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=drugsTable.sv_genes[[1]], file=paste(drugsTableDir, "drugsTable.sv_genes.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=drugsTable.sv_genes[[1]], file=paste(drugsTableDir, "drugsTable.sv_genes.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -4592,7 +4660,9 @@ drugsTable.CN_altered_genes_gains <- civicDrugTable(genes, civic_var_summaries  
 drugsTable.CN_altered_genes_gains[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=drugsTable.CN_altered_genes_gains[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_gains.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=drugsTable.CN_altered_genes_gains[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_gains.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
@@ -4633,7 +4703,9 @@ drugsTable.CN_altered_genes_losses <- civicDrugTable(genes, civic_var_summaries 
 drugsTable.CN_altered_genes_losses[[1]]
 
 ##### Save the expression table as html file
-DT::saveWidget(widget=drugsTable.CN_altered_genes_losses[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_losses.html", sep = "/"), selfcontained=TRUE)
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=drugsTable.CN_altered_genes_losses[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_losses.html", sep = "/"), selfcontained=TRUE)
+}
 ```
 
 <details>
