@@ -11,12 +11,12 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/RNAseq_report'
-  sample_name: 'CCR170057_AH17T001P001_MN_RNA'
-  count_file: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/CCR170057_AH17T001P001_MN_RNA-ready.counts'
+  report_dir: '/Users/jmarzec/data/Patients/final/CCR180038_SV18T002P006_RNA/RNAseq_report'
+  sample_name: 'CCR180038_SV18T002P006_RNA'
+  count_file: '/Users/jmarzec/data/Patients/final/CCR180038_SV18T002P006_RNA/CCR180038_SV18T002P006_RNA-ready.counts'
   tissue: 'pancreas'
   plots_mode: 'static'
-  batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_17_AH_P001_1__CCR170057_AH17T001P001'
+  batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_18_SV_P006_1__CCR180038_SV18T002P006'
   ref_data_dir: '../data'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
@@ -443,40 +443,40 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
 }
 
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
-mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, plot_mode = "static") {
+mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, cancer, plot_mode = "static") {
   
-  ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
+  ##### Generate scatterplot with per-gene expression values (y-axis) (difference between Patient's and [cancer] data), CN values (x-axis) and mutation status info (colours)
   if ( mut_data ) {
   
-    p <- plot_ly(data, x = ~CN, y = ~mRNA, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    p <- plot_ly(data, x = ~CN, y = ~Z_score_diff, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
       
-      add_annotations( text="Variant consequence", xref="paper", yref="paper",
+      add_annotations( text="Mutation", xref="paper", yref="paper",
                       x=1.02, xanchor="left",
-                      y=0.85, yanchor="top",
+                      y=1, yanchor="top",
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
       add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
                       x=~CN, xanchor="left",
-                      y=~mRNA, yanchor="top",
+                      y=~Z_score_diff, yanchor="top",
                       font = list(color = "Grey",
                                 size = 10),
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
+      layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = paste0("mRNA expression (Z-score [Patient vs ", cancer, "])")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
   
   ##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
   } else {
   
-    p <- plot_ly(data, x = ~CN, y = ~mRNA, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    p <- plot_ly(data, x = ~CN, y = ~Z_score_diff, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
       
       add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
                       x=~CN, xanchor="left",
-                      y=~mRNA, yanchor="top",
+                      y=~Z_score_diff, yanchor="top",
                       font = list(color = "Grey",
                                 size = 10),
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      layout( xaxis = list(title = "Copy-number values"), yaxis = list(title = "mRNA expression (Z-score)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
+      layout( xaxis = list(title = "Copy-number values"), yaxis = list(title =  paste0("mRNA expression (Z-score [Patient vs ", cancer, "])")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
   }
   
   ##### Create directory for the plots
@@ -750,7 +750,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs [cancer] difference (to allow filtering based on z-score differences)
   if ( !is.null(cn_data) && length(genes) > 0 ) {
     
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", cancer)]),  decreasing = cn_decrease), ]
+    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", cancer)]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z[ ,col_idx+1 ],  decreasing = cn_decrease), ]
     
   ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs [cancer] difference (to allow filtering based on z-score differences)
@@ -1454,17 +1454,27 @@ if ( params$plots_mode == "interactive" ) {
 ##### Combine expression data with mutation and CN data if available
 cn_data <- ref_genes.list[["purple"]]
 expr_data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-  
+targets <- ref_datasets.list[[tissue]][["sample_annot"]]
+
+##### Get the Patient vs [cancer] Z-scores using exprTable funstion
+expr_data <- exprTable( genes = rownames(expr_data), data = expr_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, type = "z")[[2]]
+
+expr_data.z <- expr_data[, paste0( "Patient vs ", cancer_group)]
+names(expr_data.z) <- rownames(expr_data)
+
 ##### Extract partient sample data
-expr_data <- expr_data[, ncol(expr_data)]
+#expr_data <- expr_data[, ncol(expr_data)]
   
 ##### Perform Z-score transformation of the expression values
-expr_data.z <- as.vector(scale(expr_data))
-names(expr_data.z) <- names(expr_data)
+#expr_data.z <- as.vector(scale(expr_data))
+#names(expr_data.z) <- names(expr_data)
     
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
 cn_data <- cn_data[ cn_data$Gene %!in% "", ]
-  
+
+##### Keep only genes with available expression data
+cn_data <- cn_data[ cn_data$Gene %in% names(expr_data.z), ]
+
 ##### Calculate the mean CN for each gene
 cn_data$MeanCopyNumber <- rowMeans(cbind(cn_data$MinCopyNumber, cn_data$MaxCopyNumber))
   
@@ -1566,7 +1576,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   
   ##### Prepare data frame
   ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, gene.mut.sub)
-  colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "mRNA", "Mutation")
+  colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Mutation")
   
 } else {
   
@@ -1584,7 +1594,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   
   ##### Prepare data frame
   ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub)
-  colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "mRNA")
+  colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff")
 }
 ```
 
@@ -3291,7 +3301,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% c("lof", "SR", "PR") ], targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
+sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% "lof" ], targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 sv_genes.expr.z[[1]]
@@ -3627,12 +3637,12 @@ if ( runPcgrChunk && length(cn_genes) > 0 ) {
   cn_genes <- c( unique(cn_genes, ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL) )
   data <- data[ data$Gene %in% cn_genes, ]
  
-  mutCNexprPlot(data = data, mut_data = TRUE, cn_bottom = 0.5, cn_top = 3, plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, mut_data = TRUE, cn_bottom = 0.5, cn_top = 3, cancer = cancer_group, plot_mode = params$plots_mode)
   
 } else if ( length(cn_genes) > 0) {
   
   data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, mut_data = FALSE, cn_bottom = 0.5, cn_top = 3, plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, mut_data = FALSE, cn_bottom = 0.5, cn_top = 3, cancer = cancer_group, plot_mode = params$plots_mode)
   
 } else {
   
