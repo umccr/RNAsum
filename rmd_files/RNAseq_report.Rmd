@@ -26,6 +26,7 @@ params:
   civic_var_summaries: 'CIViC/01-Oct-2018-VariantSummaries.tsv'
   civic_clin_evid: 'CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv'
   cancer_biomarkers_trans: 'cancer_biomarkers_database/cancer_genes_upon_trans.tsv'
+  FusionGDB: 'FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt'
   cn_loss: 1.5
   cn_gain: 3
   ensembl_version: 86
@@ -80,6 +81,27 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 # 8. ref_genes.list[["kallisto"]] = genes quantification file from KALLISTO This is required for gene fusion events filtering
 
 # 9. ref_genes.list[["pizzly_manta"]] = list and annotation of gene fusion events detected in given patient based on both PIZZLY and MANTA results
+```
+
+```{r chunks_timing, comment=NA, message=FALSE, warning=FALSE}
+NOW <- Sys.time()
+
+##### Time chunks during knitting
+knitr::knit_hooks$set(timeit = function(before) {
+  
+  if (before) {
+    print(paste("Start:", Sys.time()))
+    NOW <<- Sys.time()
+    
+  } else {
+    print(paste("Stop:", Sys.time()))
+    print(Sys.time() - NOW)
+  }
+})
+
+knitr::opts_chunk$set(
+  timeit = TRUE
+)
 ```
 
 ```{r define_functions, comment=NA, message=FALSE, warning=FALSE}
@@ -1235,7 +1257,8 @@ caner_genes_annot.list[["civic_clin_evid"]] <- read.table(paste(params$ref_data_
 caner_genes_annot.list[["cancer_biomarkers_trans"]] <- read.table(paste(params$ref_data_dir, params$cancer_biomarkers_trans, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
 
 ##### Read in FusionGDB database (https://ccsm.uth.edu/FusionGDB/) used to annotate reported fusion events, with info about head and tail genes.
-caner_genes_annot.list[["cancer_biomarkers_trans"]] <- read.table(paste(params$ref_data_dir, params$cancer_biomarkers_trans, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
+caner_genes_annot.list[["FusionGDB"]] <- read.table(paste(params$ref_data_dir, params$FusionGDB, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="", fill = TRUE)
+names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "TgeneID", "FGname", "FGID")
 ```
 
 ```{r data_transformation, comment = NA, message=FALSE, warning=FALSE}
@@ -1662,131 +1685,97 @@ if ( nrow(result.other_genes) > 0 ) {
 #combing all the three above sorted dataframes
 pizzly.fusions <- rbind(deduped.result, result.cancer_genes, result.other_genes)
 
-##### Flag known fusions based on info from Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers)
-known_translocations <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
-known_translocations$cancer_acronym <- gsub(";", ", ", known_translocations$cancer_acronym)
-known_translocations$source <- gsub(";", ", ", known_translocations$source)
+##### Flag known fusions based on info from Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
+known_translocations.CGI <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
+known_translocations.CGI$cancer_acronym <- gsub(";", ", ", known_translocations.CGI$cancer_acronym)
+known_translocations.CGI$source <- gsub(";", ", ", known_translocations.CGI$source)
+known_translocations.CGI$translocation <- gsub("__", "_", known_translocations.CGI$translocation)
+
+##### Flag known fusions based on info from FusionGDB (https://ccsm.uth.edu/FusionGDB)
+known_translocations.FusionGDB <- caner_genes_annot.list[["FusionGDB"]]
+
+##### Merge info from both resources
+known_translocations <- merge(known_translocations.FusionGDB, known_translocations.CGI, by.x = "FGname", by.y = "translocation", all = TRUE, sort=FALSE)
 
 ##### Extract gene pairs involved in reported gene fusions
-trans.pairs <-  strsplit(known_translocations$translocation, split='__', fixed=TRUE)
-trans.pairs <- data.frame(matrix(unlist(trans.pairs), nrow=length(trans.pairs), byrow=TRUE), stringsAsFactors = FALSE)
+trans.pairs <- as.data.frame(cbind( known_translocations$FGname, known_translocations$FGname ))
 names(trans.pairs) <- c("geneA", "geneB")
+trans.pairs$geneA <- sub("_.*", "", trans.pairs$geneA)
+trans.pairs$geneB <- sub(".*_", "", trans.pairs$geneB)
 known_translocations <- cbind(known_translocations, trans.pairs)
 trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "-" )
-  
+
 ##### Add columns for info about reported fusions
 pizzly.fusions <- cbind(pizzly.fusions, data.frame(matrix("", ncol = 4, nrow = nrow(pizzly.fusions)), stringsAsFactors = FALSE))
-colnames(pizzly.fusions)[-c(1:7)] <- c("Reported", "Effector_gene", "Source", "Cancer_acronym")
+colnames(pizzly.fusions)[-c(1:7)] <- c("FGID", "reported_fusion", "reported_fusion_genes", "effector_gene")
 
 ##### Add annotations about known fusion events
 ##### Loop through all genes involved in deteced gene fusions (pizzly results) and check which are already reported
 for ( i in 1:nrow(pizzly.fusions) ) {
   
-  geneA <- pizzly.fusions$geneA.name[i]
-  geneB <- pizzly.fusions$geneB.name[i]
+  geneA <- as.character(pizzly.fusions$geneA.name[i])
+  geneB <- as.character(pizzly.fusions$geneB.name[i])
         
   ##### First check if the exact reported gene pairs were detected by pizzly
   if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
     
-    pizzly.fusions$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneA, geneB, sep="-") ]
+    ##### provide fusion URL to FusionGDB
+    pizzly.fusions$reported_fusion[i] <- "Yes"
     
-    pizzly.fusions[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneA, geneB, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
+    ##### provide fusion ID from FusionGDB
+    pizzly.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneA, geneB, sep="-")  ]
+    
+    pizzly.fusions$reported_fusion_genes[i] <- paste(geneA, geneB, sep = "  ")
     
  } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
     
-    pizzly.fusions$Reported[i] <- trans.pairs[ trans.pairs %in% paste(geneB, geneA, sep="-") ]
+    ##### provide fusion URL to FusionGDB
+    pizzly.fusions$reported_fusion[i] <- "Yes"
     
-    pizzly.fusions[ i, c("Effector_gene", "Cancer_acronym", "Source")] <- known_translocations[ trans.pairs %in% paste(geneB, geneA, sep="-"), c("effector_gene", "cancer_acronym", "source") ]
+    ##### provide fusion ID from FusionGDB
+    pizzly.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneB, geneA, sep="-")  ]
+    
+    pizzly.fusions$reported_fusion_genes[i] <- paste(geneA, geneB, sep = "  ")
     
   ##### Now check if any ofthe pizzly detected fusion genes are reported
   } else {
+    
+    pizzly.fusions$reported_fusion[i] <- "-"
+    
     ##### Check the Cancer Genome Interpreter (CGI) database first
     ##### Check pizzly genes A and genes A in reported fusions
     if ( geneA %in% known_translocations$geneA ) {
       
-      known_gene <- known_translocations$geneA %in% geneA
-      
-      pizzly.fusions$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
-      
-      pizzly.fusions[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
-        
-        ##### Flag if it's effector gene
-        if ( geneA == known_translocations[ known_gene , "effector_gene" ]  ) {
-          
-          pizzly.fusions[ i, "Effector_gene"] <- as.character(geneA)
-        }
+      pizzly.fusions$reported_fusion_genes[i] <- paste(pizzly.fusions$reported_fusion_genes[i], geneA, sep = "  ")
       
     ##### Check pizzly genes A and genes B in reported fusions
     } else if ( geneA %in% known_translocations$geneB ) {
       
-      known_gene <- known_translocations$geneB %in% geneA
-      
-      pizzly.fusions$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
-      
-      pizzly.fusions[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
-        
-        ##### Flag if it's effector gene
-        if ( geneA == known_translocations[ known_gene , "effector_gene" ]  ) {
-          
-          pizzly.fusions[ i, "Effector_gene"] <- as.character(geneA)
-        }
+      pizzly.fusions$reported_fusion_genes[i] <- paste(pizzly.fusions$reported_fusion_genes[i], geneA, sep = " ")
     }
     
     ##### Check pizzly genes B and genes A in reported fusions
     if ( geneB %in% known_translocations$geneA ) {
       
-      known_gene <- known_translocations$geneA %in% geneB
-      
-      pizzly.fusions$Reported[i] <- unique(known_translocations$geneA[ known_gene ])
-      
-      pizzly.fusions[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
-        
-        ##### Flag if it's effector gene
-        if ( geneB == known_translocations[ known_gene , "effector_gene" ]  ) {
-          
-          pizzly.fusions[ i, "Effector_gene"] <- as.character(geneB)
-        }
+      pizzly.fusions$reported_fusion_genes[i] <- paste(pizzly.fusions$reported_fusion_genes[i], geneB, sep = " ")
       
     ##### Check pizzly genes B and genes B in reported fusions
     } else if ( geneB %in% known_translocations$geneB ) {
       
-      known_gene <- known_translocations$geneB %in% geneB
-      
-      pizzly.fusions$Reported[i] <- unique(known_translocations$geneB[ known_gene ])
-      
-      pizzly.fusions[ i, c("Cancer_acronym", "Source")] <- known_translocations[ known_gene, c("cancer_acronym", "source") ]
-        
-        ##### Flag if it's effector gene
-        if ( geneB == known_translocations[ known_gene , "effector_gene" ]  ) {
-          
-          pizzly.fusions[ i, "Effector_gene"] <- as.character(geneB)
-        }
+      pizzly.fusions$reported_fusion_genes[i] <- paste(pizzly.fusions$reported_fusion_genes[i], geneB, sep = " ")
     }
     
-    ##### Now check the fusion genes in the UMCCR Cancer Gene list
-    ##### Both genes are reported
-    if ( geneA %in% rownames(ref_genes.list[["genes_cancer"]])[ ref_genes.list[["genes_cancer"]]$Fusion=="Yes" ] && geneB %in% rownames(ref_genes.list[["genes_cancer"]])[ ref_genes.list[["genes_cancer"]]$Fusion=="Yes" ] ) {
+    ##### Flag if any of the genes are effector gene
+    if ( geneA %in% known_translocations$effector_gene  ) {
+          
+      pizzly.fusions$effector_gene[i] <- paste(pizzly.fusions$effector_gene[i], geneA, sep = " ")
       
-      pizzly.fusions$Reported[i] <- paste(as.vector(geneA), as.vector(geneB), sep=",")
-      pizzly.fusions$Source[i] <- paste("UMCCR", pizzly.fusions$Source[i], sep = ",")
-      
-    ##### Gene A is reported
-    } else if ( geneA %in% rownames(ref_genes.list[["genes_cancer"]])[ ref_genes.list[["genes_cancer"]]$Fusion=="Yes" ] ) {
-      
-      pizzly.fusions$Reported[i] <- as.vector(geneA)
-      pizzly.fusions$Source[i] <- paste("UMCCR", pizzly.fusions$Source[i], sep = ",")
-      
-    ##### Gene B is reported
-    } else if ( geneB %in% rownames(ref_genes.list[["genes_cancer"]])[ ref_genes.list[["genes_cancer"]]$Fusion=="Yes" ] ) {
-      
-      pizzly.fusions$Reported[i] <- as.vector(geneB)
-      pizzly.fusions$Source[i] <- paste("UMCCR", pizzly.fusions$Source[i], sep = ",")
+    } else if ( geneB == known_translocations$effector_gene  ) {
+          
+        pizzly.fusions$effector_gene[i] <- paste(pizzly.fusions$effector_gene[i], geneB, sep = " ")
     }
   }
 }
-
-##### remove redundant commas in the Source column
-pizzly.fusions$Source[ pizzly.fusions$Source == "UMCCR," ] <- "UMCCR"
 
 ##### Rearrange the table to move the transcripts list at the end
 pizzly.fusions <- pizzly.fusions %>% dplyr::select(-"transcripts.list","transcripts.list")
@@ -1814,6 +1803,9 @@ if ( any(duplicated(pizzly.fusions)) ) {
   
   pizzly.fusions <- pizzly.fusions[ -c(which( duplicated(pizzly.fusions) )), ]
 }
+
+##### Re-order fusion genes based on the reported fusions column
+pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, decreasing = TRUE), ]
 ```
 
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
@@ -1857,42 +1849,9 @@ fusion_annot1 <- fusion_annot1[ order(fusion_annot1$order), ]
 fusion_annot2 <- merge(fusion_genes_annot, pizzly.fusions.annot[ , c("geneB.id", "order")], by = 1, sort=FALSE)
 fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
 
-fusion_annot <- cbind(fusion_annot1, fusion_annot2, pizzly.fusions.annot$fusions_abundant, pizzly.fusions.annot$fusions_cancer)
+fusion_annot <- cbind(fusion_annot1, fusion_annot2, pizzly.fusions.annot[, c("reported_fusion", "fusions_abundant", "fusions_cancer")])
+
 colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
-
-##### Add column to flag fusions supported by WGS data (from MANTA), if available
-fusion_annot$geneA_dna_support <- "-"
-fusion_annot$geneB_dna_support <- "-"
-```
-
-```{r fusions_reported_annot, comment = NA, message=TRUE, warning=FALSE}
-##### Create a list of known fusion genes
-fusion_annot_reported.geneA <- known_translocations[ , c("effector_gene", "geneA")]
-fusion_annot_reported.geneB <- known_translocations[ , c("effector_gene", "geneB")]
-names(fusion_annot_reported.geneA) <- gsub( "geneA", "Reported fusion", names(fusion_annot_reported.geneA))
-names(fusion_annot_reported.geneB) <- gsub( "geneB", "Reported fusion", names(fusion_annot_reported.geneB))
-
-##### Combine reported fusion genes A and B
-fusion_annot_reported <- rbind(fusion_annot_reported.geneA, fusion_annot_reported.geneB)
-names(fusion_annot_reported) <- gsub( "effector_gene", "Effector gene", names(fusion_annot_reported))
-fusion_annot_reported <- fusion_annot_reported[ , c( "Reported fusion", "Effector gene")]
-
-##### Check which fusion genes are also effector genes
-for( i in 1:nrow(fusion_annot_reported) ) {
-  
-  if ( fusion_annot_reported$"Effector gene"[i] == fusion_annot_reported$"Reported fusion"[i] ) {
-    
-    fusion_annot_reported$"Effector gene"[i] <- "Yes"
-    
-  } else {
-    fusion_annot_reported$"Effector gene"[i] <- "No"
-  }
-}
-
-##### Remove duplicated entries (in case where same gene was listed as geneA and geneB)
-fusion_annot_reported <- fusion_annot_reported[ !duplicated(fusion_annot_reported$"Reported fusion") , ]
-rownames(fusion_annot_reported) <- fusion_annot_reported$"Reported fusion"
-fusion_annot_reported$"Reported fusion" <- "Yes"
 ```
 
 ```{r pizzly_data_cleanup, comment = NA, message=FALSE, warning=FALSE}
@@ -1904,11 +1863,7 @@ pizzly.fusions.cut <- pizzly.fusions[ , names(pizzly.fusions) %!in% c("geneA.id"
 pizzly.fusions.cut$geneA_dna_support <- "-"
 pizzly.fusions.cut$geneB_dna_support <- "-"
 
-pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "geneA_dna_support", "geneB_dna_support", "fusions_abundant", "fusions_cancer", "Reported", "Effector_gene", "Source", "Cancer_acronym") ]
-
-##### Provide links to the external resources (in the "Source" column)
-pizzly.fusions.cut$Source <- gsub( "cgc", paste0("<a href='https://cancer.sanger.ac.uk/cosmic/fusion' target='_blank'>cgc</a>"), pizzly.fusions.cut$Source)
-pizzly.fusions.cut$Source <- gsub( "biomarker", paste0("<a href='https://www.cancergenomeinterpreter.org/biomarkers' target='_blank'>biomarker</a>"), pizzly.fusions.cut$Source)
+pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "reported_fusion", "FGID", "geneA_dna_support", "geneB_dna_support", "fusions_abundant", "fusions_cancer", "reported_fusion_genes") ]
 ```
 
 ```{r pizzly_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
@@ -2658,35 +2613,31 @@ pizzly.fusions.table <- pizzly.fusions.cut
 pizzly.fusions.table$geneA.name <- as.vector(pizzly.fusions.table$geneA.name)
 pizzly.fusions.table$geneB.name <- as.vector(pizzly.fusions.table$geneB.name)
 
-##### Provide link to OncoKB for genes A
-for ( gene in pizzly.fusions.table$geneA.name ) {
+##### Provide link to FusionGDB
+for ( i in 1:nrow(pizzly.fusions.table) ) {
   
-    if ( gene %in% rownames(ref_genes.list[["genes_oncokb"]]) & ref_genes.list[["genes_oncokb"]][gene, "OncoKB"] == "Yes" ) {
+    if ( pizzly.fusions.table$reported_fusion[i] == "Yes" ) {
         
-      pizzly.fusions.table$geneA.name[ pizzly.fusions.table$geneA.name == gene ] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
+      pizzly.fusions.table$geneA.name[i] <- paste0("<a href='<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search=", pizzly.fusions.table$FGID[i], "' target='_blank'>", pizzly.fusions.table$geneA.name[i], "</a>")
+
+      pizzly.fusions.table$geneB.name[i] <- paste0("<a href='<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search=", pizzly.fusions.table$FGID[i], "' target='_blank'>", pizzly.fusions.table$geneB.name[i], "</a>")
     }
 }
 
-##### Provide link to OncoKB for genes B
-for ( gene in pizzly.fusions.table$geneB.name ) {
-  
-    if ( gene %in% rownames(ref_genes.list[["genes_oncokb"]]) & ref_genes.list[["genes_oncokb"]][gene, "OncoKB"] == "Yes" ) {
-        
-      pizzly.fusions.table$geneB.name[ pizzly.fusions.table$geneB.name == gene ] <- paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>", gene, "</a>")
-    }
-}
+pizzly.fusions.table <- pizzly.fusions.table[ , names(pizzly.fusions.table) %!in% "FGID" ]
 
-names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)", "Effector gene", "Source", "Cancer acronym")
+names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "Reported fusion", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)")
 
 ##### Present gene fusion events in a table
 pizzly.fusions.summary <- DT::datatable( data = pizzly.fusions.table, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
     DT::formatStyle( columns = names(pizzly.fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
   
     ##### Highlight rows with fusions involving hihgly abundant transcripts (red), cancer genes (blue) or DNA support (from MANTA)
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
+    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
+    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
+    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
 
 pizzly.fusions.summary
 
@@ -2894,7 +2845,7 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -2909,7 +2860,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_1_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
@@ -2983,7 +2934,7 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -2998,7 +2949,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_2_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
@@ -3072,7 +3023,7 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3087,7 +3038,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_3_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
@@ -3161,7 +3112,7 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3176,7 +3127,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_4_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
@@ -3251,7 +3202,7 @@ fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYM
 genes = fusion.df$SYMBOL
   
   
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3266,7 +3217,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r gene_table_fusions_5_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = fusion_annot_reported, ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
