@@ -2664,7 +2664,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cells in <span style="color:#02d653">GREEN</span> indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#0000ff">BLUE</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **Reported fusion**, **DNA support (gene A/B)**,  **Abundant transcript(s)**, **Cancer gene(s)**, **Split count** and **Pair count** columns, respectively.
+Cells in <span style="color:#02d653">GREEN</span> indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#0000ff">BLUE</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by the following columns:
 
 **Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}
 
@@ -2799,10 +2799,14 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
   runPizzlyChunk <- FALSE
 }
 
+##### Create file listing fusion events for which Clinker plot is available
+clinker_fusions <- ""
+
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+  clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 }
 ```
 
@@ -2892,6 +2896,7 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+  clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 }
 ```
 
@@ -2981,6 +2986,7 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 if ( file.exists( paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+  clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 }
 ```
 
@@ -3070,6 +3076,7 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+  clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 }
 ```
 
@@ -3159,7 +3166,11 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
   fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+  clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 }
+
+##### Write list of fusion events for which Clinker plot is available into a file
+write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name,".clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 ```
 
 ```{r fusions_tables_5, comment = NA, message=TRUE, warning=FALSE, eval=FALSE}
