@@ -1008,19 +1008,19 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   pos2 <- fusion_annot$GENESEQSTART.1
   
   ##### ... and the events type
-  type <- paste( fusion_annot$pizzly.fusions.annot.fusions_abundant, fusion_annot$pizzly.fusions.annot.fusions_cancer, fusion_annot$geneA_dna_support, fusion_annot$geneB_dna_support, sep = "-") 
-  type <- gsub("Yes-Yes-Yes-Yes","Abundant, cancer and DNA-supported gene(s)", type)
-  type <- gsub("Yes-Yes---Yes","Abundant, cancer and DNA-supported gene(s)", type)
-  type <- gsub("Yes-Yes-Yes--","Abundant, cancer and DNA-supported gene(s)", type)
-  type <- gsub("Yes-Yes----","Abundant and cancer gene(s)", type)
-  type <- gsub("Yes---Yes-Yes","Abundant and DNA-supported gene(s)", type)
-  type <- gsub("Yes---Yes--","Abundant and DNA-supported gene(s)", type)
-  type <- gsub("Yes-----Yes","Abundant and DNA-supported gene(s)", type)
+  type <- paste( fusion_annot$reported_fusion, fusion_annot$fusions_abundant, fusion_annot$geneA_dna_support, fusion_annot$geneB_dna_support, sep = "-") 
+  type <- gsub("Yes-Yes-Yes-Yes","Reported fusion, abundant and DNA-supported gene(s)", type)
+  type <- gsub("Yes-Yes---Yes","Reported fusion, abundant and DNA-supported gene(s)", type)
+  type <- gsub("Yes-Yes-Yes--","Reported fusion, abundant and DNA-supported gene(s)", type)
+  type <- gsub("Yes-Yes----","Reported fusion and abundant gene(s)", type)
+  type <- gsub("Yes---Yes-Yes","Reported fusion and DNA-supported gene(s)", type)
+  type <- gsub("Yes---Yes--","Reported fusion and DNA-supported gene(s)", type)
+  type <- gsub("Yes-----Yes","Reported fusion and DNA-supported gene(s)", type)
   type <- gsub("Yes------","Abundant transcript(s)", type)
-  type <- gsub("--Yes-Yes-Yes","Cancer and DNA-supported gene(s)", type)
-  type <- gsub("--Yes-Yes--","Cancer and DNA-supported gene(s)", type)
-  type <- gsub("--Yes---Yes","Cancer and DNA-supported gene(s)", type)
-  type <- gsub("--Yes----","Cancer gene(s)", type)
+  type <- gsub("--Yes-Yes-Yes","Abundant and DNA-supported gene(s)", type)
+  type <- gsub("--Yes-Yes--","Abundant and DNA-supported gene(s)", type)
+  type <- gsub("--Yes---Yes","Abundant and DNA-supported gene(s)", type)
+  type <- gsub("--Yes----","Abundant gene(s)", type)
   type <- gsub("----Yes-Yes","DNA-supported gene(s)", type)
   type <- gsub("----Yes--","DNA-supported gene(s)", type)
   type <- gsub("------Yes","DNA-supported gene(s)", type)
@@ -1087,7 +1087,7 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   		##### ...and the grey backgroud
   					panel.background = element_rect(fill = NA),
   		##### ...change the legend parameters
-  					legend.title=element_text(size=6), legend.text=element_text(size=10), legend.key.size = unit(1,"line"), legend.key= element_blank(), legend.position = c(0.85,0.65) ) +
+  					legend.title=element_text(size=6), legend.text=element_text(size=10), legend.key.size = unit(1,"line"), legend.key= element_blank(), legend.position = c(0.8,0.65) ) +
   		##### Set the axes limits
   		scale_x_continuous(limits = c(1, genome.length)) +
   		scale_y_continuous(limits = c(0, 2)) +
@@ -1706,8 +1706,8 @@ known_translocations <- cbind(known_translocations, trans.pairs)
 trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "-" )
 
 ##### Add columns for info about reported fusions
-pizzly.fusions <- cbind(pizzly.fusions, data.frame(matrix("", ncol = 4, nrow = nrow(pizzly.fusions)), stringsAsFactors = FALSE))
-colnames(pizzly.fusions)[-c(1:7)] <- c("FGID", "reported_fusion", "reported_fusion_genes", "effector_gene")
+pizzly.fusions <- cbind(pizzly.fusions, data.frame(matrix("", ncol = 5, nrow = nrow(pizzly.fusions)), stringsAsFactors = FALSE))
+colnames(pizzly.fusions)[-c(1:7)] <- c("FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene")
 
 ##### Add annotations about known fusion events
 ##### Loop through all genes involved in deteced gene fusions (pizzly results) and check which are already reported
@@ -1725,7 +1725,8 @@ for ( i in 1:nrow(pizzly.fusions) ) {
     ##### provide fusion ID from FusionGDB
     pizzly.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneA, geneB, sep="-")  ]
     
-    pizzly.fusions$reported_fusion_genes[i] <- paste(geneA, geneB, sep = "  ")
+    pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
+    pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
     
  } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
     
@@ -1735,7 +1736,8 @@ for ( i in 1:nrow(pizzly.fusions) ) {
     ##### provide fusion ID from FusionGDB
     pizzly.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneB, geneA, sep="-")  ]
     
-    pizzly.fusions$reported_fusion_genes[i] <- paste(geneA, geneB, sep = "  ")
+    pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
+    pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
     
   ##### Now check if any ofthe pizzly detected fusion genes are reported
   } else {
@@ -1746,33 +1748,33 @@ for ( i in 1:nrow(pizzly.fusions) ) {
     ##### Check pizzly genes A and genes A in reported fusions
     if ( geneA %in% known_translocations$geneA ) {
       
-      pizzly.fusions$reported_fusion_genes[i] <- paste(pizzly.fusions$reported_fusion_genes[i], geneA, sep = "   ")
+      pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
       
     ##### Check pizzly genes A and genes B in reported fusions
     } else if ( geneA %in% known_translocations$geneB ) {
       
-      pizzly.fusions$reported_fusion_genes[i] <- paste(pizzly.fusions$reported_fusion_genes[i], geneA, sep = "   ")
+      pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
     }
     
     ##### Check pizzly genes B and genes A in reported fusions
     if ( geneB %in% known_translocations$geneA ) {
       
-      pizzly.fusions$reported_fusion_genes[i] <- paste(pizzly.fusions$reported_fusion_genes[i], geneB, sep = "   ")
+      pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
       
     ##### Check pizzly genes B and genes B in reported fusions
     } else if ( geneB %in% known_translocations$geneB ) {
       
-      pizzly.fusions$reported_fusion_genes[i] <- paste(pizzly.fusions$reported_fusion_genes[i], geneB, sep = "   ")
+      pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
     }
     
     ##### Flag if any of the genes are effector gene
     if ( geneA %in% known_translocations$effector_gene  ) {
           
-      pizzly.fusions$effector_gene[i] <- paste(pizzly.fusions$effector_gene[i], geneA, sep = "   ")
+      pizzly.fusions$effector_gene[i] <- geneA
       
     } else if ( geneB == known_translocations$effector_gene  ) {
           
-        pizzly.fusions$effector_gene[i] <- paste(pizzly.fusions$effector_gene[i], geneB, sep = "   ")
+        pizzly.fusions$effector_gene[i] <- geneB
     }
   }
 }
@@ -1805,7 +1807,7 @@ if ( any(duplicated(pizzly.fusions)) ) {
 }
 
 ##### Re-order fusion genes based on the reported fusions column
-pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, decreasing = TRUE), ]
+pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, pizzly.fusions$fusions_abundant, pizzly.fusions$fusions_cancer, pizzly.fusions$reported_fusion_geneA, pizzly.fusions$reported_fusion_geneB, decreasing = TRUE), ]
 ```
 
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
@@ -1849,7 +1851,7 @@ fusion_annot1 <- fusion_annot1[ order(fusion_annot1$order), ]
 fusion_annot2 <- merge(fusion_genes_annot, pizzly.fusions.annot[ , c("geneB.id", "order")], by = 1, sort=FALSE)
 fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
 
-fusion_annot <- cbind(fusion_annot1, fusion_annot2, pizzly.fusions.annot[, c("reported_fusion", "fusions_abundant", "fusions_cancer")])
+fusion_annot <- cbind(fusion_annot1, fusion_annot2, pizzly.fusions.annot[, c("reported_fusion", "fusions_abundant", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
 fusion_annot$geneA_dna_support <- "-"
@@ -1867,7 +1869,7 @@ pizzly.fusions.cut <- pizzly.fusions[ , names(pizzly.fusions) %!in% c("geneA.id"
 pizzly.fusions.cut$geneA_dna_support <- "-"
 pizzly.fusions.cut$geneB_dna_support <- "-"
 
-pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "reported_fusion", "FGID", "geneA_dna_support", "geneB_dna_support", "fusions_abundant", "fusions_cancer", "reported_fusion_genes") ]
+pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "reported_fusion", "FGID", "geneA_dna_support", "geneB_dna_support", "fusions_abundant", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB") ]
 ```
 
 ```{r pizzly_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
@@ -2630,7 +2632,7 @@ for ( i in 1:nrow(pizzly.fusions.table) ) {
 
 pizzly.fusions.table <- pizzly.fusions.table[ , names(pizzly.fusions.table) %!in% "FGID" ]
 
-names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "Reported fusion", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene(s)")
+names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "Reported fusion", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)")
 
 ##### Present gene fusion events in a table
 pizzly.fusions.summary <- DT::datatable( data = pizzly.fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
@@ -2672,7 +2674,7 @@ Cells in <span style="color:#02d653">GREEN</span> indicate fusion events **repor
 
 **Cancer gene(s)**: gene fusion events involving [Cancer genes]
 
-**Fusion gene(s)**: gene(s) known to be involved in tumorigenesis across cancer types via translocation
+**Fusion gene (A/B)**: gene(s) known to be involved in tumorigenesis across cancer types based on [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [CGI](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} databases
 </font>
 </details>
 
@@ -2686,7 +2688,7 @@ SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } el
 
 ```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
 ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
-fusion_annot_top <- fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
+fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
 
 ##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
 if ( nrow(fusion_annot_top) > 0 ) {
