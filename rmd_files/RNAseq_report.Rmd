@@ -333,7 +333,7 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
     ##### Reorder groups
     gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(normal, cancer, "Patient"))
     
-    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("darkolivegreen2", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("darkseagreen1", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
   }
   
   ##### Generate interactive CFD plot with plotly
@@ -367,10 +367,10 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
     add_markers(y = normal.expr.cum.selected$cumulative_fraction, x =  normal.expr.cum.selected$z,
                 text = rownames( normal.expr.cum.selected ),
                 name = normal,
-                marker = list(size = 12, opacity = 0.2, color = "green"),
+                marker = list(size = 12, opacity = 0.1, color = "green"),
                 showlegend = TRUE) %>%
   
-    add_lines(y = normal.expr.cum$cumulative_fraction, x = normal.expr.cum$z, opacity = 0.2,
+    add_lines(y = normal.expr.cum$cumulative_fraction, x = normal.expr.cum$z, opacity = 0.1,
               line = list(color = "green", dash = "dash"),
               text = rownames( normal.expr.cum ),
               name = normal, showlegend = FALSE) %>%
@@ -1851,6 +1851,10 @@ fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
 
 fusion_annot <- cbind(fusion_annot1, fusion_annot2, pizzly.fusions.annot[, c("reported_fusion", "fusions_abundant", "fusions_cancer")])
 
+##### Add column to flag fusions supported by WGS data (from MANTA), if available
+fusion_annot$geneA_dna_support <- "-"
+fusion_annot$geneB_dna_support <- "-"
+
 colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
 ```
 
@@ -2603,7 +2607,7 @@ select those which have a decent [Transcripts Per Kilobase Million](http://www.a
 
 ### - Summary
 
-Out of the `r nrow(fusion_annot)` fusion event(s) <span style="color:#02d653">**`r nrow(fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ])`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#ff0000">**`r nrow(fusion_annot[ fusion_annot$pizzly.fusions.annot.fusions_abundant == "Yes" , ])`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#0000ff">**`r nrow(fusion_annot[ fusion_annot$pizzly.fusions.annot.fusions_cancer == "Yes" , ])`**</span> involve **[Cancer genes]**.
+Out of the `r nrow(pizzly.fusions.cut)` fusion event(s) <span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, <span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#0000ff">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_abundant == "Yes" , ])`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#767689">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_cancer == "Yes" , ])`**</span> involve **[Cancer genes]**.
 
 NOTE: Only fusion events including genes with available genomics coordinates in [Ensembl database version](https://ensembl.org/info/website/archives/index.html){target="_blank"} `r params$ensembl_version` are reported.
 
@@ -2658,7 +2662,9 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Genes considered to be oncogenes or tumour suppressor genes are indicated by hyperlink to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database. Fusion events are ordered by **DNA support (gene A/B)**,  **Abundant transcript(s)**, **Cancer gene(s)**, **Split count** and **Pair count** columns.
+Cells in <span style="color:#02d653">GREEN</span> indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#0000ff">BLUE</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **Reported fusion**, **DNA support (gene A/B)**,  **Abundant transcript(s)**, **Cancer gene(s)**, **Split count** and **Pair count** columns, respectively.
+
+**Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}
 
 **DNA support (gene A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section)
 
@@ -2667,19 +2673,6 @@ Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fus
 **Cancer gene(s)**: gene fusion events involving [Cancer genes]
 
 **Fusion gene(s)**: gene(s) known to be involved in tumorigenesis across cancer types via translocation
-
-**Effector gene**: gene most likely to promote the tumorigenesis between the two translocation partners
-
-**Source**: source from which the information has been extracted
-
-* *biomarker*: gene with mutations known to be biomarkers of response to drugs (from [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"})
-* *cgc*: gene obtained from the [Cancer Gene Census](https://cancer.sanger.ac.uk/cosmic/fusion){target="_blank"}
-* *validated*: experimentally validated cancer driver gene (obtained from the literature)
-* *UMCCR*: fusion genes listed among the UMCCR Cancer Genes
-
-**Cancer acronym**: acronym of cancer type in which the fusion event was detected and reported
-
-**AA** adrenal adenoma, **ABC** aneurysmal bone cyst, **AC** adrenal cortex, **ACA** adrenal cortex adenoma, **ACC** adrenal cortex carcinoma, **ACML** atypical chronic myeloid leukemia, **AEL** acute erythroid leukemia, **ALCL** anaplastic large cell lymphoma, **ALL** acute lymphoblastic leukemia, **ALM** acral lentigious melanoma, **AML** acute myeloid lekemia, **APML** acute promyelocytic leukemia, **AS** angiosarcoma, **B** brain, **BCC** basal cell carcinoma, **BCL** b cell lymphoma, **BLCA** bladder , **BLTC** bladder transitional cell, **BLY** burkitt lymphoma, **BRCA** breast , **BRCA/OV-PR** breast/ovary predisposing, **BRCAL** breast lobular, **BRCALU** breast luminal, **BT** billiary tract, **CANCER** cancer, **CANCER-PR** cancer-predisposing, **CCS** clear cell sarcoma, **CER** cervix, **CESC** cervix squamous cell, **CH** cholangiocarcinoma, **CLL** chronic lymphocytic leukemia, **CM** cutaneous melanoma, **CM-PR** cutaneous melanoma – predisposing, **CML** chronic myeloid lekemia, **CMP** chronic myeloproliferative neoplasm, **CNL** chronic neutrophilic leukemia, **CNS** central nervous system, **CNSLY** central nervous system lymphoma, **COC** colon carcinoma, **COC-PR** colon carcinoma – predisposing, **COCA** colon adenocarcinoma, **COREAD** colorectal adenocarcinoma, **COREAD-PR** colorectal adenocarcinoma – predisposing, **CS** chondrosarcoma, **CTCL** cutaneous T-cell lymphoma, **DEST** desmoid tumor, **DFS** dermatofibrosarcoma, **DLBCL** diffuse large B cell lymphoma, **DNT** dysembryoplastic neuroephitelial tumor, **DSRCT** desmoplastic small round cell tumor, **ECL** eosinophilic chronic leukemia, **ED** endometrium, **EDA** endometrial adenocarcinoma, **EDS** endometrial stromal, **ES** endocrine system, **ESCA** esophagous, **ESCC** esophagous clear cell, **ESSC** esophagous squamous cell, **EWS** ewing sarcoma, **FGCT** female germ cell tumor, **FH** fibrous histiocytoma, **FIBS-PR** fibrosarcoma - predisposing, **FL** follicular lymphoma, **G** glioma, **GB** glioblastoma, **GBM** glioblastoma multiforme, **GIST** gastrointestinal stromal, **GIST-PR** gastrointestinal stromal – predisposing, **HA** hepatic adenoma, **HB** hepatic blastoma, **HC** hepatic carcinoma, **HC-PR** hepatic carcinoma – predisposing, **HCL** hairy cell leukemia, **HEMATO** hematological malignancy, **HEMATO-PR** hematological malignancy – predisposing, **HES** hyper eosinophilic advanced syndrome, **HGP** hemangiopericytoma, **HISEC** erdheim-chester histiocytosis, **HISLC** largerhans cell histiocytosis, **HLY** hodgkin lymphoma, **HNC** head and neck, **HNSC** head and neck squamous, **IM** immflamatory myofibroblastic, **L** lung, **LBCL** large b-cell lymphoma, **LGG** lower grade glioma, **LGLK** large granular leukemia, **LIP** liposarcoma, **LK** leukemia, **LUAD** lung adenocarcinoma, **LUSC** lung squamous cell, **LY** luymphoma, **MA** malignant astrocytoma, **MALT** malt lymphoma, **MAS** mastocytosis, **MB** medulloblastoma, **MCL** mantle cell lymphoma, **MCLK** mast cell leukemia, **MDPS** myelodisplatic proliferative syndrome, **MDS** myelodisplasicsyndrome, **MEN** meningioma, **MERC** merkel cell carcinoma, **MESO** mesothelioma, **MFH** myxoidfibrosarcoma, **MGCT** male germ cell tumor, **MKB** megakaryoblastic leukemia, **MM** multiple myeloma, **MML** myelomonocytic leukemia, **MPN** malignant peripheral nerve sheat tumor, **MRT** malignant rhaboid tumor, **MRT-PR** malignant rhaboid tumor – predisposing, **MUCM** mucosal melanoma, **MY** myelofibrosis, **MYEP** myoepithelioma, **MYMA** myeloma, **MYX** myxoma, **NB** neuroblastoma, **NF** neurofibromatosis, **NHLY** non-hodgkin lymphoma, **NMC** nut midline carcinoma, **NSCLC** non-small cell lung, **NSMGCT** non-seminomatous germ cell tumor, **NSPH** nasopharyngeal, **OCSC** oral cavity squamous cell, **OPH** ororpharynx squamous cell, **OS** osteosarcoma, **OV** ovary, **OVCC** ovary clear cell, **OVE** ovary ephitelial cell, **OVG** ovary granulosa cell, **OVSC** ovary small cell, **PA** pancreas, **PAAC** pancreas acinar, **PAAD** pancreas adenocarcinoma, **PAIS** pancreas islet, **PANC** pancreas neuroendocrine, **PARG** paraganglioma, **PATH** parathyroid adenoma, **PCPG** pheochromocytoma and paranganglioma, **PEC** perivascular epithelioid cell, **PG** pediatric glioma, **PHEO** pheochromacytoma, **PIA** pilocytic astrocytoma, **PIGA** pituitary gland adenoma, **PPB** pleuropulmonary blastoma, **PRAD** prostate adenocarcinoma, **PTCL** perypheral t-cell lymphoma, **PV** polycitemia vera, **R** renal, **R-PR** renal – predisposing, **RB** retinoblastoma, **RCCC** renal clear cell, **REC** rectal carcinoma, **RHBDS** rhabdomyosarcoma, **RPC** renal papillary cell, **S** sarcoma, **SCC** squamous cell carcinoma, **SCC-PR** squamous cell carcinoma – predisposing, **SCGS** sex-cord gonadal stromal, **SCHW** schwannoma, **SCLC** small cell lung, **SG** salivary glands, **SGA** salivary glands adenoma, **SGM** salivary glands mucoepidermoid, **SIN** small intestine, **SINNE** small intestine neuroendocrine, **SK** skin, **SK-PR** skin – predisposing, **SM** systemic mastocytosis, **SOLID** solid tumors, **SOLID-PR** solid tumors - predisposing , **ST** stomach, **ST-PR** stomach – predisposing, **STAD** stomach adenocarcinoma, **STS** soft tissue sarcoma, **SYNS** synovial sarcoma, **T** testis, **TCALL** t cell acute lymphoblastic leukemia, **TCPL** t cell prolymphocytic leukemia, **TER** teratoma, **TH** thyroid, **THA** thyroid adenoma, **THCA** thyroid carcinoma, **THF** thyroid follicular, **THM** thyroid medullary, **THYM** thymic, **TOSC** tongue squamous cell, **UCEC** uterine corpus endometroid carcinoma, **UCS** uterine carcinosarcoma, **UTH** urothelial, **UVM** uveal melanoma, **WM** waldenstrom macroglobullinemia, **WT** wilms tumor
 </font>
 </details>
 
@@ -2687,7 +2680,7 @@ Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fus
 
 #### Genomic view
 
-**`r nrow(fusion_annot[ fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ])`** fusion events involving `r length(unique(c(fusion_annot$SYMBOL[ fusion_annot$geneA_dna_support == "Yes"], fusion_annot$SYMBOL.1[ fusion_annot$geneB_dna_support == "Yes"])))` genes located within detected [Structural variants] (obtained from [Manta](https://github.com/Illumina/manta){target="_blank"}) are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
+<span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** and <span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
@@ -2728,7 +2721,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
 if ( nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
-  fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "geneA_dna_support", "geneB_dna_support", "pizzly.fusions.annot.fusions_abundant", "pizzly.fusions.annot.fusions_cancer") ]
+  fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "reported_fusion", "geneA_dna_support", "geneB_dna_support", "fusions_abundant", "fusions_cancer") ]
   
   ##### Order fusions based on the genomic location (chrom and start positions)
   chrOrder <-c((1:22),"X","Y","M")
@@ -2737,16 +2730,17 @@ if ( nrow(fusion_annot_top) > 0 ) {
   fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
   fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
   
-  names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
+  names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Reported fusion", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
   
   pizzly.fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
     
       ##### Highlight rows with fusions involving hihgly abundant transcripts (red) or cancer genes (blue)
-      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
-      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
-      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) ) %>%
-      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgreen')) )
+      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
+      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
+      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+    DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
 
 pizzly.fusions.genomicView
 }
@@ -2762,7 +2756,9 @@ if ( nrow(fusion_annot_top) > 0 && params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#ff0000">RED</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#0000ff">BLUE</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) database. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**.
+Cells in <span style="color:#02d653">GREEN</span> indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#0000ff">BLUE</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**.
+
+**Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}
 
 **DNA support (gene A/B)**: DNA-supported fusion gene(s) (see) [Structural variants] section)
 
@@ -2776,7 +2772,9 @@ Cells in <span style="color:#02d653">GREEN</span> indicate **DNA-supported** fus
 
 ### - Fusion genes {.tabset}
 
-Expression profiles for 5 gene fusion events involving DNA-supported fusion genes (see [Structural variants] section), abundant transcripts or cancer genes (see [Cancer genes] section), indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span> and <span style="color:#0000ff">blue</span> columns in the [Gene fusion events] table, respectively, and with the highest *Split count* and *Pair count* values. 
+Expression profiles for 5 gene fusion events involving gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, **DNA-supported fusion** genes (see [Structural variants] section), **abundant transcripts** or **[Cancer genes]**, indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span>, <span style="color:#0000ff">blue</span> and <span style="color:#767689">grey</span> columns in the [Gene fusion events] table, respectively, and with the highest *Split count* and *Pair count* values. 
+
+<span style="color:#02d653">GREEN</span> indicate gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"},
 
 <span style="color:#ff0000">NOTE</span>: the *Fusion events visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
