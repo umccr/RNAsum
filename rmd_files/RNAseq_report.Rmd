@@ -1016,7 +1016,7 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   type <- gsub("Yes---Yes-Yes","Reported fusion and DNA-supported gene(s)", type)
   type <- gsub("Yes---Yes--","Reported fusion and DNA-supported gene(s)", type)
   type <- gsub("Yes-----Yes","Reported fusion and DNA-supported gene(s)", type)
-  type <- gsub("Yes------","Abundant transcript(s)", type)
+  type <- gsub("Yes------","Reported fusion", type)
   type <- gsub("--Yes-Yes-Yes","Abundant and DNA-supported gene(s)", type)
   type <- gsub("--Yes-Yes--","Abundant and DNA-supported gene(s)", type)
   type <- gsub("--Yes---Yes","Abundant and DNA-supported gene(s)", type)
@@ -1869,7 +1869,7 @@ pizzly.fusions.cut <- pizzly.fusions[ , names(pizzly.fusions) %!in% c("geneA.id"
 pizzly.fusions.cut$geneA_dna_support <- "-"
 pizzly.fusions.cut$geneB_dna_support <- "-"
 
-pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "reported_fusion", "FGID", "geneA_dna_support", "geneB_dna_support", "fusions_abundant", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB") ]
+pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "paircount", "splitcount", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "FGID", "fusions_abundant", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB") ]
 ```
 
 ```{r pizzly_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
@@ -1911,7 +1911,7 @@ if ( length(manta_pizzly.fusions) > 0 ) {
   fusion_annot$geneB_dna_support[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL.1 ), na.last = NA ) ] <- "Yes"
 
   ##### Re-order pizzly dataframe with MANTA supporting fusions on top
-  idx <- order(pizzly.fusions.cut$reported_fusion, pizzly.fusions.cut$geneA_dna_support, pizzly.fusions.cut$geneB_dna_support, decreasing = TRUE)
+  idx <- order(pizzly.fusions.cut$geneA_dna_support, pizzly.fusions.cut$geneB_dna_support, pizzly.fusions.cut$reported_fusion, decreasing = TRUE)
   pizzly.fusions.cut <- pizzly.fusions.cut[ idx, ]
   fusion_annot <- fusion_annot[ idx, ]
   pizzly.fusions <- pizzly.fusions[ idx, ]
@@ -2592,9 +2592,9 @@ detach("package:plotly", unload=FALSE)
 
 Fusion genes detected in transcriptome data are prioritised based on criteria ranked in the following order:
 
-1. Listed as **reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} database
+1. Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants] results are available)
 
-2. Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants] results are available)
+2. Listed as **reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} database
 
 3. Involvement of highly **abundant transcript(s)**  (see abundant transcripts definition below)
 
@@ -2622,7 +2622,7 @@ The following steps were performed to define **abundant transcripts** involved i
 
 ### - Summary
 
-Out of the `r nrow(pizzly.fusions.cut)` fusion event(s) <span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, <span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#0000ff">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_abundant == "Yes" , ])`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#767689">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_cancer == "Yes" , ])`**</span> involve **[Cancer genes]**.
+Out of the `r nrow(pizzly.fusions.cut)` fusion event(s) <span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, <span style="color:#0000ff">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_abundant == "Yes" , ])`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#767689">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_cancer == "Yes" , ])`**</span> involve **[Cancer genes]**.
 
 NOTE: Only fusion events including genes with available genomics coordinates in [Ensembl database version](https://ensembl.org/info/website/archives/index.html){target="_blank"} `r params$ensembl_version` are reported.
 
@@ -2645,7 +2645,7 @@ for ( i in 1:nrow(pizzly.fusions.table) ) {
 
 pizzly.fusions.table <- pizzly.fusions.table[ , names(pizzly.fusions.table) %!in% "FGID" ]
 
-names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "Reported fusion", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)")
+names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "DNA support (gene A)", "DNA support (gene B)", "Reported fusion", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)")
 
 ##### Present gene fusion events in a table
 pizzly.fusions.summary <- DT::datatable( data = pizzly.fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
@@ -2678,11 +2678,11 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cells in <span style="color:#02d653">GREEN</span> indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#0000ff">BLUE</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by the following columns:
-
-**Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}
+Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#02d653">GREEN</span> indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, cells in <span style="color:#0000ff">BLUE</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by the following columns:
 
 **DNA support (gene A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section)
+
+**Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}
 
 **Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
@@ -2696,7 +2696,7 @@ Cells in <span style="color:#02d653">GREEN</span> indicate fusion events **repor
 
 ### - Genomic view
 
-<span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** and <span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
+<span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
@@ -2736,7 +2736,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
 if ( nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
-  fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "paircount", "splitcount", "reported_fusion", "geneA_dna_support", "geneB_dna_support", "fusions_abundant", "fusions_cancer") ]
+  fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "paircount", "splitcount", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_abundant", "fusions_cancer") ]
   
   ##### Order fusions based on the genomic location (chrom and start positions)
   chrOrder <-c((1:22),"X","Y","M")
@@ -2745,7 +2745,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
   fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
   
-  names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Pair count", "Split count", "Reported fusion", "DNA support (gene A)", "DNA support (gene B)", "Abundant transcript(s)", "Cancer gene(s)")
+  names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Pair count", "Split count", "DNA support (gene A)", "DNA support (gene B)", "Reported fusion", "Abundant transcript(s)", "Cancer gene(s)")
   
   pizzly.fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
@@ -2771,11 +2771,11 @@ if ( nrow(fusion_annot_top) > 0 && params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-Cells in <span style="color:#02d653">GREEN</span> indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#0000ff">BLUE</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**.
-
-**Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}
+Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#02d653">GREEN</span> indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, cells in <span style="color:#0000ff">BLUE</span> indicate **highly abundant** fusion transcript(s), and those hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**.
 
 **DNA support (gene A/B)**: DNA-supported fusion gene(s) (see) [Structural variants] section)
+
+**Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}
 
 **Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
@@ -2787,7 +2787,7 @@ Cells in <span style="color:#02d653">GREEN</span> indicate gene fusions **report
 
 ### - Top hits {.tabset}
 
-Expression profiles for 5 gene fusion events involving gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, **DNA-supported fusion** genes (see [Structural variants] section), **abundant transcripts** or **[Cancer genes]**, indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span>, <span style="color:#0000ff">blue</span> and <span style="color:#767689">grey</span> columns in the [Fusion genes] table, respectively, and with the highest *Split count* and *Pair count* values. 
+Expression profiles for 5 gene fusion events involving **DNA-supported fusion** genes (see [Structural variants] section), gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, **abundant transcripts** or **[Cancer genes]**, indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span>, <span style="color:#0000ff">blue</span> and <span style="color:#767689">grey</span> columns in the [Fusion genes] table, respectively, and with the highest *Split count* and *Pair count* values. 
 
 <span style="color:#ff0000">NOTE</span>: the *Fusion genes visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
@@ -4519,7 +4519,7 @@ if ( params$plots_mode == "interactive" ) {
 
 ### - Fusion genes {.tabset}
 
-<span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** and <span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) were screened for suitable drugs.
+<span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** were screened for suitable drugs.
 
 ```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting fusion genes
