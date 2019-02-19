@@ -11,15 +11,16 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: '/Users/jmarzec/data/Patients/final/CCR180038_SV18T002P006_RNA/RNAseq_report'
+  report_dir: '/Users/kanwals/Documents/UMCCR/data/RNAseq-report/Patients/final/CCR180038_SV18T002P006_RNA/RNAseq_report'
   sample_name: 'CCR180038_SV18T002P006_RNA'
-  count_file: '/Users/jmarzec/data/Patients/final/CCR180038_SV18T002P006_RNA/CCR180038_SV18T002P006_RNA-ready.counts'
+  count_file: '/Users/kanwals/Documents/UMCCR/data/RNAseq-report/Patients/final/CCR180038_SV18T002P006_RNA/CCR180038_SV18T002P006_RNA-ready.counts'
   tissue: 'pancreas'
   plots_mode: 'static'
-  batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_18_SV_P006_1__CCR180038_SV18T002P006'
+  batch: '/Users/kanwals/Documents/UMCCR/data/RNAseq-report/Patients/umccrised/2016_249_18_SV_P006_1__CCR180038_SV18T002P006'
   ref_data_dir: '../data'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
+  genes_hrd: 'genes/Genes_HRD.txt'
   oncokb_genes: 'OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: 'OncoKB/allActionableVariants.txt'
   oncokb_all_vars: 'OncoKB/allAnnotatedVariants.txt'
@@ -70,17 +71,19 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 3. ref_genes.list[["genes_immune"]] = list of immune reponse markers provided in OmniSeq report (https://www.omniseq.com/)
 
-# 4. ref_genes.list[["pcgr"]] = list and PCGR annotation of mutated genes in given patient based on PCGR report
+# 4. ref_genes.list[["genes_hrd"]] = list of hrd (homologous recombination deficiency) genes - provided by Richard
 
-# 5. ref_genes.list[["purple"]] = list and PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results
+# 5. ref_genes.list[["pcgr"]] = list and PCGR annotation of mutated genes in given patient based on PCGR report
 
-# 6. ref_genes.list[["manta"]] = list and MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
+# 6. ref_genes.list[["purple"]] = list and PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results
 
-# 7. ref_genes.list[["pizzly"]] = list and PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
+# 7. ref_genes.list[["manta"]] = list and MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
 
-# 8. ref_genes.list[["kallisto"]] = genes quantification file from KALLISTO This is required for gene fusion events filtering
+# 8. ref_genes.list[["pizzly"]] = list and PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
 
-# 9. ref_genes.list[["pizzly_manta"]] = list and annotation of gene fusion events detected in given patient based on both PIZZLY and MANTA results
+# 9. ref_genes.list[["kallisto"]] = genes quantification file from KALLISTO This is required for gene fusion events filtering
+
+# 10. ref_genes.list[["pizzly_manta"]] = list and annotation of gene fusion events detected in given patient based on both PIZZLY and MANTA results
 ```
 
 ```{r chunks_timing, comment=NA, message=FALSE, warning=FALSE}
@@ -407,7 +410,7 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
           yaxis2 = list( title =""), xaxis2 = list(title = paste0(gene, " mRNA expression (Z-score)")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = FALSE,
          showlegend=TRUE, showlegend2=FALSE)
     
-    ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. TO this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). 
+    ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
     if ( plot_mode == "static" ) {
 
       ##### Create directory for CDF plots
@@ -1158,7 +1161,7 @@ ref_datasets.list <- vector("list", length(ref_datasets))
 names(ref_datasets.list) <- ref_datasets
 
 ##### Create a list with various sets of genes
-ref_genes <- c("genes_cancer", "oncokb_genes", "genes_immune")
+ref_genes <- c("genes_cancer", "oncokb_genes", "genes_immune", "genes_hrd")
 ref_genes.list <- vector("list", length(ref_genes))
 names(ref_genes.list) <- ref_genes
 
@@ -1180,6 +1183,7 @@ names(ref_datasets.list[[tissue]]) <- c("combined_data", "sample_annot")
 ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 ref_genes.list[["genes_oncokb"]] <- read.table(paste(params$ref_data_dir, params$oncokb_genes, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
 ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params$genes_immune, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
+ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$genes_hrd, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 
 ##### Read in gene fusion data for investigate sample
 ##### Read in the pizzly fusion calls
@@ -1352,7 +1356,7 @@ for ( tissue in names(ref_datasets.list) ) {
   ##### Add info about immune response markers
   gene_info <- merge(gene_info, ref_genes.list[["genes_immune"]], by = "SYMBOL", all.x = TRUE)
   
-  ##### Kep only immune response marjers for which there is available annotation
+  ##### Keep only immune response marjers for which there is available annotation
   ref_genes.list[["genes_immune"]] <- ref_genes.list[["genes_immune"]][ ref_genes.list[["genes_immune"]]$SYMBOL %in% gene_info$SYMBOL, ]
   
   ##### Merge genes genomic coordinates info with their annotation and expression data
@@ -4409,6 +4413,72 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
+
+***
+
+## Homologous recombination deficiency
+
+Section presenting expression levels of homologous recombination deficiency (HRD) genes to assess how many of these demonstrate lower expression, which may indicate potential promoter methylation events. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer and healthy individuals.
+
+Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+
+### - Summary table {.tabset}
+
+#### Z-scores
+
+```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for hrd genes from Richqrd
+targets <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+genes <- unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL))
+
+##### Deal with no genes
+if ( length(genes) == 0 ) {
+  
+  genes <- NULL
+}
+
+hrd_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "z")
+
+##### Present the expression summary table
+hrd_genes.expr.z[[1]]
+
+##### Save the expression table as html file
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=hrd_genes.expr.z[[1]], file=paste(exprTableDir, "hrd_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. SD - standard deviation across groups
+</font>
+</details>
+
+***
+
+#### Percentiles
+
+```{r hrd_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for hrd genes from Richard
+hrd_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "perc")
+
+##### Present the expression summary table
+hrd_genes.expr.perc[[1]]
+
+##### Save the expression table as html file
+if ( params$plots_mode == "interactive" ) {
+  DT::saveWidget(widget=hrd_genes.expr.perc[[1]], file=paste(exprTableDir, "hrd_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+</font>
+</details>
 
 ***
 
