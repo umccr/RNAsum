@@ -11,12 +11,12 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: '/Users/kanwals/Documents/UMCCR/data/RNAseq-report/Patients/final/CCR180038_SV18T002P006_RNA/RNAseq_report'
-  sample_name: 'CCR180038_SV18T002P006_RNA'
-  count_file: '/Users/kanwals/Documents/UMCCR/data/RNAseq-report/Patients/final/CCR180038_SV18T002P006_RNA/CCR180038_SV18T002P006_RNA-ready.counts'
+  report_dir: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/RNAseq_report'
+  sample_name: 'CCR170057_AH17T001P001_MN_RNA'
+  count_file: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/CCR170057_AH17T001P001_MN_RNA-ready.counts'
   tissue: 'pancreas'
   plots_mode: 'static'
-  batch: '/Users/kanwals/Documents/UMCCR/data/RNAseq-report/Patients/umccrised/2016_249_18_SV_P006_1__CCR180038_SV18T002P006'
+  batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_17_AH_P001_1__CCR170057_AH17T001P001'
   ref_data_dir: '../data'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
@@ -414,23 +414,23 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
     if ( plot_mode == "static" ) {
 
       ##### Create directory for CDF plots
-      cdfPlotsDir <- paste(params$report_dir, "CDF_plots", sep = "/")
-      if ( !file.exists(cdfPlotsDir) ) {
+      PlotsDir <- paste(params$report_dir, "CDF_plots", sep = "/")
+      if ( !file.exists(PlotsDir) ) {
 
-        dir.create(cdfPlotsDir, recursive=TRUE)
+        dir.create(PlotsDir, recursive=TRUE)
       }
   
       ##### Add access token, required by orca function, to the shell environment
       Sys.setenv('MAPBOX_TOKEN' = 'secret token')
   
       ##### Change directory to folder with CDF plots
-      setwd(cdfPlotsDir)
+      setwd(PlotsDir)
  
       ##### Save the static image into a file
       orca(p1_2, format = "png", file = paste0(gene, "_cdf_box_plot.png"), width = 800, height = 600)
   
       ##### Present the static plot in the report
-      include_graphics(paste(cdfPlotsDir, paste0(gene, "_cdf_box_plot.png"), sep = "/"), dpi = 72)
+      include_graphics(paste(PlotsDir, paste0(gene, "_cdf_box_plot.png"), sep = "/"), dpi = 72)
   
     } else if ( plot_mode == "interactive" ) {
 
@@ -442,23 +442,23 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
     if ( plot_mode == "static") {
 
       ##### Create directory for CDF plots
-      cdfPlotsDir <- paste(params$report_dir, "CDF_plots", sep = "/")
-      if ( !file.exists(cdfPlotsDir) ) {
+      PlotsDir <- paste(params$report_dir, "CDF_plots", sep = "/")
+      if ( !file.exists(PlotsDir) ) {
 
-        dir.create(cdfPlotsDir, recursive=TRUE)
+        dir.create(PlotsDir, recursive=TRUE)
       }
   
       ##### Add access token, required by orca function, to the shell environment
       Sys.setenv('MAPBOX_TOKEN' = 'secret token')
   
       ##### Change directory to folder with CDF plots
-      setwd(cdfPlotsDir)
+      setwd(PlotsDir)
   
       ##### Save the static image into a file
       orca(p1, format = "png", file = paste0(gene, "_cdf_plot.png"), width = 800, height = 200)
   
       ##### Present the static plot in the report
-      include_graphics(paste(cdfPlotsDir, paste0(gene, "_cdf_plot.png"), sep = "/"), dpi = 72)
+      include_graphics(paste(PlotsDir, paste0(gene, "_cdf_plot.png"), sep = "/"), dpi = 72)
   
     } else if ( plot_mode == "interactive" ) {
 
@@ -466,6 +466,64 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
     }
   }
 }
+
+
+##### Generate boxplot presenting expression profiles for selected set of genes
+glanceExprPlot <- function(genes, data, targets, sampleName, normal, cancer, plot_mode = "static", hexcode) {
+  
+  data.z <- scale(data)
+  targets$Target[ targets$Target==sampleName ] <- "Patient"
+  
+  ##### Make sure that all genes are present in the expression matrix
+  genes <- genes[ genes %in% rownames(data.z) ]
+  
+  ##### Prepare dataframe for plotly
+  gene.expr.df <- NULL
+  
+  for ( gene in genes ) {
+  
+    ##### Generate box-plot for selected gene
+    gene.expr.df <- rbind(gene.expr.df, data.frame(gene, targets$Target, data.z[gene, ]))
+  }
+  
+  colnames(gene.expr.df) <- c("Gene", "Group", "Expression")
+  
+  ##### Reorder groups
+  gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c("Patient", cancer, normal))
+    
+  p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "green"), opacity=0.2, showlegend = TRUE ) %>% 
+    add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
+    
+    layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
+    
+  ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
+  if ( plot_mode == "static" ) {
+
+    ##### Create directory for CDF plots
+    PlotsDir <- paste(params$report_dir, "glanceExprPlots", sep = "/")
+    if ( !file.exists(PlotsDir) ) {
+
+      dir.create(PlotsDir, recursive=TRUE)
+    }
+  
+    ##### Add access token, required by orca function, to the shell environment
+    Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  
+    ##### Change directory to folder with plots
+    setwd(PlotsDir)
+ 
+    ##### Save the static image into a file
+    orca(p, format = "png", file = paste0(hexcode, "_glance_expr_plot.png"), width = 1200, height = 600)
+  
+    ##### Present the static plot in the report
+    include_graphics(paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.png"), sep = "/"), dpi = 72)
+  
+  } else if ( plot_mode == "interactive" ) {
+
+     return( p )
+  }
+}
+
 
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
 mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, cancer, plot_mode = "static") {
@@ -2024,9 +2082,9 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-### - Expression profiles {.tabset}
+### - Expression gene profiles {.tabset}
 
-Expression profiles for 10 mutated genes with variants annotated with the lowest [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+Expression profiles for 10 mutated genes with variants annotated with the lowest [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients.
 
 #### `r if ( runPcgrChunk && !is.na(mut_genes.expr.z[[2]]$SYMBOL[1]) ) { mut_genes.expr.z[[2]]$SYMBOL[1] }`
 
@@ -2336,9 +2394,9 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-### - Expression profiles {.tabset}
+### - Expression gene profiles {.tabset}
 
-Expression profiles for 10 altered cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+Expression profiles for 10 altered cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients.
 
 #### `r cancer_genes.expr.z[[2]]$SYMBOL[1]`
 
@@ -3366,9 +3424,9 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-### - Expression profiles {.tabset}
+### - Expression gene profiles {.tabset}
 
-Expression profiles for 10 SVs-affected genes with the highest priority (low [score](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"}) and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+Expression profiles for 10 SVs-affected genes with the highest priority (low [score](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"}) and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients.
 
 #### `r if ( runSVsChunk && !is.na(unique(sv_genes.expr.z[[2]]$SYMBOL)[1]) ) { unique(sv_genes.expr.z[[2]]$SYMBOL)[1] }`
 
@@ -3829,9 +3887,9 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-### - Expression profiles {.tabset}
+### - Expression gene profiles {.tabset}
 
-Expression profiles for 5 genes with the highest (**gains**) and 5 genes with the lowest (**losses**) CN values and the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+Expression profiles for 5 genes with the highest (**gains**) and 5 genes with the lowest (**losses**) CN values and the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients.
 
 #### Gains {.tabset}
 
@@ -4163,251 +4221,19 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-### - Expression profiles {.tabset}
+### - Expression overview
 
-Expression profiles for 10 immune markers with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals.
+Overview of immune markers expression profiles in patient's sample and in samples from cancer patients.
 
-#### `r immune_genes.expr.z[[2]]$SYMBOL[1]`
-
-```{r cdf_plot_immune_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r glance_expr_plot_immune_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[1]
 
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+##### Generate overview boxplot
+if ( !is.null(genes) ) {
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes")
 
 } else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[2]`
-
-```{r cdf_plot_immune_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[2]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[3]`
-
-```{r cdf_plot_immune_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[3]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[4]`
-
-```{r cdf_plot_immune_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[4]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[5]`
-
-```{r cdf_plot_immune_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[5]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[6]`
-
-```{r cdf_plot_immune_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[6]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[7]`
-
-```{r cdf_plot_immune_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[7]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[8]`
-
-```{r cdf_plot_immune_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[8]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-  
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[9]`
-
-```{r cdf_plot_immune_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[9]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r immune_genes.expr.z[[2]]$SYMBOL[10]`
-
-```{r cdf_plot_immune_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- immune_genes.expr.z[[2]]$SYMBOL[10]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(immune_genes.expr.z[[2]]$SYMBOL), "immune marker(s) detected!", sep=" "))
-  } else if ( gene %!in% rownames(data) ) {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
+  cat("No expression data is available for immune markers!")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4482,6 +4308,27 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
+### - Expression overview
+
+Overview of HRD genes expression profiles in patient's sample and in samples from cancer patients.
+
+```{r glance_expr_plot_hrd_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+
+##### Generate overview boxplot
+if ( !is.null(genes) ) {
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes")
+
+} else {
+  cat("No expression data is available for HRD genes!")
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
 ## Drug matching
 
 List of drugs targeting variants in detected [Mutated genes], dysregulated [Cancer genes], [Fusion genes], [Structural variants]-affected genes and [CN altered genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
@@ -4543,7 +4390,7 @@ if ( params$plots_mode == "interactive" ) {
 
 ### - Cancer genes
 
-**50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from healthy individuals were screened for suitable drugs (see [Cancer genes] section).
+**50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients were screened for suitable drugs (see [Cancer genes] section).
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
