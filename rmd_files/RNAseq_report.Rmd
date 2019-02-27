@@ -11,12 +11,12 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/RNAseq_report'
-  sample_name: 'CCR170057_AH17T001P001_MN_RNA'
-  count_file: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/CCR170057_AH17T001P001_MN_RNA-ready.counts'
+  report_dir: '/Users/jmarzec/data/Patients/final/PRJ190059_SUPER/RNAseq_report'
+  sample_name: 'PRJ190059_SUPER'
+  count_file: '/Users/jmarzec/data/Patients/final/PRJ190059_SUPER/PRJ190059_SUPER-ready.counts'
   tissue: 'pancreas'
   plots_mode: 'static'
-  batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_17_AH_P001_1__CCR170057_AH17T001P001'
+  batch: '/Users/jmarzec/data/Patients/umccrised/CUP-Pairs7__PRJ180659_7_DNA004900_FFPE'
   ref_data_dir: '../data'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
@@ -81,7 +81,7 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 8. ref_genes.list[["pizzly"]] = list and PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
 
-# 9. ref_genes.list[["kallisto"]] = genes quantification file from KALLISTO This is required for gene fusion events filtering
+# 9. ref_genes.list[["kallisto"]] = genes quantification file from KALLISTO. This is required for gene fusion events filtering
 
 # 10. ref_genes.list[["pizzly_manta"]] = list and annotation of gene fusion events detected in given patient based on both PIZZLY and MANTA results
 ```
@@ -477,12 +477,14 @@ glanceExprPlot <- function(genes, data, targets, sampleName, normal, cancer, plo
   ##### Make sure that all genes are present in the expression matrix
   genes <- genes[ genes %in% rownames(data.z) ]
   
+  ##### Sort genes by name
+  genes <- sort(genes)
+  
   ##### Prepare dataframe for plotly
   gene.expr.df <- NULL
   
   for ( gene in genes ) {
   
-    ##### Generate box-plot for selected gene
     gene.expr.df <- rbind(gene.expr.df, data.frame(gene, targets$Target, data.z[gene, ]))
   }
   
@@ -1248,7 +1250,21 @@ ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$ge
 ref_genes.list[["pizzly"]] <- read.table(file = paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/"), header = TRUE)
 
 ##### Read in the quantification file from kallisto
-ref_genes.list[["kallisto"]] <- read.table(file = paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/"), header = TRUE)
+##### ... but first check if kallisto re-quntified transcripts file is available
+kallisto_file <- paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/")
+runKallistoChunk <- TRUE
+
+if ( file.exists(kallisto_file) ) {
+
+ref_genes.list[["kallisto"]] <- read.table(kallisto_file, header = TRUE)
+
+} else {
+  
+  ref_genes.list[["kallisto"]] <- NULL
+  runKallistoChunk <- FALSE
+  runPizzlyChunk <- FALSE
+  runClinkerChunk <- FALSE
+}
 
 ##### Read in mutation data for investigate sample
 ##### Get the WGS data batch name
@@ -1256,7 +1272,15 @@ batch <- unlist(strsplit(params$batch, split='/', fixed=TRUE))
 batch <- batch[length(batch)]
   
 ##### Check if PCGR (mutation) output file exists
+if ( file.exists(paste(params$batch, "pcgr", paste0(batch, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
+  
 pcgr_file <- paste(params$batch, "pcgr", paste0(batch, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
+
+} else if ( file.exists(paste(params$batch, "pcgr", paste0(batch, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
+  
+  pcgr_file <- paste(params$batch, "pcgr", paste0(batch, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+}
+
 runPcgrChunk <- TRUE
 
 if ( file.exists(pcgr_file) ) {
@@ -1390,8 +1414,8 @@ for ( tissue in names(ref_datasets.list) ) {
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
 
-  ##### Get genes annotation and genomic locations (Use Ensembl annotation version 86 (Oct 2016), the most recent as of Oct 2018)
-  edb <- EnsDb.Hsapiens.v86
+  ##### Get genes annotation and genomic locations
+  edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
   
   ##### Get keytypes for gene SYMBOL
   keys <- keys(edb, keytype="GENEID")
@@ -1686,7 +1710,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
 }
 ```
 
-```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE}
+```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
 #read in the pizzly fusion calls
 pizzly.fusions <- ref_genes.list[["pizzly"]]
 quant <- ref_genes.list[["kallisto"]]
@@ -1872,7 +1896,7 @@ if ( any(duplicated(pizzly.fusions)) ) {
 pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, pizzly.fusions$fusions_abundant, pizzly.fusions$paircount, pizzly.fusions$splitcount, pizzly.fusions$fusions_cancer, pizzly.fusions$reported_fusion_geneA, pizzly.fusions$reported_fusion_geneB, decreasing = TRUE), ]
 ```
 
-```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Get the number of reads supporting fusions of interest
 fusion_reads <- data.frame()
 
@@ -1895,7 +1919,7 @@ for (row in 1:nrow(deduped.result)){
 fusion_reads <- fusion_reads %>% dplyr::select(-"transcriptID","transcriptID")
 ```
 
-```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Annotate fusion genes
 ##### Get data to annotate fusion genes
 fusion_genes_annot <- ref_datasets.list[[tissue]][["gene_annot_all"]][ , c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
@@ -1922,7 +1946,7 @@ fusion_annot$geneB_dna_support <- "-"
 colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
 ```
 
-```{r pizzly_data_cleanup, comment = NA, message=FALSE, warning=FALSE}
+```{r pizzly_data_cleanup, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
 ##### Clean the pizzly data first
 ##### Remove some columns and rename column names for better presentation
 pizzly.fusions.cut <- pizzly.fusions[ , names(pizzly.fusions) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
@@ -1960,23 +1984,26 @@ while ( i <= nrow(manta_sv) ) {
   
 ##### Compare fusion genes called by PIZZLy and MANTA
 ##### First limit MANTA output to fusions only
-manta_pizzly.fusions <- unique(manta_sv[ grep("&", manta_sv$event),  ]$gene)
-manta_pizzly.fusions <- manta_pizzly.fusions[ manta_pizzly.fusions %in% unique(c(as.vector(pizzly.fusions.cut$geneA.name), as.vector(pizzly.fusions.cut$geneB.name))) ]
+if ( runKallistoChunk ) {
   
-##### Flag PIZZLY fusions that were also reported in MANTA
-if ( length(manta_pizzly.fusions) > 0 ) {
+  manta_pizzly.fusions <- unique(manta_sv[ grep("&", manta_sv$event),  ]$gene)
+  manta_pizzly.fusions <- manta_pizzly.fusions[ manta_pizzly.fusions %in% unique(c(as.vector(pizzly.fusions.cut$geneA.name), as.vector(pizzly.fusions.cut$geneB.name))) ]
     
-  pizzly.fusions.cut$geneA_dna_support[ sort( match( manta_pizzly.fusions , pizzly.fusions.cut$geneA.name ), na.last = NA ) ] <- "Yes"
-  pizzly.fusions.cut$geneB_dna_support[ sort( match( manta_pizzly.fusions , pizzly.fusions.cut$geneB.name ), na.last = NA ) ] <- "Yes"
-    
-  fusion_annot$geneA_dna_support[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL ), na.last = NA ) ] <- "Yes"
-  fusion_annot$geneB_dna_support[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL.1 ), na.last = NA ) ] <- "Yes"
-
-  ##### Re-order pizzly dataframe with MANTA supporting fusions on top
-  idx <- order(pizzly.fusions.cut$geneA_dna_support, pizzly.fusions.cut$geneB_dna_support, pizzly.fusions.cut$reported_fusion, decreasing = TRUE)
-  pizzly.fusions.cut <- pizzly.fusions.cut[ idx, ]
-  fusion_annot <- fusion_annot[ idx, ]
-  pizzly.fusions <- pizzly.fusions[ idx, ]
+  ##### Flag PIZZLY fusions that were also reported in MANTA
+  if ( length(manta_pizzly.fusions) > 0 ) {
+      
+    pizzly.fusions.cut$geneA_dna_support[ sort( match( manta_pizzly.fusions , pizzly.fusions.cut$geneA.name ), na.last = NA ) ] <- "Yes"
+    pizzly.fusions.cut$geneB_dna_support[ sort( match( manta_pizzly.fusions , pizzly.fusions.cut$geneB.name ), na.last = NA ) ] <- "Yes"
+      
+    fusion_annot$geneA_dna_support[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL ), na.last = NA ) ] <- "Yes"
+    fusion_annot$geneB_dna_support[ sort( match( manta_pizzly.fusions , fusion_annot$SYMBOL.1 ), na.last = NA ) ] <- "Yes"
+  
+    ##### Re-order pizzly dataframe with MANTA supporting fusions on top
+    idx <- order(pizzly.fusions.cut$geneA_dna_support, pizzly.fusions.cut$geneB_dna_support, pizzly.fusions.cut$reported_fusion, decreasing = TRUE)
+    pizzly.fusions.cut <- pizzly.fusions.cut[ idx, ]
+    fusion_annot <- fusion_annot[ idx, ]
+    pizzly.fusions <- pizzly.fusions[ idx, ]
+  }
 }
 ```
 
@@ -2680,15 +2707,17 @@ The following steps were performed to define **abundant transcripts** involved i
 
 </details>
 
+Fusion genes information for this sample is **`r if ( runKallistoChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+
 ***
 
 ### - Summary
 
-Out of the `r nrow(pizzly.fusions.cut)` fusion event(s) <span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, <span style="color:#0000ff">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_abundant == "Yes" , ])`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#767689">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_cancer == "Yes" , ])`**</span> involve **[Cancer genes]**.
+Out of the `r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut) } else { c("0") }` fusion event(s) <span style="color:#ff0000">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#02d653">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, <span style="color:#0000ff">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_abundant == "Yes" , ]) } else { c("0") }`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#767689">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_cancer == "Yes" , ]) } else { c("0") }`**</span> involve **[Cancer genes]**.
 
 NOTE: Only fusion events including genes with available genomics coordinates in [Ensembl database version](https://ensembl.org/info/website/archives/index.html){target="_blank"} `r params$ensembl_version` are reported.
 
-```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
+```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
 ##### Create a nice table output (with dataTable)
 pizzly.fusions.table <- pizzly.fusions.cut
 pizzly.fusions.table$geneA.name <- as.vector(pizzly.fusions.table$geneA.name)
@@ -2758,44 +2787,50 @@ Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusio
 
 ### - Genomic view
 
-<span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
+<span style="color:#ff0000">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
+```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runKallistoChunk}
 ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
-fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
-
-##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
-if ( nrow(fusion_annot_top) > 0 ) {
+if ( runSVsChunk ) {
   
-  BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
-  BezierPlot
+  fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
   
-} else {
-  
-  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
-}
-```
-
-```{r genomic_view_plot_fusions_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk}
-##### Save the BezierPlot as png
-if ( nrow(fusion_annot_top) > 0 ) {
-  
-  fusionsPlotDir <- paste(params$report_dir, "fusionsPlot", sep = "/")
-  
-  if ( !file.exists(fusionsPlotDir) ) {
-  
-        dir.create(fusionsPlotDir, recursive=TRUE)
+  ##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
+  if ( nrow(fusion_annot_top) > 0 ) {
+    
+    BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
+    BezierPlot
+    
+  } else {
+    
+    cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
   }
-  
-  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
-  BezierPlot
 }
 ```
 
-```{r genomic_view_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-if ( nrow(fusion_annot_top) > 0 ) {
+```{r genomic_view_plot_fusions_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runKallistoChunk}
+##### Save the BezierPlot as png
+if ( runSVsChunk ) {
+  
+  if ( nrow(fusion_annot_top) > 0 ) {
+    
+    fusionsPlotDir <- paste(params$report_dir, "fusionsPlot", sep = "/")
+    
+    if ( !file.exists(fusionsPlotDir) ) {
+    
+          dir.create(fusionsPlotDir, recursive=TRUE)
+    }
+    
+    png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
+    BezierPlot
+  }
+}
+```
+
+```{r genomic_view_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
+if ( runSVsChunk && nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
   fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "paircount", "splitcount", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_abundant", "fusions_cancer") ]
@@ -2823,9 +2858,9 @@ pizzly.fusions.genomicView
 }
 ```
 
-```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
 ##### Save the table as html file
-if ( nrow(fusion_annot_top) > 0 && params$plots_mode == "interactive" ) {
+if ( runSVsChunk && nrow(fusion_annot_top) > 0 && params$plots_mode == "interactive" ) {
   DT::saveWidget(widget=pizzly.fusions.genomicView, file=paste(fusionsTableDir, "pizzly.fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
 }
 ```
@@ -2853,11 +2888,11 @@ Expression profiles for 5 gene fusion events involving **DNA-supported fusion** 
 
 <span style="color:#ff0000">NOTE</span>: the *Fusion genes visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
-#### `r if ( !is.na(pizzly.fusions$geneA.name[1]) ) { paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-") }`
+#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[1]) ) { paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
-```{r fusion_1_process, comment = NA, message=TRUE, warning=FALSE}
+```{r fusion_1_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
@@ -2877,16 +2912,16 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
-  ClinkerChunk <- TRUE
+  runClinkerChunk <- TRUE
 } else {
-  ClinkerChunk <- FALSE
+  runClinkerChunk <- FALSE
 }
 
 ##### Create file listing fusion events for which Clinker plot is available
 clinker_fusions <- ""
 ```
 
-```{r fusion_1_plot, comment = NA, message=TRUE, warning=FALSE, eval=ClinkerChunk}
+```{r fusion_1_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
@@ -2956,11 +2991,11 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( !is.na(pizzly.fusions$geneA.name[2]) ) { paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-") }`
+#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[2]) ) { paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
-```{r fusion_2_process, comment = NA, message=TRUE, warning=FALSE}
+```{r fusion_2_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions$geneA.name[2]
 geneB <- pizzly.fusions$geneB.name[2]
@@ -2977,13 +3012,13 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
-  ClinkerChunk <- TRUE
+  runClinkerChunk <- TRUE
 } else {
-  ClinkerChunk <- FALSE
+  runClinkerChunk <- FALSE
 }
 ```
 
-```{r fusion_2_plot, comment = NA, message=TRUE, warning=FALSE, eval=ClinkerChunk}
+```{r fusion_2_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
@@ -3053,11 +3088,11 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( !is.na(pizzly.fusions$geneA.name[3]) ) { paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-") }`
+#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[3]) ) { paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
-```{r fusion_3_process, comment = NA, message=TRUE, warning=FALSE}
+```{r fusion_3_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions$geneA.name[3]
 geneB <- pizzly.fusions$geneB.name[3]
@@ -3074,13 +3109,13 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
-  ClinkerChunk <- TRUE
+  runClinkerChunk <- TRUE
 } else {
-  ClinkerChunk <- FALSE
+  runClinkerChunk <- FALSE
 }
 ```
 
-```{r fusion_3_plot, comment = NA, message=TRUE, warning=FALSE, eval=ClinkerChunk}
+```{r fusion_3_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
@@ -3150,11 +3185,11 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( !is.na(pizzly.fusions$geneA.name[4]) ) { paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-") }`
+#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[4]) ) { paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
-```{r fusions_4_process, comment = NA, message=TRUE, warning=FALSE}
+```{r fusions_4_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions$geneA.name[4]
 geneB <- pizzly.fusions$geneB.name[4]
@@ -3171,13 +3206,13 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
-  ClinkerChunk <- TRUE
+  runClinkerChunk <- TRUE
 } else {
-  ClinkerChunk <- FALSE
+  runClinkerChunk <- FALSE
 }
 ```
 
-```{r fusion_4_plot, comment = NA, message=TRUE, warning=FALSE, eval=ClinkerChunk}
+```{r fusion_4_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
@@ -3247,11 +3282,11 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( !is.na(pizzly.fusions$geneA.name[5]) ) { paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-") }`
+#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[5]) ) { paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
-```{r fusion_5_process, comment = NA, message=TRUE, warning=FALSE}
+```{r fusion_5_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- pizzly.fusions$geneA.name[5]
 geneB <- pizzly.fusions$geneB.name[5]
@@ -3268,16 +3303,16 @@ if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% r
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   
-  ClinkerChunk <- TRUE
+  runClinkerChunk <- TRUE
 } else {
-  ClinkerChunk <- FALSE
+  runClinkerChunk <- FALSE
 }
 
 ##### Write list of fusion events for which Clinker plot is available into a file
 write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name,".clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 ```
 
-```{r fusion_5_plot, comment = NA, message=TRUE, warning=FALSE, eval=ClinkerChunk}
+```{r fusion_5_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
 fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
@@ -3698,8 +3733,11 @@ data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 cn_genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
 
 ##### Add fusion genes
-cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneA.name) )
-cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneB.name) )
+if ( runKallistoChunk ) {
+  
+  cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneA.name) )
+  cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneB.name) )
+}
             
 ##### Add genes involved in SVs
 cn_genes <- c( unique(cn_genes, unique(manta_sv$gene)) )
@@ -4436,9 +4474,11 @@ if ( params$plots_mode == "interactive" ) {
 
 ### - Fusion genes {.tabset}
 
-<span style="color:#ff0000">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ])`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ])`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** were screened for suitable drugs.
+Fusion genes information for this sample is **`r if ( runKallistoChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE}
+<span style="color:#ff0000">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** were screened for suitable drugs.
+
+```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
 ##### Generate table with drugs targeting fusion genes
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- as.vector(pizzly.fusions[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes", ]$geneA.name)
