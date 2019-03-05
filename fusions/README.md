@@ -112,12 +112,12 @@ The basic idea is to run kallisto to quantify the fusion transcripts and select 
 
 Translating the last two steps `rule append_index` and `rule requant_kallisto` from the snakefile (https://github.com/pmelsted/pizzly/blob/master/test/Snakefile) on commandline. The intial steps are already part of bcbio-RNAseq workflow. 
 
-* Created a new directory on spartan under `/data/cephfs/punim0010/projects/Kanwal_RNASeq_Patients/pizzly-validation` for this work.
+* Created a new directory on spartan under `/data/cephfs/punim0010/projects/Kanwal/Kanwal_RNASeq_Patients/pizzly-validation` for this work.
 
 * Create a new index based on the transcriptome and the fusion transcripts identified by `pizzly`
 9
 
- ```cat /data/cephfs/punim0010/projects/Kanwal_RNASeq_Patients/MH17T001P013-oncofuse-test/work/inputs/transcriptome/GRCh37.fa /data/cephfs/punim0010/projects/Kanwal_RNASeq_Patients/MH17T001P013-oncofuse-test/final/MH17T001P013-oncofuse-test/pizzly/MH17T001P013-oncofuse-test.fusions.fasta | gzip - > transcripts_with_fusions_fasta.gz```
+ ```cat /data/cephfs/punim0010/projects/Kanwal/Kanwal_RNASeq_Patients/MH17T001P013-oncofuse-test/work/inputs/transcriptome/GRCh37.fa /data/cephfs/punim0010/projects/Kanwal/Kanwal_RNASeq_Patients/MH17T001P013-oncofuse-test/final/MH17T001P013-oncofuse-test/pizzly/MH17T001P013-oncofuse-test.fusions.fasta | gzip - > transcripts_with_fusions_fasta.gz```
 
  ```/data/cephfs/punim0010/local/development/bcbio/galaxy/../anaconda/bin/kallisto index -k 31 -i ./transcripts_with_fusions.kidx transcripts_with_fusions_fasta.gz```
  
