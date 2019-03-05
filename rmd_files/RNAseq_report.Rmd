@@ -28,6 +28,10 @@ params:
   civic_clin_evid: 'CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv'
   cancer_biomarkers_trans: 'cancer_biomarkers_database/cancer_genes_upon_trans.tsv'
   FusionGDB: 'FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt'
+  transform: 'CPM'
+  filter: TRUE
+  norm: 'TMM'
+  log: TRUE
   cn_loss: 1.5
   cn_gain: 3
   ensembl_version: 86
@@ -203,12 +207,11 @@ combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
     return( list(datasets.comb, targetFile) )
 }
 
-
 ##### Assign colours to different groups
 getTargetsColours <- function(targets) {
   
 ##### Predefined selection of colours for groups
-targets.colours <- c("red","cornflowerblue","green","darkred","darkgoldenrod","deepskyblue", "coral", "blue", "chartreuse4", "bisque4", "chocolate3", "cadetblue3", "darkslategrey", "lightgoldenrod4", "mediumpurple4", "orangered3","indianred1","blueviolet","darkolivegreen4","darkgoldenrod4","firebrick3","deepskyblue4", "coral3", "dodgerblue1", "chartreuse3", "bisque3", "chocolate4", "cadetblue", "darkslategray4", "lightgoldenrod3", "mediumpurple3", "orangered1")
+targets.colours <- c("darkseagreen1", "red", "gray50")
   
   f.targets <- factor(targets)
   vec.targets <- targets.colours[1:length(levels(f.targets))]
@@ -232,6 +235,30 @@ getDatasetsColours <- function(datasets) {
     datasets.colour[i] <- vec.datasets[ f.datasets[i]==levels(f.datasets)]
   
   return( list(vec.datasets, datasets.colour) )
+}
+
+##### Calculate TPM from RPKM (from http://luisvalesilva.com/datasimple/rna-seq_units.html )
+tpm_from_rpkm <- function(x) {
+  rpkm.sum <- colSums(x)
+  return(t(t(x) / (1e-06 * rpkm.sum)))
+}
+
+##### Function to generate a full-resolution pdf image before generating a small image in the chunk (from https://stackoverflow.com/questions/37834053/what-is-a-simple-way-to-thumbnail-some-plots-in-r-markdown-knitr )
+allow_thumbnails <- function(x, options) {
+  if (!is.null(options$thumb)) {
+    filename <- sprintf("%s.full.pdf", strsplit(basename(x), "\\.")[[1]][1])
+    absolute_path <- file.path(dirname(x), filename)
+
+    # generate the full resolution pdf
+    pdf(absolute_path, width = options$thumb$width, height = options$thumb$height)
+      eval(parse(text = options$code))
+    dev.off()
+
+    # add an html link to the low resolution png
+    options$fig.link = absolute_path
+  }
+
+  knitr:::hook_plot_md_base(x, options)
 }
 
 ##### Perform PCA. This function outputs a list with dataframe and samples colouring info ready for plotting
@@ -1187,6 +1214,11 @@ sv_prioritize <- function(sv_file) {
 }
 ```
 
+```{r plot_thumbnail, comment=NA, message=FALSE, warning=FALSE}
+##### Generate a full-resolution pdf image before generating a small image in the chunk
+knitr::knit_hooks$set(plot = allow_thumbnails)
+```
+
 ```{r load_libraries, warning=FALSE}
 ##### Load libraries
 suppressMessages(library(edgeR))
@@ -1347,50 +1379,313 @@ caner_genes_annot.list[["FusionGDB"]] <- read.table(paste(params$ref_data_dir, p
 names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "TgeneID", "FGname", "FGID")
 ```
 
-```{r data_transformation, comment = NA, message=FALSE, warning=FALSE}
-##### Data transformation and filtering
-##### For differential expression and related analyses, gene expression is rarely considered at the level of raw counts since libraries sequenced at a greater depth will result in higher counts. Rather, it is common practice to transform raw counts onto a scale that accounts for such library size differences. Here we convert the read count data into log2-counts per million (***log-CPM***) using function from *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html){target="_blank"}* package. Genes with very low counts across all libraries provide little evidence for differential expression. In the biological point of view, a gene must be expressed at some minimal level before it is likely to be translated into a protein or to be biologically important. In addition, the pronounced discretenes of these counts interferes with some of the statistical approximations that are used later in the pipeline. These genes should be filtered out prior to further analysis.
+```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
+##### Filtering to remove low expressed genes. For differential expression and related analyses, gene expression is rarely considered at the level of raw counts since libraries sequenced at a greater depth will result in higher counts. Rather, it is common practice to transform raw counts onto a scale that accounts for such library size differences. Genes with very low counts across all libraries provide little evidence for differential expression. In the biological point of view, a gene must be expressed at some minimal level before it is likely to be translated into a protein or to be biologically important. In addition, the pronounced discretenes of these counts interferes with some of the statistical approximations that are used later in the pipeline. These genes should be filtered out prior to further analysis. Users should filter with CPM rather than filtering on the counts directly, as the latter does not account for differences in library sizes between samples. For instance for the CPM-transformed data we keep only genes that have CPM of 1
 
-##### Loop through combined datasets
-for ( tissue in names(ref_datasets.list) ) {
+##### Transformation to CPM or TPM scale (see these blogs for details https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/ and https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/ ).  CPM = Counts Per Million,  TPM = Transcripts Per Kilobase Million. 
+
+data <- ref_datasets.list[[tissue]][["combined_data"]]
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
   
-  counts <- ref_datasets.list[[tissue]][["combined_data"]]
-  target <- ref_datasets.list[[tissue]][["sample_annot"]]
+##### CPM transformation and filtering
+if ( params$filter && params$transform == "CPM" ) {
   
   ##### Create EdgeR DGEList object
-  y <- DGEList(counts=counts,  group=target$Target)
+  y <- DGEList(counts=data,  group=target$Target)
   
   ##### Add datasets name for each sample
   y$samples$dataset <- target$Dataset
   
-  ##### Filtering to remove low expressed genes. Users should filter with CPM rather than filtering on the counts directly, as the latter does not account for differences in library sizes between samples. Here we keep only genes that have CPM of 1
-  keep <- rowSums(cpm(y)>1) >= ncol(counts)/10
-  y.filtered <- y[keep, , keep.lib.sizes=FALSE]
+  ##### Remove genes with CPM of at least 1 in less than 10% of samples
+  #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
   
-  ref_datasets.list[[tissue]][["combined_data_processed"]] <- y.filtered
-}
+  keep <- rowSums(cpm(y)>1) >= ncol(data)/10
+  y$filtered <- y[keep, , keep.lib.sizes=FALSE]
+  
+  #cat(nrow(y$filtered$counts), "genes remained after filtering out of the", nrow(data), "genes in the input read count matrix\n\n")
+  
+  ##### Calculate normalization factors and transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
+  y <- edgeR::calcNormFactors(y)
+  y$transformed <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
+  y$filtered <- edgeR::calcNormFactors(y$filtered)
+  y$filtered.transformed <- edgeR::cpm(y$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
 
-# cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(counts)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
+##### CPM transformation without filtering
+} else if ( !params$filter && params$transform == "CPM" ) {
+  
+  ##### Create EdgeR DGEList object
+  y <- edgeR::DGEList(counts=data,  group=targetFile$Target)
+
+  ##### Calculate normalization factors and  and transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
+  y <- edgeR::calcNormFactors(y)
+  y$transformed <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
+
+  
+##### TPM data transformation. We can convert RPKM to TPM in two different ways: from pre-calculated RPKM, by diving by the sum of RPKM values, or directly from the normalized counts. Here we calculate TPM starting from RPKM values computed using edgeR's rpkm function ( from http://luisvalesilva.com/datasimple/rna-seq_units.html )
+##### TPM transformation with filtering
+} else if ( params$filter && params$transform == "TPM" ) {
+  
+  ##### Get genes lengths
+  edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
+  
+  gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
+  
+  ##### Check for which genes the lenght info is not available and remove them from the data
+  genes.no_length <- rownames(data)[ rownames(data) %!in% names(gene.length)]
+  data <- data[ rownames(data) %!in% genes.no_length, ]
+  
+  ##### Create EdgeR DGEList object
+  y <- edgeR::DGEList(counts=data,  group=targetFile$Target)
+  
+  ##### Calculate normalization factors and convert data into RPKM
+  y <- edgeR::calcNormFactors(y)
+  y$transformed <- edgeR::rpkm(y, gene.length = gene.length, normalized.lib.sizes=TRUE, log=FALSE)
+  
+  ##### Remove genes with TPM of at least 0.2 in less than 10% of samples
+  keep <- rowSums(y$transformed>0.2) >= ncol(y$transformed)/10
+  y$filtered <- y$counts[keep, ]
+  y$filtered.transformed <- y$transformed[keep, ]
+  
+  ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
+  if ( params$log ) {
+    
+    y$transformed <- log2(tpm_from_rpkm(y$transformed+0.25))
+    y$filtered.transformed <- log2(tpm_from_rpkm(y$filtered.transformed+0.25))
+    gene.length <- gene.length[ names(gene.length) %in% rownames(y$filtered.transformed) ]
+  
+  } else {
+    
+    y$filtered.transformed <- tpm_from_rpkm(y$filtered.transformed)
+  }
+
+##### TPM transformation without filtering
+} else if ( !params$filter && params$transform == "TPM" ) {
+  
+  ##### Get genes lengths
+  edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
+  
+  gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
+  
+  ##### Check for which genes the lenght info is not available and remove them from the data
+  genes.no_length <- rownames(data)[ rownames(data) %!in% names(gene.length)]
+  data <- data[ rownames(data) %!in% genes.no_length, ]
+  
+  ##### Create EdgeR DGEList object
+  y <- edgeR::DGEList(counts=data,  group=targetFile$Target)
+  
+  ##### Calculate normalization factors and convert data into RPKM
+  y <- edgeR::calcNormFactors(y)
+  y$transformed <- edgeR::rpkm(y, gene.length = gene.length, normalized.lib.sizes=TRUE, log=FALSE)
+  
+  ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
+  if ( params$log ) {
+    
+    y$transformed <- log2(tpm_from_rpkm(y$transformed+0.25))
+  
+  } else {
+    
+    y$transformed <- tpm_from_rpkm(y$transformed)
+  }
+}
 ```
 
-```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE}
-##### Data normalisation
-##### During the sample preparation or sequencing process, external factors that are not of biological interest can affect the expression of individual samples. For example, samples processed in the first batch of an experiment can have higher expression overall when compared to samples processed in a second batch. It is assumed that all samples should have a similar range and distribution of expression values. Normalisation for sample-specific effectss is required to ensure that the expression distributions of each sample are similar across the entire experiment. Normalisation by the method of *[trimmed mean of M-values](https://www.ncbi.nlm.nih.gov/pubmed/20196867){target="_blank"} (TMM)* is performed using the *calcNormFactors* function in *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html){target="_blank"}*. The normalisation factors calculated here are used as a scaling factor for the library sizes. TMM is the recommended for most RNA-Seq data where the majority (more than half) of the genes are believed not differentially expressed between any pair of the samples.
+```{r data_transformation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
+##### Create directory for input data plots
+PlotsDir <- paste(params$report_dir, "InputDataPlots", sep = "/")
+if ( !file.exists(PlotsDir) ) {
 
-##### Adjust for RNA composition effect. Calculate scaling factors for the library sizes with calcNormFactors function using trimmed mean of M-values (TMM) between each pair of samples. Note, that the raw read counts are used to calculate the normalisation factors
-
-##### Loop through combined datasets
-for ( tissue in names(ref_datasets.list) ) {
-  
-  y.filtered <- ref_datasets.list[[tissue]][[3]]
-  
-  y.filtered.norm <- calcNormFactors(y.filtered, method = "TMM")
-  
-  ##### Transformations from the raw-scale to CPM
-  y.filtered.norm.cpm <- cpm(y.filtered.norm, normalized.lib.sizes=TRUE, log=TRUE, prior.count=0.25)
-  
-  ref_datasets.list[[tissue]][["combined_data_processed"]] <- y.filtered.norm.cpm
+  dir.create(PlotsDir, recursive=TRUE)
 }
+
+target <- ref_datasets.list[[tissue]][["sample_annot"]]
+
+##### Assigne colours to targets and datasets
+targets.colour <- getTargetsColours(target$Target)
+  
+if ( params$filter ) {
+  
+  par(mfrow=c(1,2))
+  
+  ##### Before filtering
+  plot(density(y$transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  title(main="Transformed data (unfiltered)", xlab=params$transform)
+  abline(v=0, lty=3)
+  
+  for (i in 2:ncol(y$transformed)){
+    den <- density(y$transformed[,i])
+    lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
+  }
+  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  
+  data_transformation_nonfiltered <- recordPlot()
+  
+  ##### After filtering
+  plot(density(y$filtered.transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  title(main="Transformed and filtered data", xlab=params$transform)
+  abline(v=0, lty=3)
+  
+  for (i in 2:ncol(y$filtered.transformed)){
+    den <- density(y$filtered.transformed[,i])
+    lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
+  }
+  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  
+  data_transformation_filtered <- recordPlot()
+  
+  ##### Save the plot as pdf file
+  pdf(paste0(PlotsDir, "/filtering.pdf"), width=8, height=5)
+  par(mfrow=c(1,2))
+  
+  ##### Before filtering
+  plot(density(y$transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  title(main="Transformed data (unfiltered)", xlab=params$transform)
+  abline(v=0, lty=3)
+  
+  for (i in 2:ncol(y$transformed)){
+    den <- density(y$transformed[,i])
+    lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
+  }
+  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  
+  ##### After filtering
+  plot(density(y$filtered.transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  title(main="Transformed and filtered data", xlab=params$transform)
+  abline(v=0, lty=3)
+  
+  for (i in 2:ncol(y$filtered.transformed)){
+    den <- density(y$filtered.transformed[,i])
+    lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
+  }
+  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  invisible(dev.off())
+  
+} else if ( !params$filter ) {
+  
+  ##### Without filtering
+  plot(density(y$transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  title(main="Transformed data (unfiltered)", xlab=params$transform)
+  abline(v=0, lty=3)
+  
+  for (i in 2:ncol(y$transformed)){
+    den <- density(y$transformed[,i])
+    lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
+  }
+  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  
+  ##### Save the plot as pdf file
+  pdf(paste0(PlotsDir, "/filtering.pdf"), width=8, height=5)
+
+  ##### Without filtering
+  plot(density(y$transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  title(main="Transformed data (unfiltered)", xlab=params$transform)
+  abline(v=0, lty=3)
+  
+  for (i in 2:ncol(y$transformed)){
+    den <- density(y$transformed[,i])
+    lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
+  }
+  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  invisible(dev.off())
+}
+```
+
+```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 12, fig.show="hide" }
+##### During the sample preparation or sequencing process, external factors that are not of biological interest can affect the expression of individual samples. For example, samples processed in the first batch of an experiment can have higher expression overall when compared to samples processed in a second batch. It is assumed that all samples should have a similar range and distribution of expression values. Normalisation for sample-specific effects is required to ensure that the expression distributions of each sample are similar across the entire experiment.
+
+##### TMM normalsation. Trimmed mean of M-values (https://www.ncbi.nlm.nih.gov/pubmed/20196867) (TMM) is performed using the calcNormFactors function in edgeR. The normalisation factors calculated here are used as a scaling factor for the library sizes. TMM is the recommended for most RNA-Seq data where the majority (more than half) of the genes are believed not differentially expressed between any pair of the samples. It adjusts for RNA composition effect, calculates scaling factors for the library sizes with calcNormFactors function using trimmed mean of M-values (TMM) between each pair of samples. Note, that the raw read counts are used to calculate the normalisation factors
+if ( params$transform == "CPM" ) {
+  
+  ##### Transformations from the raw-scale to CPM and normalisation using TMM method
+  if ( params$filter ) {
+    
+    y$noNorm <- edgeR::cpm(y$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
+    y$norm <- edgeR::cpm(y$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25, method = "TMM")
+  
+  } else {
+    
+    y$noNorm <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25, method = "TMM")
+    y$norm <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25, method = "TMM")
+  }
+  
+##### Quantile normalsation (from https://www.biostars.org/p/296992/ )
+} else if ( params$transform == "TPM" ) {
+  
+  ##### Normalisation using quantile method
+  if ( params$filter ) {
+    
+    y$noNorm <- y$filtered.transformed
+    y$filtered.transformed <- data.matrix(y$filtered.transformed) 
+    y$norm  <- normalize.quantiles(y$filtered.transformed, copy = TRUE)
+    colnames(y$norm) <- colnames(y$filtered.transformed)
+    rownames(y$norm) <- rownames(y$filtered.transformed)
+  
+  } else {
+    
+    y$noNorm <- y$transformed
+    y$transformed <- data.matrix(y$transformed) 
+    y$norm  <- normalize.quantiles(y$transformed, copy = TRUE)
+    colnames(y$norm) <- colnames(y$transformed)
+    rownames(y$norm) <- rownames(y$transformed)
+  }
+}
+  
+##### Plot expression distribution of samples for unnormalised and normalised data
+par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
+  
+##### Unnormalised data
+boxplot(y$noNorm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
+title(main="Unnormalised data", ylab=params$transform)
+legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+
+data_nonnormalised <- recordPlot()
+
+##### Normalised data
+boxplot(y$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
+title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
+legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+  
+data_normalised <- recordPlot()
+
+##### Save the plot as pdf file
+pdf(paste0(PlotsDir, "/normalisation.pdf"), width=8, height=8)
+par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
+  
+##### Unnormalised data
+boxplot(y$noNorm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
+title(main="Unnormalised data", ylab=params$transform)
+legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+  
+##### Normalised data
+boxplot(y$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
+title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
+legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+invisible(dev.off())
+  
+# #######################################################
+# ##### Prepare expression data frame for plotting in plotly by adding samples annotation and converting the matrix into two column data frame
+# ##### Un-normalised cpm data
+# y$transformed.df <- as.data.frame(cbind(rep(rownames(y$transformed), ncol(y$transformed)), rep(colnames(y$transformed), each=nrow(y$transformed)), rep(as.vector(y$filtered$samples$group), each=nrow(y$transformed)), as.numeric(y$transformed)))
+# colnames(y$transformed.df) <- c("Gene", "Sample", "Group", "cpm")
+# 
+# ##### Normalised cpm data
+# y$norm.transformed.df <- as.data.frame(cbind(rep(rownames(y$norm.transformed), ncol(y$norm.transformed)), rep(colnames(y$norm.transformed), each=nrow(y$norm.transformed)), rep(as.vector(y$norm$samples$group), each=nrow(y$norm.transformed)), as.numeric(y$norm.transformed)))
+# colnames(y$norm.transformed.df) <- c("Gene", "Sample", "Group", "cpm")
+# 
+# 
+# p <- plot_ly(width = 800, height = 600) 
+# 
+# for ( i in 1:12 ) {
+#  p <- add_trace(p, y = y$transformed[,i], type = 'box', name = colnames(y$transformed)[i], jitter = 0.3, pointpos = 0, boxpoints = 'outliers',
+#         marker = list(color = 'rgb(9,56,125)'),
+#         line = list(color = 'rgb(9,56,125)'),
+#         showlegend=FALSE)
+#   }
+# 
+# ##### Save the box-plot as html
+# htmlwidgets::saveWidget(as_widget(p), paste0(PlotsDir, "/normalisation.html"), selfcontained = TRUE)
+# #######################################################
+  
+ref_datasets.list[[tissue]][["combined_data_processed"]] <- y$norm
 ```
 
 ```{r pca, comment = NA, message=FALSE, warning=FALSE}
@@ -2022,18 +2317,42 @@ ref_cancer <- table(target$Target)[names(table(target$Target))==cancer_group]
 <details>
 <summary>Summary</summary>
 
+**Reference patient cohorts**
+
 The following reference patient cohorts were used for the analysis:
 
 * **`r paste(ref_normal, normal_group, sep=" ")`** samples from [The Genotype-Tissue Expression](https://commonfund.nih.gov/gtex){target="_blank"} (GTEx) program ([related publication](https://www.mdpi.com/2075-4426/5/1/22){target="_blank"})
 * **`r paste(ref_cancer, cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga){target="_blank"} (TCGA) project ([related publication](https://www.nature.com/articles/ng.2764){target="_blank"})
 
-Out of the `r nrow(counts)` input genes:
+**Input genes**
+
+Out of the `r nrow(y$counts)` input genes:
 
 * **`r nrow(data.annot)` genes** have reliably detected expression
-* `r nrow(counts) - nrow(y.filtered$counts)` are either not expressed or their expression level is too low to be detected
-* `r nrow(y.filtered$counts) - nrow(data.annot)` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
+* `r if (params$filter) { nrow(y$counts) - nrow(y$filtered$counts) } else { ("0") }` are either not expressed or their expression level is too low to be detected
+* `r if (params$filter) { nrow(y$filtered$counts) - nrow(data.annot) } else { nrow(y$counts) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
-NOTE: the `r nrow(counts) - nrow(y.filtered$counts)` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [CN altered genes] and [Immune markers] sections.
+NOTE: the `r if (params$filter) { nrow(y$counts) - nrow(y$filtered$counts) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [CN altered genes] and [Immune markers] sections.
+
+**Data transformation and filtering**
+
+The read count data were converted into **`r params$transform`**s using *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html){target="_blank"}* functions. `r if ( !params$filter ) { c("The option for filtering out genes with low counts is switched OFF") } else if ( params$filter ) { c("Genes with low counts were filtered out") }`. `r if ( !params$log ) { c("The data were not log-transformed") } else if ( params$log ) { c("The data were log2-transformed") }`. Plot(s) below present `r params$transform` data distribution.
+
+```{r data_transformation_filtering_plot, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15) }
+data_transformation_nonfiltered
+data_transformation_filtered
+```
+
+**Data normalisation**
+
+During the sample preparation or sequencing process, external factors that are not of biological interest can affect the expression of individual samples. For example, samples processed in the first batch of an experiment can have higher expression overall when compared to samples processed in a second batch. It is assumed that all samples should have a similar range and distribution of expression values. Normalisation for sample-specific effects is required to ensure that the expression distributions of each sample are similar across the entire experiment. Normalisation is performed using **`r params$norm`** method.
+
+Box-plots below present `r params$transform` data for individual samples, coloured by sample groups, before and after `r params$norm` normalisation.
+
+```{r data_normalisation_plot, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15) }
+data_nonnormalised
+data_normalised
+```
 
 </details>
 
