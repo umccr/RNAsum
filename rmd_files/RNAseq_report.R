@@ -108,18 +108,24 @@ if ( is.na(opt$plots_mode) ) {
   q()
 }
 
-##### Make sure that TMM normalisation is used for CPM-tansformed data and quantile normalisation is used for TPM-tansformed data
+##### Make sure that TMM, TMMwzp, RLE or upperquartile normalisation is used for CPM-tansformed data and quantile normalisation is used for TPM-tansformed data
 if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
   
-  cat(paste0("\nTMM normalisation is available only for CPM-tansformed data! Quantile normalisation will be performed instead for ", opt$transform, "-tansformed data.\n\n"))
+  cat(paste0("\nOnly TPM normalisation is not available for TPM-tansformed data!\n\nQuantile normalisation will be performed for ", opt$transform, "-tansformed data.\n\n"))
   
   opt$norm <- "quantile"
   
 } else if ( opt$transform == "CPM" && opt$norm == "quantile" ) {
   
-  cat(paste0("\nQuantile normalisation is available only for TPM-tansformed data! TMM normalisation will be performed instead for ", opt$transform, "-tansformed data.\n\n"))
+  cat(paste0("\nQuantile normalisation is available only for TPM-tansformed data! \"TMM\", \"TMMwzp\", \"RLE\" and \"upperquartile\" methods are available for ", opt$transform, "-tansformed data.\n\n"))
   
-  opt$norm <- "TMM"
+  q()
+  
+} else if ( opt$transform == "CPM" &&  opt$norm != "TMM" && opt$norm != "TMMwzp" && opt$norm != "RLE" && opt$norm != "upperquartile" ) {
+  
+  cat(paste0("\nWrong normalisation method was selected! \"TMM\", \"TMMwzp\", \"RLE\" and \"upperquartile\" methods are available for ", opt$transform, "-tansformed data.\n\n"))
+  
+  q()
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report

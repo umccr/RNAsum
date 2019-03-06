@@ -1598,13 +1598,15 @@ if ( params$transform == "CPM" ) {
   ##### Transformations from the raw-scale to CPM and normalisation using TMM method
   if ( params$filter ) {
     
-    y$noNorm <- edgeR::cpm(y$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
-    y$norm <- edgeR::cpm(y$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25, method = "TMM")
+    y$noNorm <-edgeR::cpm(y$filtered, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
+    y$filtered.transformed <- edgeR::calcNormFactors(y$filtered, method = params$norm)
+    y$norm <- edgeR::cpm(y$filtered.transformed, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
   
   } else {
     
-    y$noNorm <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25, method = "TMM")
-    y$norm <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25, method = "TMM")
+    y$noNorm <- edgeR::cpm(y, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
+    y$transformed <- edgeR::calcNormFactors(y, method = params$norm)
+    y$norm <- edgeR::cpm(y$transformed, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
   }
   
 ##### Quantile normalsation (from https://www.biostars.org/p/296992/ )
