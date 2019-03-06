@@ -211,7 +211,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
 getTargetsColours <- function(targets) {
   
 ##### Predefined selection of colours for groups
-targets.colours <- c("darkseagreen1", "red", "gray50")
+targets.colours <- c("powderblue", "red", "gray50")
   
   f.targets <- factor(targets)
   vec.targets <- targets.colours[1:length(levels(f.targets))]
@@ -339,17 +339,17 @@ exprGroupStats <- function(data, targets, target) {
 }
 
 ##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
-cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot = FALSE, plot_mode = "static") {
+cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, addBoxPlot = FALSE, plot_mode = "static") {
   
   ##### Get expression-related stats for each group
   sample.expr.cum <- exprGroupStats(data, targets, sampleName)
-  cancer.expr.cum <- exprGroupStats(data, targets, cancer)
-  normal.expr.cum <- exprGroupStats(data, targets, normal)
+  int_cancer.expr.cum <- exprGroupStats(data, targets, int_cancer)
+  ext_cancer.expr.cum <- exprGroupStats(data, targets, ext_cancer)
   
   ##### Extract expression for selected genes
   sample.expr.cum.selected <- sample.expr.cum[ rownames(sample.expr.cum) %in% gene, ]
-  cancer.expr.cum.selected <- cancer.expr.cum[ rownames(cancer.expr.cum) %in% gene, ]
-  normal.expr.cum.selected <- normal.expr.cum[ rownames(normal.expr.cum) %in% gene, ]
+  int_cancer.expr.cum.selected <- int_cancer.expr.cum[ rownames(int_cancer.expr.cum) %in% gene, ]
+  ext_cancer.expr.cum.selected <- ext_cancer.expr.cum[ rownames(ext_cancer.expr.cum) %in% gene, ]
   
   ##### Generate box-plot for selected gene
   if ( addBoxPlot ) {
@@ -361,9 +361,9 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
     colnames(gene.expr.df) <- c("Group", "Expression")
     
     ##### Reorder groups
-    gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(normal, cancer, "Patient"))
+    gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(ext_cancer, int_cancer, "Patient"))
     
-    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("darkseagreen1", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("powderblue", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
   }
   
   ##### Generate interactive CFD plot with plotly
@@ -381,29 +381,29 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
               text = rownames( sample.expr.cum ),
               name = "Patient", showlegend = FALSE) %>%
     
-    ##### Add cancer data
-    add_markers(y = cancer.expr.cum.selected$cumulative_fraction, x =  cancer.expr.cum.selected$z,
-                text = rownames( cancer.expr.cum.selected),
-                name = cancer,
+    ##### Add int_cancer data
+    add_markers(y = int_cancer.expr.cum.selected$cumulative_fraction, x =  int_cancer.expr.cum.selected$z,
+                text = rownames( int_cancer.expr.cum.selected),
+                name = int_cancer,
                 marker = list(size = 12, opacity = 0.5, color = "red"),
                 showlegend = TRUE) %>%
   
-    add_lines(y = cancer.expr.cum$cumulative_fraction, x = cancer.expr.cum$z, opacity = 0.5,
+    add_lines(y = int_cancer.expr.cum$cumulative_fraction, x = int_cancer.expr.cum$z, opacity = 0.5,
               line = list(color = "red", dash = "dash"),
-              text = rownames( cancer.expr.cum ),
-              name = cancer, showlegend = FALSE) %>%
+              text = rownames( int_cancer.expr.cum ),
+              name = int_cancer, showlegend = FALSE) %>%
     
-    ##### Add normal data
-    add_markers(y = normal.expr.cum.selected$cumulative_fraction, x =  normal.expr.cum.selected$z,
-                text = rownames( normal.expr.cum.selected ),
-                name = normal,
-                marker = list(size = 12, opacity = 0.1, color = "green"),
+    ##### Add ext_cancer data
+    add_markers(y = ext_cancer.expr.cum.selected$cumulative_fraction, x =  ext_cancer.expr.cum.selected$z,
+                text = rownames( ext_cancer.expr.cum.selected ),
+                name = ext_cancer,
+                marker = list(size = 12, opacity = 0.1, color = "cornflowerblue"),
                 showlegend = TRUE) %>%
   
-    add_lines(y = normal.expr.cum$cumulative_fraction, x = normal.expr.cum$z, opacity = 0.1,
-              line = list(color = "green", dash = "dash"),
-              text = rownames( normal.expr.cum ),
-              name = normal, showlegend = FALSE) %>%
+    add_lines(y = ext_cancer.expr.cum$cumulative_fraction, x = ext_cancer.expr.cum$z, opacity = 0.1,
+              line = list(color = "cornflowerblue", dash = "dash"),
+              text = rownames( ext_cancer.expr.cum ),
+              name = ext_cancer, showlegend = FALSE) %>%
     
     ##### Add quantile lines
     add_lines(y = seq(0,1,0.1), x = rep(quantile(sample.expr.cum$z)[2], 11), opacity = 0.5,
@@ -496,7 +496,7 @@ cdfPlot <- function(gene, data, targets, sampleName, normal, cancer, addBoxPlot 
 
 
 ##### Generate boxplot presenting expression profiles for selected set of genes
-glanceExprPlot <- function(genes, data, targets, sampleName, normal, cancer, plot_mode = "static", hexcode) {
+glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, plot_mode = "static", hexcode) {
   
   data.z <- scale(data)
   targets$Target[ targets$Target==sampleName ] <- "Patient"
@@ -518,9 +518,9 @@ glanceExprPlot <- function(genes, data, targets, sampleName, normal, cancer, plo
   colnames(gene.expr.df) <- c("Gene", "Group", "Expression")
   
   ##### Reorder groups
-  gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c("Patient", cancer, normal))
+  gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c("Patient", int_cancer, ext_cancer))
     
-  p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "green"), opacity=0.2, showlegend = TRUE ) %>% 
+  p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.2, showlegend = TRUE ) %>% 
     add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
     
     layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
@@ -555,9 +555,9 @@ glanceExprPlot <- function(genes, data, targets, sampleName, normal, cancer, plo
 
 
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
-mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, cancer, plot_mode = "static") {
+mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, int_cancer, plot_mode = "static") {
   
-  ##### Generate scatterplot with per-gene expression values (y-axis) (difference between Patient's and [cancer] data), CN values (x-axis) and mutation status info (colours)
+  ##### Generate scatterplot with per-gene expression values (y-axis) (difference between Patient's and [int_cancer] data), CN values (x-axis) and mutation status info (colours)
   if ( mut_data ) {
   
     p <- plot_ly(data, x = ~CN, y = ~Z_score_diff, color = ~Mutation, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
@@ -574,7 +574,7 @@ mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, c
                                 size = 10),
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      layout( xaxis = list(title = "CN values"), yaxis = list(title = paste0("mRNA expression (Z-score [Patient vs ", cancer, "])")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
+      layout( xaxis = list(title = "CN values"), yaxis = list(title = paste0("mRNA expression (Z-score [Patient vs ", int_cancer, "])")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
   
   ##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
   } else {
@@ -588,7 +588,7 @@ mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, c
                                 size = 10),
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      layout( xaxis = list(title = "CN values"), yaxis = list(title =  paste0("mRNA expression (Z-score [Patient vs ", cancer, "])")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
+      layout( xaxis = list(title = "CN values"), yaxis = list(title =  paste0("mRNA expression (Z-score [Patient vs ", int_cancer, "])")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
   }
   
   ##### Create directory for the plots
@@ -639,7 +639,7 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, normal, cancer, genes_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z") {
+exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, genes_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z") {
   
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[ genes %!in% rownames(data) ]
@@ -671,29 +671,27 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   group.z <- cbind(group.z, round(rowSds(as.matrix(group.z)), digits = 2))
   names(group.z)[ncol(group.z)] <- "SD"
   
-  ##### Calculate Z-score differneces between investigated sample and cancer group mean values
-  group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, cancer]), digits = 2))
-  names(group.z)[ncol(group.z)] <- paste0("Patient vs ", cancer)
+  ##### Calculate Z-score differneces between investigated sample and int_cancer group mean values
+  group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, int_cancer]), digits = 2))
+  names(group.z)[ncol(group.z)] <- paste0("Patient vs ", int_cancer)
   
-  ##### Add NAs for genes that are absent in the expression matrix. In the "Patient vs [cancer]" columns provide "0"s to facilitate interactive sorting the table. These will appear in blank cells in the table
+  ##### Add NAs for genes that are absent in the expression matrix. In the "Patient vs [int_cancer]" columns provide "0"s to facilitate interactive sorting the table. These will appear in blank cells in the table
   if ( length(genes.absent) > 0 ) {
     
     NAs.df <- data.frame(matrix(NA, ncol = ncol(group.z), nrow = length(genes.absent)))
     names(NAs.df) <- names(group.z)
     rownames(NAs.df) <- genes.absent
-    NAs.df[ names(NAs.df) %in% paste0("Patient vs ", cancer) ] <- 0
+    NAs.df[ names(NAs.df) %in% paste0("Patient vs ", int_cancer) ] <- 0
     
     group.z <- rbind( group.z,  NAs.df)
   }
   
-  ##### Change sample ID to "Patient" and normal sample to "Normal" for better visualisation
+  ##### Change sample ID to "Patient" and ext_cancer sample to "Cancer (TCGA)" for better visualisation
   names(group.z)[names(group.z)==sampleName] <- "Patient"
   targets.list[targets.list==sampleName] <- "Patient"
-  names(group.z)[names(group.z)==normal] <- "Normal"
-  targets.list[targets.list==normal] <- "Normal"
   
   ##### Reorder groups
-  group.z <- cbind(group.z[ , c("Normal", cancer, "Patient")], group.z[, c("SD", paste0("Patient vs ", cancer) )])
+  group.z <- cbind(group.z[ , c(ext_cancer, int_cancer, "Patient")], group.z[, c("SD", paste0("Patient vs ", int_cancer) )])
   
   ##### Add "Gene" column to facilitate adding annotations
   group.z$Gene <- rownames(group.z)
@@ -713,14 +711,14 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
     
   }
   
-  ##### Define colours for cells background for each group and the patient vs [cancer] difference
+  ##### Define colours for cells background for each group and the patient vs [int_cancer] difference
   ##### Initiate dataframe for expression mean values in each group
   brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
   colnames(brks.q) <- targets.list
   clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
   colnames(clrs.q) <- targets.list
   
-  for ( group in c(targets.list, paste0("Patient vs ", cancer)) ) {
+  for ( group in c(targets.list, paste0("Patient vs ", int_cancer)) ) {
 
     brks.q[[group]] <- quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
     #brks.q[[group]] <- sort(group.z[, group])
@@ -783,10 +781,10 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   ##### Add CN data if provided
   if ( !is.null(cn_data) && length(genes) > 0 ) {
     
-    ##### Get the position of "Patient vs [cancer]" column
-    col_idx <- grep(paste0("Patient vs ", cancer), names(group.z))
+    ##### Get the position of "Patient vs [int_cancer]" column
+    col_idx <- grep(paste0("Patient vs ", int_cancer), names(group.z), fixed = TRUE)
     
-    ##### Now place the CN data after the "Patient vs [cancer]" column
+    ##### Now place the CN data after the "Patient vs [int_cancer]" column
     group.z <- add_column(group.z, round(cn_data[ group.z$Gene, "CN"], digits=2), .after = col_idx)
     colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
   }
@@ -818,9 +816,9 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   ##### Add links to external gene annotation resourses
   if ( ext_links && length(genes) > 0 ) {
     
-    ##### Place the external links after the "Patient vs [cancer]" column
-    ##### Get the position of "Patient vs [cancer]" column
-    col_idx <- grep(paste0("Patient vs ", cancer), names(group.z))
+    ##### Place the external links after the "Patient vs [int_cancer]" column
+    ##### Get the position of "Patient vs [int_cancer]" column
+    col_idx <- grep(paste0("Patient vs ", int_cancer), names(group.z), fixed = TRUE)
     group.z <- add_column(group.z, NA, .after = col_idx)
     names(group.z)[ col_idx+1 ] <- "ext_links"
     
@@ -859,28 +857,28 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
     group.z$Gene[ group.z$Gene==gene ] <- paste0("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene=", gene, "' target='_blank'>", gene, "</a>")
   }
 
-  ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs [cancer] difference (to allow filtering based on z-score differences)
+  ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs [int_cancer] difference (to allow filtering based on z-score differences)
   if ( !is.null(cn_data) && length(genes) > 0 ) {
     
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", cancer)]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", int_cancer)]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z[ ,col_idx+1 ],  decreasing = cn_decrease), ]
     
-  ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs [cancer] difference (to allow filtering based on z-score differences)
+  ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs [int_cancer] difference (to allow filtering based on z-score differences)
   } else if  ( !is.null(mut_annot) && length(genes) > 0 ) {
     
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", cancer)]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", int_cancer)]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$TIER), ]
     
-  ##### Order the data by MANTA increasing score (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py) and then by the highest absolute values for Patient vs [cancer] difference
+  ##### Order the data by MANTA increasing score (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py) and then by the highest absolute values for Patient vs [int_cancer] difference
   } else if  ( !is.null(sv_data) && length(genes) > 0 ) {
     
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", cancer)]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", int_cancer)]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$score), ]
     
-  ##### Otherwise order table by the highest absolute values for Patient vs [cancer] difference
+  ##### Otherwise order table by the highest absolute values for Patient vs [int_cancer] difference
   } else if ( length(genes) > 0 ) {
     
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", cancer)]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", int_cancer)]),  decreasing = TRUE), ]
   }
   
   if ( !is.null(cn_data) ) {
@@ -896,8 +894,8 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
       DT::formatStyle(columns = targets.list[3], 
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
-      DT::formatStyle(columns = paste0("Patient vs ", cancer), 
-                      backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", cancer)]], clrs.q[[paste0("Patient vs ", cancer)]])) %>%
+      DT::formatStyle(columns = paste0("Patient vs ", int_cancer), 
+                      backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", int_cancer)]], clrs.q[[paste0("Patient vs ", int_cancer)]])) %>%
       DT::formatStyle(columns = "Patient (CN)", background = DT::styleColorBar(base::range(group.z[ ,"Patient (CN)" ], na.rm = TRUE), 'lightblue'), backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat', backgroundPosition = 'center')
     
   } else {
@@ -913,8 +911,8 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
       DT::formatStyle(columns = targets.list[3], 
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
-      DT::formatStyle(columns = paste0("Patient vs ", cancer), 
-                      backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", cancer)]], clrs.q[[paste0("Patient vs ", cancer)]]))
+      DT::formatStyle(columns = paste0("Patient vs ", int_cancer), 
+                      backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", int_cancer)]], clrs.q[[paste0("Patient vs ", int_cancer)]]))
   }
   
   return( list(dt.table,  group.z) )
@@ -1241,11 +1239,12 @@ suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
 ##### Define the reference datasets based on user-defined tissue of sample origin
-ref_tissue <- list( "pancreas" = c(paste(params$ref_data_dir, "Datasets_list_PDAC.txt", sep="/"), "Normal (pancreas)", "PDAC"), "cervix" = c(paste(params$ref_data_dir, "Datasets_list_cervical_SCC.txt", sep="/"), "Normal (cervix uteri)", "Cervical squamous cell carcinoma") )
+ref_tissue <- list( "pancreas" = c(paste(params$ref_data_dir, "Datasets_list_PDAC.txt", sep="/"), "PDAC (UMCCR)", "PDAC (TCGA)"), "cervix" = c(paste(params$ref_data_dir, "Datasets_list_cervical_SCC.txt", sep="/"), "Cervical squamous cell carcinoma", NULL) )
 
 tissue <- params$tissue
-normal_group <- ref_tissue[[tissue]][2]
-cancer_group <- ref_tissue[[tissue]][3]
+int_cancer_group <- ref_tissue[[tissue]][2]
+ext_cancer_group <- ref_tissue[[tissue]][3]
+
 
 ##### Create a list with reference datasets
 ref_datasets <- c(tissue)
@@ -1515,7 +1514,7 @@ if ( params$filter ) {
     den <- density(y$transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
-  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   
   data_transformation_nonfiltered <- recordPlot()
   
@@ -1528,7 +1527,7 @@ if ( params$filter ) {
     den <- density(y$filtered.transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
-  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   
   data_transformation_filtered <- recordPlot()
   
@@ -1545,7 +1544,7 @@ if ( params$filter ) {
     den <- density(y$transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
-  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   
   ##### After filtering
   plot(density(y$filtered.transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
@@ -1556,7 +1555,7 @@ if ( params$filter ) {
     den <- density(y$filtered.transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
-  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   invisible(dev.off())
   
 } else if ( !params$filter ) {
@@ -1570,7 +1569,7 @@ if ( params$filter ) {
     den <- density(y$transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
-  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   
   ##### Save the plot as pdf file
   pdf(paste0(PlotsDir, "/filtering.pdf"), width=8, height=5)
@@ -1584,7 +1583,7 @@ if ( params$filter ) {
     den <- density(y$transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
-  legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
+  legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   invisible(dev.off())
 }
 ```
@@ -1637,14 +1636,14 @@ par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
 ##### Unnormalised data
 boxplot(y$noNorm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
 title(main="Unnormalised data", ylab=params$transform)
-legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
 
 data_nonnormalised <- recordPlot()
 
 ##### Normalised data
 boxplot(y$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
 title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
-legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
   
 data_normalised <- recordPlot()
 
@@ -1655,12 +1654,12 @@ par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
 ##### Unnormalised data
 boxplot(y$noNorm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
 title(main="Unnormalised data", ylab=params$transform)
-legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
   
 ##### Normalised data
 boxplot(y$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
 title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
-legend("topright", legend=c(normal_group, cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
 invisible(dev.off())
   
 # #######################################################
@@ -1841,9 +1840,9 @@ if ( params$plots_mode == "interactive" ) {
   data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_datasets.list[[tissue]][["gene_annot"]])) ], 2, as.numeric)
   rownames(data) <- ref_datasets.list[[tissue]][["gene_annot"]]$SYMBOL
     
-  genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z")
+  genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z")
   
-  genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc")
+  genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc")
   
   ##### Create directory for saving tables
   exprTableDir <- paste(params$report_dir, "exprTables", sep = "/")
@@ -1866,9 +1865,9 @@ expr_data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 
 ##### Get the Patient vs [cancer] Z-scores using exprTable funstion
-expr_data <- exprTable( genes = rownames(expr_data), data = expr_data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, type = "z")[[2]]
+expr_data <- exprTable( genes = rownames(expr_data), data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, type = "z")[[2]]
 
-expr_data.z <- expr_data[, paste0( "Patient vs ", cancer_group)]
+expr_data.z <- expr_data[, paste0( "Patient vs ", int_cancer_group)]
 names(expr_data.z) <- rownames(expr_data)
 
 ##### Extract partient sample data
@@ -2308,8 +2307,8 @@ if ( runKallistoChunk ) {
 ##### Summarise the reference cohorts samples
 target <- ref_datasets.list[[tissue]][["sample_annot"]]
 
-ref_normal <- table(target$Target)[names(table(target$Target))==normal_group]
-ref_cancer <- table(target$Target)[names(table(target$Target))==cancer_group]
+ref_normal <- table(target$Target)[names(table(target$Target))==ext_cancer_group]
+ref_cancer <- table(target$Target)[names(table(target$Target))==int_cancer_group]
 ```
 
 ***
@@ -2323,8 +2322,8 @@ ref_cancer <- table(target$Target)[names(table(target$Target))==cancer_group]
 
 The following reference patient cohorts were used for the analysis:
 
-* **`r paste(ref_normal, normal_group, sep=" ")`** samples from [The Genotype-Tissue Expression](https://commonfund.nih.gov/gtex){target="_blank"} (GTEx) program ([related publication](https://www.mdpi.com/2075-4426/5/1/22){target="_blank"})
-* **`r paste(ref_cancer, cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga){target="_blank"} (TCGA) project ([related publication](https://www.nature.com/articles/ng.2764){target="_blank"})
+* **`r paste(ref_normal, ext_cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga){target="_blank"} (TCGA) project ([related publication](https://www.nature.com/articles/ng.2764){target="_blank"})
+* **`r paste(ref_cancer, int_cancer_group, sep=" ")`** samples from [University of Melbourne Centre for Cancer Research](https://research.unimelb.edu.au/centre-for-cancer-research/home){target="_blank"} samples collection
 
 **Input genes**
 
@@ -2386,7 +2385,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
+mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 mut_genes.expr.z[[1]]
@@ -2400,7 +2399,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. SD - standard deviation across groups
 </font>
 </details>
 
@@ -2409,7 +2408,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
-mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
+mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 mut_genes.expr.perc[[1]]
@@ -2424,7 +2423,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. SD - standard deviation across groups
 </font>
 </details>
 
@@ -2443,7 +2442,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[1]
 
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2468,7 +2467,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2493,7 +2492,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2518,7 +2517,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2543,7 +2542,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2568,7 +2567,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2593,7 +2592,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2618,7 +2617,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2643,7 +2642,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2668,7 +2667,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2699,7 +2698,7 @@ Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expressio
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z")
+cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 cancer_genes.expr.z[[1]]
@@ -2713,7 +2712,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -2722,7 +2721,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r cancer_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc")
+cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
@@ -2736,7 +2735,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -2755,7 +2754,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[1]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2780,7 +2779,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2805,7 +2804,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2830,7 +2829,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2855,7 +2854,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2880,7 +2879,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2905,7 +2904,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2930,7 +2929,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2954,7 +2953,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -2979,7 +2978,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3269,8 +3268,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_1_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3285,13 +3284,13 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3300,13 +3299,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_1_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3366,8 +3365,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_2_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3382,13 +3381,13 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3397,13 +3396,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_2_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3463,8 +3462,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_3_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3479,13 +3478,13 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3494,13 +3493,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusions_3_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3560,8 +3559,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_4_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3576,13 +3575,13 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3591,13 +3590,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_4_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between percentile in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentile in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3660,8 +3659,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_5_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3677,13 +3676,13 @@ fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYM
 genes = fusion.df$SYMBOL
   
   
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3692,13 +3691,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_5_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -3730,7 +3729,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% "lof" ], targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
+sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% "lof" ], targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 sv_genes.expr.z[[1]]
@@ -3744,7 +3743,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 **Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"} script; **1 = high** and **3 = low priority**
 
@@ -3757,7 +3756,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r sv_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% "lof" ], targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
+sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% "lof" ], targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
@@ -3771,7 +3770,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs `r cancer_group`** columns. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** columns. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 **Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36) script; *1 = high* and *3 = low priority*
 
@@ -3793,7 +3792,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[1]
 
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3818,7 +3817,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3843,7 +3842,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3868,7 +3867,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3893,7 +3892,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3918,7 +3917,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3943,7 +3942,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3968,7 +3967,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -3993,7 +3992,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -4018,7 +4017,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -4069,12 +4068,12 @@ if ( runPcgrChunk && length(cn_genes) > 0 ) {
   cn_genes <- c( unique(cn_genes, ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL) )
   data <- data[ data$Gene %in% cn_genes, ]
  
-  mutCNexprPlot(data = data, mut_data = TRUE, cn_bottom = 0.5, cn_top = 3, cancer = cancer_group, plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, mut_data = TRUE, cn_bottom = 0.5, cn_top = 3, int_cancer = int_cancer_group, plot_mode = params$plots_mode)
   
 } else if ( length(cn_genes) > 0) {
   
   data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, mut_data = FALSE, cn_bottom = 0.5, cn_top = 3, cancer = cancer_group, plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, mut_data = FALSE, cn_bottom = 0.5, cn_top = 3, int_cancer = int_cancer_group, plot_mode = params$plots_mode)
   
 } else {
   
@@ -4111,12 +4110,12 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
 if ( runPcgrChunk && runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
+  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
+  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -4131,7 +4130,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
 </font>
 </details>
 
@@ -4143,12 +4142,12 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( runPcgrChunk && runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
+  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
   
-  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
+  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -4163,7 +4162,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
 </font>
 </details>
 
@@ -4188,12 +4187,12 @@ data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
     
 if ( runPcgrChunk && runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
+  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
+  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -4208,7 +4207,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
 </font>
 </details>
 
@@ -4220,12 +4219,12 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( runPcgrChunk && runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
+  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
   
-  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
+  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc")
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -4240,7 +4239,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
 </font>
 </details>
 
@@ -4262,7 +4261,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[1]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
 
 } else {
   if ( is.na(gene) ) {
@@ -4288,7 +4287,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[2]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4314,7 +4313,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[3]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4340,7 +4339,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4366,7 +4365,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[5]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4394,7 +4393,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[1]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4420,7 +4419,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[2]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4446,7 +4445,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4472,7 +4471,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[4]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4498,7 +4497,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode)
   
 } else {
   if ( is.na(gene) ) {
@@ -4536,7 +4535,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "z")
+immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 immune_genes.expr.z[[1]]
@@ -4550,7 +4549,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each immune marker. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each immune marker. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. SD - standard deviation across groups
 </font>
 </details>
 
@@ -4560,7 +4559,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "perc")
+immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 immune_genes.expr.perc[[1]]
@@ -4574,7 +4573,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each immune marker. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each immune marker. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -4589,7 +4588,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes")
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes")
 
 } else {
   cat("No expression data is available for immune markers!")
@@ -4623,7 +4622,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-hrd_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "z")
+hrd_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "z")
 
 ##### Present the expression summary table
 hrd_genes.expr.z[[1]]
@@ -4637,7 +4636,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between Z-scores in patient sample and cohort of healthy individuals for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. SD - standard deviation across groups
 </font>
 </details>
 
@@ -4647,7 +4646,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r hrd_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for hrd genes from Richard
-hrd_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group , cancer = cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "perc")
+hrd_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "perc")
 
 ##### Present the expression summary table
 hrd_genes.expr.perc[[1]]
@@ -4661,7 +4660,7 @@ if ( params$plots_mode == "interactive" ) {
 <details>
 <summary>Table legend</summary>
 <font size="2">
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Patient vs `r cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r int_cancer_group`** column illustrates the difference between percentiles in patient sample and cohort of healthy individuals for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Patient vs `r int_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
 </font>
 </details>
 
@@ -4676,7 +4675,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, normal = normal_group, cancer = cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes")
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes")
 
 } else {
   cat("No expression data is available for HRD genes!")
