@@ -15,8 +15,8 @@ params:
   sample_name: 
   count_file: 
   tissue: 
-  plots_mode: 
   batch: 
+  plots_mode: 'static'
   ref_data_dir: '../data'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
@@ -617,6 +617,14 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
 mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, int_cancer, plot_mode = "static") {
   
+  ##### Extract info for genes to be annotated on the plot
+  genes2annot <- data[ data$CN > cn_top | data$CN < cn_bottom ,]$Gene
+  
+  if ( length(genes2annot) == 0 ) {
+    
+    genes2annot <- ""
+  }
+  
   ##### Generate scatterplot with per-gene expression values (y-axis) (difference between Patient's and [int_cancer] data), CN values (x-axis) and mutation status info (colours)
   if ( mut_data ) {
   
@@ -627,7 +635,7 @@ mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, i
                       y=1, yanchor="top",
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
+      add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=genes2annot,
                       x=~CN, xanchor="left",
                       y=~Z_score_diff, yanchor="top",
                       font = list(color = "Grey",
@@ -839,14 +847,24 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   }
   
   ##### Add CN data if provided
-  if ( !is.null(cn_data) && length(genes) > 0 ) {
+  if ( !is.null(cn_data) ) {
     
     ##### Get the position of "Patient vs [int_cancer]" column
     col_idx <- grep(paste0("Patient vs ", int_cancer), names(group.z), fixed = TRUE)
     
     ##### Now place the CN data after the "Patient vs [int_cancer]" column
-    group.z <- add_column(group.z, round(cn_data[ group.z$Gene, "CN"], digits=2), .after = col_idx)
-    colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
+    if ( length(genes) > 0 ) {
+      
+      group.z <- add_column(group.z, round(cn_data[ group.z$Gene, "CN"], digits=2), .after = col_idx)
+      colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
+      cn_range <- base::range(group.z[ ,"Patient (CN)" ], na.rm = TRUE)
+      
+    } else {
+      
+      group.z <- add_column(group.z, "", .after = col_idx)
+      colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
+      cn_range <- 0
+    }
   }
 
   ##### Add structural variants results from MANTA
@@ -962,7 +980,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
       DT::formatStyle(columns = paste0("Patient vs ", int_cancer), 
                       backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", int_cancer)]], clrs.q[[paste0("Patient vs ", int_cancer)]])) %>%
-      DT::formatStyle(columns = "Patient (CN)", background = DT::styleColorBar(base::range(group.z[ ,"Patient (CN)" ], na.rm = TRUE), 'lightblue'), backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat', backgroundPosition = 'center')
+      DT::formatStyle(columns = "Patient (CN)", background = DT::styleColorBar(cn_range, 'lightblue'), backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat', backgroundPosition = 'center')
     
   } else {
     
