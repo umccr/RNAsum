@@ -11,12 +11,12 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/RNAseq_report'
-  sample_name: 'CCR170057_AH17T001P001_MN_RNA'
-  count_file: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/CCR170057_AH17T001P001_MN_RNA-ready.counts'
-  tissue: 'pancreas'
-  plots_mode: 'static'
-  batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_17_AH_P001_1__CCR170057_AH17T001P001'
+  report_dir: 
+  sample_name: 
+  count_file: 
+  tissue: 
+  plots_mode: 
+  batch: 
   ref_data_dir: '../data'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
@@ -298,6 +298,9 @@ pca <- function(data, targets, plot_mode) {
   ##### Create a list with dataframe and samples colouring info
   pca.list <- list(data.subset_pca.df, importance_pca, targets.colour, datasets.colour)
   names(pca.list) <- c("pca.df", "importance_pca", "targets", "datasets")
+  
+  ##### Change the targets levels order
+  data.subset_pca.df$Target <- factor(data.subset_pca.df$Target, levels = unique(data.subset_pca.df$Target))
   
   ##### Generate PCA 2-D plot
   pca_plot <- plot_ly(data.subset_pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(data.subset_pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7), width = 600, height = 400) %>%
@@ -917,11 +920,17 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs [int_cancer] difference (to allow filtering based on z-score differences)
   if ( !is.null(cn_data) && length(genes) > 0 ) {
     
+    ##### Get the position of "Patient vs [int_cancer]" column
+    col_idx <- grep("Patient (CN)", names(group.z), fixed = TRUE)
+
     group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", int_cancer)]),  decreasing = TRUE), ]
-    group.z <- group.z[ order(group.z[ ,col_idx+1 ],  decreasing = cn_decrease), ]
+    group.z <- group.z[ order(group.z[ ,col_idx ],  decreasing = cn_decrease), ]
     
   ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs [int_cancer] difference (to allow filtering based on z-score differences)
   } else if  ( !is.null(mut_annot) && length(genes) > 0 ) {
+    
+    ##### Get the position of "Patient vs [int_cancer]" column
+    col_idx <- grep("Patient (CN)", names(group.z), fixed = TRUE)
     
     group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", int_cancer)]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$TIER), ]
