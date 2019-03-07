@@ -11,12 +11,12 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  report_dir: '/Users/jmarzec/data/Patients/final/PRJ190059_SUPER/RNAseq_report'
-  sample_name: 'PRJ190059_SUPER'
-  count_file: '/Users/jmarzec/data/Patients/final/PRJ190059_SUPER/PRJ190059_SUPER-ready.counts'
+  report_dir: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/RNAseq_report'
+  sample_name: 'CCR170057_AH17T001P001_MN_RNA'
+  count_file: '/Users/jmarzec/data/Patients/final/CCR170057_AH17T001P001_MN_RNA/CCR170057_AH17T001P001_MN_RNA-ready.counts'
   tissue: 'pancreas'
   plots_mode: 'static'
-  batch: '/Users/jmarzec/data/Patients/umccrised/CUP-Pairs7__PRJ180659_7_DNA004900_FFPE'
+  batch: '/Users/jmarzec/data/Patients/umccrised/2016_249_17_AH_P001_1__CCR170057_AH17T001P001'
   ref_data_dir: '../data'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
@@ -133,18 +133,24 @@ combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
   ##### Extract info about target file for the first dataset
   fileInfo <- strsplit(DatasetInput[,"Target_file"], split='/', fixed=TRUE)
   targetFile <- read.table(DatasetInput[1,"Target_file"], sep="\t", as.is=TRUE, header=TRUE)[,c(1:4)]
-  rownames(targetFile) <- targetFile[,"Sample_name"]
-  targetFile <- cbind(targetFile[,2:4],rownames(DatasetInput[1,]))
+  targetFile <- cbind(targetFile[,1:4],rownames(DatasetInput[1,]))
   colnames(targetFile)[ncol(targetFile)] <- "Dataset"
+  
+  ##### Add prexit to sample names
+  rownames(targetFile) <- paste(targetFile[,"Dataset"], targetFile[,"Sample_name"], sep = ".")
+  targetFile <- targetFile[, -1]
   
   if ( nrow(DatasetInput) > 1 ) {
     for ( i in 2:nrow(DatasetInput) ) {
         
       ##### Create a temporary object to store info from the remaining target files
       targetFileTmp <- read.table(DatasetInput[i,"Target_file"], sep="\t", as.is=TRUE, header=TRUE)[,c(1:4)]
-      rownames(targetFileTmp) <- targetFileTmp[,"Sample_name"]
-      targetFileTmp <- cbind(targetFileTmp[,2:4],rownames(DatasetInput[i,]))
+      targetFileTmp <- cbind(targetFileTmp[,1:4],rownames(DatasetInput[i,]))
       colnames(targetFileTmp)[ncol(targetFileTmp)] <- "Dataset"
+      
+      ##### Add prexit to sample names
+      rownames(targetFileTmp) <- paste(targetFileTmp[,"Dataset"], targetFileTmp[,"Sample_name"], sep = ".")
+      targetFileTmp <- targetFileTmp[, -1]
         
       targetFile <- rbind(targetFile, targetFileTmp)
     }
@@ -167,11 +173,16 @@ combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
   gene_list <- as.vector(datasets.comb[,1])
       
   ##### Loop through the expression data from different datasets and merge them into one matrix
-  for ( data_matrix in DatasetInput[ , "Expression_matrix" ] ) {
+  for ( i in 1:length(DatasetInput[ , "Expression_matrix" ]) ) {
+    
+    data_matrix <- DatasetInput[ , "Expression_matrix" ][i]
     
     ##### Add data from the reference datasets
     dataset <- as.data.frame( read.table(data_matrix, header=TRUE, sep="\t", row.names=NULL) )
-      
+    
+    ##### Add prexit to sample names
+    colnames(dataset) <- paste(levels(targetFile[,"Dataset"])[i], colnames(dataset), sep = ".")
+    
     ##### list genes present in individal files
     gene_list <- c( gene_list, as.vector(dataset[,1]) )
     
@@ -217,7 +228,7 @@ targets.colours <- c("powderblue", "red", "gray50")
   vec.targets <- targets.colours[1:length(levels(f.targets))]
   targets.colour <- rep(0,length(f.targets))
   for(i in 1:length(f.targets))
-    targets.colour[i] <- vec.targets[ f.targets[i]==levels(f.targets)]
+    targets.colour[i] <- vec.targets[ f.targets[i]==unique(f.targets)]
   
   return( list(vec.targets, targets.colour) )
 }
@@ -262,7 +273,7 @@ allow_thumbnails <- function(x, options) {
 }
 
 ##### Perform PCA. This function outputs a list with dataframe and samples colouring info ready for plotting
-pca <- function(data, targets) {
+pca <- function(data, targets, plot_mode) {
 
   ##### Keep only genes with variance > 0 across all samples
   rsd <- apply(data,1,sd)
@@ -288,7 +299,53 @@ pca <- function(data, targets) {
   pca.list <- list(data.subset_pca.df, importance_pca, targets.colour, datasets.colour)
   names(pca.list) <- c("pca.df", "importance_pca", "targets", "datasets")
   
-  return( pca.list )
+  ##### Generate PCA 2-D plot
+  pca_plot <- plot_ly(data.subset_pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(data.subset_pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7), width = 600, height = 400) %>%
+  layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
+
+  ##### Generate scree plot
+  data.subset_scree.df <- data.frame(paste0("PC ", c(1:length(data.subset_pca$sdev))), data.subset_pca$sdev)
+colnames(data.subset_scree.df) <- c("PC", "Variances")
+
+  ##### The default order will be alphabetized unless specified as below
+  data.subset_scree.df$PC <- factor(data.subset_scree.df$PC, levels = data.subset_scree.df[["PC"]])
+  
+  scree_plot <- plot_ly(data.subset_scree.df, x = ~PC, y = ~Variances, type = 'bar', width = 600, height = 400) %>%
+    layout(title = "", xaxis = list(title = ""), margin = list(l=50, r=50, b=100, t=20, pad=4), autosize = F)
+  
+  ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
+  if ( plot_mode == "static" ) {
+
+      PlotsDir <- paste(params$report_dir, "InputDataPlots", sep = "/")
+      if ( !file.exists(PlotsDir) ) {
+      
+        dir.create(PlotsDir, recursive=TRUE)
+      }
+        
+      ##### Add access token, required by orca function, to the shell environment
+      Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  
+      ##### Change directory to folder with CDF plots
+      setwd(PlotsDir)
+ 
+      ##### Save the static image into a file
+      orca(pca_plot, format = "png", file = "pca_plot.png", width = 800, height = 600)
+  
+      ##### Present the static plot in the report
+      pca_plot <- include_graphics(paste(PlotsDir, "pca_plot.png", sep = "/"), dpi = 144)
+      
+      ##### Save the static image into a file
+      orca(scree_plot, format = "png", file = "scree_plot.png", width = 1200, height = 400)
+  
+      ##### Present the static plot in the report
+      scree_plot <- include_graphics(paste(PlotsDir, "scree_plot.png", sep = "/"), dpi = 144)
+    
+      return( list(pca.list, pca_plot, scree_plot) )
+      
+    } else if ( plot_mode == "interactive" ) {
+
+      return( list(pca.list, pca_plot, scree_plot) )
+    }
 }
 
 ##### Convert a vector of numbers into corresponding vector of their percentiles
@@ -1690,6 +1747,8 @@ ref_datasets.list[[tissue]][["combined_data_processed"]] <- y$norm
 ```
 
 ```{r pca, comment = NA, message=FALSE, warning=FALSE}
+suppressMessages(library(plotly))
+
 ##### Principal component analysis (PCA)
 ##### Loop through combined datasets and perform PCA
 for ( tissue in names(ref_datasets.list) ) {
@@ -1697,8 +1756,10 @@ for ( tissue in names(ref_datasets.list) ) {
   target <- ref_datasets.list[[tissue]][["sample_annot"]]
   data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
   
-  ref_datasets.list[[tissue]][["pca"]] <- pca(data, target)
+  ref_datasets.list[[tissue]][["pca"]] <- pca(data, target, plot_mode = params$plots_mode)
 }
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
 ```
 
 ```{r gene_annot_count_data, comment = NA, message=FALSE, warning=FALSE}
@@ -2322,7 +2383,7 @@ ref_cancer <- table(target$Target)[names(table(target$Target))==int_cancer_group
 
 The following reference patient cohorts were used for the analysis:
 
-* **`r paste(ref_normal, ext_cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga){target="_blank"} (TCGA) project ([related publication](https://www.nature.com/articles/ng.2764){target="_blank"})
+* **`r paste(ref_normal, ext_cancer_group, sep=" ")`** samples from [The Cancer Genome Atlas](https://cancergenome.nih.gov/abouttcga){target="_blank"} project ([related publication](https://www.nature.com/articles/ng.2764){target="_blank"})
 * **`r paste(ref_cancer, int_cancer_group, sep=" ")`** samples from [University of Melbourne Centre for Cancer Research](https://research.unimelb.edu.au/centre-for-cancer-research/home){target="_blank"} samples collection
 
 **Input genes**
@@ -2353,6 +2414,26 @@ Box-plots below present `r params$transform` data for individual samples, colour
 ```{r data_normalisation_plot, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15) }
 data_nonnormalised
 data_normalised
+```
+
+**Exploratory data analysis**
+
+Principal component analysis (PCA) was performed to reduce the dimensionality of data to visually assess similarities and differences between samples. This exploratory analysis facilitates identification of the key factors affecting the variability in the expression data.
+
+* PCA plot
+
+Scatter plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.
+
+```{r pca_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
+ref_datasets.list[[tissue]][["pca"]][[2]]
+```
+
+* Scree plot
+
+Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. 
+
+```{r scree_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
+ref_datasets.list[[tissue]][["pca"]][[3]]
 ```
 
 </details>
@@ -3381,7 +3462,7 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3396,7 +3477,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_2_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
@@ -3478,7 +3559,7 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3493,7 +3574,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusions_3_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
@@ -3575,7 +3656,7 @@ fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z")[[1]]
 ```
 
 <details>
@@ -3590,7 +3671,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_4_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, normal  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
 <details>
