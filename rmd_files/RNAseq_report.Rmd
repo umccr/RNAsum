@@ -587,15 +587,16 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     
     layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
     
+  ##### Create directory for "at glance" plots
+  PlotsDir <- paste(params$report_dir, "glanceExprPlots", sep = "/")
+    
+  if ( !file.exists(PlotsDir) ) {
+
+    dir.create(PlotsDir, recursive=TRUE)
+  }
+    
   ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
   if ( plot_mode == "static" ) {
-
-    ##### Create directory for CDF plots
-    PlotsDir <- paste(params$report_dir, "glanceExprPlots", sep = "/")
-    if ( !file.exists(PlotsDir) ) {
-
-      dir.create(PlotsDir, recursive=TRUE)
-    }
   
     ##### Add access token, required by orca function, to the shell environment
     Sys.setenv('MAPBOX_TOKEN' = 'secret token')
@@ -610,8 +611,16 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     include_graphics(paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.png"), sep = "/"), dpi = 72)
   
   } else if ( plot_mode == "interactive" ) {
-
-     return( p )
+    
+    p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.2, showlegend = TRUE, width = 800, height = 800 ) %>% 
+    add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
+    
+    layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
+    
+    ##### Save interactive plot as html file
+    htmlwidgets::saveWidget(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.html"), sep = "/"))
+    
+    return( p )
   }
 }
 
@@ -668,9 +677,6 @@ mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, i
     dir.create(mutCNexprPlotDir, recursive=TRUE)
   }
     
-  ##### Save interactive plot as html file
-  htmlwidgets::saveWidget(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
-  
   ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. TO this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). 
   if ( plot_mode == "static" ) {
     
@@ -687,7 +693,10 @@ mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, i
     include_graphics(paste(mutCNexprPlotDir, "mut_cn_expr_plot.png", sep = "/"), dpi = 72)
   
   } else if ( plot_mode == "interactive" ) {
-
+    
+    ##### Save interactive plot as html file
+    htmlwidgets::saveWidget(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
+  
     return( p )
   }
 }
