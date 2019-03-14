@@ -1371,6 +1371,7 @@ ref_genes.list[["pizzly"]] <- read.table(file = paste(dataDir, "pizzly", paste0(
 ##### ... but first check if kallisto re-quntified transcripts file is available
 kallisto_file <- paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/")
 runKallistoChunk <- TRUE
+runFusionChunk <- TRUE
 
 if ( file.exists(kallisto_file) ) {
 
@@ -1382,6 +1383,7 @@ ref_genes.list[["kallisto"]] <- read.table(kallisto_file, header = TRUE)
   runKallistoChunk <- FALSE
   runPizzlyChunk <- FALSE
   runClinkerChunk <- FALSE
+  runFusionChunk <- FALSE
 }
 
 ##### Read in mutation data for investigate sample
@@ -2287,13 +2289,11 @@ pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, pizzly.f
 
 } else {
   
-  runPizzlyChunk <- FALSE
-  runKallistoChunk <- FALSE
-  runClinkerChunk <- FALSE
+  runFusionChunk <- FALSE
 }
 ```
 
-```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
+```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Get the number of reads supporting fusions of interest
 fusion_reads <- data.frame()
 
@@ -2316,7 +2316,7 @@ for (row in 1:nrow(deduped.result)){
 fusion_reads <- fusion_reads %>% dplyr::select(-"transcriptID","transcriptID")
 ```
 
-```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
+```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Annotate fusion genes
 ##### Get data to annotate fusion genes
 fusion_genes_annot <- ref_datasets.list[[tissue]][["gene_annot_all"]][ , c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
@@ -2343,7 +2343,7 @@ fusion_annot$geneB_dna_support <- "-"
 colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
 ```
 
-```{r pizzly_data_cleanup, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
+```{r pizzly_data_cleanup, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Clean the pizzly data first
 ##### Remove some columns and rename column names for better presentation
 pizzly.fusions.cut <- pizzly.fusions[ , names(pizzly.fusions) %!in% c("geneA.id", "geneB.id", "transcripts.list") ]
@@ -2381,7 +2381,7 @@ while ( i <= nrow(manta_sv) ) {
   
 ##### Compare fusion genes called by PIZZLy and MANTA
 ##### First limit MANTA output to fusions only
-if ( runKallistoChunk ) {
+if ( runFusionChunk ) {
   
   manta_pizzly.fusions <- unique(manta_sv[ grep("&", manta_sv$event),  ]$gene)
   manta_pizzly.fusions <- manta_pizzly.fusions[ manta_pizzly.fusions %in% unique(c(as.vector(pizzly.fusions.cut$geneA.name), as.vector(pizzly.fusions.cut$geneB.name))) ]
@@ -3154,43 +3154,66 @@ Fusion genes information for this sample is **`r if ( runKallistoChunk ) { c("AV
 
 ### - Summary
 
-Out of the `r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut) } else { c("0") }` fusion event(s) <span style="color:#ff0000">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#02d653">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, <span style="color:#0000ff">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_abundant == "Yes" , ]) } else { c("0") }`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#767689">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_cancer == "Yes" , ]) } else { c("0") }`**</span> involve **[Cancer genes]**.
+Out of the `r if ( runFusionChunk ) { nrow(pizzly.fusions.cut) } else { c("0") }` fusion event(s) <span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, <span style="color:#0000ff">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_abundant == "Yes" , ]) } else { c("0") }`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#767689">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_cancer == "Yes" , ]) } else { c("0") }`**</span> involve **[Cancer genes]**.
 
 NOTE: Only fusion events including genes with available genomics coordinates in [Ensembl database version](https://ensembl.org/info/website/archives/index.html){target="_blank"} `r params$ensembl_version` are reported.
 
-```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
+**`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
+
+```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Create a nice table output (with dataTable)
-pizzly.fusions.table <- pizzly.fusions.cut
-pizzly.fusions.table$geneA.name <- as.vector(pizzly.fusions.table$geneA.name)
-pizzly.fusions.table$geneB.name <- as.vector(pizzly.fusions.table$geneB.name)
-
-##### Provide link to FusionGDB
-for ( i in 1:nrow(pizzly.fusions.table) ) {
+if ( runFusionChunk ) {
+  pizzly.fusions.table <- pizzly.fusions.cut
+  pizzly.fusions.table$geneA.name <- as.vector(pizzly.fusions.table$geneA.name)
+  pizzly.fusions.table$geneB.name <- as.vector(pizzly.fusions.table$geneB.name)
   
-    if ( pizzly.fusions.table$reported_fusion[i] == "Yes" ) {
-        
-      pizzly.fusions.table$geneA.name[i] <- paste0("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search=", pizzly.fusions.table$FGID[i], "' target='_blank'>", pizzly.fusions.table$geneA.name[i], "</a>")
-
-      pizzly.fusions.table$geneB.name[i] <- paste0("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search=", pizzly.fusions.table$FGID[i], "' target='_blank'>", pizzly.fusions.table$geneB.name[i], "</a>")
-    }
+  ##### Provide link to FusionGDB
+  for ( i in 1:nrow(pizzly.fusions.table) ) {
+    
+      if ( pizzly.fusions.table$reported_fusion[i] == "Yes" ) {
+          
+        pizzly.fusions.table$geneA.name[i] <- paste0("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search=", pizzly.fusions.table$FGID[i], "' target='_blank'>", pizzly.fusions.table$geneA.name[i], "</a>")
+  
+        pizzly.fusions.table$geneB.name[i] <- paste0("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search=", pizzly.fusions.table$FGID[i], "' target='_blank'>", pizzly.fusions.table$geneB.name[i], "</a>")
+      }
+  }
+  
+  pizzly.fusions.table <- pizzly.fusions.table[ , names(pizzly.fusions.table) %!in% "FGID" ]
+  
+  names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "DNA support (gene A)", "DNA support (gene B)", "Reported fusion", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)")
+  
+  ##### Present gene fusion events in a table
+  pizzly.fusions.summary <- DT::datatable( data = pizzly.fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(pizzly.fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
+    
+      ##### Highlight rows with fusions involving hihgly abundant transcripts (red), cancer genes (blue) or DNA support (from MANTA)
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
+  
+  pizzly.fusions.summary
+  
+} else {
+  
+  ##### Create empty table
+  pizzly.fusions.table <- data.frame(matrix(ncol = 11, nrow = 0))
+  colnames(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "DNA support (gene A)", "DNA support (gene B)", "Reported fusion", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)")
+    
+  ##### Present gene fusion events in a table
+  pizzly.fusions.summary <- DT::datatable( data = pizzly.fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(pizzly.fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
+    
+      ##### Highlight rows with fusions involving hihgly abundant transcripts (red), cancer genes (blue) or DNA support (from MANTA)
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
+  
+  pizzly.fusions.summary
 }
-
-pizzly.fusions.table <- pizzly.fusions.table[ , names(pizzly.fusions.table) %!in% "FGID" ]
-
-names(pizzly.fusions.table) <- c("Gene A", "Gene B", "Pair count", "Split count", "DNA support (gene A)", "DNA support (gene B)", "Reported fusion", "Abundant transcript(s)", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)")
-
-##### Present gene fusion events in a table
-pizzly.fusions.summary <- DT::datatable( data = pizzly.fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
-    DT::formatStyle( columns = names(pizzly.fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
-  
-    ##### Highlight rows with fusions involving hihgly abundant transcripts (red), cancer genes (blue) or DNA support (from MANTA)
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
-    DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
-
-pizzly.fusions.summary
 
 ##### Save the table as html file
 if ( params$plots_mode == "interactive" ) {
@@ -3228,11 +3251,13 @@ Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusio
 
 ### - Genomic view
 
-<span style="color:#ff0000">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
+<span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runKallistoChunk}
+**`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
+
+```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
 ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
 if ( runSVsChunk ) {
   
@@ -3251,7 +3276,7 @@ if ( runSVsChunk ) {
 }
 ```
 
-```{r genomic_view_plot_fusions_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runKallistoChunk}
+```{r genomic_view_plot_fusions_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
 ##### Save the BezierPlot as png
 if ( runSVsChunk ) {
   
@@ -3270,7 +3295,7 @@ if ( runSVsChunk ) {
 }
 ```
 
-```{r genomic_view_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
+```{r genomic_view_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 if ( runSVsChunk && nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
@@ -3299,7 +3324,7 @@ pizzly.fusions.genomicView
 }
 ```
 
-```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
+```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Save the table as html file
 if ( runSVsChunk && nrow(fusion_annot_top) > 0 && params$plots_mode == "interactive" ) {
   DT::saveWidget(widget=pizzly.fusions.genomicView, file=paste(fusionsTableDir, "pizzly.fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
@@ -3329,7 +3354,9 @@ Expression profiles for 5 gene fusion events involving **DNA-supported fusion** 
 
 <span style="color:#ff0000">NOTE</span>: the *Fusion genes visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
-#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[1]) ) { paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-") }}`
+**`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
+
+#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[1]) ) { paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
@@ -3386,7 +3413,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_1_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_1_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
@@ -3400,7 +3427,7 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r fusion_1_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_1_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
@@ -3419,7 +3446,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r fusion_1_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_1_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
@@ -3432,7 +3459,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[2]) ) { paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-") }}`
+#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[2]) ) { paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
@@ -3483,7 +3510,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_2_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_2_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
@@ -3497,7 +3524,7 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r fusion_2_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_2_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
@@ -3516,7 +3543,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r fusion_2_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_2_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
@@ -3529,7 +3556,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[3]) ) { paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-") }}`
+#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[3]) ) { paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
@@ -3580,7 +3607,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_3_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_3_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
@@ -3594,7 +3621,7 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r fusion_3_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_3_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
@@ -3613,7 +3640,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r fusions_3_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusions_3_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
@@ -3626,7 +3653,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[4]) ) { paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-") }}`
+#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[4]) ) { paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
@@ -3677,7 +3704,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_4_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_4_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
@@ -3691,7 +3718,7 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r fusion_4_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_4_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
@@ -3710,7 +3737,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r fusion_4_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_4_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
@@ -3723,7 +3750,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( runKallistoChunk ) { if ( !is.na(pizzly.fusions$geneA.name[5]) ) { paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-") }}`
+#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[5]) ) { paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-") }}`
 
 ##### Fusion genes visualisation 
 
@@ -3777,7 +3804,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_5_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_5_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode)
@@ -3791,7 +3818,7 @@ detach("package:plotly", unload=FALSE)
 
 ###### Z-scores
 
-```{r fusion_5_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_5_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
@@ -3811,7 +3838,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ###### Percentiles
 
-```{r fusion_5_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
+```{r fusion_5_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc")[[1]]
 ```
 
@@ -4174,7 +4201,7 @@ data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
 cn_genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
 
 ##### Add fusion genes
-if ( runKallistoChunk ) {
+if ( runFusionChunk ) {
   
   cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneA.name) )
   cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneB.name) )
@@ -4929,11 +4956,13 @@ if ( params$plots_mode == "interactive" ) {
 
 ### - Fusion genes {.tabset}
 
-Fusion genes information for this sample is **`r if ( runKallistoChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-<span style="color:#ff0000">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runKallistoChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** were screened for suitable drugs.
+<span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** were screened for suitable drugs.
 
-```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
+**`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
+
+```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Generate table with drugs targeting fusion genes
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 genesA <- as.vector(pizzly.fusions[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes", ]$geneA.name)
