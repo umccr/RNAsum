@@ -273,7 +273,7 @@ allow_thumbnails <- function(x, options) {
 }
 
 ##### Perform PCA. This function outputs a list with dataframe and samples colouring info ready for plotting
-pca <- function(data, targets, plot_mode) {
+pca <- function(data, targets, plot_mode = "static" ) {
 
   ##### Keep only genes with variance > 0 across all samples
   rsd <- apply(data,1,sd)
@@ -345,7 +345,7 @@ colnames(data.subset_scree.df) <- c("PC", "Variances")
     
       return( list(pca.list, pca_plot, scree_plot) )
       
-    } else if ( plot_mode == "interactive" ) {
+    } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
 
       return( list(pca.list, pca_plot, scree_plot) )
     }
@@ -498,7 +498,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
          showlegend=TRUE, showlegend2=FALSE)
     
     ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
-    if ( plot_mode == "static" ) {
+    if ( plot_mode == "static" || plot_mode == "semi-interactive" ) {
 
       ##### Create directory for CDF plots
       PlotsDir <- paste(params$report_dir, "CDF_plots", sep = "/")
@@ -526,7 +526,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
     
   } else {
    
-    if ( plot_mode == "static") {
+    if ( plot_mode == "static" || plot_mode == "semi-interactive" ) {
 
       ##### Create directory for CDF plots
       PlotsDir <- paste(params$report_dir, "CDF_plots", sep = "/")
@@ -610,7 +610,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     ##### Present the static plot in the report
     include_graphics(paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.png"), sep = "/"), dpi = 72)
   
-  } else if ( plot_mode == "interactive" ) {
+  } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
     
     p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.2, showlegend = TRUE, width = 800, height = 800 ) %>% 
     add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
@@ -692,7 +692,7 @@ mutCNexprPlot <- function(data, mut_data = FALSE, cn_bottom = 1.5, cn_top = 3, i
     ##### Present the static plot in the report
     include_graphics(paste(mutCNexprPlotDir, "mut_cn_expr_plot.png", sep = "/"), dpi = 72)
   
-  } else if ( plot_mode == "interactive" ) {
+  } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
     
     ##### Save interactive plot as html file
     htmlwidgets::saveWidget(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))

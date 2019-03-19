@@ -19,7 +19,7 @@
 #   sample_name:   Desired sample name to be presented in the report
 #   tissue:        Tissue from which the samples were derived
 #   count_file:    Location and name of the read count file from bcbio RNA-seq pipeline
-#   plots_mode:    Static (default) or interactive mode for plots
+#   plots_mode:    Static (default), interactive, or semi-interactive mode for plots
 #   report_dir:    Desired location for the report
 #   batch (optional):   Location of the corresponding WGS-related data (with PURPLE and Manta output files)
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (defualt) and "TPM"
@@ -59,7 +59,7 @@ option_list = list(
   make_option(c("-c", "--count_file"), action="store", default=NA, type='character',
               help="Location and name of the read count file from bcbio RNA-seq pipeline"),
   make_option(c("-p", "--plots_mode"), action="store", default=NA, type='character',
-              help="Static (default) or interactive mode for plots"),
+              help="Static (default), interactive or semi-interactive mode for plots"),
   make_option(c("-r", "--report_dir"), action="store", default=NA, type='character',
               help="Desired location for the report"),
   make_option(c("-b", "--batch"), action="store", default=NA, type='character',
@@ -97,14 +97,14 @@ if ( opt$tissue %!in% c("pancreas", "cervix") ) {
   q()
 }
 
-##### Embed static (defulat) plots (to reduce the report size), unless interactive mode is specified
+##### Embed static (defulat) plots (to reduce the report size), unless interactive or semi-interactive mode is specified
 if ( is.na(opt$plots_mode) ) {
   
   opt$plots_mode<- "static"
   
-} else if ( opt$plots_mode != "interactive" && opt$plots_mode != "static" ) {
+} else if ( opt$plots_mode != "interactive" && opt$plots_mode != "semi-interactive" && opt$plots_mode != "static" ) {
   
-  cat("\nThe plots mode \"", opt$plots_mode, "\" is invalid! Please select either \"static\" or \"interactive\" mode.\n\n")
+  cat("\nThe plots mode \"", opt$plots_mode, "\" is invalid! Please select either \"static\", \"interactive\" or \"semi-interactive\" mode.\n\n")
   q()
 }
 
