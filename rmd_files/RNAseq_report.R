@@ -14,14 +14,16 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --plots_mode static  --report_dir ../reports  --batch ../data/2016_249_18_SV_P006_1__CCR180038_SV18T002P006  --transform CPM  --norm TMM  --filter TRUE  --log TRUE
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --sample_id 2016.249.17.MH.P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --plots_mode static  --report_dir ../reports  --batch ../data/2016_249_18_SV_P006_1__CCR180038_SV18T002P006  --clinical_info ../data/clinical_data.xlsx  --transform CPM  --norm TMM  --filter TRUE  --log TRUE
 #
 #   sample_name:   Desired sample name to be presented in the report
+#   sample_id:     Sample ID
 #   tissue:        Tissue from which the samples were derived
 #   count_file:    Location and name of the read count file from bcbio RNA-seq pipeline
 #   plots_mode:    Static (default), interactive, or semi-interactive mode for plots
 #   report_dir:    Desired location for the report
 #   batch (optional):   Location of the corresponding WGS-related data (with PURPLE and Manta output files)
+#   clinical_info (optional):   Location of xslx file with clinical information
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (defualt) and "TPM"
 #   norm:         Normalisation method. Currently, "TMM" is used for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (defualt) and "FALSE"
@@ -54,6 +56,8 @@ suppressMessages(library(optparse))
 option_list = list(
   make_option(c("-s", "--sample_name"), action="store", default=NA, type='character',
               help="Desired sample name to be presented in the report"),
+  make_option(c("-i", "--sample_id"), action="store", default=NA, type='character',
+              help="Sample ID"),
   make_option(c("-o", "--tissue"), action="store", default=NA, type='character',
               help="Tissue from which the samples were derived"),
   make_option(c("-c", "--count_file"), action="store", default=NA, type='character',
@@ -64,6 +68,8 @@ option_list = list(
               help="Desired location for the report"),
   make_option(c("-b", "--batch"), action="store", default=NA, type='character',
               help="Location of the corresponding WGS-related data"),
+  make_option(c("-m", "--clinical_info"), action="store", default=NA, type='character',
+              help="Location of xslx file with clinical information"),
   make_option(c("-t", "--transform"), action="store", default=NA, type='character',
               help="Transformation method to be used when converting read counts"),
   make_option(c("-f", "--filter"), action="store", default=NA, type='character',
@@ -80,10 +86,10 @@ opt$filter <- as.logical(opt$filter)
 opt$log <- as.logical(opt$log)
 
 ##### Read in argument from command line and check if all were provide by the user
-if ( is.na(opt$sample_name) || is.na(opt$tissue) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
+if ( is.na(opt$sample_name) || is.na(opt$sample_id) || is.na(opt$tissue) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
 
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --plots_mode static  --report_dir ../reports  --batch ../data/2016_249_18_SV_P006_1__CCR180038_SV18T002P006  --transform CPM  --norm TMM  --filter TRUE  --log TRUE\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --sample_id 2016.249.17.MH.P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --plots_mode static  --report_dir ../reports  --batch ../data/2016_249_18_SV_P006_1__CCR180038_SV18T002P006 --clinical_info ../data/clinical_data.xlsx  --transform CPM  --norm TMM  --filter TRUE  --log TRUE\n\n")
 
   q()
 }
@@ -129,4 +135,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, tissue = opt$tissue, plots_mode = opt$plots_mode, count_file = opt$count_file, batch = opt$batch, transform = opt$transform, filter = opt$filter, norm = opt$norm, log = opt$log))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, sample_id = opt$sample_id, tissue = opt$tissue, plots_mode = opt$plots_mode, count_file = opt$count_file, batch = opt$batch, clinical_info = opt$clinical_info, transform = opt$transform, filter = opt$filter, norm = opt$norm, log = opt$log))
