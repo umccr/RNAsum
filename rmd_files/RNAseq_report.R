@@ -72,9 +72,9 @@ option_list = list(
               help="Location of xslx file with clinical information"),
   make_option(c("-t", "--transform"), action="store", default=NA, type='character',
               help="Transformation method to be used when converting read counts"),
-  make_option(c("-f", "--filter"), action="store", default=NA, type='character',
-              help="Normalisation method"),
   make_option(c("-n", "--norm"), action="store", default=NA, type='character',
+              help="Normalisation method"),
+  make_option(c("-f", "--filter"), action="store", default=NA, type='character',
               help="Filtering out low expressed genes"),
   make_option(c("-l", "--log"), action="store", default=NA, type='character',
               help="Log (base 2) transform data before normalisation")
@@ -82,16 +82,45 @@ option_list = list(
 
 opt = parse_args(OptionParser(option_list=option_list))
 
-opt$filter <- as.logical(opt$filter)
-opt$log <- as.logical(opt$log)
-
 ##### Read in argument from command line and check if all were provide by the user
-if ( is.na(opt$sample_name) || is.na(opt$sample_id) || is.na(opt$tissue) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
+if ( is.na(opt$sample_name) || is.na(opt$tissue) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
 
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --sample_id 2016.249.17.MH.P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --plots_mode static  --report_dir ../reports  --batch ../data/2016_249_18_SV_P006_1__CCR180038_SV18T002P006 --clinical_info ../data/clinical_data.xlsx  --transform CPM  --norm TMM  --filter TRUE  --log TRUE\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --report_dir ../reports\n\n")
 
   q()
+}
+
+##### Make sure that sample ID is availabe if clincal data is provided
+if ( is.na(opt$clinical_info) && !is.na(opt$sample_id)  ) {
+  
+  cat("\nSample ID is missing! Please provide sample ID used in the clinical data.\n\n")
+}
+
+##### Set default parameters
+if ( is.na(opt$plots_mode)  ) {
+  
+  opt$plots_mode <- "static"
+}
+
+if ( is.na(opt$transform)  ) {
+  
+  opt$transform <- "CPM"
+}
+
+if ( is.na(opt$norm)  ) {
+  
+  opt$norm <- "TMM"
+}
+
+if ( is.na(opt$filter)  ) {
+  
+  opt$filter <- TRUE
+}
+
+if ( is.na(opt$log)  ) {
+  
+  opt$log <- TRUE
 }
 
 ##### Check if specified tissue type is valid
@@ -135,4 +164,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, sample_id = opt$sample_id, tissue = opt$tissue, plots_mode = opt$plots_mode, count_file = opt$count_file, batch = opt$batch, clinical_info = opt$clinical_info, transform = opt$transform, filter = opt$filter, norm = opt$norm, log = opt$log))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, sample_id = opt$sample_id, tissue = tolower(opt$tissue), plots_mode = tolower(opt$plots_mode), count_file = opt$count_file, batch = opt$batch, clinical_info = opt$clinical_info, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log)))
