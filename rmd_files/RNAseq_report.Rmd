@@ -13,10 +13,12 @@ output:
 params:
   report_dir: 
   sample_name: 
+  sample_id: 
   count_file: 
   tissue: 
   batch: 
-  plots_mode: 'static'
+  clinical_info: 
+  plots_mode: 
   ref_data_dir: '../data'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
@@ -56,15 +58,17 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 2. ref_datasets.list[[tissue]][["sample_annot"]] = combined data samples annotation ("combineDatasets" function output in the "load_ref_data chunk")
 
-# 3. ref_datasets.list[[tissue]][["combined_data_processed"]] = transformed, filtered and normalised data (see "data_transformation" and "data_normalisation" chunks)
+# 3. ref_datasets.list[[tissue]][["clinical_info"]] = clinical information (survival and treatment info)
 
-# 4. ref_datasets.list[[tissue]][["pca"]] = PCA results
+# 4. ref_datasets.list[[tissue]][["combined_data_processed"]] = transformed, filtered and normalised data (see "data_transformation" and "data_normalisation" chunks)
 
-# 5. ref_datasets.list[[tissue]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
+# 5. ref_datasets.list[[tissue]][["pca"]] = PCA results
 
-# 6. ref_datasets.list[[tissue]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+# 6. ref_datasets.list[[tissue]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
 
-# 7. ref_datasets.list[[tissue]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
+# 7. ref_datasets.list[[tissue]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+
+# 8. ref_datasets.list[[tissue]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
 
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
@@ -612,7 +616,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   
   } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
     
-    p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.2, showlegend = TRUE, width = 800, height = 800 ) %>% 
+    p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.2, showlegend = TRUE, width = 800, height = 600 ) %>% 
     add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
     
     layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
@@ -1328,6 +1332,8 @@ suppressMessages(library(matrixStats))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggforce))
 suppressMessages(library(NOISeq))
+suppressMessages(library(lares))
+suppressMessages(library(openxlsx))
 suppressMessages(library(package=paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE))
 suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)) # required to get chromosomes lengts for fusionsBezierPlot function generating Bezier plot to present gene fusions in the genomics context
 ```
@@ -1365,6 +1371,18 @@ dataDir <- paste(dataDir[-c(length(dataDir))], collapse ="/")
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
 ref_datasets.list[[tissue]] <- combineDatasets(params$sample_name, params$count_file, ref_tissue[[tissue]][1])
 names(ref_datasets.list[[tissue]]) <- c("combined_data", "sample_annot")
+
+##### Check if spreadsheet with clinical information exists
+clinical_info_file <- params$clinical_info
+runClinicalChunk <- TRUE
+
+if ( file.exists(clinical_info_file) ) {
+  
+  ref_datasets.list[[tissue]][["clinical_info"]] <- read.xlsx(xlsxFile = clinical_info_file, sheet = 1, colNames = TRUE, rowNames = FALSE, detectDates = TRUE, skipEmptyRows = TRUE, skipEmptyCols = TRUE, check.names = TRUE)
+  
+} else {
+  runClinicalChunk <- FALSE
+}
 
 ##### Read in selected genes list
 ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
@@ -1482,6 +1500,109 @@ caner_genes_annot.list[["FusionGDB"]] <- read.table(paste(params$ref_data_dir, p
 names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "TgeneID", "FGname", "FGID")
 ```
 
+```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
+suppressMessages(library(plotly))
+
+##### Prapare data for the treatment timeline plot
+##### Search for row with clinical info for investigated patient
+sampleID.col <- grep(params$sample_id, ref_datasets.list[[tissue]][["clinical_info"]])
+
+if ( length(sampleID.col) > 0 ) {
+  
+  ##### Identify column and row with patients details
+  sampleID.row <- grep(params$sample_id, ref_datasets.list[[tissue]][["clinical_info"]][, sampleID.col])
+
+  clinical_info <- ref_datasets.list[[tissue]][["clinical_info"]][ sampleID.row, ]
+  
+  ##### Prepare data frame structure for plotting
+  ##### Define treatment types
+  treamtent.types <- make.names(c("NEOADJUVANT REGIMEN", "ADJUVANT REGIMEN", "FIRST LINE REGIMEN", "SECOND LINE REGIMEN", "THIRD LINE REGIMEN"))
+  treamtent.types_simple <- c("Neoadjuvant", "Adjuvant", "1st line", "2nd line", "3rd line")
+  
+  treamtent.df <- data.frame(matrix(ncol = 4, nrow = 0))
+  colnames(treamtent.df) <- c("Treatment", "Type", "Start", "End")
+
+  for ( i in 1:length(treamtent.types) ) {
+    
+    ##### Identify treatment column number
+    treamtent.types.col <- grep(paste0("^",treamtent.types[i], "$"), names(clinical_info))
+    
+    ##### Check how many treatments of particular type were used
+    treamtent.types.details <- unlist(strsplit(clinical_info[, treamtent.types.col], split=',', fixed=TRUE))
+    
+    ##### Add start and end info for each treatment
+    if ( any(!is.na(treamtent.types.details ), na.rm = FALSE) ) {
+    
+      for ( treatment in treamtent.types.details ) {
+        
+        treamtent.start <- clinical_info[, treamtent.types.col+1]
+        treamtent.end <- clinical_info[, treamtent.types.col+2]
+        
+        ##### Use current data if treatment is still ongoing
+        today <- as.character(Sys.Date())
+        
+        treamtent.end[ is.na(treamtent.end) ] <- today
+        
+        ##### For security reasons (wrt plots that go to PIEdb), change the dates but preserve the duration of the treatments
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        treamtent.tmp <- data.frame( treatment, treatment, treamtent.types_simple[i], treamtent.start, treamtent.end)
+        
+        treamtent.df <- rbind( treamtent.df, treamtent.tmp)
+      }
+    }
+  }
+  
+  names(treamtent.df) <- c("Treatment", "Drug", "Type", "Start",  "End")
+  
+  ##### Create directory for timeline plot
+  PlotsDir <- paste(params$report_dir, "clinical_info", sep = "/")
+  if ( !file.exists(PlotsDir) ) {
+
+    dir.create(PlotsDir, recursive=TRUE)
+  }
+      
+  setwd(PlotsDir)
+      
+  treatment_timeline <- plot_timeline(event = treamtent.df$Treatment, 
+              start = treamtent.df$Start, 
+              end = treamtent.df$End, 
+              label = NA, 
+              group = treamtent.df$Type,
+              title = "",
+              subtitle = "",
+              save = FALSE)
+  
+  ##### Save the plot into png file. NOTE, here the modified dates are used
+  png(paste(PlotsDir, "treatment_timeline.png", sep="/"), width = 900, height = 600, res=150)
+  plot_timeline(event = treamtent.df$Treatment, 
+              start = treamtent.df$Start, 
+              end = treamtent.df$End, 
+              label = NA, 
+              group = treamtent.df$Type,
+              title = "",
+              subtitle = "",
+              save = FALSE)
+  dev.off()
+  
+} else {
+  runClinicalChunk <- FALSE
+}
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
 ##### Filtering to remove low expressed genes. For differential expression and related analyses, gene expression is rarely considered at the level of raw counts since libraries sequenced at a greater depth will result in higher counts. Rather, it is common practice to transform raw counts onto a scale that accounts for such library size differences. Genes with very low counts across all libraries provide little evidence for differential expression. In the biological point of view, a gene must be expressed at some minimal level before it is likely to be translated into a protein or to be biologically important. In addition, the pronounced discretenes of these counts interferes with some of the statistical approximations that are used later in the pipeline. These genes should be filtered out prior to further analysis. Users should filter with CPM rather than filtering on the counts directly, as the latter does not account for differences in library sizes between samples. For instance for the CPM-transformed data we keep only genes that have CPM of 1
 
@@ -1494,10 +1615,7 @@ target <- ref_datasets.list[[tissue]][["sample_annot"]]
 if ( params$filter && params$transform == "CPM" ) {
   
   ##### Create EdgeR DGEList object
-  y <- DGEList(counts=data,  group=target$Target)
-  
-  ##### Add datasets name for each sample
-  y$samples$dataset <- target$Dataset
+  y <- edgeR::DGEList(counts=data,  group=target$Target)
   
   ##### Remove genes with CPM of at least 1 in less than 10% of samples
   #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
@@ -1507,22 +1625,19 @@ if ( params$filter && params$transform == "CPM" ) {
   
   #cat(nrow(y$filtered$counts), "genes remained after filtering out of the", nrow(data), "genes in the input read count matrix\n\n")
   
-  ##### Calculate normalization factors and transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-  y <- edgeR::calcNormFactors(y)
-  y$transformed <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
-  y$filtered <- edgeR::calcNormFactors(y$filtered)
-  y$filtered.transformed <- edgeR::cpm(y$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
+  ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
+  y$samples["norm.factors"] <- edgeR::calcNormFactors(y, method = "none")$samples["norm.factors"]
+  y$transformed <- edgeR::cpm(y, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
+  y$filtered.transformed <- edgeR::cpm(y$filtered, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
 
 ##### CPM transformation without filtering
 } else if ( !params$filter && params$transform == "CPM" ) {
   
   ##### Create EdgeR DGEList object
   y <- edgeR::DGEList(counts=data,  group=target$Target)
-
-  ##### Calculate normalization factors and  and transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-  y <- edgeR::calcNormFactors(y)
-  y$transformed <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
-
+  
+  ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
+  y$transformed <- edgeR::cpm(y, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
   
 ##### TPM data transformation. We can convert RPKM to TPM in two different ways: from pre-calculated RPKM, by diving by the sum of RPKM values, or directly from the normalized counts. Here we calculate TPM starting from RPKM values computed using edgeR's rpkm function ( from http://luisvalesilva.com/datasimple/rna-seq_units.html )
 ##### TPM transformation with filtering
@@ -1540,9 +1655,8 @@ if ( params$filter && params$transform == "CPM" ) {
   ##### Create EdgeR DGEList object
   y <- edgeR::DGEList(counts=data,  group=target$Target)
   
-  ##### Calculate normalization factors and convert data into RPKM
-  y <- edgeR::calcNormFactors(y)
-  y$transformed <- edgeR::rpkm(y, gene.length = gene.length, normalized.lib.sizes=TRUE, log=FALSE)
+  ##### Convert data into RPKM
+  y$transformed <- edgeR::rpkm(y, gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
   
   ##### Remove genes with TPM of at least 0.2 in less than 10% of samples
   keep <- rowSums(y$transformed>0.2) >= ncol(y$transformed)/10
@@ -1554,10 +1668,10 @@ if ( params$filter && params$transform == "CPM" ) {
     
     y$transformed <- log2(tpm_from_rpkm(y$transformed+0.25))
     y$filtered.transformed <- log2(tpm_from_rpkm(y$filtered.transformed+0.25))
-    gene.length <- gene.length[ names(gene.length) %in% rownames(y$filtered.transformed) ]
   
   } else {
     
+    y$transformed <- tpm_from_rpkm(y$transformed)
     y$filtered.transformed <- tpm_from_rpkm(y$filtered.transformed)
   }
 
@@ -1576,9 +1690,8 @@ if ( params$filter && params$transform == "CPM" ) {
   ##### Create EdgeR DGEList object
   y <- edgeR::DGEList(counts=data,  group=target$Target)
   
-  ##### Calculate normalization factors and convert data into RPKM
-  y <- edgeR::calcNormFactors(y)
-  y$transformed <- edgeR::rpkm(y, gene.length = gene.length, normalized.lib.sizes=TRUE, log=FALSE)
+  ##### Convert data into RPKM
+  y$transformed <- edgeR::rpkm(y, gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
   
   ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
   if ( params$log ) {
@@ -1605,12 +1718,23 @@ target <- ref_datasets.list[[tissue]][["sample_annot"]]
 ##### Assigne colours to targets and datasets
 targets.colour <- getTargetsColours(target$Target)
   
+##### Collect the most extreme density values for set the x-axis and y-axis boundaries
+den.x <- density(y$transformed[,1])$x
+den.y <- density(y$transformed[,1])$y
+  
+for (i in 2:ncol(y$transformed)) {
+    
+  den <- density(y$transformed[,i])
+  den.x <- sort(c(den.x, den$x))
+  den.y <- sort(c(den.y, den$y))
+}
+
 if ( params$filter ) {
   
   par(mfrow=c(1,2))
   
   ##### Before filtering
-  plot(density(y$transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
@@ -1623,7 +1747,7 @@ if ( params$filter ) {
   data_transformation_nonfiltered <- recordPlot()
   
   ##### After filtering
-  plot(density(y$filtered.transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y$filtered.transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed and filtered data", xlab=params$transform)
   abline(v=0, lty=3)
   
@@ -1640,7 +1764,7 @@ if ( params$filter ) {
   par(mfrow=c(1,2))
   
   ##### Before filtering
-  plot(density(y$transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
@@ -1651,7 +1775,7 @@ if ( params$filter ) {
   legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   
   ##### After filtering
-  plot(density(y$filtered.transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y$filtered.transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed and filtered data", xlab=params$transform)
   abline(v=0, lty=3)
   
@@ -1665,7 +1789,7 @@ if ( params$filter ) {
 } else if ( !params$filter ) {
   
   ##### Without filtering
-  plot(density(y$transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
@@ -1679,7 +1803,7 @@ if ( params$filter ) {
   pdf(paste0(PlotsDir, "/filtering.pdf"), width=8, height=5)
 
   ##### Without filtering
-  plot(density(y$transformed[,1]), lwd=2, ylim=c(0,0.4), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
@@ -1698,18 +1822,18 @@ if ( params$filter ) {
 ##### TMM normalsation. Trimmed mean of M-values (https://www.ncbi.nlm.nih.gov/pubmed/20196867) (TMM) is performed using the calcNormFactors function in edgeR. The normalisation factors calculated here are used as a scaling factor for the library sizes. TMM is the recommended for most RNA-Seq data where the majority (more than half) of the genes are believed not differentially expressed between any pair of the samples. It adjusts for RNA composition effect, calculates scaling factors for the library sizes with calcNormFactors function using trimmed mean of M-values (TMM) between each pair of samples. Note, that the raw read counts are used to calculate the normalisation factors
 if ( params$transform == "CPM" ) {
   
-  ##### Transformations from the raw-scale to CPM and normalisation using TMM method
+  ##### Calculate normalization factors and transformations from the raw-scale to CPM and normalisation using user-defined method
   if ( params$filter ) {
     
-    y$noNorm <-edgeR::cpm(y$filtered, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
-    y$filtered.transformed <- edgeR::calcNormFactors(y$filtered, method = params$norm)
-    y$norm <- edgeR::cpm(y$filtered.transformed, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
+    y$noNorm <- y$filtered.transformed
+    y$filtered$samples["norm.factors"] <- edgeR::calcNormFactors(y$filtered, method = params$norm)$samples["norm.factors"]
+    y$norm <- edgeR::cpm(y$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
   
   } else {
     
-    y$noNorm <- edgeR::cpm(y, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
-    y$transformed <- edgeR::calcNormFactors(y, method = params$norm)
-    y$norm <- edgeR::cpm(y$transformed, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
+    y$noNorm <- y$transformed
+    y$samples["norm.factors"] <- edgeR::calcNormFactors(y, method = params$norm)$samples["norm.factors"]
+    y$norm <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
   }
   
 ##### Quantile normalsation (from https://www.biostars.org/p/296992/ )
@@ -1720,17 +1844,33 @@ if ( params$transform == "CPM" ) {
     
     y$noNorm <- y$filtered.transformed
     y$filtered.transformed <- data.matrix(y$filtered.transformed) 
-    y$norm  <- normalize.quantiles(y$filtered.transformed, copy = TRUE)
-    colnames(y$norm) <- colnames(y$filtered.transformed)
-    rownames(y$norm) <- rownames(y$filtered.transformed)
+    
+    if ( tolower(params$norm) != "none" ) {
+      
+      y$norm  <- normalize.quantiles(y$filtered.transformed, copy = TRUE)
+      colnames(y$norm) <- colnames(y$filtered.transformed)
+      rownames(y$norm) <- rownames(y$filtered.transformed)
+      
+    } else {
+      
+      y$norm  <- y$filtered.transformed
+    }
   
   } else {
     
     y$noNorm <- y$transformed
-    y$transformed <- data.matrix(y$transformed) 
-    y$norm  <- normalize.quantiles(y$transformed, copy = TRUE)
-    colnames(y$norm) <- colnames(y$transformed)
-    rownames(y$norm) <- rownames(y$transformed)
+    y$transformed <- data.matrix(y$transformed)
+    
+    if ( tolower(params$norm) != "none" ) {
+      
+      y$norm  <- normalize.quantiles(y$transformed, copy = TRUE)
+      colnames(y$norm) <- colnames(y$transformed)
+      rownames(y$norm) <- rownames(y$transformed)
+      
+    } else {
+      
+      y$norm  <- y$transformed
+    }
   }
 }
   
@@ -2490,6 +2630,24 @@ Scree plot presenting the fraction of total variance (y-axis) attributed to each
 ```{r scree_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_datasets.list[[tissue]][["pca"]][[3]]
 ```
+
+</details>
+
+***
+
+## Clinical information
+
+<details>
+<summary>Treatment timeline</summary>
+
+Treatment regimen information for this patient is **`r if ( runClinicalChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+
+```{r treatment_timeline_plot, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15), eval = runClinicalChunk }
+##### Present the treatment timeline plot
+treatment_timeline
+```
+
+
 
 </details>
 
