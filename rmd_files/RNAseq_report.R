@@ -92,9 +92,11 @@ if ( is.na(opt$sample_name) || is.na(opt$tissue) || is.na(opt$count_file) || is.
 }
 
 ##### Make sure that sample ID is availabe if clincal data is provided
-if ( is.na(opt$clinical_info) && !is.na(opt$sample_id)  ) {
+if ( !is.na(opt$clinical_info) && is.na(opt$sample_id)  ) {
   
   cat("\nSample ID is missing! Please provide sample ID used in the clinical data.\n\n")
+  
+  q()
 }
 
 ##### Set default parameters
