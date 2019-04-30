@@ -1501,8 +1501,6 @@ names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "
 ```
 
 ```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
-suppressMessages(library(plotly))
-
 ##### Prapare data for the treatment timeline plot
 ##### Search for row with clinical info for investigated patient
 sampleID.col <- grep(params$sample_id, ref_datasets.list[[tissue]][["clinical_info"]])
@@ -1537,26 +1535,10 @@ if ( length(sampleID.col) > 0 ) {
         
         treamtent.start <- clinical_info[, treamtent.types.col+1]
         treamtent.end <- clinical_info[, treamtent.types.col+2]
-        
+
         ##### Use current data if treatment is still ongoing
         today <- as.character(Sys.Date())
-        
         treamtent.end[ is.na(treamtent.end) ] <- today
-        
-        ##### For security reasons (wrt plots that go to PIEdb), change the dates but preserve the duration of the treatments
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
         treamtent.tmp <- data.frame( treatment, treatment, treamtent.types_simple[i], treamtent.start, treamtent.end)
         
         treamtent.df <- rbind( treamtent.df, treamtent.tmp)
@@ -1564,6 +1546,14 @@ if ( length(sampleID.col) > 0 ) {
     }
   }
   
+  ##### For security reasons (wrt plots that go to PIEdb), change the dates but preserve the duration of the treatments
+  ##### Get the earliest treatment date and set it as day 0. Then, create fake start and end dates based on the treatment length
+  day0 <- sort(treamtent.df$treamtent.start, decreasing = FALSE)[1]
+  treamtents.length <- treamtent.df$treamtent.end - treamtent.df$treamtent.start
+  treamtents.reset <- as.Date("0000-01-01") - day0
+  treamtent.df$treamtent.start <- treamtent.df$treamtent.start + treamtents.reset
+  treamtent.df$treamtent.end <- treamtent.df$treamtent.start + treamtents.length
+
   names(treamtent.df) <- c("Treatment", "Drug", "Type", "Start",  "End")
   
   ##### Create directory for timeline plot
@@ -1574,7 +1564,8 @@ if ( length(sampleID.col) > 0 ) {
   }
       
   setwd(PlotsDir)
-      
+   
+  ##### Record the timeline plot. NOTE, the modified dates are used here
   treatment_timeline <- plot_timeline(event = treamtent.df$Treatment, 
               start = treamtent.df$Start, 
               end = treamtent.df$End, 
@@ -1584,8 +1575,7 @@ if ( length(sampleID.col) > 0 ) {
               subtitle = "",
               save = FALSE)
   
-  ##### Save the plot into png file. NOTE, here the modified dates are used
-  png(paste(PlotsDir, "treatment_timeline.png", sep="/"), width = 900, height = 600, res=150)
+  ##### Save the plot into png file. NOTE, the modified dates are used here. As default, the plot is saved as "cv_timeline"
   plot_timeline(event = treamtent.df$Treatment, 
               start = treamtent.df$Start, 
               end = treamtent.df$End, 
@@ -1593,14 +1583,21 @@ if ( length(sampleID.col) > 0 ) {
               group = treamtent.df$Type,
               title = "",
               subtitle = "",
-              save = FALSE)
-  dev.off()
+              save = TRUE)
   
+  cv_timeline.png <- image_read(paste(PlotsDir, "cv_timeline.png", sep="/"), density = 300, depth = NULL, strip = FALSE)
+  
+  ##### Change the size of the timeline png plot and save it as "treatment_timeline.png"
+  png(paste(PlotsDir, "treatment_timeline.png", sep="/"), width = 900, height = 600, pointsize = 0.0001, res=300)
+  plot(cv_timeline.png)
+  invisible(dev.off())
+  
+  ##### Remove the original plot
+  system(paste("rm ", paste(PlotsDir, "cv_timeline.png", sep="/")), ignore.stdout = TRUE, ignore.stderr = TRUE)
+
 } else {
   runClinicalChunk <- FALSE
 }
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
 ```
 
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -2640,14 +2637,14 @@ ref_datasets.list[[tissue]][["pca"]][[3]]
 <details>
 <summary>Treatment timeline</summary>
 
-Treatment regimen information for this patient is **`r if ( runClinicalChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+Treatment regimen information for this patient is **`r if ( runClinicalChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+
+NOTE: for confidentiality reasons, the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to start from January, but the treatments lengths are preserved.
 
 ```{r treatment_timeline_plot, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15), eval = runClinicalChunk }
 ##### Present the treatment timeline plot
 treatment_timeline
 ```
-
-
 
 </details>
 
