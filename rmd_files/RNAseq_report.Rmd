@@ -34,6 +34,7 @@ params:
   filter: TRUE
   norm: 'TMM'
   log: TRUE
+  scaling: "sample-wise"
   cn_loss: 1.5
   cn_gain: 3
   ensembl_version: 86
@@ -485,10 +486,6 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
         layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(sample.expr.cum$z)-1.5, max(sample.expr.cum$z)+1.5)),
            yaxis = list(title = "Cumulative fraction"),
            legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white")
-           
-           ##### Annotate the gene of interest
-           #annotations = list(x = sample.expr.cum.selected$z, y = sample.expr.cum.selected$cumulative_fraction,
-           #text = rownames(sample.expr.cum.selected), xref = "x", yref = "y", showarrow = TRUE, arrowhead = 0, opacity = 0.5, ax = 30, ay = 30)
     )
   
   ##### Combine CDF plot with boxplot if this option is selected
@@ -1249,9 +1246,7 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   pos2_fake <- vector("list", nrow(fusion_annot))
   
   for ( i in 1:nrow(fusion_annot) ) {
-  	# cat(paste("\nCalculations for fusion event: " , paste( chr1[i], pos1[i], sep=" " ), "-",  paste( chr2[i], pos2[i], sep=" " ), sep=""))
-  	# cat(paste("\nThe x-axis coordinate for position 1 is ", chrs_fake_starts[[chr1[i]]] + pos1[i], " = ",  chrs_fake_starts[[chr1[i]]], " (the fake start of ", chr1[i],") + ", pos1[i], " (the real position 1)", sep=""))
-  	# cat(paste("\nThe x-axis coordinate for position 2 is ", chrs_fake_starts[[chr2[i]]] + pos2[i], " = ",  chrs_fake_starts[[chr2[i]]], " (the fake start of ", chr2[i],") + ", pos2[i], " (the real position 2).\n", sep=""))
+
   	pos1_fake[[i]] <- chrs_fake_starts[[chr1[i]]] + pos1[i]
   	pos2_fake[[i]] <- chrs_fake_starts[[chr2[i]]] + pos2[i]
   }
@@ -1908,30 +1903,6 @@ title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
 legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
 invisible(dev.off())
   
-# #######################################################
-# ##### Prepare expression data frame for plotting in plotly by adding samples annotation and converting the matrix into two column data frame
-# ##### Un-normalised cpm data
-# y$transformed.df <- as.data.frame(cbind(rep(rownames(y$transformed), ncol(y$transformed)), rep(colnames(y$transformed), each=nrow(y$transformed)), rep(as.vector(y$filtered$samples$group), each=nrow(y$transformed)), as.numeric(y$transformed)))
-# colnames(y$transformed.df) <- c("Gene", "Sample", "Group", "cpm")
-# 
-# ##### Normalised cpm data
-# y$norm.transformed.df <- as.data.frame(cbind(rep(rownames(y$norm.transformed), ncol(y$norm.transformed)), rep(colnames(y$norm.transformed), each=nrow(y$norm.transformed)), rep(as.vector(y$norm$samples$group), each=nrow(y$norm.transformed)), as.numeric(y$norm.transformed)))
-# colnames(y$norm.transformed.df) <- c("Gene", "Sample", "Group", "cpm")
-# 
-# 
-# p <- plot_ly(width = 800, height = 600) 
-# 
-# for ( i in 1:12 ) {
-#  p <- add_trace(p, y = y$transformed[,i], type = 'box', name = colnames(y$transformed)[i], jitter = 0.3, pointpos = 0, boxpoints = 'outliers',
-#         marker = list(color = 'rgb(9,56,125)'),
-#         line = list(color = 'rgb(9,56,125)'),
-#         showlegend=FALSE)
-#   }
-# 
-# ##### Save the box-plot as html
-# htmlwidgets::saveWidget(as_widget(p), paste0(PlotsDir, "/normalisation.html"), selfcontained = TRUE)
-# #######################################################
-  
 ref_datasets.list[[tissue]][["combined_data_processed"]] <- y$norm
 ```
 
@@ -2013,9 +1984,6 @@ for ( tissue in names(ref_datasets.list) ) {
   rownames(data.annot) <- data.annot$SYMBOL
   
   ##### Get data matrix with gene symbols
-  #data <- data.annot[, colnames(data)]
-  #data <- apply(data.annot[, colnames(data)], 2, as.numeric)
-  #rownames(data) <- data.annot$SYMBOL
   ref_datasets.list[[tissue]][["combined_data_processed"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
   rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]) <- data.annot$SYMBOL
   ref_datasets.list[[tissue]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
@@ -2119,13 +2087,6 @@ expr_data <- exprTable( genes = rownames(expr_data), data = expr_data, targets =
 
 expr_data.z <- expr_data[, paste0( "Patient vs ", int_cancer_group)]
 names(expr_data.z) <- rownames(expr_data)
-
-##### Extract partient sample data
-#expr_data <- expr_data[, ncol(expr_data)]
-  
-##### Perform Z-score transformation of the expression values
-#expr_data.z <- as.vector(scale(expr_data))
-#names(expr_data.z) <- names(expr_data)
     
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
 cn_data <- cn_data[ cn_data$Gene %!in% "", ]
@@ -2138,34 +2099,9 @@ cn_data$MeanCopyNumber <- rowMeans(cbind(cn_data$MinCopyNumber, cn_data$MaxCopyN
   
 ##### Deal with negative CN values
 cn_data$MeanCopyNumber[ cn_data$MeanCopyNumber < 0 ] <- 0
-  
-##### Get the percentiles from from the CN values
-#cn_data.percent <- quantile(cn_data$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
-  
-# ##### Draw histogram of CN data
-# p <- plot_ly(x = cn_data$MeanCopyNumber, type = 'histogram', name = "Copy-number data", width = 800, height = 500) %>%
-#   
-#   ##### Add 10th percentile threshold
-#   add_lines(y = seq(0,1000, 100), x = rep(cn_data.percent[2],11), 
-#               line = list(color = "black", dash = "dash"), opacity = 0.4,
-#               name = "10th percentile", showlegend = TRUE) %>%
-#   
-#   ##### Add 50th percentile
-#   add_lines(y = seq(0,1000, 100), x = rep(cn_data.percent[11],11), 
-#               line = list(color = "black", dash = "dash"), opacity = 0.7,
-#               name = "50th percentile", showlegend = TRUE) %>%
-#   
-#   ##### Add 90th percentile threshold
-#   add_lines(y = seq(0,1000, 100), x = rep(cn_data.percent[20],11), 
-#               line = list(color = "black", dash = "dash"), opacity = 1,
-#               name = "80th percentile", showlegend = TRUE) %>%
-#   
-#   layout(xaxis = list( range=c(0,3), title = "Copy-number values"), yaxis = list( title = "Frequency"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F)
-  
-##### Keep only altered genes with CN values below 10th percentile and above 90th percentile
-#cn_data <- cn_data[ cn_data$MaxCopyNumber < cn_data.percent[2] | cn_data$MinCopyNumber > cn_data.percent[20], ]
 
 ##### Keep only altered genes with CN values below loss threshold (default CN value = 1) and above gain threshold (default CN value = 4)
+cn_data.all <- cn_data
 cn_data <- cn_data[ cn_data$MeanCopyNumber < params$cn_loss | cn_data$MeanCopyNumber > params$cn_gain, ]
   
 ##### Add mutation data if available
@@ -2254,6 +2190,36 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub)
   colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff")
 }
+```
+
+```{r cn_data_distribution, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+suppressMessages(library(plotly))
+
+##### Get the percentiles from from the CN values
+cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
+  
+##### Draw histogram of CN data
+cn_dist_plot <- plot_ly(x = cn_data.all$MeanCopyNumber, type = 'histogram', name = "CN data", width = 800, height = 500) %>%
+  
+  ##### Add 10th percentile threshold
+  add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[2],11), 
+              line = list(color = "black", dash = "dash"), opacity = 0.4,
+              name = "10th percentile", showlegend = TRUE) %>%
+  
+  ##### Add 50th percentile
+  add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[11],11), 
+              line = list(color = "black", dash = "dash"), opacity = 0.7,
+              name = "50th percentile", showlegend = TRUE) %>%
+  
+  ##### Add 90th percentile threshold
+  add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[20],11), 
+              line = list(color = "black", dash = "dash"), opacity = 1,
+              name = "80th percentile", showlegend = TRUE) %>%
+  
+  layout(xaxis = list( range=c(0,3), title = "CN values"), yaxis = list( title = "Frequency"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
 ```
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
@@ -2681,7 +2647,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z")
+mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = params$scaling)
 
 ##### Present the expression summary table
 mut_genes.expr.z[[1]]
@@ -4393,7 +4359,7 @@ detach("package:plotly", unload=FALSE)
 
 Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}) and mutation status, if available.
 
-CN information this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
 ### - Expression vs CN
 
@@ -4440,6 +4406,44 @@ if ( runPcgrChunk && length(cn_genes) > 0 ) {
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
+
+***
+
+<details>
+<summary>CN data distribution</summary>
+
+`r if ( runPurpleChunk ) { c(" ") } else { c("CN information for this sample is NOT AVAILABLE".) }`
+
+
+```{r cn_data_distribution_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8, eval = runPurpleChunk }
+##### Generate a histogram illustrating CN data distribution
+if ( params$plots_mode == "static" ) {
+
+  PlotsDir <- paste(params$report_dir, "CNdataPlots", sep = "/")
+  if ( !file.exists(PlotsDir) ) {
+      
+    dir.create(PlotsDir, recursive=TRUE)
+  }
+        
+  ##### Add access token, required by orca function, to the shell environment
+  Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  
+  ##### Change directory to folder with CDF plots
+  setwd(PlotsDir)
+ 
+  ##### Save the static image into a file
+  orca(cn_dist_plot, format = "png", file = "cn_data_dist_plot.png", width = 800, height = 600)
+  
+  ##### Present the static plot in the report
+  include_graphics(paste(PlotsDir, "cn_data_dist_plot.png", sep = "/"), dpi = 144)
+    
+} else if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactive" ) {
+
+  cn_dist_plot
+}
+```
+
+</details>
 
 ***
 
