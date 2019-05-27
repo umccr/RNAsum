@@ -28,6 +28,7 @@
 #   norm:         Normalisation method. Currently, "TMM" is used for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (defualt) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (defualt) and "FALSE"
+#   scaling:      Apply z-score transformation, either row-wise (across samples) or column-wise (across genes in a sample). Available options are: "sample-wise" (across samples, default) or "gene-wise" (across genes)
 #
 ################################################################################
 
@@ -77,7 +78,9 @@ option_list = list(
   make_option(c("-f", "--filter"), action="store", default=NA, type='character',
               help="Filtering out low expressed genes"),
   make_option(c("-l", "--log"), action="store", default=NA, type='character',
-              help="Log (base 2) transform data before normalisation")
+              help="Log (base 2) transform data before normalisation"),
+  make_option(c("-z", "--scaling"), action="store", default=NA, type='character',
+              help="Scaling for z-score transformation (sample-wise or gene-wise")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -125,6 +128,11 @@ if ( is.na(opt$log)  ) {
   opt$log <- TRUE
 }
 
+if ( is.na(opt$scaling)  ) {
+  
+  opt$scaling <- "sample-wise"
+}
+
 ##### Check if specified tissue type is valid
 if ( opt$tissue %!in% c("pancreas", "cervix") ) {
   
@@ -166,4 +174,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, sample_id = opt$sample_id, tissue = tolower(opt$tissue), plots_mode = tolower(opt$plots_mode), count_file = opt$count_file, batch = opt$batch, clinical_info = opt$clinical_info, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, sample_id = opt$sample_id, tissue = tolower(opt$tissue), plots_mode = tolower(opt$plots_mode), count_file = opt$count_file, batch = opt$batch, clinical_info = opt$clinical_info, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling))
