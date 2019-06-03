@@ -380,6 +380,14 @@ cumsum_ordered <- function(x) {
   return( standarised_cumsum )
 }
 
+##### Check for nearest value in a vector
+nearest_position <- function(vector, x) {
+  
+  y <- which.min(abs(vector - x))
+  
+return( y )
+}
+
 ##### Calculate sample-wise mean, sd, quantiles and cumulative franctions for expression data
 exprGroupsStats_sampleWise <- function(data, targets) {
   
@@ -394,7 +402,6 @@ exprGroupsStats_sampleWise <- function(data, targets) {
   ##### Calculate cumulative sums and perform range standardization between 0 and 1
   data.cum <- t(apply(data, 1, cumsum_ordered))
  
-  ##### Perform mean values for each group
   ##### Create lists with stats for each group and gene
   targets.list <- unique(targets$Target)
   group_stats.list <- vector("list", length(targets.list))
@@ -418,8 +425,10 @@ exprGroupsStats_sampleWise <- function(data, targets) {
       ##### Extract the mean percentiles
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowMeans(data.q[ , colnames(data)[ targets$Target %in% group ] ]))
       
-      ##### Extract the mean cumulative fraction
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowMeans(data.cum[ , colnames(data)[ targets$Target %in% group ] ]))
+      ##### Extract the cumulative fraction corresponding to the mean Z-score
+      ##### First, need to get the position of the Z-score nearest to the mean Z-score, and then extract the cumulative value at this position
+      data.z.mean_pos <- apply(data.z, 1, nearest_position, mean(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ data.z.mean_pos ] )
       
       group_stats.list[[group]] <- as.data.frame(group_stats.list[[group]])
       names( group_stats.list[[group]] ) <- c("mean", "sd", "z", "quantile", "cum")
@@ -438,9 +447,11 @@ exprGroupsStats_sampleWise <- function(data, targets) {
       ##### Extract the mean percentiles
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], mean(data.q[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
       
-      ##### Extract the mean cumulative fraction
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], mean(data.cum[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
-      
+      ##### Extract the cumulative fraction corresponding to the mean Z-score
+      ##### First, need to get the position of the Z-score nearest to the mean Z-score, and then extract the cumulative value at this position
+      data.z.mean_pos <- nearest_position( data.z, mean(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ data.z.mean_pos ] ) 
+
       group_stats.list[[group]] <- as.data.frame(group_stats.list[[group]])
       names( group_stats.list[[group]] ) <- c("mean", "sd", "z", "quantile", "cum")
       rownames( group_stats.list[[group]] ) <- rownames(data)
@@ -558,12 +569,12 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
 
     for ( group in targets.list ) {
         
-        group.z[[ sampleName]] <- rbind(group.z[[ sampleName]], cbind(t(gene.stats[[ group]]$mean), t(gene.stats[[ group]]$z), t(gene.stats[[ group]]$q), t(gene.stats[[ group]]$cum) ))
-        
-        group.z[[ group]] <- group.z[[ sampleName]]
+        group.z[[ group]] <- cbind(t(gene.stats[[ group]]$mean), t(gene.stats[[ group]]$z), t(gene.stats[[ group]]$q), t(gene.stats[[ group]]$cum) )
         group.z[[ group]] <- as.data.frame(group.z[[ group]])
         colnames(group.z[[ group]]) <- c("mean", "z", "quantile", "cum")
     }
+    
+    group.z[[ sampleName ]] <- do.call("rbind", group.z)
     
   ##### ... or from gene-wise approach
   } else {
@@ -597,7 +608,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
     ##### Reorder groups
     gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(ext_cancer, int_cancer, "Patient"))
     
-    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("powderblue", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("lightcyan2", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
   }
   
   ##### Generate interactive CFD plot with plotly
