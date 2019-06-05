@@ -14,7 +14,7 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --report_dir ../reports  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --sample_id 2016.249.17.MH.P013  --batch ../data/2016_249_18_SV_P006_1__CCR180038_SV18T002P006  --clinical_info ../data/clinical_data.xlsx  --plots_mode static
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --sample_id 2016.249.17.MH.P033  --batch ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --plots_mode static
 #
 #   sample_name:   Desired sample name to be presented in the report
 #   tissue:        Tissue from which the samples were derived
@@ -92,7 +92,7 @@ opt = parse_args(OptionParser(option_list=option_list))
 if ( is.na(opt$sample_name) || is.na(opt$tissue) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
 
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --report_dir ../reports\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report\n\n")
 
   q()
 }
