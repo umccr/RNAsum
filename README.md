@@ -70,7 +70,7 @@ To be done...
 
 ## Usage
 
-To run the pipeline execure the *[summariseMAFs.R](./rmd_files/RNAseq_report.R)* script. This script catches the arguments from the command line and passes them to the *[summariseMAFs.Rmd](./rmd_files/RNAseq_report.Rmd)* script to produce the interactive HTML report.
+To run the pipeline execure the *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script. This script catches the arguments from the command line and passes them to the *[RNAseq_report.Rmd](./rmd_files/RNAseq_report.Rmd)* script to produce the interactive HTML report.
 
 Argument | Description | Required
 ------------ | ------------ | ------------
