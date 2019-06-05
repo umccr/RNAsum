@@ -91,6 +91,11 @@ Argument | Description | Required
 
 <br />
 
+**Command line use example**:
 
+```
+Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --sample_id 2016.249.17.MH.P033  --batch ../data/umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --plots_mode semi-interactive
+```
 
+The interactive HTML report named `CCR170115b_MH17T002P033_RNA.RNAseq_report.html` will be created in `../RNAseq_report` folder.
 
