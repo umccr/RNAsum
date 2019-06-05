@@ -14,21 +14,21 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --sample_id 2016.249.17.MH.P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --plots_mode static  --report_dir ../reports  --batch ../data/2016_249_18_SV_P006_1__CCR180038_SV18T002P006  --clinical_info ../data/clinical_data.xlsx  --transform CPM  --norm TMM  --filter TRUE  --log TRUE
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170012_MH17T001P013  --tissue pancreas  --count_file ../data/CCR180038_SV18T002P006_RNA-ready.counts  --report_dir ../reports  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --sample_id 2016.249.17.MH.P013  --batch ../data/2016_249_18_SV_P006_1__CCR180038_SV18T002P006  --clinical_info ../data/clinical_data.xlsx  --plots_mode static
 #
 #   sample_name:   Desired sample name to be presented in the report
-#   sample_id:     Sample ID
 #   tissue:        Tissue from which the samples were derived
 #   count_file:    Location and name of the read count file from bcbio RNA-seq pipeline
-#   plots_mode:    Static (default), interactive, or semi-interactive mode for plots
 #   report_dir:    Desired location for the report
-#   batch (optional):   Location of the corresponding WGS-related data (with PURPLE and Manta output files)
-#   clinical_info (optional):   Location of xslx file with clinical information
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (defualt) and "TPM"
 #   norm:         Normalisation method. Currently, "TMM" is used for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (defualt) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (defualt) and "FALSE"
-#   scaling:      Apply z-score transformation, either row-wise (across samples) or column-wise (across genes in a sample). Available options are: "sample-wise" (across samples, default) or "gene-wise" (across genes)
+#   scaling:      Apply row-wise (across samples) or column-wise (across genes in a sample) data scaling. Available options are: "sample-wise" (across samples, default) or "gene-wise" (across genes)
+#   sample_id:     Sample ID
+#   batch (optional):   Location of the corresponding WGS-related data (with PURPLE and Manta output files)
+#   clinical_info (optional):   Location of xslx file with clinical information
+#   plots_mode:    Plotting mode. Available options are: "Static" (default), "interactive" and "semi-interactive"
 #   hide_code_btn :    Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
 #
 ################################################################################
@@ -58,20 +58,12 @@ suppressMessages(library(optparse))
 option_list = list(
   make_option(c("-s", "--sample_name"), action="store", default=NA, type='character',
               help="Desired sample name to be presented in the report"),
-  make_option(c("-i", "--sample_id"), action="store", default=NA, type='character',
-              help="Sample ID"),
   make_option(c("-o", "--tissue"), action="store", default=NA, type='character',
               help="Tissue from which the samples were derived"),
   make_option(c("-c", "--count_file"), action="store", default=NA, type='character',
               help="Location and name of the read count file from bcbio RNA-seq pipeline"),
-  make_option(c("-p", "--plots_mode"), action="store", default=NA, type='character',
-              help="Static (default), interactive or semi-interactive mode for plots"),
   make_option(c("-r", "--report_dir"), action="store", default=NA, type='character',
               help="Desired location for the report"),
-  make_option(c("-b", "--batch"), action="store", default=NA, type='character',
-              help="Location of the corresponding WGS-related data"),
-  make_option(c("-m", "--clinical_info"), action="store", default=NA, type='character',
-              help="Location of xslx file with clinical information"),
   make_option(c("-t", "--transform"), action="store", default=NA, type='character',
               help="Transformation method to be used when converting read counts"),
   make_option(c("-n", "--norm"), action="store", default=NA, type='character',
@@ -82,6 +74,14 @@ option_list = list(
               help="Log (base 2) transform data before normalisation"),
   make_option(c("-z", "--scaling"), action="store", default=NA, type='character',
               help="Scaling for z-score transformation (sample-wise or gene-wise"),
+  make_option(c("-i", "--sample_id"), action="store", default=NA, type='character',
+              help="Sample ID"),
+  make_option(c("-b", "--batch"), action="store", default=NA, type='character',
+              help="Location of the corresponding WGS-related data"),
+  make_option(c("-m", "--clinical_info"), action="store", default=NA, type='character',
+              help="Location of xslx file with clinical information"),
+  make_option(c("-p", "--plots_mode"), action="store", default=NA, type='character',
+              help="Static (default), interactive or semi-interactive mode for plots"),
   make_option(c("-d", "--hide_code_btn"), action="store", default=NA, type='character',
               help="Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report")
 )
@@ -106,11 +106,6 @@ if ( !is.na(opt$clinical_info) && is.na(opt$sample_id)  ) {
 }
 
 ##### Set default parameters
-if ( is.na(opt$plots_mode)  ) {
-  
-  opt$plots_mode <- "static"
-}
-
 if ( is.na(opt$transform)  ) {
   
   opt$transform <- "CPM"
@@ -134,6 +129,11 @@ if ( is.na(opt$log)  ) {
 if ( is.na(opt$scaling)  ) {
   
   opt$scaling <- "sample-wise"
+}
+
+if ( is.na(opt$plots_mode)  ) {
+  
+  opt$plots_mode <- "static"
 }
 
 if ( is.na(opt$hide_code_btn)  ) {
@@ -182,4 +182,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(report_dir = opt$report_dir, sample_name = opt$sample_name, sample_id = opt$sample_id, tissue = tolower(opt$tissue), plots_mode = tolower(opt$plots_mode), count_file = opt$count_file, batch = opt$batch, clinical_info = opt$clinical_info, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, hide_code_btn = as.logical(opt$hide_code_btn)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, tissue = tolower(opt$tissue), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, sample_id = opt$sample_id, batch = opt$batch, clinical_info = opt$clinical_info, plots_mode = tolower(opt$plots_mode), hide_code_btn = as.logical(opt$hide_code_btn)))
