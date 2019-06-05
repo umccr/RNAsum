@@ -28,7 +28,7 @@ To be done...
 
 The pipeline consist of four main components illustreted and breifly described below. See the [workflow.md](workflow.md) for the complete description of the workflow.
 
-<img src="img/RNAseq_report_workflow.pdf" width="100%"> 
+<img src="img/RNAseq_report_workflow.png" width="100%"> 
 
 <br/>
 
