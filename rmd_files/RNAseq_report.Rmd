@@ -1106,7 +1106,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   if ( !is.null(sv_data) && length(genes) > 0 ) {
     
     ##### NOTE: when merging per-gene exprssion data with SV data from MANTA the "gene" column is used since multiple entires are possible for one gene in MANTA output
-    group.z <- merge(group.z, sv_data, by.x="Gene", by.y="gene", all = TRUE, sort = FALSE)
+    group.z <- merge(group.z, sv_data, by.x="Gene", by.y="Gene", all = TRUE, sort = FALSE)
   }
   
   ##### Add info about known fusion genes
@@ -1189,11 +1189,12 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
     group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", int_cancer)]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$TIER), ]
     
-  ##### Order the data by MANTA increasing score (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py) and then by the highest absolute values for Patient vs [int_cancer] difference
+  ##### Order the data by MANTA increasing Tier (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py), event type and then by the highest absolute values for Patient vs [int_cancer] difference
   } else if  ( !is.null(sv_data) && length(genes) > 0 ) {
     
     group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", int_cancer)]),  decreasing = TRUE), ]
-    group.z <- group.z[ order(group.z$score), ]
+    group.z <- group.z[ order(group.z$"Fusion genes",  decreasing = TRUE), ]
+    group.z <- group.z[ order(group.z$Tier), ]
     
   ##### Otherwise order table by the highest absolute values for Patient vs [int_cancer] difference
   } else if ( length(genes) > 0 ) {
@@ -1508,9 +1509,8 @@ fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   return( p )
 }
 
-##### Code from UMCCRISE to prioritise SV events https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd
-sv_prioritize <- function(sv_file) {
-
+sv_prioritize_short <- function(sv_file) {
+  
   col_types <- "ccciicccccc"
   sv_all = NULL
   
@@ -1518,15 +1518,109 @@ sv_prioritize <- function(sv_file) {
     sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
       tidyr::unnest(annotation = strsplit(annotation, ',')) %>% # Unpack multiple annotations per region
       tidyr::separate(annotation,
-                      c('type', 'annotation', 'gene', 'transcript', 'priority', 'score'),
+                      c('Event', 'Annotation', 'Gene', 'Transcript', 'Priority', 'Tier'),
                       sep = '\\|', convert = TRUE) %>% # Unpack annotation columns %>%
+      dplyr::mutate(start = format(start, big.mark = ',', trim = T),
+                    end = format(end, big.mark = ',', trim = T)) %>% 
+      dplyr::mutate(Location = str_c(chrom, ':', start, sep = ''),
+                    Location = ifelse(is.na(end), Location, str_c(Location))) %>%
       dplyr::mutate(SR = split_read_support, PR = paired_support_PR) %>%
-      dplyr::select(chrom, start, end, gene, priority, score, annotation, type, lof, SR, PR) %>%
-      dplyr::distinct() %>%
-      dplyr::mutate(chrom = factor(chrom, levels = c(1:22, "X", "Y", "MT")))
+      dplyr::select(Location, Gene, Priority, Tier, Annotation, Event, SR, PR) %>%
+      dplyr::distinct()
+      # dplyr::mutate(Chrom = factor(Chrom, levels = c(1:22, "X", "Y", "MT")))
   }
-
   return( sv_all )
+}
+  
+##### Code from UMCCRISE to prioritise SV events https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd
+sv_prioritize <- function(sv_file) {
+  
+  col_types <- "ccciiccccciiccccdl"
+  sv_all = NULL
+
+  if (length(readLines(con = sv_file, n = 2)) > 1) {
+    
+    sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
+      dplyr::select(-caller, -sample) %>% 
+      split_sv_field(BPI_AF, is_pct = T) %>% 
+      split_sv_field(AF, is_pct = T) %>% 
+      split_sv_field(CN) %>% 
+      split_sv_field(CN_change) %>% 
+      dplyr::mutate(
+        Ploidy = as.double(Ploidy),
+        Ploidy = format(Ploidy, nsmall = 2)
+      ) %>% 
+      tidyr::separate(split_read_support, c("SR (alt)", "SR (ref)"), ",") %>% 
+      dplyr::mutate(SR = as.integer(`SR (alt)`)) %>% 
+      tidyr::separate(paired_support_PR, c("PR (alt)", "PR (ref)"), ",") %>% 
+      dplyr::mutate(PR = as.integer(`PR (alt)`)) %>% 
+      tidyr::separate(paired_support_PE, c("PE (alt)", "PE (ref)"), ",") %>% 
+      dplyr::mutate(PE = as.integer(`PE (alt)`)) %>% 
+      
+      dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
+      
+      tidyr::unnest(annotation = strsplit(annotation, ',')) %>%  # Unpack multiple annotations per region
+      tidyr::separate(annotation,
+                      c('event', 'effect', 'genes', 'transcript', 'detail', 'tier'),
+                      sep = '\\|', convert = TRUE) %>%  # Unpack annotation columns
+    
+      dplyr::mutate(start = format(start, big.mark = ',', trim = T),
+                    end = format(end, big.mark = ',', trim = T)) %>% 
+      dplyr::mutate(location = str_c(chrom, ':', start, sep = ''),
+                    location = ifelse(is.na(end), location, str_c(location))) %>% 
+      dplyr::arrange(tier, effect, desc(AF), genes) %>% 
+          
+      dplyr::mutate(Gene = subset_genes(genes, c(1, 2)),
+                    Gene = ifelse((str_split(genes, '&') %>% map_int(length)) > 2,
+                                  str_c(Gene, '...', sep = ', '),
+                                  Gene),
+                    `Other affected genes` = subset_genes(genes, -c(1,2)) %>% str_replace_all('&', ', '),
+                    Gene = ifelse(str_detect(effect, "gene_fusion"),
+                                  Gene,
+                                  Gene %>% str_replace_all('&', ', '))
+                    ) %>% 
+      separate(effect, c("Effect", "Other effects"), sep = '&') %>% 
+      dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = detail, Location = location, AF, `CN chg` = CN_change, SR, PR, CN, Ploidy, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF1, `AF at breakpoint 2` = AF2, `CN at breakpoint 1` = CN1, `CN at breakpoint 2` = CN2, `CN change at breakpoint 1` = CN_change1, `CN change at breakpoint 2` = CN_change2, `AF before adjustment, bp 1` = BPI_AF1, `AF before adjustment, bp 2` = BPI_AF2
+      ) %>%
+      dplyr::distinct()
+      # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%
+
+  } else {
+    warning('No prioritized events detected')
+  }
+  return( sv_all )
+}
+
+##### Function used in the "sv_prioritize" function
+subset_genes = function(genes, ind) {
+  genes %>% str_split('&') %>% map(~ .[ind] %>% replace("", NA) %>% .[!is.na(.)]) %>% map_chr(~ ifelse(length(.) > 0, str_c(., collapse = '&'), ""))
+}
+
+##### Function used in the "sv_prioritize" function
+format_val = function(val, is_pct = F) {
+  ifelse(!is.na(val), 
+         format(val,  digits = 1) %>% str_c(ifelse(is_pct, "%", "")), 
+         NA)
+}
+
+##### Function used in the "sv_prioritize" function 
+split_sv_field = function(.data, field, is_pct = F) {
+  f_q = rlang::enquo(field)
+  f_str = rlang::quo_name(f_q)
+  f1_str = str_c(f_str, '1')
+  f2_str = str_c(f_str, '2')
+  f1_q = sym(f1_str)
+  f2_q = sym(f2_str)
+  .data %>% 
+    separate(!!f_q, c(f1_str, f2_str), ",") %>% 
+    dplyr::mutate(
+      !!f1_q := as.double(!!f1_q) * ifelse(is_pct, 100, 1),
+      !!f2_q := as.double(!!f2_q) * ifelse(is_pct, 100, 1),
+      !!f_q  := (!!f1_q + ifelse(is.na(!!f2_q), !!f1_q, !!f2_q)) / 2,
+      !!f_q  := format_val(!!f_q, is_pct),
+      !!f1_q := format_val(!!f1_q, is_pct),
+      !!f2_q := format_val(!!f2_q, is_pct)
+    )
 }
 ```
 
@@ -1552,6 +1646,7 @@ suppressMessages(library(ggforce))
 suppressMessages(library(NOISeq))
 suppressMessages(library(lares))
 suppressMessages(library(openxlsx))
+suppressMessages(library(data.table))
 suppressMessages(library(package=paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE))
 suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)) # required to get chromosomes lengts for fusionsBezierPlot function generating Bezier plot to present gene fusions in the genomics context
 ```
@@ -1666,7 +1761,6 @@ if ( file.exists(pcgr_file) ) {
   ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
   
   ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
-  ref_genes.list[["pcgr"]]$AF_NORMAL <- round(ref_genes.list[["pcgr"]]$AF_NORMAL, digits = 2)
   
 } else {
   
@@ -1689,12 +1783,21 @@ if ( file.exists(purple_file) ) {
 }
 
 ##### Check if manta (structural variants (SVs)) file exists
-sv_file <- paste(params$batch, "structural", paste0(batch, "-sv-prioritize-manta-pass.tsv"), sep = "/")
+sv_file_1 <- paste(params$batch, "structural", paste0(batch, "-sv-prioritize-manta-pass.tsv"), sep = "/")
+sv_file_2 <- paste(params$batch, "structural", paste0(batch, "-manta.tsv"), sep = "/")
 runSVsChunk <- TRUE
 
-if ( file.exists(sv_file) ) {
+if ( file.exists(sv_file_1) ) {
   
-  ref_genes.list[["manta"]] <- sv_prioritize(sv_file)
+  ref_genes.list[["manta"]] <- sv_prioritize_short(sv_file_1)
+
+} else if ( file.exists(sv_file_2) ) {
+  
+  ref_genes.list[["manta"]] <- sv_prioritize(sv_file_2)
+  ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][, c("Tier", "Event", "Gene", "Effect", "Detail", "Location", "AF", "CN chg", "SR", "PR", "CN", "Ploidy", "Transcript", "Other effects")]
+  
+  ##### Omit SVs without assigned gene
+  ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][ ref_genes.list[["manta"]]$Gene != "",  ]
   
 } else {
   
@@ -1850,7 +1953,7 @@ if ( params$filter && params$transform == "CPM" ) {
   ##### Remove genes with CPM of at least 1 in less than 10% of samples
   #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
   
-  keep <- rowSums(cpm(y)>1) >= ncol(data)/10
+  keep <- rowSums(edgeR::cpm(y)>1) >= ncol(data)/10
   y$filtered <- y[keep, , keep.lib.sizes=FALSE]
   
   #cat(nrow(y$filtered$counts), "genes remained after filtering out of the", nrow(data), "genes in the input read count matrix\n\n")
@@ -2461,7 +2564,7 @@ pizzly.fusions <- ref_genes.list[["pizzly"]]
 quant <- ref_genes.list[["kallisto"]]
 #sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
-quant.sorted.filtered <- dplyr::filter(arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.9)))
+quant.sorted.filtered <- dplyr::filter(dplyr::arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.9)))
 
 #initialize an empty dataframe
 result <- data.frame()
@@ -2717,29 +2820,34 @@ pizzly.fusions.cut <- pizzly.fusions.cut[ , c("geneA.name", "geneB.name", "pairc
 ##### Deal with MANTA results
 ##### Add row for gene fusion events so that there is one row per gene
 manta_sv <- ref_genes.list[["manta"]]
-manta_sv$event <- manta_sv$gene
-  
+manta_sv$"Fusion genes" <- manta_sv$Gene
+
 i <- 1
   
 while ( i <= nrow(manta_sv) ) {
     
-  if ( length(strsplit(manta_sv$gene[i], split='&', fixed=TRUE)[[1]]) > 1 ) {
+  if ( length(strsplit(manta_sv$Gene[i], split='&', fixed=TRUE)[[1]]) > 1 ) {
       
     ##### Insert new row for events involving two genes
     manta_sv <- InsertRow(manta_sv, manta_sv[i,], RowNum = i)
       
-    manta_sv$gene[i] <- strsplit(manta_sv$event[i], split='&', fixed=TRUE)[[1]][1]
-    manta_sv$gene[i+1] <- strsplit(manta_sv$event[i], split='&', fixed=TRUE)[[1]][2]
-      
+    manta_sv$Gene[i] <- strsplit(manta_sv$Gene[i], split='&', fixed=TRUE)[[1]][1]
+    manta_sv$Gene[i+1] <- strsplit(manta_sv$Gene[i+1], split='&', fixed=TRUE)[[1]][2]
+    
+    i <- i + 2
+    
+  } else {
+    manta_sv$"Fusion genes"[i] <- ""
+    
+    i <- i + 1
   }
-  i <- i + 1
 }
-  
+
 ##### Compare fusion genes called by PIZZLy and MANTA
 ##### First limit MANTA output to fusions only
 if ( runFusionChunk ) {
   
-  manta_pizzly.fusions <- unique(manta_sv[ grep("&", manta_sv$event),  ]$gene)
+  manta_pizzly.fusions <- unique(manta_sv[ grep("&", manta_sv$"Fusion genes"),  ]$Gene)
   manta_pizzly.fusions <- manta_pizzly.fusions[ manta_pizzly.fusions %in% unique(c(as.vector(pizzly.fusions.cut$geneA.name), as.vector(pizzly.fusions.cut$geneB.name))) ]
     
   ##### Flag PIZZLY fusions that were also reported in MANTA
@@ -3744,15 +3852,13 @@ Expression profiles for 5 gene fusion events involving **DNA-supported fusion** 
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[1]) ) { paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-") }}`
 
-##### Fusion genes visualisation 
-
 ```{r fusion_1_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-geneA <- pizzly.fusions$geneA.name[1]
-geneB <- pizzly.fusions$geneB.name[1]
+geneA <- as.vector(pizzly.fusions$geneA.name[1])
+geneB <- as.vector(pizzly.fusions$geneB.name[1])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
@@ -3774,6 +3880,8 @@ if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
 ##### Create file listing fusion events for which Clinker plot is available
 clinker_fusions <- ""
 ```
+
+##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
 
 ```{r fusion_1_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -3851,12 +3959,10 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[2]) ) { paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-") }}`
 
-##### Fusion genes visualisation 
-
 ```{r fusion_2_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions$geneA.name[2]
-geneB <- pizzly.fusions$geneB.name[2]
+geneA <- as.vector(pizzly.fusions$geneA.name[2])
+geneB <- as.vector(pizzly.fusions$geneB.name[2])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
@@ -3875,6 +3981,8 @@ if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   runClinkerChunk <- FALSE
 }
 ```
+
+##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
 
 ```{r fusion_2_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -3952,12 +4060,10 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[3]) ) { paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-") }}`
 
-##### Fusion genes visualisation 
-
 ```{r fusion_3_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions$geneA.name[3]
-geneB <- pizzly.fusions$geneB.name[3]
+geneA <- as.vector(pizzly.fusions$geneA.name[3])
+geneB <- as.vector(pizzly.fusions$geneB.name[3])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
@@ -3976,6 +4082,8 @@ if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   runClinkerChunk <- FALSE
 }
 ```
+
+##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
 
 ```{r fusion_3_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -4053,12 +4161,10 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[4]) ) { paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-") }}`
 
-##### Fusion genes visualisation 
-
 ```{r fusions_4_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions$geneA.name[4]
-geneB <- pizzly.fusions$geneB.name[4]
+geneA <- as.vector(pizzly.fusions$geneA.name[4])
+geneB <- as.vector(pizzly.fusions$geneB.name[4])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
@@ -4077,6 +4183,8 @@ if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
   runClinkerChunk <- FALSE
 }
 ```
+
+##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }`  
 
 ```{r fusion_4_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -4153,12 +4261,10 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[5]) ) { paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-") }}`
 
-##### Fusion genes visualisation 
-
 ```{r fusion_5_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
-geneA <- pizzly.fusions$geneA.name[5]
-geneB <- pizzly.fusions$geneB.name[5]
+geneA <- as.vector(pizzly.fusions$geneA.name[5])
+geneB <- as.vector(pizzly.fusions$geneB.name[5])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
@@ -4180,6 +4286,8 @@ if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
 ##### Write list of fusion events for which Clinker plot is available into a file
 write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name,".clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 ```
+
+##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
 
 ```{r fusion_5_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -4264,7 +4372,7 @@ SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } el
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$gene) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$gene) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
@@ -4274,7 +4382,11 @@ targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
 ##### Consider only genes with mutations calssified within Tiers 1-3
-genes <- unique(manta_sv$gene)
+genes <- unique(manta_sv$Gene)
+
+##### Consider only genes in MANTA output for which the expression levels were measured
+genes <- unique(manta_sv$Gene)
+genes <- genes[ genes %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ]
 
 ##### Deal with no genes
 if ( length(genes) == 0 ) {
@@ -4282,7 +4394,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% "lof" ], targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Present the expression summary table
 sv_genes.expr.z[[1]]
@@ -4310,7 +4422,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r sv_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv[ , names(manta_sv) %!in% "lof" ], targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
@@ -4614,8 +4726,10 @@ if ( runFusionChunk ) {
   cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneB.name) )
 }
             
-##### Add genes involved in SVs
-cn_genes <- c( unique(cn_genes, unique(manta_sv$gene)) )
+##### Add genes involved in SVs (if data available)
+if ( runSVsChunk ) {
+  cn_genes <- c( unique(cn_genes, unique(manta_sv$Gene)) )
+}
 
 if ( runPcgrChunk && length(cn_genes) > 0 ) {
   
@@ -5485,12 +5599,12 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-**`r if ( runSVsChunk ) { length(unique(manta_sv$gene)) } else { length(NULL) }`** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).
+**`r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } else { length(NULL) }`** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).
 
 ```{r drugs_predictive_sv_genes, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate table with drugs targeting dysregulated cancer genes
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-genes <- unique(manta_sv$gene)
+genes <- unique(manta_sv$Gene)
 
 drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = NULL)
 
