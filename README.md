@@ -15,6 +15,9 @@ NOTE, currently the pipeline is limited to report on samples from **pancreatic t
 * [Testing](#testing)
 * [UMCCR HPC](#umccr-hpc)
 * [Usage](#usage)
+  * [Arguments](#arguments)
+  * [Command line use example](#command-line-use-example)
+
 
 <!-- vim-markdown-toc -->
 
@@ -72,6 +75,8 @@ To be done...
 
 To run the pipeline execure the *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script. This script catches the arguments from the command line and passes them to the *[RNAseq_report.Rmd](./rmd_files/RNAseq_report.Rmd)* script to produce the interactive HTML report.
 
+### Arguments
+
 Argument | Description | Required
 ------------ | ------------ | ------------
 --sample_name | Desired sample name to be presented in the report | **Yes**
@@ -84,17 +89,25 @@ Argument | Description | Required
 --log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (defualt) and `FALSE` | No
 --scaling | Apply row-wise (across samples) or column-wise (across genes in a sample) data scaling. Available options are: `sample-wise` (across samples, default) or `gene-wise` (across genes) | No
 --sample_id | Sample ID required to match sample with clinical information (if available) | No
---batch | Location of the corresponding WGS-related data | No
+--umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta) output files) from genomic-related data | No
 --clinical_info | Location of *xslx* file with clinical information | No
 --plots_mode | Plotting mode. Available options: `Static` (default), `interactive` and `semi-interactive` | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (defualt) and `FALSE` | No
+--ensembl_version | Version of Ensembl database to be used for genes annotation (default is `86`) | No
+--ucsc_genome_assembly | Version of UCSC Homo sapiens genome to be used for genes (default is `19`) | No
 
 <br />
 
-**Command line use example**:
+**Packages**: *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)*, *[rapportools](https://cran.r-project.org/web/packages/rapportools/index.html)*, 
+*[optparse](https://cran.r-project.org/web/packages/optparse/index.html)*, *[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)*, *[readr](https://cran.r-project.org/web/packages/readr/index.html)*, *[tidyverse](https://www.tidyverse.org/)*, *[dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)*, *[tidyr](https://cran.r-project.org/web/packages/tidyr/index.html)*, *[rlang](https://cran.r-project.org/web/packages/rlang/index.html)*, *[DT](https://cran.r-project.org/web/packages/DT/index.html)*, *[kableExtra](https://cran.r-project.org/web/packages/kableExtra/index.html)*, *[matrixStats](https://cran.rstudio.com/web/packages/matrixStats/index.html)*, *[DataCombine](https://cran.r-project.org/web/packages/DataCombine/index.html)*, *[knitr](https://cran.r-project.org/web/packages/knitr/index.html)*, *[plotly](https://plot.ly/r/)*, *[ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)*, *[ggforce](https://cran.r-project.org/web/packages/ggforce/index.html)*, *[magick](https://cran.r-project.org/web/packages/magick/index.html)*, *[htmltools](https://cran.r-project.org/web/packages/htmltools/index.htm)*, *[htmlwidgets](https://cran.r-project.org/web/packages/htmlwidgets/index.html)*, *[devtools](https://cran.r-project.org/web/packages/devtools/index.html)*, *[EnsDb.Hsapiens.v86](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v86.html)*\*, *[BSgenome.Hsapiens.UCSC.hg19](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg19.html)*\**
+
+\*  Ensembl based annotation version 86 is used as default but can be updated <br >
+\**  UCSC Homo sapiens genome sequences version hg19 is used as default but can be updated
+
+### Command line use example
 
 ```
-Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --sample_id 2016.249.17.MH.P033  --batch ../data/umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --plots_mode semi-interactive
+Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --sample_id 2016.249.17.MH.P033  --umccrise ../data/umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --plots_mode semi-interactive
 ```
 
 The interactive HTML report named `CCR170115b_MH17T002P033_RNA.RNAseq_report.html` will be created in `../RNAseq_report` folder.
