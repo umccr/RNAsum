@@ -26,10 +26,12 @@
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (defualt) and "FALSE"
 #   scaling:      Apply row-wise (across samples) or column-wise (across genes in a sample) data scaling. Available options are: "sample-wise" (across samples, default) or "gene-wise" (across genes)
 #   sample_id:     Sample ID
-#   batch (optional):   Location of the corresponding WGS-related data (with PURPLE and Manta output files)
+#   batch (optional):  Location of the corresponding WGS-related data (with PURPLE and Manta output files)
 #   clinical_info (optional):   Location of xslx file with clinical information
 #   plots_mode:    Plotting mode. Available options are: "Static" (default), "interactive" and "semi-interactive"
 #   hide_code_btn :    Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
+#   ensembl_version :  Version of Ensembl database to be used for genes annotation (default is "86")
+#   ucsc_genome_assembly :  Version of UCSC Homo sapiens genome to be used for genes (default is "19")
 #
 ################################################################################
 
@@ -83,7 +85,11 @@ option_list = list(
   make_option(c("-p", "--plots_mode"), action="store", default=NA, type='character',
               help="Static (default), interactive or semi-interactive mode for plots"),
   make_option(c("-d", "--hide_code_btn"), action="store", default=NA, type='character',
-              help="Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report")
+              help="Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report"),
+  make_option(c("-e", "--ensembl_version"), action="store", default=NA, type='character',
+              help="Version of Ensembl database to be used for genes annotation"),
+  make_option(c("-u", "--ucsc_genome_assembly"), action="store", default=NA, type='character',
+              help="Version of UCSC Homo sapiens genome to be used for genes annotation")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -141,6 +147,16 @@ if ( is.na(opt$hide_code_btn)  ) {
   opt$hide_code_btn <- TRUE
 }
 
+if ( is.na(opt$ensembl_version)  ) {
+  
+  opt$ensembl_version <- 86
+}
+
+if ( is.na(opt$ucsc_genome_assembly)  ) {
+  
+  opt$ucsc_genome_assembly <- 19
+}
+
 ##### Check if specified tissue type is valid
 if ( opt$tissue %!in% c("pancreas", "cervix") ) {
   
@@ -182,4 +198,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, tissue = tolower(opt$tissue), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, sample_id = opt$sample_id, batch = opt$batch, clinical_info = opt$clinical_info, plots_mode = tolower(opt$plots_mode), hide_code_btn = as.logical(opt$hide_code_btn)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, tissue = tolower(opt$tissue), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, sample_id = opt$sample_id, batch = opt$batch, clinical_info = opt$clinical_info, plots_mode = tolower(opt$plots_mode), hide_code_btn = as.logical(opt$hide_code_btn), ensembl_version = as.numeric(opt$ensembl_version), ucsc_genome_assembly = as.numeric(opt$ucsc_genome_assembly)))
