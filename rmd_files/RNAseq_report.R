@@ -14,7 +14,7 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --sample_id 2016.249.17.MH.P033  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --plots_mode static
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --subject_id 2016.249.17.MH.P033  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --plots_mode static
 #
 #   sample_name:   Desired sample name to be presented in the report
 #   tissue:        Tissue from which the samples were derived
@@ -25,7 +25,7 @@
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (defualt) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (defualt) and "FALSE"
 #   scaling:      Apply row-wise (across samples) or column-wise (across genes in a sample) data scaling. Available options are: "sample-wise" (across samples, default) or "gene-wise" (across genes)
-#   sample_id:     Sample ID
+#   subject_id (optional):     Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   umccrise (optional):  Location of the corresponding umccrise output from genomic-related data (including PCGR, PURPLE and Manta output files)
 #   cn_loss (optional):  CN threshold value to classify genes within lost regions (default is "1.5")
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "3")
@@ -78,7 +78,7 @@ option_list = list(
               help="Log (base 2) transform data before normalisation"),
   make_option(c("-z", "--scaling"), action="store", default=NA, type='character',
               help="Scaling for z-score transformation (sample-wise or gene-wise"),
-  make_option(c("-i", "--sample_id"), action="store", default=NA, type='character',
+  make_option(c("-i", "--subject_id"), action="store", default=NA, type='character',
               help="Sample ID"),
   make_option(c("-g", "--umccrise"), action="store", default=NA, type='character',
               help="Location of the corresponding WGS-related data"),
@@ -110,7 +110,7 @@ if ( is.na(opt$sample_name) || is.na(opt$tissue) || is.na(opt$count_file) || is.
 }
 
 ##### Make sure that sample ID is availabe if clincal data is provided
-if ( !is.na(opt$clinical_info) && is.na(opt$sample_id)  ) {
+if ( !is.na(opt$clinical_info) && is.na(opt$subject_id)  ) {
   
   cat("\nSample ID is missing! Please provide sample ID used in the clinical data.\n\n")
   
@@ -214,4 +214,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, tissue = tolower(opt$tissue), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, sample_id = opt$sample_id, umccrise = opt$umccrise, clinical_info = opt$clinical_info, plots_mode = tolower(opt$plots_mode), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), ensembl_version = as.numeric(opt$ensembl_version), ucsc_genome_assembly = as.numeric(opt$ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, tissue = tolower(opt$tissue), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, subject_id = opt$subject_id, umccrise = opt$umccrise, clinical_info = opt$clinical_info, plots_mode = tolower(opt$plots_mode), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), ensembl_version = as.numeric(opt$ensembl_version), ucsc_genome_assembly = as.numeric(opt$ucsc_genome_assembly)))
