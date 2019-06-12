@@ -88,9 +88,12 @@ Argument | Description | Required
 --filter | Filtering out low expressed genes. Available options are: `TRUE` (defualt) and `FALSE` | No
 --log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (defualt) and `FALSE` | No
 --scaling | Apply row-wise (across samples) or column-wise (across genes in a sample) data scaling. Available options are: `sample-wise` (across samples, default) or `gene-wise` (across genes) | No
---subject_id | Subject ID required to match sample with clinical information (if available) | No
 --umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta) output files) from genomic-related data | No
+--pcgr_tier | Tier threshold for reporting variants reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available, default is `3`) | No
+--cn_loss | CN threshold value to classify genes within lost regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `1.5`) | No
+--cn_gain | CN threshold value to classify genes within gained regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `3`) | No
 --clinical_info | Location of *xslx* file with clinical information | No
+--subject_id | Subject ID required to match sample with clinical information (if available) | No
 --plots_mode | Plotting mode. Available options: `Static` (default), `interactive` and `semi-interactive` | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (defualt) and `FALSE` | No
 --ensembl_version | Version of Ensembl database to be used for genes annotation (default is `86`) | No
