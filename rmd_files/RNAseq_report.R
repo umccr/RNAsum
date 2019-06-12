@@ -14,7 +14,7 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --subject_id 2016.249.17.MH.P033  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --plots_mode static
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --subject_id 2016.249.17.MH.P033  --plots_mode static
 #
 #   sample_name:   Desired sample name to be presented in the report
 #   tissue:        Tissue from which the samples were derived
@@ -25,11 +25,12 @@
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (defualt) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (defualt) and "FALSE"
 #   scaling:      Apply row-wise (across samples) or column-wise (across genes in a sample) data scaling. Available options are: "sample-wise" (across samples, default) or "gene-wise" (across genes)
-#   subject_id (optional):     Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   umccrise (optional):  Location of the corresponding umccrise output from genomic-related data (including PCGR, PURPLE and Manta output files)
+#   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "3")
 #   cn_loss (optional):  CN threshold value to classify genes within lost regions (default is "1.5")
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "3")
 #   clinical_info (optional):   Location of xslx file with clinical information
+#   subject_id (optional):     Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   plots_mode:    Plotting mode. Available options are: "Static" (default), "interactive" and "semi-interactive"
 #   hide_code_btn :    Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
 #   ensembl_version :  Version of Ensembl database to be used for genes annotation (default is "86")
@@ -78,16 +79,18 @@ option_list = list(
               help="Log (base 2) transform data before normalisation"),
   make_option(c("-z", "--scaling"), action="store", default=NA, type='character',
               help="Scaling for z-score transformation (sample-wise or gene-wise"),
-  make_option(c("-i", "--subject_id"), action="store", default=NA, type='character',
-              help="Sample ID"),
   make_option(c("-g", "--umccrise"), action="store", default=NA, type='character',
               help="Location of the corresponding WGS-related data"),
+  make_option(c("-j", "--pcgr_tier"), action="store", default=NA, type='character',
+              help="Tier threshold for reporting variants reported in PCGR"),
   make_option(c("-a", "--cn_loss"), action="store", default=NA, type='character',
               help="CN threshold value to classify genes within lost regions"),
   make_option(c("-b", "--cn_gain"), action="store", default=NA, type='character',
               help="CN threshold value to classify genes within gained regions"),
   make_option(c("-m", "--clinical_info"), action="store", default=NA, type='character',
               help="Location of xslx file with clinical information"),
+  make_option(c("-i", "--subject_id"), action="store", default=NA, type='character',
+              help="Sample ID"),
   make_option(c("-p", "--plots_mode"), action="store", default=NA, type='character',
               help="Static (default), interactive or semi-interactive mode for plots"),
   make_option(c("-d", "--hide_code_btn"), action="store", default=NA, type='character',
@@ -141,6 +144,11 @@ if ( is.na(opt$log)  ) {
 if ( is.na(opt$scaling)  ) {
   
   opt$scaling <- "sample-wise"
+}
+
+if ( is.na(opt$pcgr_tier)  ) {
+  
+  opt$pcgr_tier <- 3
 }
 
 if ( is.na(opt$cn_loss)  ) {
@@ -214,4 +222,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, tissue = tolower(opt$tissue), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, subject_id = opt$subject_id, umccrise = opt$umccrise, clinical_info = opt$clinical_info, plots_mode = tolower(opt$plots_mode), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), ensembl_version = as.numeric(opt$ensembl_version), ucsc_genome_assembly = as.numeric(opt$ucsc_genome_assembly)))
+rmarkdown::render(input = paste(getwd(), "RNAseq_report.Rmd", sep = "/"), output_file = paste0(opt$sample_name, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, tissue = tolower(opt$tissue), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), ensembl_version = as.numeric(opt$ensembl_version), ucsc_genome_assembly = as.numeric(opt$ucsc_genome_assembly)))
