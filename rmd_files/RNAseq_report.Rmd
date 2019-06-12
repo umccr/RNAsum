@@ -2968,13 +2968,13 @@ treatment_timeline
 
 ## Mutated genes
 
-mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer cohorts. NOTE, only PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants are reported.
+mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer cohorts. NOTE, only PCGR [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants are reported.
 
 Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ### - Summary table {.tabset}
 
-Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))` include [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants. Of these, the expression of **`r length(which(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL))` include [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants. Of these, the expression of **`r length(which(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
@@ -2983,8 +2983,8 @@ Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r 
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-##### Consider only genes with mutations calssified within Tiers 1-3
-genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL)
+##### Consider only genes with mutations calssified within user-defined tiers
+genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
 
 ##### Deal with no genes
 if ( length(genes) == 0 ) {
@@ -3057,7 +3057,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3084,7 +3084,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3111,7 +3111,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3138,7 +3138,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3165,7 +3165,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3192,7 +3192,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3219,7 +3219,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3246,7 +3246,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3273,7 +3273,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -3300,7 +3300,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 
 } else {
   if ( is.na(gene) ) {
-    cat(paste("There are", length(mut_genes.expr.z[[2]]$SYMBOL), "mutated genes that include tier 1-3 variants!", sep=" "))
+    cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
   } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -4426,7 +4426,7 @@ Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affec
 targets <- ref_datasets.list[[tissue]][["sample_annot"]]
 data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
 
-##### Consider only genes with mutations calssified within Tiers 1-3
+##### Consider only genes with mutations calssified within user-defined tiers
 genes <- unique(manta_sv$Gene)
 
 ##### Consider only genes in MANTA output for which the expression levels were measured
@@ -4772,7 +4772,7 @@ CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } 
 
 ### - Expression vs CN
 
-Scatterplot comparing the per-gene difference in **mRNA expression** (Z-scores) between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 3 or < 0.5 are annotated. NOTE: only [Cancer genes], [Mutated genes] with [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants (if mutation information is available), genes involved in [Fusion genes] and [Structural variants] (if SV information is available) are presented.
+Scatterplot comparing the per-gene difference in **mRNA expression** (Z-scores) between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 3 or < 0.5 are annotated. NOTE: only [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available), genes involved in [Fusion genes] and [Structural variants] (if SV information is available) are presented.
 
 ```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
@@ -4797,8 +4797,8 @@ if ( runSVsChunk ) {
 
 if ( runPcgrChunk && length(cn_genes) > 0 ) {
   
-  ##### Add mutated genes with vatiants tier 1-3
-  cn_genes <- c( unique(cn_genes, ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL) )
+  ##### Add mutated genes with vatiants within user-defined tiers
+  cn_genes <- c( unique(cn_genes, ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) )
   data <- data[ data$Gene %in% cn_genes, ]
  
   mutCNexprPlot(data = data, mut_data = TRUE, cn_bottom = 0.5, cn_top = 3, int_cancer = int_cancer_group, plot_mode = params$plots_mode)
@@ -4865,7 +4865,7 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_datasets.list[[tissue]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_datasets.list[[tissue]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
@@ -5525,7 +5525,7 @@ List of drugs targeting variants in detected [Mutated genes], dysregulated [Canc
 
 Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
-**`r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c("1", "2", "3" ), ]$SYMBOL))`** genes with PCGR [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants were screened for suitable drugs (see [Mutated genes] section).
+**`r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL))`** genes with PCGR [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants were screened for suitable drugs (see [Mutated genes] section).
 
 ```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
@@ -5733,7 +5733,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
-**`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r params$cn_gain` (**gains**) or < `r params$cn_loss` (**losses**, see [CN altered genes] section), and reported as either [Cancer genes], [Mutated genes] with [tier 1-3](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} variants (if mutation information is available) or involved in [Fusion genes] or [Structural variants] (if SV information is available) were screened for suitable drugs.
+**`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r params$cn_gain` (**gains**) or < `r params$cn_loss` (**losses**, see [CN altered genes] section), and reported as either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or involved in [Fusion genes] or [Structural variants] (if SV information is available) were screened for suitable drugs.
 
 #### Gains
 
