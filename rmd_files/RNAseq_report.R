@@ -33,8 +33,8 @@
 #   subject_id (optional):     Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   plots_mode:    Plotting mode. Available options are: "Static" (default), "interactive" and "semi-interactive"
 #   hide_code_btn :    Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
-#   ensembl_version :  Version of Ensembl database to be used for genes annotation (default is "96")
-#   ucsc_genome_assembly :  Version of UCSC Homo sapiens genome to be used for genes (default is "38")
+#   ensembl_version :  Version of Ensembl database to be used for genes annotation (default is "75")
+#   ucsc_genome_assembly :  Version of UCSC Homo sapiens genome to be used for genes (default is "19")
 #
 ################################################################################
 
@@ -173,12 +173,12 @@ if ( is.na(opt$hide_code_btn)  ) {
 
 if ( is.na(opt$ensembl_version)  ) {
   
-  opt$ensembl_version <- 96
+  opt$ensembl_version <- 75
 }
 
 if ( is.na(opt$ucsc_genome_assembly)  ) {
   
-  opt$ucsc_genome_assembly <- 38
+  opt$ucsc_genome_assembly <- 19
 }
 
 ##### Check if specified tissue type is valid
