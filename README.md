@@ -96,8 +96,8 @@ Argument | Description | Required
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
 --plots_mode | Plotting mode. Available options: `Static` (default), `interactive` and `semi-interactive` | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (defualt) and `FALSE` | No
---ensembl_version | Version of Ensembl database to be used for genes annotation (default is `86`) | No
---ucsc_genome_assembly | Version of UCSC Homo sapiens genome to be used for genes (default is `19`) | No
+--ensembl_version | Version of Ensembl database to be used for genes annotation (default is `96`) | No
+--ucsc_genome_assembly | Version of UCSC Homo sapiens genome to be used for genes (default is `38`) | No
 
 <br />
 
