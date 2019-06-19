@@ -14,10 +14,10 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --subject_id 2016.249.17.MH.P033  --plots_mode static
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --dataset pdac  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --subject_id 2016.249.17.MH.P033  --plots_mode static
 #
 #   sample_name:   Desired sample name to be presented in the report
-#   tissue:        Tissue from which the samples were derived
+#   dataset:       Dataset to be used as external reference cohort
 #   count_file:    Location and name of the read count file from bcbio RNA-seq pipeline
 #   report_dir:    Desired location for the report
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (defualt) and "TPM"
@@ -63,8 +63,8 @@ suppressMessages(library(optparse))
 option_list = list(
   make_option(c("-s", "--sample_name"), action="store", default=NA, type='character',
               help="Desired sample name to be presented in the report"),
-  make_option(c("-o", "--tissue"), action="store", default=NA, type='character',
-              help="Tissue from which the samples were derived"),
+  make_option(c("-o", "--dataset"), action="store", default=NA, type='character',
+              help="Dataset to be used as external reference cohort"),
   make_option(c("-c", "--count_file"), action="store", default=NA, type='character',
               help="Location and name of the read count file from bcbio RNA-seq pipeline"),
   make_option(c("-r", "--report_dir"), action="store", default=NA, type='character',
@@ -104,10 +104,10 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 ##### Read in argument from command line and check if all were provide by the user
-if ( is.na(opt$sample_name) || is.na(opt$tissue) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
+if ( is.na(opt$sample_name) || is.na(opt$dataset) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
 
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --dataset pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report\n\n")
 
   q()
 }
@@ -181,12 +181,13 @@ if ( is.na(opt$ucsc_genome_assembly)  ) {
   opt$ucsc_genome_assembly <- 19
 }
 
-##### Check if specified tissue type is valid
-if ( opt$tissue %!in% c("pancreas", "cervix") ) {
+##### Check if specified dataset type is valid
+if ( opt$dataset %!in% c("pdac", "cervix", "bladder") ) {
   
-  cat("\nInvalid tissue type! Please use one of the following:\n\n")
-  cat("[ pancreas ] - this will compare the patient's data in the context of samples from TCGA pancreatic ductal adenocarcinoma (PAAD) cohort and GTEx samples from healthy pancreas tissue\n")
-  cat("[ cervix ] - this will compare the patient's data in the context of samples from TCGA cervical squamous cell carcinoma (CESC) cohort and GTEx samples from healthys cervix uteri tissue\n\n")
+  cat("\nInvalid dataset! Please use one of the following:\n\n")
+  cat("[ pdac ] - this will compare the patient's data in the context of samples from TCGA pancreatic ductal adenocarcinoma (PDAC) cohort and UMCCR internal pancreatic ductal adenocarcinoma (PDAC) cohort\n")
+  cat("[ cervix ] - this will compare the patient's data in the context of samples from TCGA cervical squamous cell carcinoma (CESC) cohort and UMCCR internal pancreatic ductal adenocarcinoma (PDAC) cohort\n\n")
+  cat("[ bladder ] - this will compare the patient's data in the context of samples from TCGA bladder urothelial carcinoma (BLCA) cohort and UMCCR internal pancreatic ductal adenocarcinoma (PDAC) cohort\n\n")
   q()
 }
 
@@ -222,4 +223,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", opt$tissue, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, tissue = tolower(opt$tissue), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), ensembl_version = as.numeric(opt$ensembl_version), ucsc_genome_assembly = as.numeric(opt$ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", opt$dataset, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = tolower(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), ensembl_version = as.numeric(opt$ensembl_version), ucsc_genome_assembly = as.numeric(opt$ucsc_genome_assembly)))
