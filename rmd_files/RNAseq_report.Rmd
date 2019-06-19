@@ -15,7 +15,7 @@ output:
     highlight: kate
 params:
   sample_name: 
-  tissue: 
+  dataset: 
   count_file: 
   report_dir: 
   transform: 
@@ -60,21 +60,21 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 ##### The processed data is stored in "ref_datasets.list" list variable with elements holding the following data:
 
-# 1. ref_datasets.list[[tissue]][["combined_data"]] = combined read count data (reference datasets + sample data) ("combineDatasets" function output in the "load_ref_data chunk")
+# 1. ref_datasets.list[[dataset]][["combined_data"]] = combined read count data (reference datasets + sample data) ("combineDatasets" function output in the "load_ref_data chunk")
 
-# 2. ref_datasets.list[[tissue]][["sample_annot"]] = combined data samples annotation ("combineDatasets" function output in the "load_ref_data chunk")
+# 2. ref_datasets.list[[dataset]][["sample_annot"]] = combined data samples annotation ("combineDatasets" function output in the "load_ref_data chunk")
 
-# 3. ref_datasets.list[[tissue]][["clinical_info"]] = clinical information (survival and treatment info)
+# 3. ref_datasets.list[[dataset]][["clinical_info"]] = clinical information (survival and treatment info)
 
-# 4. ref_datasets.list[[tissue]][["combined_data_processed"]] = transformed, filtered and normalised data (see "data_transformation" and "data_normalisation" chunks)
+# 4. ref_datasets.list[[dataset]][["combined_data_processed"]] = transformed, filtered and normalised data (see "data_transformation" and "data_normalisation" chunks)
 
-# 5. ref_datasets.list[[tissue]][["pca"]] = PCA results
+# 5. ref_datasets.list[[dataset]][["pca"]] = PCA results
 
-# 6. ref_datasets.list[[tissue]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
+# 6. ref_datasets.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
 
-# 7. ref_datasets.list[[tissue]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+# 7. ref_datasets.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
 
-# 8. ref_datasets.list[[tissue]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
+# 8. ref_datasets.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
 
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
@@ -232,7 +232,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
   
   ##### Write list of missing genes into a file
   if ( length(gene_list.missing) > 0 ) {
-    write.table(prepare2write(gene_list.missing), file = paste0(params$report_dir, "/", sample_name, ".", params$tissue, ".missing_genes.txt"), sep="\t", quote=FALSE, row.names=TRUE, append = FALSE )
+    write.table(prepare2write(gene_list.missing), file = paste0(params$report_dir, "/", sample_name, ".", params$dataset, ".missing_genes.txt"), sep="\t", quote=FALSE, row.names=TRUE, append = FALSE )
   }
   
     return( list(datasets.comb, targetFile) )
@@ -1658,16 +1658,16 @@ suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc
 
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
-##### Define the reference datasets based on user-defined tissue of sample origin
-ref_tissue <- list( "pancreas" = c(paste(params$ref_data_dir, "Datasets_list_PDAC.txt", sep="/"), "PDAC (UMCCR)", "PDAC (TCGA)"), "cervix" = c(paste(params$ref_data_dir, "Datasets_list_cervical_SCC.txt", sep="/"), "Cervical squamous cell carcinoma", NULL) )
+##### Define the reference datasets based on user-defined input
+ref_dataset <- list( "pdac" = c(paste(params$ref_data_dir, "Datasets_list_PDAC.txt", sep="/"), "PDAC (UMCCR)", "PDAC (TCGA)"), "cervix" = c(paste(params$ref_data_dir, "Datasets_list_cervical_SCC.txt", sep="/"), "PDAC (UMCCR)", "CESC (TCGA)"), "bladder" = c(paste(params$ref_data_dir, "Datasets_list_bladder.txt", sep="/"), "PDAC (UMCCR)", "BLCA (TCGA)") )
 
-tissue <- params$tissue
-int_cancer_group <- ref_tissue[[tissue]][2]
-ext_cancer_group <- ref_tissue[[tissue]][3]
+dataset <- params$dataset
+int_cancer_group <- ref_dataset[[dataset]][2]
+ext_cancer_group <- ref_dataset[[dataset]][3]
 
 
 ##### Create a list with reference datasets
-ref_datasets <- c(tissue)
+ref_datasets <- c(dataset)
 ref_datasets.list <- vector("list", length(ref_datasets))
 names(ref_datasets.list) <- ref_datasets
 
@@ -1687,8 +1687,8 @@ sampleName <- gsub("-ready.counts", "", dataDir[length(dataDir)])
 dataDir <- paste(dataDir[-c(length(dataDir))], collapse ="/")
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_datasets.list[[tissue]] <- combineDatasets(params$sample_name, params$count_file, ref_tissue[[tissue]][1])
-names(ref_datasets.list[[tissue]]) <- c("combined_data", "sample_annot")
+ref_datasets.list[[dataset]] <- combineDatasets(params$sample_name, params$count_file, ref_dataset[[dataset]][1])
+names(ref_datasets.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Check if spreadsheet with clinical information exists
 clinical_info_file <- params$clinical_info
@@ -1696,7 +1696,7 @@ runClinicalChunk <- TRUE
 
 if ( file.exists(clinical_info_file) ) {
   
-  ref_datasets.list[[tissue]][["clinical_info"]] <- read.xlsx(xlsxFile = clinical_info_file, sheet = 1, colNames = TRUE, rowNames = FALSE, detectDates = TRUE, skipEmptyRows = TRUE, skipEmptyCols = TRUE, check.names = TRUE)
+  ref_datasets.list[[dataset]][["clinical_info"]] <- read.xlsx(xlsxFile = clinical_info_file, sheet = 1, colNames = TRUE, rowNames = FALSE, detectDates = TRUE, skipEmptyRows = TRUE, skipEmptyCols = TRUE, check.names = TRUE)
   
 } else {
   runClinicalChunk <- FALSE
@@ -1839,14 +1839,14 @@ if (tolower(params$scaling) == "sample-wise"){
 ```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
 ##### Prapare data for the treatment timeline plot
 ##### Search for row with clinical info for investigated patient
-sampleID.col <- grep(params$subject_id, ref_datasets.list[[tissue]][["clinical_info"]])
+sampleID.col <- grep(params$subject_id, ref_datasets.list[[dataset]][["clinical_info"]])
 
 if ( length(sampleID.col) > 0 ) {
   
   ##### Identify column and row with patients details
-  sampleID.row <- grep(params$subject_id, ref_datasets.list[[tissue]][["clinical_info"]][, sampleID.col])
+  sampleID.row <- grep(params$subject_id, ref_datasets.list[[dataset]][["clinical_info"]][, sampleID.col])
 
-  clinical_info <- ref_datasets.list[[tissue]][["clinical_info"]][ sampleID.row, ]
+  clinical_info <- ref_datasets.list[[dataset]][["clinical_info"]][ sampleID.row, ]
   
   ##### Prepare data frame structure for plotting
   ##### Define treatment types
@@ -1946,8 +1946,8 @@ if ( length(sampleID.col) > 0 ) {
 
 ##### Transformation to CPM or TPM scale (see these blogs for details https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/ and https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/ ).  CPM = Counts Per Million,  TPM = Transcripts Per Kilobase Million. 
 
-data <- ref_datasets.list[[tissue]][["combined_data"]]
-target <- ref_datasets.list[[tissue]][["sample_annot"]]
+data <- ref_datasets.list[[dataset]][["combined_data"]]
+target <- ref_datasets.list[[dataset]][["sample_annot"]]
   
 ##### CPM transformation and filtering
 if ( params$filter && params$transform == "CPM" ) {
@@ -2051,7 +2051,7 @@ if ( !file.exists(PlotsDir) ) {
   dir.create(PlotsDir, recursive=TRUE)
 }
 
-target <- ref_datasets.list[[tissue]][["sample_annot"]]
+target <- ref_datasets.list[[dataset]][["sample_annot"]]
 
 ##### Assigne colours to targets and datasets
 targets.colour <- getTargetsColours(target$Target)
@@ -2244,7 +2244,7 @@ title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
 legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
 invisible(dev.off())
   
-ref_datasets.list[[tissue]][["combined_data_processed"]] <- y$norm
+ref_datasets.list[[dataset]][["combined_data_processed"]] <- y$norm
 ```
 
 ```{r pca, comment = NA, message=FALSE, warning=FALSE}
@@ -2252,12 +2252,12 @@ suppressMessages(library(plotly))
 
 ##### Principal component analysis (PCA)
 ##### Loop through combined datasets and perform PCA
-for ( tissue in names(ref_datasets.list) ) {
+for ( dataset in names(ref_datasets.list) ) {
   
-  target <- ref_datasets.list[[tissue]][["sample_annot"]]
-  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  target <- ref_datasets.list[[dataset]][["sample_annot"]]
+  data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
   
-  ref_datasets.list[[tissue]][["pca"]] <- pca(data, target, plot_mode = params$plots_mode)
+  ref_datasets.list[[dataset]][["pca"]] <- pca(data, target, plot_mode = params$plots_mode)
 }
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2265,10 +2265,10 @@ detach("package:plotly", unload=FALSE)
 
 ```{r gene_annot_count_data, comment = NA, message=FALSE, warning=FALSE}
 ##### Loop through combined, BUT NOT PROCESSED, datasets and annotate ALL genes. This part is mainly required for biotype detection step
-for ( tissue in names(ref_datasets.list) ) {
+for ( dataset in names(ref_datasets.list) ) {
   
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_datasets.list[[tissue]][["combined_data"]]
+  data <- ref_datasets.list[[dataset]][["combined_data"]]
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
 
@@ -2304,16 +2304,16 @@ for ( tissue in names(ref_datasets.list) ) {
   rownames(data.annot) <- data.annot$ENSEMBL
   
   ##### Get data matrix with gene symbols
-  ref_datasets.list[[tissue]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  ref_datasets.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
 }
 ```
 
 ```{r gene_annot_processed_data, comment = NA, message=FALSE, warning=FALSE}
 ##### Loop through combined datasets and annotate genes
-for ( tissue in names(ref_datasets.list) ) {
+for ( dataset in names(ref_datasets.list) ) {
   
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+  data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
   
@@ -2325,14 +2325,14 @@ for ( tissue in names(ref_datasets.list) ) {
   rownames(data.annot) <- data.annot$SYMBOL
   
   ##### Get data matrix with gene symbols
-  ref_datasets.list[[tissue]][["combined_data_processed"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
-  rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]) <- data.annot$SYMBOL
-  ref_datasets.list[[tissue]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  ref_datasets.list[[dataset]][["combined_data_processed"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
+  rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]) <- data.annot$SYMBOL
+  ref_datasets.list[[dataset]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
   
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_datasets.list[[tissue]][["combined_data_processed"]]), file = paste0(params$report_dir, "/", params$sample_name, ".", params$tissue, ".combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])), file = paste0(params$report_dir, "/", params$sample_name, ".", params$tissue,  ".combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(ref_datasets.list[[tissue]][["sample_annot"]]), file = paste0(params$report_dir, "/", params$sample_name, ".", params$tissue, ".sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_datasets.list[[dataset]][["combined_data_processed"]]), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset, ".combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset,  ".combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_datasets.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset, ".sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 ```
 
@@ -2395,13 +2395,13 @@ ref_genes.list[["genes_oncokb"]] <- genes_cancer[ rownames(genes_cancer) %in% re
 ##### Generate expression summary table for mutated genes
 if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactive" ) {
     
-  targets <- ref_datasets.list[[tissue]][["sample_annot"]]
-  data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_datasets.list[[tissue]][["gene_annot"]])) ], 2, as.numeric)
-  rownames(data) <- ref_datasets.list[[tissue]][["gene_annot"]]$SYMBOL
+  targets <- ref_datasets.list[[dataset]][["sample_annot"]]
+  data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_datasets.list[[dataset]][["gene_annot"]])) ], 2, as.numeric)
+  rownames(data) <- ref_datasets.list[[dataset]][["gene_annot"]]$SYMBOL
     
-  genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+  genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
   
-  genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+  genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
   
   ##### Create directory for saving tables
   exprTableDir <- paste(params$report_dir, "exprTables", sep = "/")
@@ -2420,8 +2420,8 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 ```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Combine expression data with mutation and CN data if available
 cn_data <- ref_genes.list[["purple"]]
-expr_data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
-targets <- ref_datasets.list[[tissue]][["sample_annot"]]
+expr_data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+targets <- ref_datasets.list[[dataset]][["sample_annot"]]
 
 ##### Get the Patient vs [cancer] Z-scores using exprTable funstion
 expr_data <- exprTable( genes = rownames(expr_data), data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, type = "z", scaling = scaling)[[2]]
@@ -2510,8 +2510,8 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   expr_data.z.sub <- expr_data.z.sub[ genes.intersect  ]
   
   ##### Prepare data frame
-  ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, gene.mut.sub)
-  colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Mutation")
+  ref_datasets.list[[dataset]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, gene.mut.sub)
+  colnames(ref_datasets.list[[dataset]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Mutation")
   
 } else {
   
@@ -2528,8 +2528,8 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   expr_data.z.sub <- expr_data.z.sub[ genes.intersect  ]
   
   ##### Prepare data frame
-  ref_datasets.list[[tissue]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub)
-  colnames(ref_datasets.list[[tissue]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff")
+  ref_datasets.list[[dataset]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub)
+  colnames(ref_datasets.list[[dataset]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff")
 }
 ```
 
@@ -2783,7 +2783,7 @@ fusion_reads <- fusion_reads %>% dplyr::select(-"transcriptID","transcriptID")
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Annotate fusion genes
 ##### Get data to annotate fusion genes
-fusion_genes_annot <- ref_datasets.list[[tissue]][["gene_annot_all"]][ , c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
+fusion_genes_annot <- ref_datasets.list[[dataset]][["gene_annot_all"]][ , c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") ]
 
 ##### Keep only fusions for which both genes have gene symbol (and genomics location) available
 pizzly.fusions <- pizzly.fusions[ pizzly.fusions$geneA.id %in% fusion_genes_annot$ENSEMBL, ]
@@ -2875,7 +2875,7 @@ if ( runFusionChunk ) {
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Summarise the reference cohorts samples
-target <- ref_datasets.list[[tissue]][["sample_annot"]]
+target <- ref_datasets.list[[dataset]][["sample_annot"]]
 
 ref_normal <- table(target$Target)[names(table(target$Target))==ext_cancer_group]
 ref_cancer <- table(target$Target)[names(table(target$Target))==int_cancer_group]
@@ -2897,13 +2897,13 @@ The following reference patient cohorts were used for the analysis:
 
 **Input genes**
 
-Out of the `r nrow(ref_datasets.list[[tissue]][["combined_data"]])` input genes:
+Out of the `r nrow(ref_datasets.list[[dataset]][["combined_data"]])` input genes:
 
 * **`r nrow(data.annot)` genes** have reliably detected expression
-* `r if (params$filter) { nrow(ref_datasets.list[[tissue]][["combined_data"]]) - nrow(ref_datasets.list[[tissue]][["combined_data_processed"]]) } else { ("0") }` are either not expressed or their expression level is too low to be detected
-* `r if (params$filter) { nrow(ref_datasets.list[[tissue]][["combined_data_processed"]]) - nrow(data.annot) } else { nrow(ref_datasets.list[[tissue]][["combined_data"]]) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
+* `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(ref_datasets.list[[dataset]][["combined_data_processed"]]) } else { ("0") }` are either not expressed or their expression level is too low to be detected
+* `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_data_processed"]]) - nrow(data.annot) } else { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
-NOTE: the `r if (params$filter) { nrow(ref_datasets.list[[tissue]][["combined_data"]]) - nrow(ref_datasets.list[[tissue]][["combined_data_processed"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [CN altered genes] and [Immune markers] sections.
+NOTE: the `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(ref_datasets.list[[dataset]][["combined_data_processed"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [CN altered genes] and [Immune markers] sections.
 
 **Data transformation and filtering**
 
@@ -2934,7 +2934,7 @@ Principal component analysis (PCA) was performed to reduce the dimensionality of
 Scatter plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.
 
 ```{r pca_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
-ref_datasets.list[[tissue]][["pca"]][[2]]
+ref_datasets.list[[dataset]][["pca"]][[2]]
 ```
 
 * Scree plot
@@ -2942,7 +2942,7 @@ ref_datasets.list[[tissue]][["pca"]][[2]]
 Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. 
 
 ```{r scree_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
-ref_datasets.list[[tissue]][["pca"]][[3]]
+ref_datasets.list[[dataset]][["pca"]][[3]]
 ```
 
 </details>
@@ -2975,14 +2975,14 @@ Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } els
 
 ### - Summary table {.tabset}
 
-Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL))` include [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants. Of these, the expression of **`r length(which(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL))` include [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants. Of these, the expression of **`r length(which(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate expression summary table for mutated genes (based on PCGR report)
-targets <- ref_datasets.list[[tissue]][["sample_annot"]]
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+targets <- ref_datasets.list[[dataset]][["sample_annot"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 
 ##### Consider only genes with mutations calssified within user-defined tiers
 genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
@@ -2993,7 +2993,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Present the expression summary table
 mut_genes.expr.z[[1]]
@@ -3018,7 +3018,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r mut_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
-mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 mut_genes.expr.perc[[1]]
@@ -3059,7 +3059,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3086,7 +3086,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3113,7 +3113,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3140,7 +3140,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3167,7 +3167,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3194,7 +3194,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3221,7 +3221,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3248,7 +3248,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3275,7 +3275,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3302,7 +3302,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3321,16 +3321,16 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-targets <- ref_datasets.list[[tissue]][["sample_annot"]]
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+targets <- ref_datasets.list[[dataset]][["sample_annot"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 
-cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Present the expression summary table
 cancer_genes.expr.z[[1]]
@@ -3355,7 +3355,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r cancer_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
@@ -3395,7 +3395,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3422,7 +3422,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3449,7 +3449,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3476,7 +3476,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3503,7 +3503,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3530,7 +3530,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3557,7 +3557,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3584,7 +3584,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3611,7 +3611,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3638,7 +3638,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -3804,7 +3804,7 @@ if ( runSVsChunk ) {
   ##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
   if ( nrow(fusion_annot_top) > 0 ) {
     
-    BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]])
+    BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]])
     BezierPlot
     
   } else {
@@ -3900,8 +3900,8 @@ Expression profiles for 5 gene fusion events involving **DNA-supported fusion** 
 
 ```{r fusion_1_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
-targets <- ref_datasets.list[[tissue]][["sample_annot"]]
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+targets <- ref_datasets.list[[dataset]][["sample_annot"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 
 geneA <- as.vector(pizzly.fusions$geneA.name[1])
 geneB <- as.vector(pizzly.fusions$geneB.name[1])
@@ -3968,11 +3968,11 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r fusion_1_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- ref_datasets.list[[dataset]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -3989,7 +3989,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_1_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4069,11 +4069,11 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r fusion_2_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- ref_datasets.list[[dataset]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4090,7 +4090,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_2_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4170,11 +4170,11 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r fusion_3_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- ref_datasets.list[[dataset]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4191,7 +4191,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusions_3_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4270,11 +4270,11 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r fusion_4_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- ref_datasets.list[[dataset]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4291,7 +4291,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_4_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer  = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4330,7 +4330,7 @@ if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
 }
 
 ##### Write list of fusion events for which Clinker plot is available into a file
-write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name, ".", params$tissue, ".clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset, ".clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 ```
 
 ##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
@@ -4374,12 +4374,12 @@ detach("package:plotly", unload=FALSE)
 ###### Z-scores
 
 ```{r fusion_5_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_datasets.list[[tissue]][["gene_annot"]]
+fusion.df <- ref_datasets.list[[dataset]][["gene_annot"]]
 fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
 genes = fusion.df$SYMBOL
   
   
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4396,7 +4396,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ###### Percentiles
 
 ```{r fusion_5_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 ```
 
 <details>
@@ -4418,21 +4418,21 @@ SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } el
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]))) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
 ```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-targets <- ref_datasets.list[[tissue]][["sample_annot"]]
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+targets <- ref_datasets.list[[dataset]][["sample_annot"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 
 ##### Consider only genes with mutations calssified within user-defined tiers
 genes <- unique(manta_sv$Gene)
 
 ##### Consider only genes in MANTA output for which the expression levels were measured
 genes <- unique(manta_sv$Gene)
-genes <- genes[ genes %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ]
+genes <- genes[ genes %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ]
 
 ##### Deal with no genes
 if ( length(genes) == 0 ) {
@@ -4440,7 +4440,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Present the expression summary table
 sv_genes.expr.z[[1]]
@@ -4468,7 +4468,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r sv_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
@@ -4510,7 +4510,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4537,7 +4537,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4564,7 +4564,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4590,7 +4590,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4617,7 +4617,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4644,7 +4644,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4671,7 +4671,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4698,7 +4698,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4725,7 +4725,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4752,7 +4752,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(unique(sv_genes.expr.z[[2]]$SYMBOL)), "genes affected by detected SVs!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -4779,7 +4779,7 @@ Scatterplot comparing the per-gene difference in **mRNA expression** (Z-scores) 
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
 
-data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
+data <- ref_datasets.list[[dataset]][["expr_mut_cn_data"]]
 
 ##### Limit the data to include only cancer genes
 cn_genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
@@ -4866,7 +4866,7 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_datasets.list[[tissue]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_datasets.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
@@ -4877,22 +4877,22 @@ Table summarising the **mRNA expression** values in cancer and patient samples f
 ```{r mut_cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN gains
-cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
+cn_data <- ref_datasets.list[[dataset]][["expr_mut_cn_data"]]
 cn_data <- cn_data[ cn_data$CN > params$cn_gain, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
 genes = cn_genes[ cn_genes %in% rownames(cn_data) ]
 
 ##### Get expression data
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 
 if ( runPcgrChunk && runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+  mut_cn_expr_genes.expr.gains.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -4921,12 +4921,12 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( runPcgrChunk && runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
   
-  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+  mut_cn_expr_genes.expr.gains.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -4958,22 +4958,22 @@ Table summarising the **mRNA expression** values in cancer and patient samples f
 ```{r mut_cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN losses
-cn_data <- ref_datasets.list[[tissue]][["expr_mut_cn_data"]]
+cn_data <- ref_datasets.list[[dataset]][["expr_mut_cn_data"]]
 cn_data <- cn_data[ cn_data$CN < params$cn_loss, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
 genes = cn_genes[ cn_genes %in% rownames(cn_data) ]
 
 ##### Get expression data
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
     
 if ( runPcgrChunk && runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+  mut_cn_expr_genes.expr.losses.z <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -5002,12 +5002,12 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( runPcgrChunk && runPurpleChunk ) {
     
-  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
   
-  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+  mut_cn_expr_genes.expr.losses.perc <- exprTable( genes = genes, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -5051,7 +5051,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5079,7 +5079,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5107,7 +5107,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5135,7 +5135,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5163,7 +5163,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL), "genes mapped to detected gained regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5193,7 +5193,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5221,7 +5221,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5249,7 +5249,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5277,7 +5277,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5305,7 +5305,7 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste("There are", length(mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL), "genes mapped to detected lossed regions!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[tissue]][["gene_annot_all"]]$SYMBOL ) {
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
     cat(paste("No expression data is available for", gene, "!", sep=" "))
@@ -5322,7 +5322,7 @@ detach("package:plotly", unload=FALSE)
 
 Section presenting expression levels of immune markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -5330,8 +5330,8 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` i
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-targets <- ref_datasets.list[[tissue]][["sample_annot"]]
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+targets <- ref_datasets.list[[dataset]][["sample_annot"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 genes <- unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL))
 
 ##### Deal with no genes
@@ -5340,7 +5340,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "z", scaling = scaling)
+immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Present the expression summary table
 immune_genes.expr.z[[1]]
@@ -5366,7 +5366,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
-immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "perc", scaling = scaling)
+immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 immune_genes.expr.perc[[1]]
@@ -5422,7 +5422,7 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 Section presenting expression levels of homologous recombination deficiency (HRD) genes to assess how many of these demonstrate low expression, which may indicate potential promoter methylation events. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[tissue]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -5430,8 +5430,8 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd 
 
 ```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for hrd genes from Richqrd
-targets <- ref_datasets.list[[tissue]][["sample_annot"]]
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+targets <- ref_datasets.list[[dataset]][["sample_annot"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 genes <- unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL))
 
 ##### Deal with no genes
@@ -5440,7 +5440,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-hrd_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "z", scaling = scaling)
+hrd_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Present the expression summary table
 hrd_genes.expr.z[[1]]
@@ -5466,7 +5466,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r hrd_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for hrd genes from Richard
-hrd_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[tissue]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "perc", scaling = scaling)
+hrd_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 hrd_genes.expr.perc[[1]]
@@ -5585,7 +5585,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
 drugsTable.cancer_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "expression")
@@ -5637,7 +5637,7 @@ Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAI
 
 ```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 genesA <- as.vector(pizzly.fusions[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes", ]$geneA.name)
 genesB <- as.vector(pizzly.fusions[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes", ]$geneB.name)
 
@@ -5688,7 +5688,7 @@ SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } el
 
 ```{r drugs_predictive_sv_genes, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate table with drugs targeting dysregulated cancer genes
-data <- ref_datasets.list[[tissue]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
 genes <- unique(manta_sv$Gene)
 
 drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = NULL)
