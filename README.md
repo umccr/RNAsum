@@ -35,7 +35,7 @@ The pipeline consist of four main components illustrated and breifly described b
 
 <br/>
 
-1. Process the RNA-seq data from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* including **gene fusions** and per-gene **read counts**. The [gene fusion](./fusions)  candidates are re-quantified and the read counts are [normalised, transformed](img/counts_post-processing_scheme.pdf) and [converted](img/Z-score_transformation_sample_wise.pdf) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
+1. Process the RNA-seq data from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* including **gene fusions** and per-gene **read counts**. The [gene fusion](./fusions)  candidates are re-quantified and the read counts are [normalised, transformed](img/counts_post-processing_scheme.pdf) and [converted](img/Z-score_transformation_gene_wise.pdf) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
 
 2. Feed in **genome-based findings** from whole-genome sequencing (WGS) data to focus on genes of interest and provide additional evidence for dysregulation of mutated genes, or genes located within detected structural variants (SVs) or copy-number (CN) altered regions. The RNA-seq report pipeline is designed to be compatible with WGS patient report based on [umccrise](https://github.com/umccr/umccrise) pipeline output.
 
@@ -87,7 +87,7 @@ Argument | Description | Required
 --norm | Normalisation method. Available options are: `TMM` (for *CPM-transformed* data) and `quantile` (for *TPM-transformed* data) | No
 --filter | Filtering out low expressed genes. Available options are: `TRUE` (defualt) and `FALSE` | No
 --log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (defualt) and `FALSE` | No
---scaling | Apply row-wise (across samples) or column-wise (across genes in a sample) data scaling. Available options are: `sample-wise` (across samples, default) or `gene-wise` (across genes) | No
+--scaling | Apply [`gene-wise`](img/Z-score_transformation_gene_wise.pdf) (default) or [`group-wise`](img/Z-score_transformation_group_wise.pdf) data scaling | No
 --umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta) output files) from genomic-related data | No
 --pcgr_tier | Tier threshold for reporting variants reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available, default is `3`) | No
 --cn_loss | CN threshold value to classify genes within lost regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `1.5`) | No
