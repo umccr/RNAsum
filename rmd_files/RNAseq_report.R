@@ -24,7 +24,7 @@
 #   norm:         Normalisation method. Currently, "TMM" is used for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (defualt) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (defualt) and "FALSE"
-#   scaling:      Apply row-wise (across samples) or column-wise (across genes in a sample) data scaling. Available options are: "sample-wise" (across samples, default) or "gene-wise" (across genes)
+#   scaling:      Apply "gene-wise" (default) or "group-wise" data scaling
 #   umccrise (optional):  Location of the corresponding umccrise output from genomic-related data (including PCGR, PURPLE and Manta output files)
 #   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "3")
 #   cn_loss (optional):  CN threshold value to classify genes within lost regions (default is "1.5")
@@ -78,7 +78,7 @@ option_list = list(
   make_option(c("-l", "--log"), action="store", default=NA, type='character',
               help="Log (base 2) transform data before normalisation"),
   make_option(c("-z", "--scaling"), action="store", default=NA, type='character',
-              help="Scaling for z-score transformation (sample-wise or gene-wise"),
+              help="Scaling for z-score transformation (gene-wise or group-wise"),
   make_option(c("-g", "--umccrise"), action="store", default=NA, type='character',
               help="Location of the corresponding WGS-related data"),
   make_option(c("-j", "--pcgr_tier"), action="store", default=NA, type='character',
@@ -143,7 +143,7 @@ if ( is.na(opt$log)  ) {
 
 if ( is.na(opt$scaling)  ) {
   
-  opt$scaling <- "sample-wise"
+  opt$scaling <- "gene-wise"
 }
 
 if ( is.na(opt$pcgr_tier)  ) {

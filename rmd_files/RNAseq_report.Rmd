@@ -403,14 +403,14 @@ nearest_position <- function(vector, x) {
 return( y )
 }
 
-##### Calculate sample-wise mean, sd, quantiles and cumulative franctions for expression data
-exprGroupsStats_sampleWise <- function(data, targets) {
+##### Calculate gene-wise mean, sd, quantiles and cumulative franctions for expression data
+exprGroupsStats_geneWise <- function(data, targets) {
   
   ##### Perform Z-score transformation of the expression values
   data.z <- t(apply(data, 1, scale, scale = TRUE))
   colnames(data.z) <- colnames(data)
 
-  ##### Perform the sample-wise calculations across all groups
+  ##### Perform the gene-wise calculations across all groups
   ##### Convert a expression values into corresponding percentiles
   data.q <- t(apply(data, 1, perc.rank))
  
@@ -518,8 +518,8 @@ exprGroupsStats_sampleWise <- function(data, targets) {
   return( list( group_stats.list, gene_stats.list) )
 }
 
-##### Calculate gene-wise mean, sd, quantiles and cumulative franctions for expression data from specific sample group
-exprGroupStats_geneWise <- function(data, targets, target) {
+##### Calculate group-wise mean, sd, quantiles and cumulative franctions for expression data from specific sample group
+exprGroupStats_groupWise <- function(data, targets, target) {
   
   ##### Subset data for defined biological group
   data.group <- data[, targets$Target %in% target ]
@@ -560,7 +560,7 @@ exprGroupStats_geneWise <- function(data, targets, target) {
 }
 
 ##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
-cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, addBoxPlot = FALSE, plot_mode = "static", scaling = "sample-wise") {
+cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, addBoxPlot = FALSE, plot_mode = "static", scaling = "gene-wise") {
   
   ##### Initiate lists with stats for each group
   targets.list <- unique(targets$Target)
@@ -572,15 +572,15 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
   names(group.z.gene) <- targets.list
 
   ##### Get expression-related stats for each group
-  ##### ... from sample-wise approach 
-  if ( scaling == "sample-wise" ) {
+  ##### ... from gene-wise approach 
+  if ( scaling == "gene-wise" ) {
 
     ##### Get stats for each group
     gene.data <- data[ gene, , drop = FALSE]
-    group.z.gene <- exprGroupsStats_sampleWise(gene.data, targets)[[1]]
+    group.z.gene <- exprGroupsStats_geneWise(gene.data, targets)[[1]]
     
     ##### ... and for each sample in individual groups
-    gene.stats <- exprGroupsStats_sampleWise(gene.data, targets)[[2]]
+    gene.stats <- exprGroupsStats_geneWise(gene.data, targets)[[2]]
 
     for ( group in targets.list ) {
         
@@ -591,12 +591,12 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
     
     group.z[[ sampleName ]] <- do.call("rbind", group.z)
     
-  ##### ... or from gene-wise approach
+  ##### ... or from group-wise approach
   } else {
 
-    group.z[[ sampleName ]] <- exprGroupStats_geneWise(data, targets, sampleName)
-    group.z[[ int_cancer ]] <- exprGroupStats_geneWise(data, targets, int_cancer)
-    group.z[[ ext_cancer ]] <- exprGroupStats_geneWise(data, targets, ext_cancer)
+    group.z[[ sampleName ]] <- exprGroupStats_groupWise(data, targets, sampleName)
+    group.z[[ int_cancer ]] <- exprGroupStats_groupWise(data, targets, int_cancer)
+    group.z[[ ext_cancer ]] <- exprGroupStats_groupWise(data, targets, ext_cancer)
     
     ##### Extract expression for selected genes
     group.z.gene[[ sampleName ]] <- group.z[[ sampleName ]][ rownames(group.z[[ sampleName ]]) %in% gene, ]
@@ -608,7 +608,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
   if ( addBoxPlot ) {
     
     ##### Perform Z-score transformation of the mean expression values
-    if ( scaling == "sample-wise" ) {
+    if ( scaling == "gene-wise" ) {
       
       data.z <- t(scale(t(data)))
     } else {
@@ -752,10 +752,10 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
 
 
 ##### Generate boxplot presenting expression profiles for selected set of genes
-glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, plot_mode = "static", hexcode, scaling = "sample-wise") {
+glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, plot_mode = "static", hexcode, scaling = "gene-wise") {
   
   ##### Perform Z-score transformation of the mean expression values
-  if ( scaling == "sample-wise" ) {
+  if ( scaling == "gene-wise" ) {
       
     data.z <- t(scale(t(data)))
   } else {
@@ -921,7 +921,7 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
 
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, genes_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "sample-wise") {
+exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, genes_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
   
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[ genes %!in% rownames(data) ]
@@ -932,11 +932,11 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   colnames(group.z) <- targets.list
   rownames(group.z) <- rownames(data)
     
-  ##### Perform scaling sample-wise
-  if ( scaling == "sample-wise" ) {
+  ##### Perform scaling gene-wise
+  if ( scaling == "gene-wise" ) {
 
     ##### Calculate z-score for each group  
-    group.stats <- exprGroupsStats_sampleWise(data, targets)[[1]]
+    group.stats <- exprGroupsStats_geneWise(data, targets)[[1]]
       
     #### Present expression data as percentiles or z-score values (default)
     for ( group in targets.list ) {
@@ -951,13 +951,13 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
       }
     }
     
-  ##### Perform scaling gene-wise
+  ##### Perform scaling group-wise
   } else {
   
     for ( group in targets.list ) {
       
       ##### Calculate z-score for each group  
-      group.stats <- exprGroupStats_geneWise(data[rownames(group.z), ], targets, group)
+      group.stats <- exprGroupStats_groupWise(data[rownames(group.z), ], targets, group)
       group.stats <- group.stats[order(rownames(group.stats)), ]
       
       #### Present expression data as percentiles or z-score values (default)
@@ -1828,11 +1828,11 @@ names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "
 
 ```{r define_parameters, message=FALSE, warning=FALSE}
 ##### Define Z-transformation direction
-if (tolower(params$scaling) == "sample-wise"){
+if (tolower(params$scaling) == "gene-wise"){
       
-  scaling <- "sample-wise"
-} else {
   scaling <- "gene-wise"
+} else {
+  scaling <- "group-wise"
 }
 ```
 
