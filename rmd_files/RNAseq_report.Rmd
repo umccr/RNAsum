@@ -912,8 +912,8 @@ fusion_png <- function(geneA, geneB, clinker_results ) {
   
   ##### Export pdf to png
   fusion_png <- paste(clinker_results, paste0(geneA, "_", geneB, ".png"), sep = "/")
-  fusion <- image_read_pdf(fusion_pdf, pages = NULL, density = 300)
-  image_write(fusion, path = fusion_png, format = "png")
+  fusion <- pdf_render_page(fusion_pdf, page = 1, dpi = 300, numeric = TRUE, opw = "", upw = "")
+  writePNG(fusion, fusion_png)
   
   ##### Present the converted file in the report
   include_graphics(fusion_png)
@@ -1647,8 +1647,8 @@ suppressMessages(library(tibble))
 suppressMessages(library(knitr))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggforce))
-suppressMessages(library(magick))
-suppressMessages(library(lares))
+suppressMessages(library(pdftools))
+suppressMessages(library(png))
 suppressMessages(library(htmltools))
 suppressMessages(library(htmlwidgets))
 suppressMessages(library(devtools))
@@ -1903,7 +1903,7 @@ if ( length(sampleID.col) > 0 ) {
     setwd(PlotsDir)
      
     ##### Record the timeline plot. NOTE, the modified dates are used here
-    treatment_timeline <- plot_timeline(event = treamtent.df$Treatment, 
+    treatment_timeline <- lares::plot_timeline(event = treamtent.df$Treatment, 
                 start = treamtent.df$Start, 
                 end = treamtent.df$End, 
                 label = NA, 
@@ -1913,7 +1913,7 @@ if ( length(sampleID.col) > 0 ) {
                 save = FALSE)
     
     ##### Save the plot into png file. NOTE, the modified dates are used here. As default, the plot is saved as "cv_timeline"
-    plot_timeline(event = treamtent.df$Treatment, 
+    lares::plot_timeline(event = treamtent.df$Treatment, 
                 start = treamtent.df$Start, 
                 end = treamtent.df$End, 
                 label = NA, 
@@ -1922,7 +1922,7 @@ if ( length(sampleID.col) > 0 ) {
                 subtitle = "",
                 save = TRUE)
     
-    cv_timeline.png <- image_read(paste(PlotsDir, "cv_timeline.png", sep="/"), density = 300, depth = NULL, strip = FALSE)
+    cv_timeline.png <- readPNG(paste(PlotsDir, "cv_timeline.png", sep="/"), native = FALSE, info = FALSE)
     
     ##### Change the size of the timeline png plot and save it as "treatment_timeline.png"
     png(paste(PlotsDir, "treatment_timeline.png", sep="/"), width = 900, height = 600, pointsize = 0.0001, res=300)
