@@ -76,6 +76,8 @@ Additionally, pancreas adenocarcinoma (PAAD) expression data (**150 samples**) f
 
 To be done...
 
+Example `test_sample_WTS`, `test_sample_WGS` and `clinical_data.xlsx` files will be provided.
+
 
 ## UMCCR HPC
 
