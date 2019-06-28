@@ -17,9 +17,9 @@ NOTE, currently the pipeline is limited to report on samples from **pancreatic t
 * [Usage](#usage)
   * [Arguments](#arguments)
   * [Usage](#usage)
-  	 * [required arguments only](#required-arguments-only)
-  	 * [genome-based results](#add-genome-based-results)
-  	 * [clinical information](#add-clinical-information)
+  	 * [Required arguments only](#required-arguments-only)
+  	 * [Add genome-based results](#add-genome-based-results)
+  	 * [Add clinical information](#add-clinical-information)
 
 <!-- vim-markdown-toc -->
 
