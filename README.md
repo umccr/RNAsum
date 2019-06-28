@@ -16,8 +16,10 @@ NOTE, currently the pipeline is limited to report on samples from **pancreatic t
 * [UMCCR HPC](#umccr-hpc)
 * [Usage](#usage)
   * [Arguments](#arguments)
-  * [Command line use example](#command-line-use-example)
-
+  * [Usage](#usage)
+  	 * [required arguments only](#required-arguments-only)
+  	 * [genome-based results](#add-genome-based-results)
+  	 * [clinical information](#add-clinical-information)
 
 <!-- vim-markdown-toc -->
 
@@ -95,17 +97,17 @@ Argument | Description | Required
 --count_file | Location and name of the read count file from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* | **Yes**
 --report_dir | Desired location for the report | **Yes**
 --transform | Transformation method for converting read counts. Available options are: `CPM` (defualt) and `TPM` | No
---norm | Normalisation method. Available options are: `TMM` (for *CPM-transformed* data) and `quantile` (for *TPM-transformed* data) | No
+--norm | Normalisation method. Available options are: `TMM` (for *CPM-transformed* data, defualt) and `quantile` (for *TPM-transformed* data) | No
 --filter | Filtering out low expressed genes. Available options are: `TRUE` (defualt) and `FALSE` | No
 --log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (defualt) and `FALSE` | No
 --scaling | Apply [`gene-wise`](img/Z-score_transformation_gene_wise.pdf) (default) or [`group-wise`](img/Z-score_transformation_group_wise.pdf) data scaling | No
---umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta) output files) from genomic-related data | No
+--umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta) output files) from genome-based data | No
 --pcgr_tier | Tier threshold for reporting variants reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available, default is `3`) | No
 --cn_loss | CN threshold value to classify genes within lost regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `1.5`) | No
 --cn_gain | CN threshold value to classify genes within gained regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `3`) | No
 --clinical_info | Location of *xslx* file with clinical information | No
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
---plots_mode | Plotting mode. Available options: `Static` (default), `interactive` and `semi-interactive` | No
+--plots_mode | Plotting mode. Available options: `Static` (all plots will be static; default), `interactive` (all possible plots will be interactive) and `semi-interactive` (only plots in `Input data`, `CN altered genes`, `Immune markers` and `HRD genes` sections will be interactive) | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (defualt) and `FALSE` | No
 --ensembl_version | Version of Ensembl database to be used for genes annotation (default is `75`) | No
 --ucsc_genome_assembly | Version of UCSC Homo sapiens genome to be used for genes (default is `19`) | No
@@ -116,14 +118,61 @@ Argument | Description | Required
 *[optparse](https://cran.r-project.org/web/packages/optparse/index.html)*, *[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)*, *[readr](https://cran.r-project.org/web/packages/readr/index.html)*, *[tidyverse](https://www.tidyverse.org/)*, *[dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)*, *[tidyr](https://cran.r-project.org/web/packages/tidyr/index.html)*, *[rlang](https://cran.r-project.org/web/packages/rlang/index.html)*, *[DT](https://cran.r-project.org/web/packages/DT/index.html)*, *[kableExtra](https://cran.r-project.org/web/packages/kableExtra/index.html)*, *[matrixStats](https://cran.rstudio.com/web/packages/matrixStats/index.html)*, *[tibble](https://cran.r-project.org/web/packages/tibble/index.html)*, *[knitr](https://cran.r-project.org/web/packages/knitr/index.html)*, *[plotly](https://plot.ly/r/)*, *[ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)*, *[ggforce](https://cran.r-project.org/web/packages/ggforce/index.html)*, *[pdftools](https://cran.r-project.org/web/packages/pdftools/index.html)*, *[png](https://cran.r-project.org/web/packages/png/index.html)*, *[lares](https://www.rdocumentation.org/packages/lares/versions/4.4)*, *[htmltools](https://cran.r-project.org/web/packages/htmltools/index.html)*, *[htmlwidgets](https://cran.r-project.org/web/packages/htmlwidgets/index.html)*, *[devtools](https://cran.r-project.org/web/packages/devtools/index.html)*, *[EnsDb.Hsapiens.v75](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v75.html)* (*[EnsDb.Hsapiens.v86](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v86.html)*)\*, *[BSgenome.Hsapiens.UCSC.hg19](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg19.html)* (*[BSgenome.Hsapiens.UCSC.hg38](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg38.html)*)\**
 
 \*  ***Ensembl*** based annotation version ***75*** is used as default. Alternatively, to use version 86 follow installation [instructions for genome assembly GRCh37](#using-genome-assembly-grch37) <br >
-\**  ***UCSC*** Homo sapiens genome sequences version ***hg19*** is used as default. Alternatively, to use version hg38  follow installation [instructions for genome assembly GRCh37](#using-genome-assembly-grch37)
+\**  ***UCSC*** Homo sapiens genome sequences version ***hg19*** is used as default. Alternatively, to use version hg38  follow installation [instructions for genome assembly GRCh38](#using-genome-assembly-grch38)
 
 
-### Command line use example
+### Usage 
+
+Below are command line use examples for generating *Transcriptome Patient Summary* report using:
+
+* [required arguments only](#required-arguments-only)
+* **[genome-based results](#add-genome-based-results)**
+* [clinical information](#add-clinical-information)
+
+
+#### Required arguments only
+
+In this scenario, only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. The genome-based findings will not be incorporated into the report, thus **no results will be provided in** ~~`Mutated genes`~~, ~~`Structural variants`~~ and ~~`CN altered genes`~~ sections. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data.
 
 ```
-Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --tissue pancreas  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --subject_id 2016.249.17.MH.P033  --umccrise ../data/umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --plots_mode semi-interactive
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --plots_mode semi-interactive
 ```
 
-The interactive HTML report named `CCR170115b_MH17T002P033_RNA.RNAseq_report.html` will be created in `../RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
 
+
+#### Add genome-based results
+
+This is the **preferred scenario for using** ***Transcriptome Patient Summary***, in which the genome-based will be primarily used for exploring expression levels of altered genes. The genome-based findings can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. In this scenario, **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. Genes will be ordered by increasing *variants* `TIER`, *SV* `score` and `CN` *value*, resepctively, and then by decreasing absolute values in the `Patient` vs selected `dataset` column. Moreover, gene fusions detected in WTS data and reported in **`Fusion genes`** section will be first ordered based on the evidence from genome-based data (`DNA support (gene A/B)` columns).
+
+The *[umccrise](https://github.com/umccr/umccrise)* files are expected to be organised following the folder structure below
+
+```
+|
+|____umccrised (User-defined)
+  |____[SampleName]
+    |____pcgr
+    | |____[SampleName]-somatic.pcgr.snvs_indels.tiers.tsv
+    |____purple
+    | |____[SampleName].purple.gene.cnv
+    |____structural
+      |____[SampleName]-manta.tsv
+```
+
+```
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --umccrise ../data/umccrised/test_sample_WGS  --plots_mode semi-interactive
+```
+
+>The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
+
+
+#### Add clinical information
+
+For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Transcriptome Patient Summary* report. This can be added by specifying location of an excel spreadsheet, containing clinical information, in the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`.
+
+
+```
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --subject_id 2016.249.17.MH.P033  --umccrise ../data/umccrised/test_sample_WGS  --clinical_info ../data/clinical_data.xlsx  --plots_mode semi-interactive
+```
+
+>The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
