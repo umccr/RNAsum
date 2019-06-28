@@ -24,12 +24,16 @@ NOTE, currently the pipeline is limited to report on samples from **pancreatic t
 
 ## Installation
 
-### Using genome assembly [GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)
+### Using genome assembly GRCh37
+
+[GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)
 
 To be done...
 
 
-### Using genome assembly [GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)
+### Using genome assembly GRCh38
+
+[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)
 
 To be done...
 
@@ -111,8 +115,8 @@ Argument | Description | Required
 **Packages**: *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)*, *[rapportools](https://cran.r-project.org/web/packages/rapportools/index.html)*, 
 *[optparse](https://cran.r-project.org/web/packages/optparse/index.html)*, *[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)*, *[readr](https://cran.r-project.org/web/packages/readr/index.html)*, *[tidyverse](https://www.tidyverse.org/)*, *[dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)*, *[tidyr](https://cran.r-project.org/web/packages/tidyr/index.html)*, *[rlang](https://cran.r-project.org/web/packages/rlang/index.html)*, *[DT](https://cran.r-project.org/web/packages/DT/index.html)*, *[kableExtra](https://cran.r-project.org/web/packages/kableExtra/index.html)*, *[matrixStats](https://cran.rstudio.com/web/packages/matrixStats/index.html)*, *[tibble](https://cran.r-project.org/web/packages/tibble/index.html)*, *[knitr](https://cran.r-project.org/web/packages/knitr/index.html)*, *[plotly](https://plot.ly/r/)*, *[ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)*, *[ggforce](https://cran.r-project.org/web/packages/ggforce/index.html)*, *[pdftools](https://cran.r-project.org/web/packages/pdftools/index.html)*, *[png](https://cran.r-project.org/web/packages/png/index.html)*, *[lares](https://www.rdocumentation.org/packages/lares/versions/4.4)*, *[htmltools](https://cran.r-project.org/web/packages/htmltools/index.html)*, *[htmlwidgets](https://cran.r-project.org/web/packages/htmlwidgets/index.html)*, *[devtools](https://cran.r-project.org/web/packages/devtools/index.html)*, *[EnsDb.Hsapiens.v75](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v75.html)* (*[EnsDb.Hsapiens.v86](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v86.html)*)\*, *[BSgenome.Hsapiens.UCSC.hg19](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg19.html)* (*[BSgenome.Hsapiens.UCSC.hg38](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg38.html)*)\**
 
-\*  ***Ensembl*** based annotation version ***75*** is used as default. Alternatively, to use version 86 follow installation [instructions for genome assembly GRCh37](#using-genome-assembly-grch37-https-www.ncbi.nlm.nih.gov-assembly-gcf_000001405.13) <br >
-\**  ***UCSC*** Homo sapiens genome sequences version ***hg19*** is used as default. Alternatively, to use version hg38  follow installation [instructions for genome assembly GRCh37](#using-genome-assembly-grch37-https-www.ncbi.nlm.nih.gov-assembly-gcf_000001405.13)
+\*  ***Ensembl*** based annotation version ***75*** is used as default. Alternatively, to use version 86 follow installation [instructions for genome assembly GRCh37](#using-genome-assembly-grch37) <br >
+\**  ***UCSC*** Homo sapiens genome sequences version ***hg19*** is used as default. Alternatively, to use version hg38  follow installation [instructions for genome assembly GRCh37](#using-genome-assembly-grch37)
 
 
 ### Command line use example
