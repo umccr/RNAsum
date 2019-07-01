@@ -31,7 +31,7 @@
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "3")
 #   clinical_info (optional):   Location of xslx file with clinical information
 #   subject_id (optional):     Subject ID required to match sample with clinical information (specified in flag --clinical_info)
-#   plots_mode:    Plotting mode. Available options are: "Static" (default), "interactive" and "semi-interactive"
+#   plots_mode:    Plotting mode. Available options are: "interactive" (default), "semi-interactive" and "static" 
 #   hide_code_btn :    Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
 #   ensembl_version :  Version of Ensembl database to be used for genes annotation (default is "75")
 #   ucsc_genome_assembly :  Version of UCSC Homo sapiens genome to be used for genes (default is "19")
@@ -92,7 +92,7 @@ option_list = list(
   make_option(c("-i", "--subject_id"), action="store", default=NA, type='character',
               help="Sample ID"),
   make_option(c("-p", "--plots_mode"), action="store", default=NA, type='character',
-              help="Static (default), interactive or semi-interactive mode for plots"),
+              help="Interactive (default), semi-interactive or static mode for plots"),
   make_option(c("-d", "--hide_code_btn"), action="store", default=NA, type='character',
               help="Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report"),
   make_option(c("-e", "--ensembl_version"), action="store", default=NA, type='character',
@@ -163,7 +163,7 @@ if ( is.na(opt$cn_gain)  ) {
 
 if ( is.na(opt$plots_mode)  ) {
   
-  opt$plots_mode <- "static"
+  opt$plots_mode <- "interactive"
 }
 
 if ( is.na(opt$hide_code_btn)  ) {
@@ -191,14 +191,14 @@ if ( opt$dataset %!in% c("pdac", "cervix", "bladder") ) {
   q()
 }
 
-##### Embed static (defulat) plots (to reduce the report size), unless interactive or semi-interactive mode is specified
+##### Embed interactive (default) plots, unless semi-interactive or static mode is specified
 if ( is.na(opt$plots_mode) ) {
   
   opt$plots_mode<- "static"
   
 } else if ( opt$plots_mode != "interactive" && opt$plots_mode != "semi-interactive" && opt$plots_mode != "static" ) {
   
-  cat("\nThe plots mode \"", opt$plots_mode, "\" is invalid! Please select either \"static\", \"interactive\" or \"semi-interactive\" mode.\n\n")
+  cat("\nThe plots mode \"", opt$plots_mode, "\" is invalid! Please select either \"interactive\", \"semi-interactive\" or \"static\" mode.\n\n")
   q()
 }
 

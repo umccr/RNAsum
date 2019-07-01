@@ -109,7 +109,7 @@ Argument | Description | Required
 --cn_gain | CN threshold value to classify genes within gained regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `3`) | No
 --clinical_info | Location of *xslx* file with clinical information | No
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
---plots_mode | Plotting mode. Available options: `Static` (all plots will be static; default), `interactive` (all possible plots will be interactive) and `semi-interactive` (only plots in `Input data`, `CN altered genes`, `Immune markers` and `HRD genes` sections will be interactive) | No
+--plots_mode | Plotting mode. Available options: `interactive` (all possible plots will be interactive; default) and `semi-interactive` (only plots in `Input data`, `CN altered genes`, `Immune markers` and `HRD genes` sections will be interactive) or `static` (all plots will be static) | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (defualt) and `FALSE` | No
 --ensembl_version | Version of Ensembl database to be used for genes annotation (default is `75`) | No
 --ucsc_genome_assembly | Version of UCSC Homo sapiens genome to be used for genes (default is `19`) | No
@@ -137,7 +137,7 @@ Below are command line use examples for generating *Transcriptome Patient Summar
 In this scenario, only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. The genome-based findings will not be incorporated into the report, thus **no results will be provided in** ~~`Mutated genes`~~, ~~`Structural variants`~~ and ~~`CN altered genes`~~ sections. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data.
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --plots_mode semi-interactive
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report
 ```
 
 >The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
@@ -162,7 +162,7 @@ The *[umccrise](https://github.com/umccr/umccrise)* files are expected to be org
 ```
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --umccrise ../data/umccrised/test_sample_WGS  --plots_mode semi-interactive
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --umccrise ../data/umccrised/test_sample_WGS
 ```
 
 >The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
@@ -174,7 +174,7 @@ For samples derived from subjects, for which clinical information is available, 
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --subject_id 2016.249.17.MH.P033  --umccrise ../data/umccrised/test_sample_WGS  --clinical_info ../data/clinical_data.xlsx  --plots_mode semi-interactive
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --subject_id 2016.249.17.MH.P033  --umccrise ../data/umccrised/test_sample_WGS  --clinical_info ../data/clinical_data.xlsx
 ```
 
 >The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
