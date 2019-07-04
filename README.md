@@ -109,9 +109,9 @@ Argument | Description | Required
 
 Below are command line use examples for generating *Transcriptome Patient Summary* report using:
 
-1. [required arguments only](#required-arguments-only)
-2. **[genome-based results](#add-genome-based-results)**
-3. [clinical information](#add-clinical-information)
+1. [required arguments only](#1-required-arguments-only)
+2. **[genome-based results](#2-add-genome-based-results)**
+3. [clinical information](#3-add-clinical-information)
 
 **Note**:
 
