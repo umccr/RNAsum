@@ -33,7 +33,7 @@
 #   subject_id (optional):     Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   plots_mode:    Plotting mode. Available options are: "interactive" (default), "semi-interactive" and "static" 
 #   hide_code_btn :    Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
-#   grch_version :  Human reference genome version (default is "37")
+#   grch_version :  Human reference genome version used for genes annotation (default is "37")
 #
 ################################################################################
 
@@ -95,7 +95,7 @@ option_list = list(
   make_option(c("-d", "--hide_code_btn"), action="store", default=NA, type='character',
               help="Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report"),
   make_option(c("-e", "--grch_version"), action="store", default=NA, type='character',
-              help="human reference genome version")
+              help="human reference genome version used for genes annotation")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
