@@ -1741,8 +1741,10 @@ ref_genes.list[["kallisto"]] <- read.table(kallisto_file, header = TRUE)
 ##### Get the genomic output data from umccrise
 umccrise <- unlist(strsplit(params$umccrise, split='/', fixed=TRUE))
 umccrise <- umccrise[length(umccrise)]
-  
+
 ##### Check if PCGR (mutation) output file exists
+runPcgrChunk <- TRUE
+
 if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
   
 pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
@@ -1750,11 +1752,12 @@ pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg
 } else if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
   
   pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+  
+} else {
+  runPcgrChunk <- FALSE
 }
 
-runPcgrChunk <- TRUE
-
-if ( file.exists(pcgr_file) ) {
+if ( runPcgrChunk ) {
   
   ref_genes.list[["pcgr"]] <- read.table(pcgr_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
   
@@ -1770,7 +1773,6 @@ if ( file.exists(pcgr_file) ) {
 } else {
   
   ref_genes.list[["pcgr"]] <- NULL
-  runPcgrChunk <- FALSE
 }
 
 ##### Check if purple (CN) output file exists
