@@ -33,8 +33,7 @@
 #   subject_id (optional):     Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   plots_mode:    Plotting mode. Available options are: "interactive" (default), "semi-interactive" and "static" 
 #   hide_code_btn :    Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
-#   ensembl_version :  Version of Ensembl database to be used for genes annotation (default is "75")
-#   ucsc_genome_assembly :  Version of UCSC Homo sapiens genome to be used for genes (default is "19")
+#   grch_version :  Human reference genome version (default is "37")
 #
 ################################################################################
 
@@ -95,10 +94,8 @@ option_list = list(
               help="Interactive (default), semi-interactive or static mode for plots"),
   make_option(c("-d", "--hide_code_btn"), action="store", default=NA, type='character',
               help="Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report"),
-  make_option(c("-e", "--ensembl_version"), action="store", default=NA, type='character',
-              help="Version of Ensembl database to be used for genes annotation"),
-  make_option(c("-u", "--ucsc_genome_assembly"), action="store", default=NA, type='character',
-              help="Version of UCSC Homo sapiens genome to be used for genes annotation")
+  make_option(c("-e", "--grch_version"), action="store", default=NA, type='character',
+              help="human reference genome version")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -115,7 +112,7 @@ if ( is.na(opt$sample_name) || is.na(opt$dataset) || is.na(opt$count_file) || is
 ##### Make sure that sample ID is availabe if clincal data is provided
 if ( !is.na(opt$clinical_info) && is.na(opt$subject_id)  ) {
   
-  cat("\nSample ID is missing! Please provide sample ID used in the clinical data.\n\n")
+  cat("\nSubject ID is missing! Please provide subject ID used in the clinical data by using \"--subject_id\" argument.\n\n")
   
   q()
 }
@@ -171,14 +168,25 @@ if ( is.na(opt$hide_code_btn)  ) {
   opt$hide_code_btn <- TRUE
 }
 
-if ( is.na(opt$ensembl_version)  ) {
+if ( is.na(opt$grch_version)  ) {
   
-  opt$ensembl_version <- 75
-}
-
-if ( is.na(opt$ucsc_genome_assembly)  ) {
+  ensembl_version <- 75
+  ucsc_genome_assembly <- 19
   
-  opt$ucsc_genome_assembly <- 19
+} else if ( opt$grch_version == 37 ) {
+  
+  ensembl_version <- 75
+  ucsc_genome_assembly <- 19
+  
+} else if ( opt$grch_version == 38 ) {
+  
+  ensembl_version <- 86
+  ucsc_genome_assembly <- 38
+  
+} else {
+  
+  cat("\nCurrently human reference genome (GRCh) versions \"37\" and \"38\" are supported.\n\n")
+  q()
 }
 
 ##### Check if specified dataset type is valid
@@ -223,4 +231,4 @@ if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", opt$dataset, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = tolower(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), ensembl_version = as.numeric(opt$ensembl_version), ucsc_genome_assembly = as.numeric(opt$ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", opt$dataset, ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = tolower(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
