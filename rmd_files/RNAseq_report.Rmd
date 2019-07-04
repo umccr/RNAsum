@@ -1732,7 +1732,6 @@ ref_genes.list[["kallisto"]] <- read.table(kallisto_file, header = TRUE)
   
   ref_genes.list[["kallisto"]] <- NULL
   runKallistoChunk <- FALSE
-  runPizzlyChunk <- FALSE
   runClinkerChunk <- FALSE
   runFusionChunk <- FALSE
 }
@@ -2594,163 +2593,163 @@ for (row in 1:nrow(pizzly.fusions)){
 deduped.result <- unique(result)
 
 if ( nrow(deduped.result) > 0 ) {
+    
+  idx <- order(deduped.result$splitcount, deduped.result$paircount, decreasing = TRUE)
+  deduped.result <- deduped.result[idx, ]
   
-idx <- order(deduped.result$splitcount, deduped.result$paircount, decreasing = TRUE)
-deduped.result <- deduped.result[idx, ]
-
-#Extract only those fusion genes that are in cancer genes list
-result.cancer_genes <- data.frame()
-for (row in 1:nrow(pizzly.fusions)){
-  if(pizzly.fusions[row,"geneA.name"] %in% rownames(ref_genes.list[["genes_cancer"]]) | pizzly.fusions[row,"geneB.name"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
-    #creating a new dataframe for extracting pizzly rows with cancer gene hits
-    result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
+  #Extract only those fusion genes that are in cancer genes list
+  result.cancer_genes <- data.frame()
+  for (row in 1:nrow(pizzly.fusions)){
+    if(pizzly.fusions[row,"geneA.name"] %in% rownames(ref_genes.list[["genes_cancer"]]) | pizzly.fusions[row,"geneB.name"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
+      #creating a new dataframe for extracting pizzly rows with cancer gene hits
+      result.cancer_genes <- rbind(result.cancer_genes, data.frame(pizzly.fusions[row,]))
+    }
   }
-}
-
-##### Ordering pizzly's cancer genes results on the basis of read count values
-##### Skip ordering if no of the fusion genes is a cancer gene
-if ( nrow(result.cancer_genes) > 0 ) {
   
-  idx2 <- order(result.cancer_genes$splitcount, result.cancer_genes$paircount, decreasing = TRUE)
-  result.cancer_genes <- result.cancer_genes[idx2,]
-}
-
-#extracting rows from pizzly results that are not in re-quant i.e. deduped.result or cancer genes list i.e. result.cancer_genes
-result.other_genes <- pizzly.fusions[ rownames(pizzly.fusions) %!in% c(rownames(result.cancer_genes), rownames(deduped.result)), ]
-
-##### Ordering pizzly's other genes results on the basis of read count values
-##### Skip ordering if no of the fusion genes is a cancer gene
-if ( nrow(result.other_genes) > 0 ) {
-  idx3 <- order(result.other_genes$splitcount, result.other_genes$paircount, decreasing = TRUE)
-  result.other_genes <- result.other_genes[idx3,]
-}
-
-#combing all the three above sorted dataframes
-pizzly.fusions <- rbind(deduped.result, result.cancer_genes, result.other_genes)
-
-##### Flag known fusions based on info from Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
-known_translocations.CGI <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
-known_translocations.CGI$cancer_acronym <- gsub(";", ", ", known_translocations.CGI$cancer_acronym)
-known_translocations.CGI$source <- gsub(";", ", ", known_translocations.CGI$source)
-known_translocations.CGI$translocation <- gsub("__", "_", known_translocations.CGI$translocation)
-
-##### Flag known fusions based on info from FusionGDB (https://ccsm.uth.edu/FusionGDB)
-known_translocations.FusionGDB <- caner_genes_annot.list[["FusionGDB"]]
-
-##### Merge info from both resources
-known_translocations <- merge(known_translocations.FusionGDB, known_translocations.CGI, by.x = "FGname", by.y = "translocation", all = TRUE, sort=FALSE)
-
-##### Extract gene pairs involved in reported gene fusions
-trans.pairs <- as.data.frame(cbind( known_translocations$FGname, known_translocations$FGname ))
-names(trans.pairs) <- c("geneA", "geneB")
-trans.pairs$geneA <- sub("_.*", "", trans.pairs$geneA)
-trans.pairs$geneB <- sub(".*_", "", trans.pairs$geneB)
-known_translocations <- cbind(known_translocations, trans.pairs)
-trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "-" )
-
-##### Add columns for info about reported fusions
-pizzly.fusions <- cbind(pizzly.fusions, data.frame(matrix("", ncol = 5, nrow = nrow(pizzly.fusions)), stringsAsFactors = FALSE))
-colnames(pizzly.fusions)[-c(1:7)] <- c("FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene")
-
-##### Add annotations about known fusion events
-##### Loop through all genes involved in deteced gene fusions (pizzly results) and check which are already reported
-for ( i in 1:nrow(pizzly.fusions) ) {
+  ##### Ordering pizzly's cancer genes results on the basis of read count values
+  ##### Skip ordering if no of the fusion genes is a cancer gene
+  if ( nrow(result.cancer_genes) > 0 ) {
+    
+    idx2 <- order(result.cancer_genes$splitcount, result.cancer_genes$paircount, decreasing = TRUE)
+    result.cancer_genes <- result.cancer_genes[idx2,]
+  }
   
-  geneA <- as.character(pizzly.fusions$geneA.name[i])
-  geneB <- as.character(pizzly.fusions$geneB.name[i])
+  #extracting rows from pizzly results that are not in re-quant i.e. deduped.result or cancer genes list i.e. result.cancer_genes
+  result.other_genes <- pizzly.fusions[ rownames(pizzly.fusions) %!in% c(rownames(result.cancer_genes), rownames(deduped.result)), ]
+  
+  ##### Ordering pizzly's other genes results on the basis of read count values
+  ##### Skip ordering if no of the fusion genes is a cancer gene
+  if ( nrow(result.other_genes) > 0 ) {
+    idx3 <- order(result.other_genes$splitcount, result.other_genes$paircount, decreasing = TRUE)
+    result.other_genes <- result.other_genes[idx3,]
+  }
+  
+  #combing all the three above sorted dataframes
+  pizzly.fusions <- rbind(deduped.result, result.cancer_genes, result.other_genes)
+  
+  ##### Flag known fusions based on info from Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
+  known_translocations.CGI <- caner_genes_annot.list[["cancer_biomarkers_trans"]]
+  known_translocations.CGI$cancer_acronym <- gsub(";", ", ", known_translocations.CGI$cancer_acronym)
+  known_translocations.CGI$source <- gsub(";", ", ", known_translocations.CGI$source)
+  known_translocations.CGI$translocation <- gsub("__", "_", known_translocations.CGI$translocation)
+  
+  ##### Flag known fusions based on info from FusionGDB (https://ccsm.uth.edu/FusionGDB)
+  known_translocations.FusionGDB <- caner_genes_annot.list[["FusionGDB"]]
+  
+  ##### Merge info from both resources
+  known_translocations <- merge(known_translocations.FusionGDB, known_translocations.CGI, by.x = "FGname", by.y = "translocation", all = TRUE, sort=FALSE)
+  
+  ##### Extract gene pairs involved in reported gene fusions
+  trans.pairs <- as.data.frame(cbind( known_translocations$FGname, known_translocations$FGname ))
+  names(trans.pairs) <- c("geneA", "geneB")
+  trans.pairs$geneA <- sub("_.*", "", trans.pairs$geneA)
+  trans.pairs$geneB <- sub(".*_", "", trans.pairs$geneB)
+  known_translocations <- cbind(known_translocations, trans.pairs)
+  trans.pairs <- apply( trans.pairs , 1 , paste , collapse = "-" )
+  
+  ##### Add columns for info about reported fusions
+  pizzly.fusions <- cbind(pizzly.fusions, data.frame(matrix("", ncol = 5, nrow = nrow(pizzly.fusions)), stringsAsFactors = FALSE))
+  colnames(pizzly.fusions)[-c(1:7)] <- c("FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene")
+  
+  ##### Add annotations about known fusion events
+  ##### Loop through all genes involved in deteced gene fusions (pizzly results) and check which are already reported
+  for ( i in 1:nrow(pizzly.fusions) ) {
+    
+    geneA <- as.character(pizzly.fusions$geneA.name[i])
+    geneB <- as.character(pizzly.fusions$geneB.name[i])
+          
+    ##### First check if the exact reported gene pairs were detected by pizzly
+    if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
+      
+      ##### provide fusion URL to FusionGDB
+      pizzly.fusions$reported_fusion[i] <- "Yes"
+      
+      ##### provide fusion ID from FusionGDB
+      pizzly.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneA, geneB, sep="-")  ]
+      
+      pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
+      pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
+      
+   } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
+      
+      ##### provide fusion URL to FusionGDB
+      pizzly.fusions$reported_fusion[i] <- "Yes"
+      
+      ##### provide fusion ID from FusionGDB
+      pizzly.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneB, geneA, sep="-")  ]
+      
+      pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
+      pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
+      
+    ##### Now check if any ofthe pizzly detected fusion genes are reported
+    } else {
+      
+      pizzly.fusions$reported_fusion[i] <- "-"
+      
+      ##### Check the Cancer Genome Interpreter (CGI) database first
+      ##### Check pizzly genes A and genes A in reported fusions
+      if ( geneA %in% known_translocations$geneA ) {
         
-  ##### First check if the exact reported gene pairs were detected by pizzly
-  if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
-    
-    ##### provide fusion URL to FusionGDB
-    pizzly.fusions$reported_fusion[i] <- "Yes"
-    
-    ##### provide fusion ID from FusionGDB
-    pizzly.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneA, geneB, sep="-")  ]
-    
-    pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
-    pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
-    
- } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
-    
-    ##### provide fusion URL to FusionGDB
-    pizzly.fusions$reported_fusion[i] <- "Yes"
-    
-    ##### provide fusion ID from FusionGDB
-    pizzly.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneB, geneA, sep="-")  ]
-    
-    pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
-    pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
-    
-  ##### Now check if any ofthe pizzly detected fusion genes are reported
-  } else {
-    
-    pizzly.fusions$reported_fusion[i] <- "-"
-    
-    ##### Check the Cancer Genome Interpreter (CGI) database first
-    ##### Check pizzly genes A and genes A in reported fusions
-    if ( geneA %in% known_translocations$geneA ) {
+        pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
+        
+      ##### Check pizzly genes A and genes B in reported fusions
+      } else if ( geneA %in% known_translocations$geneB ) {
+        
+        pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
+      }
       
-      pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
+      ##### Check pizzly genes B and genes A in reported fusions
+      if ( geneB %in% known_translocations$geneA ) {
+        
+        pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
+        
+      ##### Check pizzly genes B and genes B in reported fusions
+      } else if ( geneB %in% known_translocations$geneB ) {
+        
+        pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
+      }
       
-    ##### Check pizzly genes A and genes B in reported fusions
-    } else if ( geneA %in% known_translocations$geneB ) {
-      
-      pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
-    }
-    
-    ##### Check pizzly genes B and genes A in reported fusions
-    if ( geneB %in% known_translocations$geneA ) {
-      
-      pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
-      
-    ##### Check pizzly genes B and genes B in reported fusions
-    } else if ( geneB %in% known_translocations$geneB ) {
-      
-      pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
-    }
-    
-    ##### Flag if any of the genes are effector gene
-    if ( geneA %in% known_translocations$effector_gene  ) {
-          
-      pizzly.fusions$effector_gene[i] <- geneA
-      
-    } else if ( geneB == known_translocations$effector_gene  ) {
-          
-        pizzly.fusions$effector_gene[i] <- geneB
+      ##### Flag if any of the genes are effector gene
+      if ( geneA %in% known_translocations$effector_gene  ) {
+            
+        pizzly.fusions$effector_gene[i] <- geneA
+        
+      } else if ( geneB == known_translocations$effector_gene  ) {
+            
+          pizzly.fusions$effector_gene[i] <- geneB
+      }
     }
   }
-}
-
-##### Rearrange the table to move the transcripts list at the end
-pizzly.fusions <- pizzly.fusions %>% dplyr::select(-"transcripts.list","transcripts.list")
-
-##### Index duplicated rows = these are fusions which involve both highly abundant transcripts and cancer genes and so are duplicated in  pizzly.fusions data frame
-dup.index <- which( duplicated(pizzly.fusions) |  duplicated(pizzly.fusions[nrow(pizzly.fusions):1, ])[nrow(pizzly.fusions):1] )
-
-##### Add column indicating fusions containing high abundant transcripts and known cancer genes
-fusions_abundant <- c(rep("-", nrow(pizzly.fusions)))
-fusions_abundant[ c(1:nrow(deduped.result)) ] <- "Yes"
-fusions_cancer <- c(rep("-", nrow(pizzly.fusions)))
-
-if ( nrow(result.cancer_genes) > 0 ) {
-  fusions_cancer[ c((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes))) ] <- "Yes"
-}
-
-pizzly.fusions <- cbind(pizzly.fusions, fusions_abundant, fusions_cancer)
-
-##### Indicate duplicated rows and flag them as both, those which involve both highly abundant transcripts and cancer genes
-pizzly.fusions$fusions_abundant[ dup.index  ] <- "Yes"
-pizzly.fusions$fusions_cancer[ dup.index ] <- "Yes"
-
-##### Remove duplicated rows
-if ( any(duplicated(pizzly.fusions)) ) {
   
-  pizzly.fusions <- pizzly.fusions[ -c(which( duplicated(pizzly.fusions) )), ]
-}
-
-##### Re-order fusion genes based on the reported fusions column
-pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, pizzly.fusions$fusions_abundant, pizzly.fusions$paircount, pizzly.fusions$splitcount, pizzly.fusions$fusions_cancer, pizzly.fusions$reported_fusion_geneA, pizzly.fusions$reported_fusion_geneB, decreasing = TRUE), ]
+  ##### Rearrange the table to move the transcripts list at the end
+  pizzly.fusions <- pizzly.fusions %>% dplyr::select(-"transcripts.list","transcripts.list")
+  
+  ##### Index duplicated rows = these are fusions which involve both highly abundant transcripts and cancer genes and so are duplicated in  pizzly.fusions data frame
+  dup.index <- which( duplicated(pizzly.fusions) |  duplicated(pizzly.fusions[nrow(pizzly.fusions):1, ])[nrow(pizzly.fusions):1] )
+  
+  ##### Add column indicating fusions containing high abundant transcripts and known cancer genes
+  fusions_abundant <- c(rep("-", nrow(pizzly.fusions)))
+  fusions_abundant[ c(1:nrow(deduped.result)) ] <- "Yes"
+  fusions_cancer <- c(rep("-", nrow(pizzly.fusions)))
+  
+  if ( nrow(result.cancer_genes) > 0 ) {
+    fusions_cancer[ c((nrow(deduped.result)+1):(nrow(deduped.result) + nrow(result.cancer_genes))) ] <- "Yes"
+  }
+  
+  pizzly.fusions <- cbind(pizzly.fusions, fusions_abundant, fusions_cancer)
+  
+  ##### Indicate duplicated rows and flag them as both, those which involve both highly abundant transcripts and cancer genes
+  pizzly.fusions$fusions_abundant[ dup.index  ] <- "Yes"
+  pizzly.fusions$fusions_cancer[ dup.index ] <- "Yes"
+  
+  ##### Remove duplicated rows
+  if ( any(duplicated(pizzly.fusions)) ) {
+    
+    pizzly.fusions <- pizzly.fusions[ -c(which( duplicated(pizzly.fusions) )), ]
+  }
+  
+  ##### Re-order fusion genes based on the reported fusions column
+  pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, pizzly.fusions$fusions_abundant, pizzly.fusions$paircount, pizzly.fusions$splitcount, pizzly.fusions$fusions_cancer, pizzly.fusions$reported_fusion_geneA, pizzly.fusions$reported_fusion_geneB, decreasing = TRUE), ]
 
 } else {
   
@@ -3910,11 +3909,11 @@ geneB <- as.vector(pizzly.fusions$geneB.name[1])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
-  runPizzlyChunk <- TRUE
+  runFusionChunk <- TRUE
 } else {
   
   cat("Expression data is not available for one of the genes.")
-  runPizzlyChunk <- FALSE
+  runFusionChunk <- FALSE
 }
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -3955,7 +3954,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_1_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_1_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
@@ -4014,11 +4013,11 @@ geneB <- as.vector(pizzly.fusions$geneB.name[2])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
-  runPizzlyChunk <- TRUE
+  runFusionChunk <- TRUE
 } else {
   
   cat("Expression data is not available for one of the genes.")
-  runPizzlyChunk <- FALSE
+  runFusionChunk <- FALSE
 }
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -4056,7 +4055,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_2_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_2_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
@@ -4115,11 +4114,11 @@ geneB <- as.vector(pizzly.fusions$geneB.name[3])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
-  runPizzlyChunk <- TRUE
+  runFusionChunk <- TRUE
 } else {
   
   cat("Expression data is not available for one of the genes.")
-  runPizzlyChunk <- FALSE
+  runFusionChunk <- FALSE
 }
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -4157,7 +4156,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_3_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_3_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
@@ -4216,11 +4215,11 @@ geneB <- as.vector(pizzly.fusions$geneB.name[4])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
-  runPizzlyChunk <- TRUE
+  runFusionChunk <- TRUE
 } else {
   
   cat("Expression data is not available for one of the genes.")
-  runPizzlyChunk <- FALSE
+  runFusionChunk <- FALSE
 }
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -4258,7 +4257,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_4_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_4_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
@@ -4316,11 +4315,11 @@ geneB <- as.vector(pizzly.fusions$geneB.name[5])
 
 if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
   
-  runPizzlyChunk <- TRUE
+  runFusionChunk <- TRUE
 } else {
   
   cat("Expression data is not available for one of the genes.")
-  runPizzlyChunk <- FALSE
+  runFusionChunk <- FALSE
 }
 
 ##### Check if clinker fusion plot exists. Skip this section if it doesn't
@@ -4361,7 +4360,7 @@ if( nrow(fusion_reads.top) !=0 ) {
 
 mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
 
-```{r fusion_5_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runPizzlyChunk}
+```{r fusion_5_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
 cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
@@ -4496,7 +4495,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ### - Expression gene profiles {.tabset}
 
-Expression profiles for 10 SVs-affected genes with the highest priority (low [score](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"}) and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients.
+Expression profiles for 10 SVs-affected genes with the highest priority (low [tier](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"}) and demonstrating the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients.
 
 #### `r if ( runSVsChunk && !is.na(unique(sv_genes.expr.z[[2]]$SYMBOL)[1]) ) { unique(sv_genes.expr.z[[2]]$SYMBOL)[1] }`
 
