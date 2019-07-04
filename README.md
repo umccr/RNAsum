@@ -12,11 +12,9 @@ NOTE, currently the pipeline is limited to report on samples from **pancreatic t
 * [Reference data](#reference-data)
   * [Internal reference cohort](#internal-reference-cohort)
   * [External reference cohort](#external-reference-cohort)
-* [Testing](#testing)
-* [UMCCR HPC](#umccr-hpc)
 * [Usage](#usage)
   * [Arguments](#arguments)
-  * [Usage](#usage)
+  * [Examples](#examples)
   	 * [Required arguments only](#required-arguments-only)
   	 * [Add genome-based results](#add-genome-based-results)
   	 * [Add clinical information](#add-clinical-information)
@@ -27,7 +25,17 @@ NOTE, currently the pipeline is limited to report on samples from **pancreatic t
 
 ## Installation
 
-To be done...
+Run the [environment.yaml](envm/environment.yaml) file to create *conda* environment and install required packages. The `-p` flag should point to the *miniconda* installation path. For instance, to create `rnaseq-report` environment using *miniconda* installed in `/miniconda` directory run the following command:
+
+```
+conda env create -p /miniconda/envs/rnaseq-report --file envm/environment.yaml
+```
+
+Activate created `rnaseq-report` *conda* environment before running the pipeline
+
+```
+conda activate rnaseq-report
+```
 
 
 ## Workflow
@@ -62,20 +70,6 @@ In order to explore expression changes in queried sample we have built a high-qu
 Additionally, pancreas adenocarcinoma (PAAD) expression data (**150 samples**) from [TCGA](https://tcga-data.nci.nih.gov/) have been processed and used as an external reference cohort (see [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/blob/master/expression/public/README.md#tcga-paad) repository for more details). This dataset, however, is expected to demonstrate prominent batch effects when compared to UMCCR WTS data due to differences in applied experimental procedures and analytical pipelines. Moreover, TCGA data may include samples from tissue material of lower quality and cellularity compared to samples processed at UMCCR.
 
 
-## Testing
-
-To be done...
-
-Example `test_sample_WTS`, `test_sample_WGS` and `test_clinical_data.xlsx` data will be provided (in `data/test_data`).
-
-
-## UMCCR HPC
-
-Currently, we the pipeline is run on local machines but the aim is to set it up on [NCI Raijin](https://github.com/umccr/wiki/blob/master/computing/clusters/raijin-intro.md) and eventually on [Amazon Web Services](https://github.com/umccr/wiki/blob/master/computing/cloud/aws.md) (AWS) cloud computing.
-
-To be done...
-
-
 ## Usage
 
 To run the pipeline execure the *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script. This script catches the arguments from the command line and passes them to the *[RNAseq_report.Rmd](./rmd_files/RNAseq_report.Rmd)* script to produce the interactive HTML report.
@@ -108,30 +102,46 @@ Argument | Description | Required
 **Packages**: *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)*, *[rapportools](https://cran.r-project.org/web/packages/rapportools/index.html)*, 
 *[optparse](https://cran.r-project.org/web/packages/optparse/index.html)*, *[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)*, *[readr](https://cran.r-project.org/web/packages/readr/index.html)*, *[tidyverse](https://www.tidyverse.org/)*, *[dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)*, *[tidyr](https://cran.r-project.org/web/packages/tidyr/index.html)*, *[rlang](https://cran.r-project.org/web/packages/rlang/index.html)*, *[DT](https://cran.r-project.org/web/packages/DT/index.html)*, *[kableExtra](https://cran.r-project.org/web/packages/kableExtra/index.html)*, *[matrixStats](https://cran.rstudio.com/web/packages/matrixStats/index.html)*, *[tibble](https://cran.r-project.org/web/packages/tibble/index.html)*, *[knitr](https://cran.r-project.org/web/packages/knitr/index.html)*, *[plotly](https://plot.ly/r/)*, *[ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)*, *[ggforce](https://cran.r-project.org/web/packages/ggforce/index.html)*, *[pdftools](https://cran.r-project.org/web/packages/pdftools/index.html)*, *[png](https://cran.r-project.org/web/packages/png/index.html)*, *[lares](https://www.rdocumentation.org/packages/lares/versions/4.4)*, *[htmltools](https://cran.r-project.org/web/packages/htmltools/index.html)*, *[htmlwidgets](https://cran.r-project.org/web/packages/htmlwidgets/index.html)*, *[devtools](https://cran.r-project.org/web/packages/devtools/index.html)*, *[EnsDb.Hsapiens.v75](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v75.html)* (*[EnsDb.Hsapiens.v86](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v86.html)*)\*, *[BSgenome.Hsapiens.UCSC.hg19](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg19.html)* (*[BSgenome.Hsapiens.UCSC.hg38](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg38.html)*)\*
 
-\*  Human reference genome ***[GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)*** (*Ensembl* based annotation version ***75***) is used for genes annotation as default. Alternatively, human reference genome [GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39) (*Ensembl* based annotation version *86* is used when argument `grch_version` is set to `38`.
+\*  Human reference genome ***[GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)*** (*Ensembl* based annotation version ***75***) is used for genes annotation as default. Alternatively, human reference genome [GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39) (*Ensembl* based annotation version *86*) is used when argument `grch_version` is set to `38`.
 
 
-### Usage 
+### Examples 
 
 Below are command line use examples for generating *Transcriptome Patient Summary* report using:
 
-* [required arguments only](#required-arguments-only)
-* **[genome-based results](#add-genome-based-results)**
-* [clinical information](#add-clinical-information)
+1. [required arguments only](#required-arguments-only)
+2. **[genome-based results](#add-genome-based-results)**
+3. [clinical information](#add-clinical-information)
+
+**Note**:
+
+* make sure that the created *conda* environment (see [Installation](#installation) section) is  activated
+
+```
+conda activate rnaseq-report
+```
+
+* *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see the beginning of [Usage](#usage) section) should be executed from [rmd_files](./rmd_files) folder
+
+```
+cd rmd_files
+```
+
+* example data is provided in [data/test_data](./data/test_data) folder
 
 
-#### Required arguments only
+#### 1. Required arguments only
 
 In this scenario, only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. The genome-based findings will not be incorporated into the report, thus **no results will be provided in** ~~`Mutated genes`~~, ~~`Structural variants`~~ and ~~`CN altered genes`~~ sections. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data.
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../RNAseq_report
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
 ```
 
->The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
 
 
-#### Add genome-based results
+#### 2. Add genome-based results
 
 This is the **preferred scenario for using** ***Transcriptome Patient Summary***, in which the genome-based will be primarily used for exploring expression levels of altered genes. The genome-based findings can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. In this scenario, **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. Genes will be ordered by increasing *variants* `TIER`, *SV* `score` and `CN` *value*, resepctively, and then by decreasing absolute values in the `Patient` vs selected `dataset` column. Moreover, gene fusions detected in WTS data and reported in **`Fusion genes`** section will be first ordered based on the evidence from genome-based data (`DNA support (gene A/B)` columns).
 
@@ -150,24 +160,23 @@ The *[umccrise](https://github.com/umccr/umccrise)* files are expected to be org
 ```
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
 ```
 
->The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
 
-
-#### Add clinical information
+#### 3. Add clinical information
 
 For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Transcriptome Patient Summary* report. This can be added by specifying location of an excel spreadsheet, containing clinical information, in the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`.
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --subject_id test.subject  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
 ```
 
->The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
 
 
 ### Output
 
-To be done...
+Will be described soon...
