@@ -20,22 +20,12 @@ NOTE, currently the pipeline is limited to report on samples from **pancreatic t
   	 * [Required arguments only](#required-arguments-only)
   	 * [Add genome-based results](#add-genome-based-results)
   	 * [Add clinical information](#add-clinical-information)
+  * [Output](#output)
 
 <!-- vim-markdown-toc -->
 
 
 ## Installation
-
-### Using genome assembly GRCh37
-
-[GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)
-
-To be done...
-
-
-### Using genome assembly GRCh38
-
-[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)
 
 To be done...
 
@@ -76,7 +66,7 @@ Additionally, pancreas adenocarcinoma (PAAD) expression data (**150 samples**) f
 
 To be done...
 
-Example `test_sample_WTS`, `test_sample_WGS` and `clinical_data.xlsx` files will be provided.
+Example `test_sample_WTS`, `test_sample_WGS` and `test_clinical_data.xlsx` data will be provided (in `data/test_data`).
 
 
 ## UMCCR HPC
@@ -111,16 +101,14 @@ Argument | Description | Required
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
 --plots_mode | Plotting mode. Available options: `interactive` (all possible plots will be interactive; default) and `semi-interactive` (only plots in `Input data`, `CN altered genes`, `Immune markers` and `HRD genes` sections will be interactive) or `static` (all plots will be static) | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (defualt) and `FALSE` | No
---ensembl_version | Version of Ensembl database to be used for genes annotation (default is `75`) | No
---ucsc_genome_assembly | Version of UCSC Homo sapiens genome to be used for genes (default is `19`) | No
+--grch_version | Human reference genome version used for genes annotation. Available options: `37` (default) and `38` | No
 
 <br />
 
 **Packages**: *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)*, *[rapportools](https://cran.r-project.org/web/packages/rapportools/index.html)*, 
-*[optparse](https://cran.r-project.org/web/packages/optparse/index.html)*, *[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)*, *[readr](https://cran.r-project.org/web/packages/readr/index.html)*, *[tidyverse](https://www.tidyverse.org/)*, *[dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)*, *[tidyr](https://cran.r-project.org/web/packages/tidyr/index.html)*, *[rlang](https://cran.r-project.org/web/packages/rlang/index.html)*, *[DT](https://cran.r-project.org/web/packages/DT/index.html)*, *[kableExtra](https://cran.r-project.org/web/packages/kableExtra/index.html)*, *[matrixStats](https://cran.rstudio.com/web/packages/matrixStats/index.html)*, *[tibble](https://cran.r-project.org/web/packages/tibble/index.html)*, *[knitr](https://cran.r-project.org/web/packages/knitr/index.html)*, *[plotly](https://plot.ly/r/)*, *[ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)*, *[ggforce](https://cran.r-project.org/web/packages/ggforce/index.html)*, *[pdftools](https://cran.r-project.org/web/packages/pdftools/index.html)*, *[png](https://cran.r-project.org/web/packages/png/index.html)*, *[lares](https://www.rdocumentation.org/packages/lares/versions/4.4)*, *[htmltools](https://cran.r-project.org/web/packages/htmltools/index.html)*, *[htmlwidgets](https://cran.r-project.org/web/packages/htmlwidgets/index.html)*, *[devtools](https://cran.r-project.org/web/packages/devtools/index.html)*, *[EnsDb.Hsapiens.v75](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v75.html)* (*[EnsDb.Hsapiens.v86](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v86.html)*)\*, *[BSgenome.Hsapiens.UCSC.hg19](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg19.html)* (*[BSgenome.Hsapiens.UCSC.hg38](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg38.html)*)\**
+*[optparse](https://cran.r-project.org/web/packages/optparse/index.html)*, *[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)*, *[readr](https://cran.r-project.org/web/packages/readr/index.html)*, *[tidyverse](https://www.tidyverse.org/)*, *[dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)*, *[tidyr](https://cran.r-project.org/web/packages/tidyr/index.html)*, *[rlang](https://cran.r-project.org/web/packages/rlang/index.html)*, *[DT](https://cran.r-project.org/web/packages/DT/index.html)*, *[kableExtra](https://cran.r-project.org/web/packages/kableExtra/index.html)*, *[matrixStats](https://cran.rstudio.com/web/packages/matrixStats/index.html)*, *[tibble](https://cran.r-project.org/web/packages/tibble/index.html)*, *[knitr](https://cran.r-project.org/web/packages/knitr/index.html)*, *[plotly](https://plot.ly/r/)*, *[ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)*, *[ggforce](https://cran.r-project.org/web/packages/ggforce/index.html)*, *[pdftools](https://cran.r-project.org/web/packages/pdftools/index.html)*, *[png](https://cran.r-project.org/web/packages/png/index.html)*, *[lares](https://www.rdocumentation.org/packages/lares/versions/4.4)*, *[htmltools](https://cran.r-project.org/web/packages/htmltools/index.html)*, *[htmlwidgets](https://cran.r-project.org/web/packages/htmlwidgets/index.html)*, *[devtools](https://cran.r-project.org/web/packages/devtools/index.html)*, *[EnsDb.Hsapiens.v75](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v75.html)* (*[EnsDb.Hsapiens.v86](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v86.html)*)\*, *[BSgenome.Hsapiens.UCSC.hg19](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg19.html)* (*[BSgenome.Hsapiens.UCSC.hg38](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg38.html)*)\*
 
-\*  ***Ensembl*** based annotation version ***75*** is used as default. Alternatively, to use version 86 follow installation [instructions for genome assembly GRCh37](#using-genome-assembly-grch37) <br >
-\**  ***UCSC*** Homo sapiens genome sequences version ***hg19*** is used as default. Alternatively, to use version hg38  follow installation [instructions for genome assembly GRCh38](#using-genome-assembly-grch38)
+\*  Human reference genome ***[GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)*** (*Ensembl* based annotation version ***75***) is used for genes annotation as default. Alternatively, human reference genome [GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39) (*Ensembl* based annotation version *86* is used when argument `grch_version` is set to `38`.
 
 
 ### Usage 
@@ -137,7 +125,7 @@ Below are command line use examples for generating *Transcriptome Patient Summar
 In this scenario, only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. The genome-based findings will not be incorporated into the report, thus **no results will be provided in** ~~`Mutated genes`~~, ~~`Structural variants`~~ and ~~`CN altered genes`~~ sections. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data.
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../RNAseq_report
 ```
 
 >The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
@@ -162,7 +150,7 @@ The *[umccrise](https://github.com/umccr/umccrise)* files are expected to be org
 ```
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --umccrise ../data/umccrised/test_sample_WGS
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
 ```
 
 >The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
@@ -174,7 +162,12 @@ For samples derived from subjects, for which clinical information is available, 
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file ../data/test_sample_WTS-ready.counts  --report_dir ../RNAseq_report  --subject_id 2016.249.17.MH.P033  --umccrise ../data/umccrised/test_sample_WGS  --clinical_info ../data/clinical_data.xlsx
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --subject_id test.subject  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx
 ```
 
 >The interactive HTML report named `test_sample_WTS.pdac.RNAseq_report.html` will be created in `../RNAseq_report` folder.
+
+
+### Output
+
+To be done...
