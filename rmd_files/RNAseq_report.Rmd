@@ -14,9 +14,9 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  sample_name: 
-  dataset: 
-  count_file: 
+  sample_name: "test_sample_WTS"
+  dataset: "pdac"
+  count_file: "/Users/kanwals/Documents/UMCCR/git/RNAseq-report/RNAseq-Analysis-Report/data/test_data/final/test_sample_WTS/kallisto/abundance.tsv"
   report_dir: 
   transform: 
   filter: 
@@ -35,6 +35,7 @@ params:
   ensembl_version: 
   ucsc_genome_assembly: 
   ref_data_dir: '../data'
+  annot_file: '../data/genes/tx2gene.ensembl.v95.csv'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
   genes_hrd: 'genes/Genes_HRD.txt'
@@ -178,7 +179,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
   }  
   
   ##### Add sample info
-  sampleTargetFile <- data.frame(sample_counts, sample_name, NA, sample_name)
+  sampleTargetFile <- data.frame("Patient", sample_name, NA, sample_name)
   names(sampleTargetFile) <- names(targetFile)
   rownames(sampleTargetFile) <- sample_name
   targetFile <- rbind( targetFile, sampleTargetFile )
@@ -187,7 +188,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_dataset) {
   rownames(targetFile) <- make.names(rownames(targetFile))
   
   ##### Read sample read count file and combine it with reference datasets
-  datasets.comb <- read.table(sample_counts, sep="\t", as.is=TRUE, header=FALSE, row.names=NULL)
+  datasets.comb <- sample_counts
   names(datasets.comb) <- c("", sample_name)
       
   ##### list genes present in the read count file
@@ -1684,11 +1685,24 @@ names(caner_genes_annot.list) <- caner_genes_annot
 
 ##### Get patient data dir and sample file name
 dataDir <- unlist(strsplit(params$count_file, split='/', fixed=TRUE))
-sampleName <- gsub("-ready.counts", "", dataDir[length(dataDir)])
-dataDir <- paste(dataDir[-c(length(dataDir))], collapse ="/")
+dataDir <- paste(dataDir[-c(length(dataDir), length(dataDir)-1)], collapse ="/")
+##### Getting sample name from the params - which now SHOULD be pre-defined
+sampleName <- params$sample_name
+
+##### Read-in the annotation file for tximport
+tx2ensembl <- read.csv(file.path(params$annot_file), header = FALSE)
+colnames(tx2ensembl) <- c("tx_name", "gene_id")
+
+##### Look at countsFromAbundance parameter to change the method to generate the counts
+txi.kallisto <- tximport(params$count_file, type = "kallisto", tx2gene = tx2ensembl)
+
+##### Extract salmon counts to prepare dataframe
+kallisto.counts <- as.data.frame(txi.kallisto$counts) %>%
+  tibble::rownames_to_column() %>%
+  dplyr::rename(count = V1)
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_datasets.list[[dataset]] <- combineDatasets(params$sample_name, params$count_file, ref_dataset[[dataset]][1])
+ref_datasets.list[[dataset]] <- combineDatasets(params$sample_name, kallisto.counts, ref_dataset[[dataset]][1])
 names(ref_datasets.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Check if spreadsheet with clinical information exists
