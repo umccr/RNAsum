@@ -12,6 +12,9 @@ NOTE, currently the pipeline is limited to report on samples from **pancreatic t
 * [Reference data](#reference-data)
   * [Internal reference cohort](#internal-reference-cohort)
   * [External reference cohort](#external-reference-cohort)
+* [Input data](#input-data)
+  * [WTS](#wts)
+  * [WGS](#wgs)
 * [Usage](#usage)
   * [Arguments](#arguments)
   * [Examples](#examples)
@@ -68,6 +71,28 @@ In order to explore expression changes in queried sample we have built a high-qu
 ### External reference cohort
 
 Additionally, pancreas adenocarcinoma (PAAD) expression data (**150 samples**) from [TCGA](https://tcga-data.nci.nih.gov/) have been processed and used as an external reference cohort (see [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/blob/master/expression/public/README.md#tcga-paad) repository for more details). This dataset, however, is expected to demonstrate prominent batch effects when compared to UMCCR WTS data due to differences in applied experimental procedures and analytical pipelines. Moreover, TCGA data may include samples from tissue material of lower quality and cellularity compared to samples processed at UMCCR.
+
+
+## Input data
+
+To be added...
+
+### WTS 
+
+*[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* output files from:
+
+* [featureCounts](http://bioinf.wehi.edu.au/featureCounts) / [Salmon](https://combine-lab.github.io/salmon)
+* [kallisto](https://pachterlab.github.io/kallisto/about)
+* [pizzly](https://github.com/pmelsted/pizzly)
+* [clinker](https://github.com/Oshlack/Clinker)
+
+### WGS
+
+*[umccrise](https://github.com/umccr/umccrise)* output files from:
+
+* [PCGR](https://github.com/sigven/pcgr)
+* [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)
+* [Manta](https://github.com/Illumina/manta)
 
 
 ## Usage
