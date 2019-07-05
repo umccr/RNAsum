@@ -81,10 +81,27 @@ To be added...
 
 *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* output files from:
 
-* [featureCounts](http://bioinf.wehi.edu.au/featureCounts) / [Salmon](https://combine-lab.github.io/salmon)
 * [kallisto](https://pachterlab.github.io/kallisto/about)
 * [pizzly](https://github.com/pmelsted/pizzly)
 * [clinker](https://github.com/Oshlack/Clinker)
+
+These files are expected to be organised following the folder structure below
+
+```
+|
+|____final
+  |____[SampleName]
+    |____kallisto
+    | |____abundance.tsv
+    | |____quant_pizzly_post
+    |   |____abundance.tsv
+    |____pizzly
+    | |____[SampleName]-flat.tsv
+    |____clinker
+      |____[GeneA_GeneB].pdf
+      |____...
+      |____[GeneY_GeneZ].pdf
+```
 
 ### WGS
 
@@ -93,6 +110,20 @@ To be added...
 * [PCGR](https://github.com/sigven/pcgr)
 * [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)
 * [Manta](https://github.com/Illumina/manta)
+
+These files are expected to be organised following the folder structure below
+
+```
+|
+|____umccrised
+  |____[SampleName]
+    |____pcgr
+    | |____[SampleName]-somatic.pcgr.snvs_indels.tiers.tsv
+    |____purple
+    | |____[SampleName].purple.gene.cnv
+    |____structural
+      |____[SampleName]-manta.tsv
+```
 
 
 ## Usage
@@ -159,6 +190,8 @@ cd rmd_files
 
 In this scenario, only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. The genome-based findings will not be incorporated into the report, thus **no results will be provided in** ~~`Mutated genes`~~, ~~`Structural variants`~~ and ~~`CN altered genes`~~ sections. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data.
 
+The *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* output files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
+
 ```
 Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
 ```
@@ -170,19 +203,8 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_
 
 This is the **preferred scenario for using** ***Transcriptome Patient Summary***, in which the genome-based will be primarily used for exploring expression levels of altered genes. The genome-based findings can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. In this scenario, **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. Genes will be ordered by increasing *variants* `TIER`, *SV* `score` and `CN` *value*, resepctively, and then by decreasing absolute values in the `Patient` vs selected `dataset` column. Moreover, gene fusions detected in WTS data and reported in **`Fusion genes`** section will be first ordered based on the evidence from genome-based data (`DNA support (gene A/B)` columns).
 
-The *[umccrise](https://github.com/umccr/umccrise)* files are expected to be organised following the folder structure below
+The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to be organised following the folder structure described in [Input data:WGS](#wgs) section.
 
-```
-|
-|____umccrised (User-defined)
-  |____[SampleName]
-    |____pcgr
-    | |____[SampleName]-somatic.pcgr.snvs_indels.tiers.tsv
-    |____purple
-    | |____[SampleName].purple.gene.cnv
-    |____structural
-      |____[SampleName]-manta.tsv
-```
 
 ```
 Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/test_sample_WTS-ready.counts  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
