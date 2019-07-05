@@ -75,15 +75,21 @@ Additionally, pancreas adenocarcinoma (PAAD) expression data (**150 samples**) f
 
 ## Input data
 
-To be added...
+The pipeline accepts [WTS](#wts) data processed by *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)*. Additionally, the WTS data can be integrated with [WGS](#wgs)-based data processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline. In the latter case, the genome-based findings from corresponding sample are incorporated into the report and are used as a primary source for expression profiles prioritisation.
+
 
 ### WTS 
 
-*[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* output files from:
+The following output files from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* are use in the pipeline:
 
-* [kallisto](https://pachterlab.github.io/kallisto/about)
-* [pizzly](https://github.com/pmelsted/pizzly)
-* [clinker](https://github.com/Oshlack/Clinker)
+Tool | Output file | Example | Required
+------------ | ------------ | ------------ | ------------
+[kallisto](https://pachterlab.github.io/kallisto/about) | Quantified abundances of transcripts | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv) | **Yes**
+[kallisto](https://pachterlab.github.io/kallisto/about) | Re-quantified abundances of transcripts, including fusion transcripts identified by [pizzly](https://github.com/pmelsted/pizzly) | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/quant_pizzly_post/abundance.tsv) | No
+[pizzly](https://github.com/pmelsted/pizzly) | List of detected fusion genes using [kallisto](https://pachterlab.github.io/kallisto/about) | [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
+[clinker](https://github.com/Oshlack/Clinker) | Plots of detected fusion genes using [kallisto](https://pachterlab.github.io/kallisto/about) | [EIF4A2_PTMA.pdf](./data/test_data/final/test_sample_WTS/clinker/EIF4A2_PTMA.pdf) | No
+
+<br />
 
 These files are expected to be organised following the folder structure below
 
@@ -105,11 +111,16 @@ These files are expected to be organised following the folder structure below
 
 ### WGS
 
-*[umccrise](https://github.com/umccr/umccrise)* output files from:
+The following output files from *[umccrise](https://github.com/umccr/umccrise)* are accepted in the pipeline:
 
-* [PCGR](https://github.com/sigven/pcgr)
-* [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)
-* [Manta](https://github.com/Illumina/manta)
+Tool | Output file | Example | Required
+------------ | ------------ | ------------ | ------------
+[PCGR](https://github.com/sigven/pcgr) | List of detected and annotated single-nucleotide variants (SNVs) and indels | [test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv) | No
+[PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) | List of genes involved in CN altered regions | [test_sample_WGS.purple.gene.cnv](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv) | No
+[Manta](https://github.com/Illumina/manta) | List of genes involved in SV regions | [test_sample_WGS-sv-prioritize-manta-pass.tsv](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv) | No
+
+<br />
+
 
 These files are expected to be organised following the folder structure below
 
