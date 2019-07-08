@@ -14,9 +14,9 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  sample_name: "test_sample_WTS"
-  dataset: "pdac"
-  count_file: "/Users/kanwals/Documents/UMCCR/git/RNAseq-report/RNAseq-Analysis-Report/data/test_data/final/test_sample_WTS/kallisto/abundance.tsv"
+  sample_name: 
+  dataset: 
+  count_file: 
   report_dir: 
   transform: 
   filter: 
@@ -1654,6 +1654,7 @@ suppressMessages(library(png))
 suppressMessages(library(htmltools))
 suppressMessages(library(htmlwidgets))
 suppressMessages(library(devtools))
+suppressMessages(library(lares))
 suppressMessages(library(package=paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE))
 suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)) # required to get chromosomes lengts for fusionsBezierPlot function generating Bezier plot to present gene fusions in the genomics context
 ```
@@ -1701,8 +1702,14 @@ kallisto.counts <- as.data.frame(txi.kallisto$counts) %>%
   tibble::rownames_to_column() %>%
   dplyr::rename(count = V1)
 
+##### Create directory for results
+if ( !file.exists(params$report_dir) ) {
+
+  dir.create(params$report_dir, recursive=TRUE)
+}
+
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_datasets.list[[dataset]] <- combineDatasets(params$sample_name, kallisto.counts, ref_dataset[[dataset]][1])
+ref_datasets.list[[dataset]] <- combineDatasets(sample_name=params$sample_name, sample_counts=kallisto.counts, ref_dataset=ref_dataset[[dataset]][1])
 names(ref_datasets.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Check if spreadsheet with clinical information exists
