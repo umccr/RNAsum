@@ -86,8 +86,8 @@ Tool | Output file | Example | Required
 ------------ | ------------ | ------------ | ------------
 [kallisto](https://pachterlab.github.io/kallisto/about) | Quantified abundances of transcripts | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv) | **Yes**
 [kallisto](https://pachterlab.github.io/kallisto/about) | Re-quantified abundances of transcripts, including fusion transcripts identified by [pizzly](https://github.com/pmelsted/pizzly) | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/quant_pizzly_post/abundance.tsv) | No
-[pizzly](https://github.com/pmelsted/pizzly) | List of detected fusion genes using [kallisto](https://pachterlab.github.io/kallisto/about) | [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
-[clinker](https://github.com/Oshlack/Clinker) | Plots of detected fusion genes using [kallisto](https://pachterlab.github.io/kallisto/about) | [EIF4A2_PTMA.pdf](./data/test_data/final/test_sample_WTS/clinker/EIF4A2_PTMA.pdf) | No
+[pizzly](https://github.com/pmelsted/pizzly) | List of detected fusion genes | [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
+[clinker](https://github.com/Oshlack/Clinker) | Plots of detected fusion genes using [pizzly](https://github.com/pmelsted/pizzly) | [EIF4A2_PTMA.pdf](./data/test_data/final/test_sample_WTS/clinker/EIF4A2_PTMA.pdf) | No
 
 <br />
 
@@ -96,17 +96,17 @@ These files are expected to be organised following the folder structure below
 ```
 |
 |____final
-  |____[SampleName]
+  |____<SampleName>
     |____kallisto
     | |____abundance.tsv
     | |____quant_pizzly_post
     |   |____abundance.tsv
     |____pizzly
-    | |____[SampleName]-flat.tsv
+    | |____<SampleName>-flat.tsv
     |____clinker
-      |____[GeneA_GeneB].pdf
+      |____<GeneA_GeneB>.pdf
       |____...
-      |____[GeneY_GeneZ].pdf
+      |____<GeneY_GeneZ>.pdf
 ```
 
 ### WGS
@@ -127,13 +127,13 @@ These files are expected to be organised following the folder structure below
 ```
 |
 |____umccrised
-  |____[SampleName]
+  |____<SampleName>
     |____pcgr
-    | |____[SampleName]-somatic.pcgr.snvs_indels.tiers.tsv
+    | |____<SampleName>-somatic.pcgr.snvs_indels.tiers.tsv
     |____purple
-    | |____[SampleName].purple.gene.cnv
+    | |____<SampleName>.purple.gene.cnv
     |____structural
-      |____[SampleName]-manta.tsv
+      |____<SampleName>-manta.tsv
 ```
 
 
@@ -199,9 +199,9 @@ cd rmd_files
 
 #### 1. Required arguments only
 
-In this scenario, only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. The genome-based findings will not be incorporated into the report, thus **no results will be provided in** ~~`Mutated genes`~~, ~~`Structural variants`~~ and ~~`CN altered genes`~~ sections. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data.
+In this scenario, only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. No results will be provided in ~~`Mutated genes`~~, ~~`Structural variants`~~ and ~~`CN altered genes`~~ sections. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data.
 
-The *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* output files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
+The input files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
 
 ```
 Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
@@ -212,7 +212,7 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_
 
 #### 2. Add genome-based results
 
-This is the **preferred scenario for using** ***Transcriptome Patient Summary***, in which the genome-based will be primarily used for exploring expression levels of altered genes. The genome-based findings can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. In this scenario, **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. Genes will be ordered by increasing *variants* `TIER`, *SV* `score` and `CN` *value*, resepctively, and then by decreasing absolute values in the `Patient` vs selected `dataset` column. Moreover, gene fusions detected in WTS data and reported in **`Fusion genes`** section will be first ordered based on the evidence from genome-based data (`DNA support (gene A/B)` columns).
+This is the **preferred scenario for using** ***Transcriptome Patient Summary***, in which the genome-based findings will be used as a primary source for expression profiles prioritisation. These can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. The **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. The results in the **`Fusion genes`** section will be ordered based on the evidence from genome-based data.
 
 The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to be organised following the folder structure described in [Input data:WGS](#wgs) section.
 
@@ -225,7 +225,7 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_
 
 #### 3. Add clinical information
 
-For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Transcriptome Patient Summary* report. This can be added by specifying location of an excel spreadsheet (see example [test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx)), containing clinical information, in the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`, along with `START` and `STOP` dates for corresponding treatments.
+For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Transcriptome Patient Summary* report. This can be added by specifying location of a relevant excel spreadsheet (see example [test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx)) using the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`, along with `START` and `STOP` dates of corresponding treatments.
 
 
 ```
@@ -237,4 +237,19 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset pdac  --count_
 
 ### Output
 
-Will be described soon...
+The generated html-based ***Transcriptome Patient Summary*** **report** includes searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report consist of several sections described more in detail in [report_structure.md](report_structure.md):
+
+* [Input data](report_structure.md#input-data)
+* [Clinical information\*](report_structure.md#clinical-information)
+* [Mutated genes\**](report_structure.md#mutated-genes)
+* [Cancer genes](report_structure.md#cancer-genes)
+* [Fusion genes](report_structure.md#fusion-genes)
+* [Structural variants\**](report_structure.md#structural-variants)
+* [CN altered genes\**](report_structure.md#cn-altered-genes)
+* [Immune markers](report_structure.md#immune-markers)
+* [HRD genes](report_structure.md#hrd-genes)
+* [Drug matching](report_structure.md#drug-matching)
+* [Addendum](report_structure.md#addendum)
+
+\* if clinical information is available; see `--clinical_info` [argument](#arguments) <br />
+\** if genome-based results are available; see `--umccrise ` [argument](#arguments)
