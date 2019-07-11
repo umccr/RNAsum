@@ -2,7 +2,6 @@
 
 This reporting tool is designed to post-process, summarise and visualise an output from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)*. Its main application is to complement genome-based findings and to provide additional evidence for detected alterations.
 
-NOTE, currently the pipeline is limited to report on samples from **pancreatic tissue** since only [pancreatic cancer reference cohort](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house) have been assembled to date (see [Reference data](#reference-data) section). An exception is the *Fusion genes* report section, which relies solely on the whole-transcriptome sequencing (WTS) data from analysed sample.
 
 ## Table of contents
 
@@ -61,7 +60,11 @@ The pipeline consist of four main components illustrated and breifly described b
 
 ## Reference data
 
-Currently, the reference data is availbale only for **pancreatic** cancer samples.
+Work in progress...
+
+Currently, the reference data is availbale for the following cancer types:
+
+...
 
 
 ### Internal reference cohort
