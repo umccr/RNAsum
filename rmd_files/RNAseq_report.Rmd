@@ -1,6 +1,6 @@
 ---
 title: 'UMCCR Transcriptome Patient Summary'
-author: '`r paste0(Sys.info()["user"], " (", Sys.info()["nodename"], ")")`'
+author: 'UMCCR'
 date: '`r Sys.Date()`'
 output:
   html_document:
@@ -33,7 +33,7 @@ params:
   cn_gain: 
   grch_version: 
   ensembl_version: 
-  ucsc_genome_assembly: 
+  ucsc_genome_assembly:  
   ref_data_dir: '../data'
   annot_file: '../data/genes/tx2gene.ensembl.v95.csv'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
@@ -70,13 +70,17 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 4. ref_datasets.list[[dataset]][["combined_data_processed"]] = transformed, filtered and normalised data (see "data_transformation" and "data_normalisation" chunks)
 
-# 5. ref_datasets.list[[dataset]][["pca"]] = PCA results
+# 5. ref_datasets.list[[dataset]][["batch_effect_corrected"]] = transformed, filtered, normalised and batch effect corrected data (see "batch_effect_correction" chunk)
 
-# 6. ref_datasets.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
+# 6. ref_datasets.list[[dataset]][["pca_combined_data_processed"]] = PCA results for combined data
 
-# 7. ref_datasets.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+# 7. ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]] = PCA results for batch-effect corrected data
 
-# 8. ref_datasets.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
+# 8. ref_datasets.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
+
+# 9. ref_datasets.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+
+# 10. ref_datasets.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
 
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
@@ -314,8 +318,8 @@ pca <- function(data, targets, plot_mode = "static" ) {
   colnames(data.subset_pca.df) <- c("Target", "Dataset", "PC1", "PC2", "PC3")
   
   ##### Assigne colours to targets and datasets
-  targets.colour <- getTargetsColours(target$Target)
-  datasets.colour <- getDatasetsColours(target$Dataset)
+  targets.colour <- getTargetsColours(targets$Target)
+  datasets.colour <- getDatasetsColours(targets$Dataset)
   
   ##### Create a list with dataframe and samples colouring info
   pca.list <- list(data.subset_pca.df, importance_pca, targets.colour, datasets.colour)
@@ -325,7 +329,7 @@ pca <- function(data, targets, plot_mode = "static" ) {
   data.subset_pca.df$Target <- factor(data.subset_pca.df$Target, levels = unique(data.subset_pca.df$Target))
   
   ##### Generate PCA 2-D plot
-  pca_plot <- plot_ly(data.subset_pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(target$Target, rownames(data.subset_pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7), width = 800, height = 400) %>%
+  pca_plot <- plot_ly(data.subset_pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(targets$Target, rownames(data.subset_pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7), width = 800, height = 400) %>%
   layout(title = "", xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=20, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
   ##### Generate scree plot
@@ -2272,17 +2276,28 @@ invisible(dev.off())
 ref_datasets.list[[dataset]][["combined_data_processed"]] <- y$norm
 ```
 
+```{r batch_effect_correction, comment = NA, message=FALSE, warning=FALSE}
+##### The strategy for correcting data for batch effects is to consider the investigated sample and UMCCR PDAC reference cohort as one group (batch) (regardless of the investigated patient tissiu origin), and TCGA data (of any cancer type) as another batch. The objective is to remove as much as possible data variation due to technical factors.
+batches <- as.character(ref_datasets.list[[dataset]][["sample_annot"]]$Target)
+
+##### Change the sample dataset name to UMCCR PDAC reference cohort
+batches[ match(params$sample_name, batches) ] <- int_cancer_group
+
+##### Perform batch-effect correctrion using limma
+ref_datasets.list[[dataset]][["batch_effect_corrected"]] <- limma::removeBatchEffect(ref_datasets.list[[dataset]][["combined_data_processed"]], batch = batches)
+```
+
 ```{r pca, comment = NA, message=FALSE, warning=FALSE}
 suppressMessages(library(plotly))
 
-##### Principal component analysis (PCA)
+##### Perform principal component analysis (PCA) using combined-only data and batch-effect corrected data
 ##### Loop through combined datasets and perform PCA
 for ( dataset in names(ref_datasets.list) ) {
   
   target <- ref_datasets.list[[dataset]][["sample_annot"]]
-  data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
   
-  ref_datasets.list[[dataset]][["pca"]] <- pca(data, target, plot_mode = params$plots_mode)
+  ref_datasets.list[[dataset]][["pca_combined_data_processed"]] <- pca(ref_datasets.list[[dataset]][["combined_data_processed"]], target, plot_mode = params$plots_mode)
+  ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(ref_datasets.list[[dataset]][["batch_effect_corrected"]], target, plot_mode = params$plots_mode)
 }
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -2338,7 +2353,7 @@ for ( dataset in names(ref_datasets.list) ) {
 for ( dataset in names(ref_datasets.list) ) {
   
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+  data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
   
@@ -2350,13 +2365,13 @@ for ( dataset in names(ref_datasets.list) ) {
   rownames(data.annot) <- data.annot$SYMBOL
   
   ##### Get data matrix with gene symbols
-  ref_datasets.list[[dataset]][["combined_data_processed"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
-  rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]) <- data.annot$SYMBOL
+  ref_datasets.list[[dataset]][["batch_effect_corrected"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
+  rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]]) <- data.annot$SYMBOL
   ref_datasets.list[[dataset]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
   
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_datasets.list[[dataset]][["combined_data_processed"]]), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset, ".combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset,  ".combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_datasets.list[[dataset]][["batch_effect_corrected"]]), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset, ".combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset,  ".combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
   write.table(prepare2write(ref_datasets.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset, ".sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 ```
@@ -2445,7 +2460,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 ```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Combine expression data with mutation and CN data if available
 cn_data <- ref_genes.list[["purple"]]
-expr_data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+expr_data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
 
 ##### Get the Patient vs [cancer] Z-scores using exprTable funstion
@@ -2926,10 +2941,10 @@ The following reference patient cohorts were used for the analysis:
 Out of the `r nrow(ref_datasets.list[[dataset]][["combined_data"]])` input genes:
 
 * **`r nrow(data.annot)` genes** have reliably detected expression
-* `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(ref_datasets.list[[dataset]][["combined_data_processed"]]) } else { ("0") }` are either not expressed or their expression level is too low to be detected
-* `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_data_processed"]]) - nrow(data.annot) } else { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
+* `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(ref_datasets.list[[dataset]][["batch_effect_corrected"]]) } else { ("0") }` are either not expressed or their expression level is too low to be detected
+* `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["batch_effect_corrected"]]) - nrow(data.annot) } else { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
-NOTE: the `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(ref_datasets.list[[dataset]][["combined_data_processed"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [CN altered genes] and [Immune markers] sections.
+NOTE: the `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_data"]]) - nrow(ref_datasets.list[[dataset]][["batch_effect_corrected"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [CN altered genes] and [Immune markers] sections.
 
 **Data transformation and filtering**
 
@@ -2959,16 +2974,32 @@ Principal component analysis (PCA) was performed to reduce the dimensionality of
 
 Scatter plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.
 
-```{r pca_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
-ref_datasets.list[[dataset]][["pca"]][[2]]
+- Before batch-effects correction
+
+```{r pca_plot_combined_data, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
+ref_datasets.list[[dataset]][["pca_combined_data_processed"]][[2]]
+```
+
+- After batch-effects correction
+
+```{r pca_plot_batch_effect_corrected, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
+ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 ```
 
 * Scree plot
 
 Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. 
 
-```{r scree_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
-ref_datasets.list[[dataset]][["pca"]][[3]]
+- Before batch-effects correction
+
+```{r scree_plot_combined_data, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
+ref_datasets.list[[dataset]][["pca_combined_data_processed"]][[3]]
+```
+
+- Before batch-effects correction
+
+```{r scree_plot_batch_effect_corrected, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
+ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
 ```
 
 </details>
@@ -3001,14 +3032,14 @@ Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } els
 
 ### - Summary table {.tabset}
 
-Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL))` include [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants. Of these, the expression of **`r length(which(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL))` include [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants. Of these, the expression of **`r length(which(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) %in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate expression summary table for mutated genes (based on PCGR report)
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 
 ##### Consider only genes with mutations calssified within user-defined tiers
 genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
@@ -3347,14 +3378,14 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 
 cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group , int_cancer = int_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
 
@@ -3927,7 +3958,7 @@ Expression profiles for 5 gene fusion events involving **DNA-supported fusion** 
 ```{r fusion_1_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 
 geneA <- as.vector(pizzly.fusions$geneA.name[1])
 geneB <- as.vector(pizzly.fusions$geneB.name[1])
@@ -4444,14 +4475,14 @@ SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } el
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]))) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]]))) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
 ```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 
 ##### Consider only genes with mutations calssified within user-defined tiers
 genes <- unique(manta_sv$Gene)
@@ -4892,7 +4923,7 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_datasets.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_datasets.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
@@ -4909,7 +4940,7 @@ cn_data <- cn_data[, "CN", drop=FALSE]
 genes = cn_genes[ cn_genes %in% rownames(cn_data) ]
 
 ##### Get expression data
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 
 if ( runPcgrChunk && runPurpleChunk ) {
     
@@ -4990,7 +5021,7 @@ cn_data <- cn_data[, "CN", drop=FALSE]
 genes = cn_genes[ cn_genes %in% rownames(cn_data) ]
 
 ##### Get expression data
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
     
 if ( runPcgrChunk && runPurpleChunk ) {
     
@@ -5348,7 +5379,7 @@ detach("package:plotly", unload=FALSE)
 
 Section presenting expression levels of immune markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -5357,7 +5388,7 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` i
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 genes <- unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL))
 
 ##### Deal with no genes
@@ -5448,7 +5479,7 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 Section presenting expression levels of homologous recombination deficiency (HRD) genes to assess how many of these demonstrate low expression, which may indicate potential promoter methylation events. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["combined_data_processed"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %!in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -5457,7 +5488,7 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd 
 ```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for hrd genes from Richqrd
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 genes <- unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL))
 
 ##### Deal with no genes
@@ -5611,7 +5642,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting dysregulated cancer genes
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
 drugsTable.cancer_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "expression")
@@ -5671,7 +5702,7 @@ Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAI
 
 ```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Generate table with drugs targeting fusion genes
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 genesA <- as.vector(pizzly.fusions[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes", ]$geneA.name)
 genesB <- as.vector(pizzly.fusions[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes", ]$geneB.name)
 
@@ -5722,7 +5753,7 @@ SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } el
 
 ```{r drugs_predictive_sv_genes, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate table with drugs targeting dysregulated cancer genes
-data <- ref_datasets.list[[dataset]][["combined_data_processed"]]
+data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 genes <- unique(manta_sv$Gene)
 
 drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = NULL)
