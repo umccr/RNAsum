@@ -1639,6 +1639,7 @@ knitr::knit_hooks$set(plot = allow_thumbnails)
 ```{r load_libraries, warning=FALSE}
 ##### Load libraries
 suppressMessages(library(edgeR))
+suppressMessages(library(limma))
 suppressMessages(library(rapportools))
 suppressMessages(library(openxlsx))
 suppressMessages(library(readr))
@@ -1975,100 +1976,132 @@ if ( length(sampleID.col) > 0 ) {
 
 ##### Transformation to CPM or TPM scale (see these blogs for details https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/ and https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/ ).  CPM = Counts Per Million,  TPM = Transcripts Per Kilobase Million. 
 
-data <- ref_datasets.list[[dataset]][["combined_data"]]
-target <- ref_datasets.list[[dataset]][["sample_annot"]]
-  
-##### CPM transformation and filtering
-if ( params$filter && params$transform == "CPM" ) {
-  
-  ##### Create EdgeR DGEList object
-  y <- edgeR::DGEList(counts=data,  group=target$Target)
-  
-  ##### Remove genes with CPM of at least 1 in less than 10% of samples
-  #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
-  
-  keep <- rowSums(edgeR::cpm(y)>1) >= ncol(data)/10
-  y$filtered <- y[keep, , keep.lib.sizes=FALSE]
-  
-  #cat(nrow(y$filtered$counts), "genes remained after filtering out of the", nrow(data), "genes in the input read count matrix\n\n")
-  
-  ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-  y$samples["norm.factors"] <- edgeR::calcNormFactors(y, method = "none")$samples["norm.factors"]
-  y$transformed <- edgeR::cpm(y, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
-  y$filtered.transformed <- edgeR::cpm(y$filtered, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
+##### For counts data processing consider the investigated sample and UMCCR PDAC reference cohort as one group  (regardless of the investigated patient tissie origin), and TCGA data (of any cancer type) as another group. This is to facilitate batch-effects (related with technical aspects) correction process
+target_mod <- ref_datasets.list[[dataset]][["sample_annot"]]
+target_mod$Target <- gsub(params$sample_name, int_cancer_group, target_mod$Target)
+targets_mod.list <- unique(target_mod$Target)
 
-##### CPM transformation without filtering
-} else if ( !params$filter && params$transform == "CPM" ) {
+##### Create lists with processed data each group
+y <- vector("list", length(targets_mod.list))
+names(y) <- targets_mod.list
   
-  ##### Create EdgeR DGEList object
-  y <- edgeR::DGEList(counts=data,  group=target$Target)
+#### For each group...
+for ( group in targets_mod.list ) {
   
-  ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-  y$transformed <- edgeR::cpm(y, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
-  
-##### TPM data transformation. We can convert RPKM to TPM in two different ways: from pre-calculated RPKM, by diving by the sum of RPKM values, or directly from the normalized counts. Here we calculate TPM starting from RPKM values computed using edgeR's rpkm function ( from http://luisvalesilva.com/datasimple/rna-seq_units.html )
-##### TPM transformation with filtering
-} else if ( params$filter && params$transform == "TPM" ) {
-  
-  ##### Get genes lengths
-  edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
-  
-  gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
-  
-  ##### Check for which genes the lenght info is not available and remove them from the data
-  genes.no_length <- rownames(data)[ rownames(data) %!in% names(gene.length)]
-  data <- data[ rownames(data) %!in% genes.no_length, ]
-  
-  ##### Create EdgeR DGEList object
-  y <- edgeR::DGEList(counts=data,  group=target$Target)
-  
-  ##### Convert data into RPKM
-  y$transformed <- edgeR::rpkm(y, gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
-  
-  ##### Remove genes with TPM of at least 0.2 in less than 10% of samples
-  keep <- rowSums(y$transformed>0.2) >= ncol(y$transformed)/10
-  y$filtered <- y$counts[keep, ]
-  y$filtered.transformed <- y$transformed[keep, ]
-  
-  ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
-  if ( params$log ) {
+    target <- target_mod[ target_mod$Target==group, ]
+    data <- ref_datasets.list[[dataset]][["combined_data"]]
+    data <- data[ , target_mod$Target==group]
     
-    y$transformed <- log2(tpm_from_rpkm(y$transformed+0.25))
-    y$filtered.transformed <- log2(tpm_from_rpkm(y$filtered.transformed+0.25))
-  
-  } else {
+  ##### CPM transformation and filtering
+  if ( params$filter && params$transform == "CPM" ) {
     
-    y$transformed <- tpm_from_rpkm(y$transformed)
-    y$filtered.transformed <- tpm_from_rpkm(y$filtered.transformed)
+    ##### Create EdgeR DGEList object
+    y[[group]] <- edgeR::DGEList(counts=data,  group=target$Target)
+    
+    ##### Remove genes with CPM of at least 1 in less than 10% of samples
+    #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
+    
+    keep <- rowSums(edgeR::cpm(y[[group]])>1) >= ncol(data)/10
+    y[[group]]$filtered <- y[[group]][keep, , keep.lib.sizes=FALSE]
+    
+    #cat(nrow(y[[group]]$filtered$counts), "genes remained after filtering out of the", nrow(data), "genes in the input read count matrix\n\n")
+    
+    ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
+    y[[group]]$samples["norm.factors"] <- edgeR::calcNormFactors(y[[group]], method = "none")$samples["norm.factors"]
+    y[[group]]$transformed <- edgeR::cpm(y[[group]], normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
+    y[[group]]$filtered.transformed <- edgeR::cpm(y[[group]]$filtered, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
+  
+  ##### CPM transformation without filtering
+  } else if ( !params$filter && params$transform == "CPM" ) {
+    
+    ##### Create EdgeR DGEList object
+    y[[group]] <- edgeR::DGEList(counts=data,  group=target$Target)
+    
+    ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
+    y[[group]]$transformed <- edgeR::cpm(y[[group]], normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
+    
+  ##### TPM data transformation. We can convert RPKM to TPM in two different ways: from pre-calculated RPKM, by diving by the sum of RPKM values, or directly from the normalized counts. Here we calculate TPM starting from RPKM values computed using edgeR's rpkm function ( from http://luisvalesilva.com/datasimple/rna-seq_units.html )
+  ##### TPM transformation with filtering
+  } else if ( params$filter && params$transform == "TPM" ) {
+    
+    ##### Get genes lengths
+    edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
+    
+    gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
+    
+    ##### Check for which genes the lenght info is not available and remove them from the data
+    genes.no_length <- rownames(data)[ rownames(data) %!in% names(gene.length)]
+    data <- data[ rownames(data) %!in% genes.no_length, ]
+    
+    ##### Create EdgeR DGEList object
+    y[[group]] <- edgeR::DGEList(counts=data,  group=target$Target)
+    
+    ##### Convert data into RPKM
+    y[[group]]$transformed <- edgeR::rpkm(yy[[group]], gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
+    
+    ##### Remove genes with TPM of at least 0.2 in less than 10% of samples
+    keep <- rowSums(y[[group]]$transformed>0.2) >= ncol(y[[group]]$transformed)/10
+    y[[group]]$filtered <- y[[group]]$counts[keep, ]
+    y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
+    
+    ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
+    if ( params$log ) {
+      
+      y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed+0.25))
+      y[[group]]$filtered.transformed <- log2(tpm_from_rpkm(y[[group]]$filtered.transformed+0.25))
+    
+    } else {
+      
+      y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
+      y[[group]]$filtered.transformed <- tpm_from_rpkm(y[[group]]$filtered.transformed)
+    }
+  
+  ##### TPM transformation without filtering
+  } else if ( !params$filter && params$transform == "TPM" ) {
+    
+    ##### Get genes lengths
+    edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
+    
+    gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
+    
+    ##### Check for which genes the lenght info is not available and remove them from the data
+    genes.no_length <- rownames(data)[ rownames(data) %!in% names(gene.length)]
+    data <- data[ rownames(data) %!in% genes.no_length, ]
+    
+    ##### Create EdgeR DGEList object
+    y[[group]] <- edgeR::DGEList(counts=data,  group=target$Target)
+    
+    ##### Convert data into RPKM
+    y[[group]]$transformed <- edgeR::rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
+    
+    ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
+    if ( params$log ) {
+      
+      y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed+0.25))
+    
+    } else {
+      
+      y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
+    }
   }
+}
 
-##### TPM transformation without filtering
-} else if ( !params$filter && params$transform == "TPM" ) {
+##### Now combine DGEList objects created for each group
+y[["comb"]]$transformed <- cbind(y[[targets_mod.list[1]]]$transformed, y[[targets_mod.list[2]]]$transformed)
+y[["comb"]]$samples <- rbind(y[[targets_mod.list[1]]]$samples, y[[targets_mod.list[2]]]$samples)
+
+if ( params$filter ) {
   
-  ##### Get genes lengths
-  edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
+  ##### Keep only genes present in all sets
+  genes_mod <- intersect(rownames(y[[targets_mod.list[1]]]$filtered), rownames(y[[targets_mod.list[2]]]$filtered))
+  y[[targets_mod.list[1]]]$filtered <- y[[targets_mod.list[1]]]$filtered[ rownames(y[[targets_mod.list[1]]]$filtered) %in% genes_mod, ]
+  y[[targets_mod.list[2]]]$filtered <- y[[targets_mod.list[2]]]$filtered[ rownames(y[[targets_mod.list[2]]]$filtered) %in% genes_mod, ]
+  y[[targets_mod.list[1]]]$filtered.transformed <- y[[targets_mod.list[1]]]$filtered.transformed[ rownames(y[[targets_mod.list[1]]]$filtered.transformed) %in% genes_mod, ]
+  y[[targets_mod.list[2]]]$filtered.transformed <- y[[targets_mod.list[2]]]$filtered.transformed[ rownames(y[[targets_mod.list[2]]]$filtered.transformed) %in% genes_mod, ]
+ 
   
-  gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
-  
-  ##### Check for which genes the lenght info is not available and remove them from the data
-  genes.no_length <- rownames(data)[ rownames(data) %!in% names(gene.length)]
-  data <- data[ rownames(data) %!in% genes.no_length, ]
-  
-  ##### Create EdgeR DGEList object
-  y <- edgeR::DGEList(counts=data,  group=target$Target)
-  
-  ##### Convert data into RPKM
-  y$transformed <- edgeR::rpkm(y, gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
-  
-  ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
-  if ( params$log ) {
-    
-    y$transformed <- log2(tpm_from_rpkm(y$transformed+0.25))
-  
-  } else {
-    
-    y$transformed <- tpm_from_rpkm(y$transformed)
-  }
+  y[["comb"]]$filtered <- cbind(y[[targets_mod.list[1]]]$filtered, y[[targets_mod.list[2]]]$filtered)
+  y[["comb"]]$filtered.transformed <- cbind(y[[targets_mod.list[1]]]$filtered.transformed, y[[targets_mod.list[2]]]$filtered.transformed)
 }
 ```
 
@@ -2086,12 +2119,12 @@ target <- ref_datasets.list[[dataset]][["sample_annot"]]
 targets.colour <- getTargetsColours(target$Target)
   
 ##### Collect the most extreme density values for set the x-axis and y-axis boundaries
-den.x <- density(y$transformed[,1])$x
-den.y <- density(y$transformed[,1])$y
+den.x <- density(y[["comb"]]$transformed[,1])$x
+den.y <- density(y[["comb"]]$transformed[,1])$y
   
-for (i in 2:ncol(y$transformed)) {
+for (i in 2:ncol(y[["comb"]]$transformed)) {
     
-  den <- density(y$transformed[,i])
+  den <- density(y[["comb"]]$transformed[,i])
   den.x <- sort(c(den.x, den$x))
   den.y <- sort(c(den.y, den$y))
 }
@@ -2101,12 +2134,12 @@ if ( params$filter ) {
   par(mfrow=c(1,2))
   
   ##### Before filtering
-  plot(density(y$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y[["comb"]]$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
-  for (i in 2:ncol(y$transformed)){
-    den <- density(y$transformed[,i])
+  for (i in 2:ncol(y[["comb"]]$transformed)){
+    den <- density(y[["comb"]]$transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
   legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
@@ -2114,12 +2147,12 @@ if ( params$filter ) {
   data_transformation_nonfiltered <- recordPlot()
   
   ##### After filtering
-  plot(density(y$filtered.transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y[["comb"]]$filtered.transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed and filtered data", xlab=params$transform)
   abline(v=0, lty=3)
   
-  for (i in 2:ncol(y$filtered.transformed)){
-    den <- density(y$filtered.transformed[,i])
+  for (i in 2:ncol(y[["comb"]]$filtered.transformed)){
+    den <- density(y[["comb"]]$filtered.transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
   legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
@@ -2131,23 +2164,23 @@ if ( params$filter ) {
   par(mfrow=c(1,2))
   
   ##### Before filtering
-  plot(density(y$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y[["comb"]]$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
-  for (i in 2:ncol(y$transformed)){
-    den <- density(y$transformed[,i])
+  for (i in 2:ncol(y[["comb"]]$transformed)){
+    den <- density(y[["comb"]]$transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
   legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   
   ##### After filtering
-  plot(density(y$filtered.transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y[["comb"]]$filtered.transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed and filtered data", xlab=params$transform)
   abline(v=0, lty=3)
   
-  for (i in 2:ncol(y$filtered.transformed)){
-    den <- density(y$filtered.transformed[,i])
+  for (i in 2:ncol(y[["comb"]]$filtered.transformed)){
+    den <- density(y[["comb"]]$filtered.transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
   legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
@@ -2156,12 +2189,12 @@ if ( params$filter ) {
 } else {
   
   ##### Without filtering
-  plot(density(y$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y[["comb"]]$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
-  for (i in 2:ncol(y$transformed)){
-    den <- density(y$transformed[,i])
+  for (i in 2:ncol(y[["comb"]]$transformed)){
+    den <- density(y[["comb"]]$transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
   legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
@@ -2170,12 +2203,12 @@ if ( params$filter ) {
   pdf(paste0(PlotsDir, "/filtering.pdf"), width=8, height=5)
 
   ##### Without filtering
-  plot(density(y$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y[["comb"]]$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
-  for (i in 2:ncol(y$transformed)){
-    den <- density(y$transformed[,i])
+  for (i in 2:ncol(y[["comb"]]$transformed)){
+    den <- density(y[["comb"]]$transformed[,i])
     lines(den$x, den$y, lwd=2, col=targets.colour[[2]][i])
   }
   legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
@@ -2183,76 +2216,88 @@ if ( params$filter ) {
 }
 ```
 
-```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 12, fig.show="hide" }
+```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE }
 ##### During the sample preparation or sequencing process, external factors that are not of biological interest can affect the expression of individual samples. For example, samples processed in the first batch of an experiment can have higher expression overall when compared to samples processed in a second batch. It is assumed that all samples should have a similar range and distribution of expression values. Normalisation for sample-specific effects is required to ensure that the expression distributions of each sample are similar across the entire experiment.
 
 ##### TMM normalsation. Trimmed mean of M-values (https://www.ncbi.nlm.nih.gov/pubmed/20196867) (TMM) is performed using the calcNormFactors function in edgeR. The normalisation factors calculated here are used as a scaling factor for the library sizes. TMM is the recommended for most RNA-Seq data where the majority (more than half) of the genes are believed not differentially expressed between any pair of the samples. It adjusts for RNA composition effect, calculates scaling factors for the library sizes with calcNormFactors function using trimmed mean of M-values (TMM) between each pair of samples. Note, that the raw read counts are used to calculate the normalisation factors
-if ( params$transform == "CPM" ) {
   
-  ##### Calculate normalization factors and transformations from the raw-scale to CPM and normalisation using user-defined method
-  if ( params$filter ) {
+#### For each group...
+for ( group in targets_mod.list ) {
+  if ( params$transform == "CPM" ) {
     
-    y$noNorm <- y$filtered.transformed
-    y$filtered$samples["norm.factors"] <- edgeR::calcNormFactors(y$filtered, method = params$norm)$samples["norm.factors"]
-    y$norm <- edgeR::cpm(y$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
-  
-  } else {
-    
-    y$noNorm <- y$transformed
-    y$samples["norm.factors"] <- edgeR::calcNormFactors(y, method = params$norm)$samples["norm.factors"]
-    y$norm <- edgeR::cpm(y, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
-  }
-  
-##### Quantile normalsation (from https://www.biostars.org/p/296992/ )
-} else if ( params$transform == "TPM" ) {
-  
-  ##### Normalisation using quantile method
-  if ( params$filter ) {
-    
-    y$noNorm <- y$filtered.transformed
-    y$filtered.transformed <- data.matrix(y$filtered.transformed) 
-    
-    if ( tolower(params$norm) != "none" ) {
+    ##### Calculate normalization factors and transformations from the raw-scale to CPM and normalisation using user-defined method
+    if ( params$filter ) {
       
-      y$norm  <- normalize.quantiles(y$filtered.transformed, copy = TRUE)
-      colnames(y$norm) <- colnames(y$filtered.transformed)
-      rownames(y$norm) <- rownames(y$filtered.transformed)
-      
+      y[[group]]$noNorm <- y[[group]]$filtered.transformed
+      y[[group]]$filtered$samples["norm.factors"] <- edgeR::calcNormFactors(y[[group]]$filtered, method = params$norm)$samples["norm.factors"]
+      y[[group]]$norm <- edgeR::cpm(y[[group]]$filtered, normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
+    
     } else {
       
-      y$norm  <- y$filtered.transformed
+      y[[group]]$noNorm <- y[[group]]$transformed
+      y[[group]]$samples["norm.factors"] <- edgeR::calcNormFactors(y[[group]], method = params$norm)$samples["norm.factors"]
+      y[[group]]$norm <- edgeR::cpm(y[[group]], normalized.lib.sizes=TRUE, log=params$log, prior.count=0.25)
     }
-  
-  } else {
     
-    y$noNorm <- y$transformed
-    y$transformed <- data.matrix(y$transformed)
+  ##### Quantile normalsation (from https://www.biostars.org/p/296992/ )
+  } else if ( params$transform == "TPM" ) {
     
-    if ( tolower(params$norm) != "none" ) {
+    ##### Normalisation using quantile method
+    if ( params$filter ) {
       
-      y$norm  <- normalize.quantiles(y$transformed, copy = TRUE)
-      colnames(y$norm) <- colnames(y$transformed)
-      rownames(y$norm) <- rownames(y$transformed)
+      y[[group]]$noNorm <- y[[group]]$filtered.transformed
+      y[[group]]$filtered.transformed <- data.matrix(y[[group]]$filtered.transformed) 
       
+      if ( tolower(params$norm) != "none" ) {
+        
+        y[[group]]$norm  <- normalize.quantiles(y[[group]]$filtered.transformed, copy = TRUE)
+        colnames(y[[group]]$norm) <- colnames(y[[group]]$filtered.transformed)
+        rownames(y[[group]]$norm) <- rownames(y[[group]]$filtered.transformed)
+        
+      } else {
+        
+        y[[group]]$norm  <- y[[group]]$filtered.transformed
+      }
+    
     } else {
       
-      y$norm  <- y$transformed
+      y[[group]]$noNorm <- y[[group]]$transformed
+      y[[group]]$transformed <- data.matrix(y[[group]]$transformed)
+      
+      if ( tolower(params$norm) != "none" ) {
+        
+        y[[group]]$norm  <- normalize.quantiles(y[[group]]$transformed, copy = TRUE)
+        colnames(y[[group]]$norm) <- colnames(y[[group]]$transformed)
+        rownames(y[[group]]$norm) <- rownames(y[[group]]$transformed)
+        
+      } else {
+        
+        y[[group]]$norm  <- y[[group]]$transformed
+      }
     }
   }
-}
-  
+}  
+
+##### Combine DGEList objects created for each group
+y[["comb"]]$noNorm <- cbind(y[[targets_mod.list[1]]]$noNorm, y[[targets_mod.list[2]]]$noNorm)
+y[["comb"]]$norm <- cbind(y[[targets_mod.list[1]]]$norm, y[[targets_mod.list[2]]]$norm)
+
+ref_datasets.list[[dataset]][["combined_data_processed"]] <- y[["comb"]]$norm
+```
+
+```{r data_normalisation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
 ##### Plot expression distribution of samples for unnormalised and normalised data
 par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
   
 ##### Unnormalised data
-boxplot(y$noNorm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
+boxplot(y[["comb"]]$noNorm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
 title(main="Unnormalised data", ylab=params$transform)
 legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
 
 data_nonnormalised <- recordPlot()
 
 ##### Normalised data
-boxplot(y$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
+boxplot(y[["comb"]]$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
 title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
 legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
   
@@ -2263,17 +2308,15 @@ pdf(paste0(PlotsDir, "/normalisation.pdf"), width=8, height=8)
 par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
   
 ##### Unnormalised data
-boxplot(y$noNorm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
+boxplot(y[["comb"]]$noNorm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
 title(main="Unnormalised data", ylab=params$transform)
 legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
   
 ##### Normalised data
-boxplot(y$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
+boxplot(y[["comb"]]$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=3, xaxt="n")
 title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
 legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
 invisible(dev.off())
-  
-ref_datasets.list[[dataset]][["combined_data_processed"]] <- y$norm
 ```
 
 ```{r batch_effect_correction, comment = NA, message=FALSE, warning=FALSE}
@@ -2950,7 +2993,7 @@ NOTE: the `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_d
 
 The read count data were converted into **`r params$transform`**s using *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html){target="_blank"}* functions. `r if ( !params$filter ) { c("The option for filtering out genes with low counts is switched OFF") } else if ( params$filter ) { c("Genes with low counts were filtered out") }`. `r if ( !params$log ) { c("The data were not log-transformed") } else if ( params$log ) { c("The data were log2-transformed") }`. Plot(s) below present `r params$transform` data distribution.
 
-```{r data_transformation_filtering_plot, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15) }
+```{r data_transformation_present, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15) }
 data_transformation_nonfiltered
 data_transformation_filtered
 ```
@@ -2961,7 +3004,7 @@ During the sample preparation or sequencing process, external factors that are n
 
 Box-plots below present `r params$transform` data for individual samples, coloured by sample groups, before and after `r params$norm` normalisation.
 
-```{r data_normalisation_plot, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15) }
+```{r data_normalisation_present, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15) }
 data_nonnormalised
 data_normalised
 ```
@@ -2974,15 +3017,15 @@ Principal component analysis (PCA) was performed to reduce the dimensionality of
 
 Scatter plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.
 
-- Before batch-effects correction
+  + Before batch-effects correction
 
-```{r pca_plot_combined_data, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
+```{r pca_combined_data_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
 ref_datasets.list[[dataset]][["pca_combined_data_processed"]][[2]]
 ```
 
-- After batch-effects correction
+  + After batch-effects correction
 
-```{r pca_plot_batch_effect_corrected, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
+```{r pca_batch_effect_corrected_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
 ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 ```
 
@@ -2990,15 +3033,15 @@ ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 
 Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. 
 
-- Before batch-effects correction
+  + Before batch-effects correction
 
-```{r scree_plot_combined_data, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
+```{r scree_combined_data_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_datasets.list[[dataset]][["pca_combined_data_processed"]][[3]]
 ```
 
-- Before batch-effects correction
+  + After batch-effects correction
 
-```{r scree_plot_batch_effect_corrected, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
+```{r scree_batch_effect_corrected_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
 ```
 
