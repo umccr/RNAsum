@@ -14,7 +14,7 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --dataset pdac  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --subject_id 2016.249.17.MH.P033  --plots_mode static
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --dataset PAAD  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --subject_id 2016.249.17.MH.P033  --plots_mode static
 #
 #   sample_name:   Desired sample name to be presented in the report
 #   dataset:       Dataset to be used as external reference cohort
@@ -190,12 +190,42 @@ if ( is.na(opt$grch_version)  ) {
 }
 
 ##### Check if specified dataset type is valid
-if ( opt$dataset %!in% c("pdac", "cervix", "bladder") ) {
+if ( tolower(opt$dataset) %!in% tolower(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM")) ) {
   
   cat("\nInvalid dataset! Please use one of the following:\n\n")
-  cat("[ pdac ] - this will compare the patient's data in the context of samples from TCGA pancreatic ductal adenocarcinoma (PDAC) cohort and UMCCR internal pancreatic ductal adenocarcinoma (PDAC) cohort\n")
-  cat("[ cervix ] - this will compare the patient's data in the context of samples from TCGA cervical squamous cell carcinoma (CESC) cohort and UMCCR internal pancreatic ductal adenocarcinoma (PDAC) cohort\n\n")
-  cat("[ bladder ] - this will compare the patient's data in the context of samples from TCGA bladder urothelial carcinoma (BLCA) cohort and UMCCR internal pancreatic ductal adenocarcinoma (PDAC) cohort\n\n")
+  cat("[ ACC ] - this will compare the patient's data in the context of samples from TCGA Adrenocortical Carcinoma cohort\n\n")
+  cat("[ BLCA ] - this will compare the patient's data in the context of samples from TCGA Bladder Urothelial Carcinoma cohort\n\n")
+  cat("[ BRCA ] - this will compare the patient's data in the context of samples from TCGA Breast Invasive Carcinoma cohort\n\n")
+  cat("[ CESC ] - this will compare the patient's data in the context of samples from TCGA Cervical Squamous Cell Carcinoma and Endocervical Adenocarcinoma cohort\n\n")
+  cat("[ CHOL ] - this will compare the patient's data in the context of samples from TCGA Cholangiocarcinoma cohort\n\n")
+  cat("[ COAD ] - this will compare the patient's data in the context of samples from TCGA Colon Adenocarcinoma cohort\n\n")
+  cat("[ DLBC ] - this will compare the patient's data in the context of samples from TCGA Lymphoid Neoplasm Diffuse Large B-cell Lymphoma cohort\n\n")
+  cat("[ ESCA ] - this will compare the patient's data in the context of samples from TCGA Esophageal Carcinoma cohort\n\n")
+  cat("[ GBM ] - this will compare the patient's data in the context of samples from TCGA Glioblastoma Multiforme cohort\n\n")
+  cat("[ HNSC ] - this will compare the patient's data in the context of samples from TCGA Head and Neck Squamous Cell Carcinoma cohort\n\n")
+  cat("[ KICH ] - this will compare the patient's data in the context of samples from TCGA Kidney Chromophobe cohort\n\n")
+  cat("[ KIRC ] - this will compare the patient's data in the context of samples from TCGA Kidney Renal Clear Cell Carcinoma cohort\n\n")
+  cat("[ KIRP ] - this will compare the patient's data in the context of samples from TCGA Kidney Renal Papillary Cell Carcinoma cohort\n\n")
+  cat("[ LAML ] - this will compare the patient's data in the context of samples from TCGA Acute Myeloid Leukaemia cohort\n\n")
+  cat("[ LGG ] - this will compare the patient's data in the context of samples from TCGA Brain Lower Grade Glioma cohort\n\n")
+  cat("[ LIHC ] - this will compare the patient's data in the context of samples from TCGA Liver Hepatocellular Carcinoma cohort\n\n")
+  cat("[ LUAD ] - this will compare the patient's data in the context of samples from TCGA Lung Adenocarcinoma cohort\n\n")
+  cat("[ LUSC ] - this will compare the patient's data in the context of samples from TCGA Lung Squamous Cell Carcinoma cohort\n\n")
+  cat("[ MESO ] - this will compare the patient's data in the context of samples from TCGA Mesothelioma cohort\n\n")
+  cat("[ OV ] - this will compare the patient's data in the context of samples from TCGA Ovarian Serous Cystadenocarcinoma cohort\n\n")
+  cat("[ PAAD ] - this will compare the patient's data in the context of samples from TCGA Pancreatic Adenocarcinoma cohort and UMCCR internal pancreatic ductal adenocarcinoma (PDAC) cohort\n")
+  cat("[ PCPG ] - this will compare the patient's data in the context of samples from TCGA Pheochromocytoma and Paraganglioma cohort\n\n")
+  cat("[ PRAD ] - this will compare the patient's data in the context of samples from TCGA Prostate Adenocarcinoma cohort\n\n")
+  cat("[ READ ] - this will compare the patient's data in the context of samples from TCGA Rectum Adenocarcinoma cohort\n\n")
+  cat("[ SARC ] - this will compare the patient's data in the context of samples from TCGA Sarcoma cohort\n\n")
+  cat("[ SKCM ] - this will compare the patient's data in the context of samples from TCGA Skin Cutaneous Melanoma cohort\n\n")
+  cat("[ STAD ] - this will compare the patient's data in the context of samples from TCGA Stomach Adenocarcinoma cohort\n\n")
+  cat("[ TGCT ] - this will compare the patient's data in the context of samples from TCGA Testicular Germ Cell Tumours cohort\n\n")
+  cat("[ THCA ] - this will compare the patient's data in the context of samples from TCGA Thyroid Carcinoma cohort\n\n")
+  cat("[ THYM ] - this will compare the patient's data in the context of samples from TCGA Thymoma cohort\n\n")
+  cat("[ UCEC ] - this will compare the patient's data in the context of samples from TCGA Uterine Corpus Endometrial Carcinoma cohort\n\n")
+  cat("[ UCS ] - this will compare the patient's data in the context of samples from TCGA Uterine Carcinosarcoma cohort\n\n")
+  cat("[ UVM ] - this will compare the patient's data in the context of samples from TCGA Uveal Melanoma cohort\n\n")
   q()
 }
 
