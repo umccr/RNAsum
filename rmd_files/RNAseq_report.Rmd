@@ -409,7 +409,7 @@ nearest_position <- function(vector, x) {
 return( y )
 }
 
-##### Calculate gene-wise mean, sd, quantiles and cumulative franctions for expression data
+##### Calculate gene-wise median, sd, quantiles and cumulative franctions for expression data
 exprGroupsStats_geneWise <- function(data, targets) {
   
   ##### Perform Z-score transformation of the expression values
@@ -431,71 +431,71 @@ exprGroupsStats_geneWise <- function(data, targets) {
   #### For each group...
   for ( group in targets.list ) {
     
-    ##### For groups with > 1 sample get the mean values for each gene
+    ##### For groups with > 1 sample get the median values for each gene
     if ( sum(c(targets$Target %in% group), na.rm = TRUE) > 1 && nrow(data) > 1 )  {
       
-      ##### Extract the mean expression values
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowMeans(data[ , colnames(data)[ targets$Target %in% group ] ]))
+      ##### Extract the median expression values
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowMedians(data[ , colnames(data)[ targets$Target %in% group ] ]))
 
       ##### Extract the expression sd values
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowSds(data[ , colnames(data)[ targets$Target %in% group ] ]))
       
-      ##### Extract the mean Z-scores
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowMeans(data.z[ , colnames(data)[ targets$Target %in% group ] ]))
+      ##### Extract the median Z-scores
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowMedians(data.z[ , colnames(data)[ targets$Target %in% group ] ]))
 
-      ##### Extract the mean percentiles
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowMeans(data.q[ , colnames(data)[ targets$Target %in% group ] ]))
+      ##### Extract the median percentiles
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rowMedians(data.q[ , colnames(data)[ targets$Target %in% group ] ]))
       
-      ##### Extract the cumulative fraction corresponding to the mean Z-score
-      ##### First, need to get the position of the Z-score nearest to the mean Z-score, and then extract the cumulative value at this position
-      data.z.mean_pos <- apply(data.z, 1, nearest_position, mean(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ data.z.mean_pos ] )
+      ##### Extract the cumulative fraction corresponding to the median Z-score
+      ##### First, need to get the position of the Z-score nearest to the median Z-score, and then extract the cumulative value at this position
+      data.z.median_pos <- apply(data.z, 1, nearest_position, median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ data.z.median_pos ] )
       
       group_stats.list[[group]] <- as.data.frame(group_stats.list[[group]])
-      names( group_stats.list[[group]] ) <- c("mean", "sd", "z", "quantile", "cum")
+      names( group_stats.list[[group]] ) <- c("median", "sd", "z", "quantile", "cum")
       
     } else if ( sum(c(targets$Target %in% group), na.rm = TRUE) > 1 && nrow(data) == 1 ) {
       
-      ##### Extract the mean expression values
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], mean(data[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      ##### Extract the median expression values
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], median(data[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
 
       ##### Extract the expression sd values
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], sd(data[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
       
-      ##### Extract the mean Z-scores
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], mean(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      ##### Extract the median Z-scores
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
 
-      ##### Extract the mean percentiles
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], mean(data.q[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      ##### Extract the median percentiles
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], median(data.q[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
       
-      ##### Extract the cumulative fraction corresponding to the mean Z-score
-      ##### First, need to get the position of the Z-score nearest to the mean Z-score, and then extract the cumulative value at this position
-      data.z.mean_pos <- nearest_position( data.z, mean(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ data.z.mean_pos ] ) 
+      ##### Extract the cumulative fraction corresponding to the median Z-score
+      ##### First, need to get the position of the Z-score nearest to the median Z-score, and then extract the cumulative value at this position
+      data.z.median_pos <- nearest_position( data.z, median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ data.z.median_pos ] ) 
 
       group_stats.list[[group]] <- as.data.frame(group_stats.list[[group]])
-      names( group_stats.list[[group]] ) <- c("mean", "sd", "z", "quantile", "cum")
+      names( group_stats.list[[group]] ) <- c("median", "sd", "z", "quantile", "cum")
       rownames( group_stats.list[[group]] ) <- rownames(data)
       
     } else {
 
-      ##### Extract the mean expression values
+      ##### Extract the median expression values
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], data[ , colnames(data)[ targets$Target %in% group ] ])
 
       ##### Extract the expression sd values
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], rep( NA, nrow(data)))
       
-      ##### Extract the mean Z-scores
+      ##### Extract the median Z-scores
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.z[ , colnames(data)[ targets$Target %in% group ] ])
 
-      ##### Extract the mean percentiles
+      ##### Extract the median percentiles
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.q[ , colnames(data)[ targets$Target %in% group ] ])
       
-      ##### Extract the mean cumulative fraction
+      ##### Extract the median cumulative fraction
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ , colnames(data)[ targets$Target %in% group ] ])
       
       group_stats.list[[group]] <- as.data.frame(group_stats.list[[group]])
-      names( group_stats.list[[group]] ) <- c("mean", "sd", "z", "quantile","cum")
+      names( group_stats.list[[group]] ) <- c("median", "sd", "z", "quantile","cum")
       rownames( group_stats.list[[group]] ) <- rownames(data)
      }
   }
@@ -508,7 +508,7 @@ exprGroupsStats_geneWise <- function(data, targets) {
   for ( group in targets.list ) {
     
     ##### Extract per-gene expression values
-    gene_stats.list[[group]]$mean <- data[ , colnames(data)[ targets$Target %in% group ], drop = FALSE ]
+    gene_stats.list[[group]]$median <- data[ , colnames(data)[ targets$Target %in% group ], drop = FALSE ]
     
     ##### Extract per-gene z-score values
     gene_stats.list[[group]]$z <- data.z[ , colnames(data.z)[ targets$Target %in% group ], drop = FALSE ]
@@ -524,43 +524,43 @@ exprGroupsStats_geneWise <- function(data, targets) {
   return( list( group_stats.list, gene_stats.list) )
 }
 
-##### Calculate group-wise mean, sd, quantiles and cumulative franctions for expression data from specific sample group
+##### Calculate group-wise median, sd, quantiles and cumulative franctions for expression data from specific sample group
 exprGroupStats_groupWise <- function(data, targets, target) {
   
   ##### Subset data for defined biological group
   data.group <- data[, targets$Target %in% target ]
   
-  ##### For groups with > 1 sample get the mean and standard deviation for each gene
+  ##### For groups with > 1 sample get the median and standard deviation for each gene
   if ( !is.null(ncol(data.group)) )  {
     
-    data.group.mean <- rowMeans(data.group)
-    data.group.mean <- sort(data.group.mean)
+    data.group.median <- rowMedians(data.group)
+    data.group.median <- sort(data.group.median)
     data.group.sd <- rowSds(data.group)
     
   } else {
-    data.group.mean <- sort(data.group)
+    data.group.median <- sort(data.group)
     data.group.sd <- rep( NA, length(data.group))
   }
   
-  ##### Make sure the mean and sd vectors have the same gene order
+  ##### Make sure the median and sd vectors have the same gene order
   names(data.group.sd) <- rownames(data.group)
-  data.group.sd <- data.group.sd[names(data.group.mean)]
+  data.group.sd <- data.group.sd[names(data.group.median)]
 
   ##### Convert a expression values into corresponding percentiles
-  data.group.q <- perc.rank(data.group.mean)
+  data.group.q <- perc.rank(data.group.median)
   
   ##### Perform range standardization between 0 and 1 (for the cumulative sums), otherwise the negative values are summed up
-  data.group.s <- sort(standardization(data.group.mean))
+  data.group.s <- sort(standardization(data.group.median))
   
   ##### Calculate cumulative sums and perform range standardization between 0 and 1 
   data.group.cum <- standardization(cumsum(data.group.s))
   
-  ##### Perform Z-score transformation of the mean expression values
-  data.group.z <- scale(data.group.mean, scale = FALSE)
+  ##### Perform Z-score transformation of the median expression values
+  data.group.z <- scale(data.group.median, scale = FALSE)
   
   ##### Organise the data into data frame
-  data.group.df <- as.data.frame(cbind( data.group.mean, data.group.sd, data.group.z, data.group.q, data.group.cum))
-  names(data.group.df) <- c("mean", "sd", "z", "quantile", "cum")
+  data.group.df <- as.data.frame(cbind( data.group.median, data.group.sd, data.group.z, data.group.q, data.group.cum))
+  names(data.group.df) <- c("median", "sd", "z", "quantile", "cum")
   
   return( data.group.df )
 }
@@ -590,9 +590,9 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
 
     for ( group in targets.list ) {
         
-        group.z[[ group]] <- cbind(t(gene.stats[[ group]]$mean), t(gene.stats[[ group]]$z), t(gene.stats[[ group]]$q), t(gene.stats[[ group]]$cum) )
+        group.z[[ group]] <- cbind(t(gene.stats[[ group]]$median), t(gene.stats[[ group]]$z), t(gene.stats[[ group]]$q), t(gene.stats[[ group]]$cum) )
         group.z[[ group]] <- as.data.frame(group.z[[ group]])
-        colnames(group.z[[ group]]) <- c("mean", "z", "quantile", "cum")
+        colnames(group.z[[ group]]) <- c("median", "z", "quantile", "cum")
     }
     
     group.z[[ sampleName ]] <- do.call("rbind", group.z)
@@ -613,7 +613,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
   ##### Generate box-plot for selected gene
   if ( addBoxPlot ) {
     
-    ##### Perform Z-score transformation of the mean expression values
+    ##### Perform Z-score transformation of the median expression values
     if ( scaling == "gene-wise" ) {
       
       data.z <- t(scale(t(data)))
@@ -760,7 +760,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
 ##### Generate boxplot presenting expression profiles for selected set of genes
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, plot_mode = "static", hexcode, scaling = "gene-wise") {
   
-  ##### Perform Z-score transformation of the mean expression values
+  ##### Perform Z-score transformation of the median expression values
   if ( scaling == "gene-wise" ) {
       
     data.z <- t(scale(t(data)))
@@ -932,7 +932,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[ genes %!in% rownames(data) ]
   
-  ##### Initiate dataframe for expression mean values in each group
+  ##### Initiate dataframe for expression median values in each group
   targets.list <- unique(targets$Target)
   group.z <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = nrow(data)))
   colnames(group.z) <- targets.list
@@ -981,7 +981,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   group.z <- cbind(group.z, round(rowSds(as.matrix(group.z)), digits = 2))
   names(group.z)[ncol(group.z)] <- "SD"
   
-  ##### Calculate Z-score differneces between investigated sample and int_cancer group mean values
+  ##### Calculate Z-score differneces between investigated sample and int_cancer group median values
   group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, int_cancer]), digits = 2))
   names(group.z)[ncol(group.z)] <- paste0("Patient vs ", int_cancer)
   
@@ -1015,14 +1015,14 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
       genes_annot <- genes_annot[!duplicated(genes_annot$SYMBOL),]  
     }
     
-    ##### Merge the dataframe with groups mean expression values and gene annotations
+    ##### Merge the dataframe with groups median expression values and gene annotations
     group.z <- merge(genes_annot, group.z, by.x="SYMBOL", by.y="Gene", all = TRUE, sort = FALSE)
     names(group.z) <- gsub("SYMBOL", "Gene", names(group.z))
     
   }
   
   ##### Define colours for cells background for each group and the patient vs [int_cancer] difference
-  ##### Initiate dataframe for expression mean values in each group
+  ##### Initiate dataframe for expression median values in each group
   brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
   colnames(brks.q) <- targets.list
   clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
