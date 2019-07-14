@@ -663,10 +663,10 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
     add_markers(y = group.z.gene[[ ext_cancer ]]$cum, x =  group.z.gene[[ ext_cancer ]]$z,
                 text = rownames( group.z.gene[[ ext_cancer ]] ),
                 name = ext_cancer,
-                marker = list(size = 12, opacity = 0.1, color = "cornflowerblue"),
+                marker = list(size = 12, opacity = 0.5, color = "cornflowerblue"),
                 showlegend = TRUE) %>%
   
-    add_lines(y = group.z[[ ext_cancer ]]$cum, x = group.z[[ ext_cancer ]]$z, opacity = 0.1,
+    add_lines(y = group.z[[ ext_cancer ]]$cum, x = group.z[[ ext_cancer ]]$z, opacity = 0.5,
               line = list(color = "cornflowerblue", dash = "dash"),
               text = rownames( group.z[[ ext_cancer ]] ),
               name = ext_cancer, showlegend = FALSE) %>%
@@ -983,7 +983,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   
   ##### Calculate Z-score differneces between investigated sample and median values in the cancer group of interest
   group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, comp_cancer]), digits = 2))
-  names(group.z)[ncol(group.z)] <- paste0("Patient vs ", comp_cancer)
+  names(group.z)[ncol(group.z)] <- "Diff"
   
   ##### Add NAs for genes that are absent in the expression matrix. In the "Patient vs [comp_cancer]" columns provide "0"s to facilitate interactive sorting the table. These will appear in blank cells in the table
   if ( length(genes.absent) > 0 ) {
@@ -991,7 +991,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
     NAs.df <- data.frame(matrix(NA, ncol = ncol(group.z), nrow = length(genes.absent)))
     names(NAs.df) <- names(group.z)
     rownames(NAs.df) <- genes.absent
-    NAs.df[ names(NAs.df) %in% paste0("Patient vs ", comp_cancer) ] <- 0
+    NAs.df[ names(NAs.df) %in% "Diff" ] <- 0
     
     group.z <- rbind( group.z,  NAs.df)
   }
@@ -1001,7 +1001,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   targets.list[targets.list==sampleName] <- "Patient"
   
   ##### Reorder groups
-  group.z <- cbind(group.z[ , c(ext_cancer, int_cancer, "Patient")], group.z[, c("SD", paste0("Patient vs ", comp_cancer) )])
+  group.z <- cbind(group.z[ , c(ext_cancer, int_cancer, "Patient")], group.z[, c("SD", "Diff" )])
   
   ##### Add "Gene" column to facilitate adding annotations
   group.z$Gene <- rownames(group.z)
@@ -1028,7 +1028,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
   colnames(clrs.q) <- targets.list
   
-  for ( group in c(targets.list, paste0("Patient vs ", comp_cancer)) ) {
+  for ( group in c(targets.list, "Diff") ) {
 
     brks.q[[group]] <- quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
     #brks.q[[group]] <- sort(group.z[, group])
@@ -1091,10 +1091,10 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   ##### Add CN data if provided
   if ( !is.null(cn_data) ) {
     
-    ##### Get the position of "Patient vs [comp_cancer]" column
-    col_idx <- grep(paste0("Patient vs ", comp_cancer), names(group.z), fixed = TRUE)
+    ##### Get the position of "Diff" column
+    col_idx <- grep("Diff", names(group.z), fixed = TRUE)
     
-    ##### Now place the CN data after the "Patient vs [comp_cancer]" column
+    ##### Now place the CN data after the "Diff" column
     if ( length(genes) > 0 ) {
       
       group.z <- add_column(group.z, round(cn_data[ group.z$Gene, "CN"], digits=2), .after = col_idx)
@@ -1137,9 +1137,9 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   ##### Add links to external gene annotation resourses
   if ( ext_links && length(genes) > 0 ) {
     
-    ##### Place the external links after the "Patient vs [comp_cancer]" column
-    ##### Get the position of "Patient vs [comp_cancer]" column
-    col_idx <- grep(paste0("Patient vs ", comp_cancer), names(group.z), fixed = TRUE)
+    ##### Place the external links after the "Diff" column
+    ##### Get the position of "Diff" column
+    col_idx <- grep("Diff", names(group.z), fixed = TRUE)
     group.z <- add_column(group.z, NA, .after = col_idx)
     names(group.z)[ col_idx+1 ] <- "ext_links"
     
@@ -1181,32 +1181,45 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs [comp_cancer] difference (to allow filtering based on z-score differences)
   if ( !is.null(cn_data) && length(genes) > 0 ) {
     
-    ##### Get the position of "Patient vs [comp_cancer]" column
+    ##### Get the position of "Patient (CN)" column
     col_idx <- grep("Patient (CN)", names(group.z), fixed = TRUE)
 
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", comp_cancer)]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(abs(group.z[, "Diff"]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z[ ,col_idx ],  decreasing = cn_decrease), ]
     
-  ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for Patient vs [comp_cancer] difference (to allow filtering based on z-score differences)
+  ##### Order the data by increasing TIER category (to allow filtering based on tier information) and then by the highest absolute values for "Diff" difference (to allow filtering based on z-score differences)
   } else if  ( !is.null(mut_annot) && length(genes) > 0 ) {
     
-    ##### Get the position of "Patient vs [comp_cancer]" column
-    col_idx <- grep("Patient (CN)", names(group.z), fixed = TRUE)
-    
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", comp_cancer)]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(abs(group.z[, "Diff"]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$TIER), ]
     
   ##### Order the data by MANTA increasing Tier (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py), event type and then by the highest absolute values for Patient vs [comp_cancer] difference
   } else if  ( !is.null(sv_data) && length(genes) > 0 ) {
     
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", comp_cancer)]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(abs(group.z[, "Diff"]),  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$"Fusion genes",  decreasing = TRUE), ]
     group.z <- group.z[ order(group.z$Tier), ]
     
   ##### Otherwise order table by the highest absolute values for Patient vs [comp_cancer] difference
   } else if ( length(genes) > 0 ) {
     
-    group.z <- group.z[ order(abs(group.z[, paste0("Patient vs ", comp_cancer)]),  decreasing = TRUE), ]
+    group.z <- group.z[ order(abs(group.z[, "Diff"]),  decreasing = TRUE), ]
+  }
+  
+  ##### Remove the internal reference cohort column if the patient samples origins from other tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
+  if ( comp_cancer != int_cancer ) {
+      
+      group.z <- group.z[ , names(group.z) %!in% int_cancer ]
+      targets.list[ match(int_cancer, targets.list) ] <- "Patient"
+      
+      ##### Get the position of "Diff" column
+      diff_col_idx <- grep("Diff", names(group.z), fixed = TRUE)
+      
+  } else {
+    
+      ##### Get the position of "Diff" column
+      diff_col_idx <- grep("Diff", names(group.z), fixed = TRUE)
+      names(group.z)[ match("Diff", names(group.z)) ] <- paste0("Patient vs ", comp_cancer)
   }
   
   if ( !is.null(cn_data) ) {
@@ -1222,8 +1235,8 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
       DT::formatStyle(columns = targets.list[3], 
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
-      DT::formatStyle(columns = paste0("Patient vs ", comp_cancer), 
-                      backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", comp_cancer)]], clrs.q[[paste0("Patient vs ", comp_cancer)]])) %>%
+      DT::formatStyle(columns = names(group.z)[diff_col_idx], 
+                      backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]])) %>%
       DT::formatStyle(columns = "Patient (CN)", background = DT::styleColorBar(cn_range, 'lightblue'), backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat', backgroundPosition = 'center')
     
   } else {
@@ -1239,8 +1252,8 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
       DT::formatStyle(columns = targets.list[3], 
                       backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
-      DT::formatStyle(columns = paste0("Patient vs ", comp_cancer), 
-                      backgroundColor = DT::styleInterval(brks.q[[paste0("Patient vs ", comp_cancer)]], clrs.q[[paste0("Patient vs ", comp_cancer)]]))
+      DT::formatStyle(columns = names(group.z)[diff_col_idx], 
+                      backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]]))
   }
   
   return( list(dt.table,  group.z) )
@@ -1665,17 +1678,60 @@ suppressMessages(library(package=paste0("EnsDb.Hsapiens.v", params$ensembl_versi
 suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)) # required to get chromosomes lengts for fusionsBezierPlot function generating Bezier plot to present gene fusions in the genomics context
 ```
 
+```{r define_parameters, message=FALSE, warning=FALSE}
+##### Define Z-transformation direction
+if (tolower(params$scaling) == "gene-wise"){
+      
+  scaling <- "gene-wise"
+} else {
+  scaling <- "group-wise"
+}
+```
+
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
 ##### Define the reference datasets based on user-defined input
-ref_dataset <- list( "pdac" = c(paste(params$ref_data_dir, "Datasets_list_PDAC.txt", sep="/"), "PDAC (UMCCR)", "PDAC (TCGA)"), "cervix" = c(paste(params$ref_data_dir, "Datasets_list_cervical_SCC.txt", sep="/"), "PDAC (UMCCR)", "CESC (TCGA)"), "bladder" = c(paste(params$ref_data_dir, "Datasets_list_bladder.txt", sep="/"), "PDAC (UMCCR)", "BLCA (TCGA)") )
+ref_dataset <- list( "paad" = c(paste(params$ref_data_dir, "Datasets_list_PAAD.txt", sep="/"), "PDAC (UMCCR)", "PDAC (TCGA)"), 
+                     "cesc" = c(paste(params$ref_data_dir, "Datasets_list_CESC.txt", sep="/"), "PDAC (UMCCR)", "CESC (TCGA)"), 
+                     "blca" = c(paste(params$ref_data_dir, "Datasets_list_BLCA.txt", sep="/"), "PDAC (UMCCR)", "BLCA (TCGA)"),
+                     "brca" = c(paste(params$ref_data_dir, "Datasets_list_BRCA.txt", sep="/"), "PDAC (UMCCR)", "BRCA (TCGA)"),
+                     "thca" = c(paste(params$ref_data_dir, "Datasets_list_THCA.txt", sep="/"), "PDAC (UMCCR)", "THCA (TCGA)"),
+                     "hnsc" = c(paste(params$ref_data_dir, "Datasets_list_HNSC.txt", sep="/"), "PDAC (UMCCR)", "HNSC (TCGA)"),
+                     "lgg" = c(paste(params$ref_data_dir, "Datasets_list_LGG.txt", sep="/"), "PDAC (UMCCR)", "LGG (TCGA)"),
+                     "kirc" = c(paste(params$ref_data_dir, "Datasets_list_KIRC.txt", sep="/"), "PDAC (UMCCR)", "KIRC (TCGA)"),
+                     "lusc" = c(paste(params$ref_data_dir, "Datasets_list_LUSC.txt", sep="/"), "PDAC (UMCCR)", "LUSC (TCGA)"),
+                     "luad" = c(paste(params$ref_data_dir, "Datasets_list_LUAD.txt", sep="/"), "PDAC (UMCCR)", "LUAD (TCGA)"),
+                     "prad" = c(paste(params$ref_data_dir, "Datasets_list_PRAD.txt", sep="/"), "PDAC (UMCCR)", "PRAD (TCGA)"),
+                     "skcm" = c(paste(params$ref_data_dir, "Datasets_list_SKCM.txt", sep="/"), "PDAC (UMCCR)", "SKCM (TCGA)"),
+                     "stad" = c(paste(params$ref_data_dir, "Datasets_list_STAD.txt", sep="/"), "PDAC (UMCCR)", "STAD (TCGA)"),
+                     "lihc" = c(paste(params$ref_data_dir, "Datasets_list_LIHC.txt", sep="/"), "PDAC (UMCCR)", "LIHC (TCGA)"),
+                     "coad" = c(paste(params$ref_data_dir, "Datasets_list_COAD.txt", sep="/"), "PDAC (UMCCR)", "COAD (TCGA)"),
+                     "kirp" = c(paste(params$ref_data_dir, "Datasets_list_KIRP.txt", sep="/"), "PDAC (UMCCR)", "KIRP (TCGA)"),
+                     "ov" = c(paste(params$ref_data_dir, "Datasets_list_OV.txt", sep="/"), "PDAC (UMCCR)", "OV (TCGA)"),
+                     "sarc" = c(paste(params$ref_data_dir, "Datasets_list_SARC.txt", sep="/"), "PDAC (UMCCR)", "SARC (TCGA)"),
+                     "pcpg" = c(paste(params$ref_data_dir, "Datasets_list_PCPG.txt", sep="/"), "PDAC (UMCCR)", "PCPG (TCGA)"),
+                     "ucec" = c(paste(params$ref_data_dir, "Datasets_list_UCEC.txt", sep="/"), "PDAC (UMCCR)", "UCEC (TCGA)"),
+                     "laml" = c(paste(params$ref_data_dir, "Datasets_list_LAML.txt", sep="/"), "PDAC (UMCCR)", "LAML (TCGA)"),
+                     "esca" = c(paste(params$ref_data_dir, "Datasets_list_ESCA.txt", sep="/"), "PDAC (UMCCR)", "ESCA (TCGA)"),
+                     "gbm" = c(paste(params$ref_data_dir, "Datasets_list_GBM.txt", sep="/"), "PDAC (UMCCR)", "GBM (TCGA)"),
+                     "tgct" = c(paste(params$ref_data_dir, "Datasets_list_TGCT.txt", sep="/"), "PDAC (UMCCR)", "TGCT (TCGA)"),
+                     "thym" = c(paste(params$ref_data_dir, "Datasets_list_THYM.txt", sep="/"), "PDAC (UMCCR)", "THYM (TCGA)"),
+                     "read" = c(paste(params$ref_data_dir, "Datasets_list_READ.txt", sep="/"), "PDAC (UMCCR)", "READ (TCGA)"),
+                     "kich" = c(paste(params$ref_data_dir, "Datasets_list_KICH.txt", sep="/"), "PDAC (UMCCR)", "KICH (TCGA)"),
+                     "uvm" = c(paste(params$ref_data_dir, "Datasets_list_UVM.txt", sep="/"), "PDAC (UMCCR)", "UVM (TCGA)"),
+                     "meso" = c(paste(params$ref_data_dir, "Datasets_list_MESO.txt", sep="/"), "PDAC (UMCCR)", "MESO (TCGA)"),
+                     "acc" = c(paste(params$ref_data_dir, "Datasets_list_ACC.txt", sep="/"), "PDAC (UMCCR)", "ACC (TCGA)"),
+                     "ucs" = c(paste(params$ref_data_dir, "Datasets_list_UCS.txt", sep="/"), "PDAC (UMCCR)", "UCS (TCGA)"),
+                     "dlbc" = c(paste(params$ref_data_dir, "Datasets_list_DLBC.txt", sep="/"), "PDAC (UMCCR)", "DLBC (TCGA)"),
+                     "chol" = c(paste(params$ref_data_dir, "Datasets_list_CHOL.txt", sep="/"), "PDAC (UMCCR)", "CHOL (TCGA)")
+)
 
-dataset <- params$dataset
+dataset <- tolower(params$dataset)
 int_cancer_group <- ref_dataset[[dataset]][2]
 ext_cancer_group <- ref_dataset[[dataset]][3]
 
 ##### Define the cancer group to be used to compare per-gene expression values and report in the summary tables
-if ( dataset == "pdac" ) {
+if ( dataset == "paad" ) {
   
   comp_cancer_group <- int_cancer_group
   
@@ -1863,16 +1919,6 @@ caner_genes_annot.list[["FusionGDB"]] <- read.table(paste(params$ref_data_dir, p
 names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "TgeneID", "FGname", "FGID")
 ```
 
-```{r define_parameters, message=FALSE, warning=FALSE}
-##### Define Z-transformation direction
-if (tolower(params$scaling) == "gene-wise"){
-      
-  scaling <- "gene-wise"
-} else {
-  scaling <- "group-wise"
-}
-```
-
 ```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
 ##### Prapare data for the treatment timeline plot
 ##### Search for row with clinical info for investigated patient
@@ -1984,7 +2030,7 @@ if ( length(sampleID.col) > 0 ) {
 
 ##### Transformation to CPM or TPM scale (see these blogs for details https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/ and https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/ ).  CPM = Counts Per Million,  TPM = Transcripts Per Kilobase Million. 
 
-##### For counts data processing consider the investigated sample and UMCCR PDAC reference cohort as one group  (regardless of the investigated patient tissie origin), and TCGA data (of any cancer type) as another group. This is to facilitate batch-effects (related with technical aspects) correction process
+##### For counts data processing consider the investigated sample and internal reference cohort as one group  (regardless of the investigated patient tissie origin), and TCGA data (of any cancer type) as another group. This is to facilitate batch-effects (related with technical aspects) correction process
 target_mod <- ref_datasets.list[[dataset]][["sample_annot"]]
 target_mod$Target <- gsub(params$sample_name, int_cancer_group, target_mod$Target)
 targets_mod.list <- unique(target_mod$Target)
@@ -2328,10 +2374,10 @@ invisible(dev.off())
 ```
 
 ```{r batch_effect_correction, comment = NA, message=FALSE, warning=FALSE}
-##### The strategy for correcting data for batch effects is to consider the investigated sample and UMCCR PDAC reference cohort as one group (batch) (regardless of the investigated patient tissiu origin), and TCGA data (of any cancer type) as another batch. The objective is to remove as much as possible data variation due to technical factors.
+##### The strategy for correcting data for batch effects is to consider the investigated sample and internal reference cohort as one group (batch) (regardless of the investigated patient tissiu origin), and TCGA data (of any cancer type) as another batch. The objective is to remove as much as possible data variation due to technical factors.
 batches <- as.character(ref_datasets.list[[dataset]][["sample_annot"]]$Target)
 
-##### Change the sample dataset name to UMCCR PDAC reference cohort
+##### Change the sample dataset name to internal reference cohort
 batches[ match(params$sample_name, batches) ] <- int_cancer_group
 
 ##### Perform batch-effect correctrion using limma
@@ -2514,10 +2560,16 @@ cn_data <- ref_genes.list[["purple"]]
 expr_data <- ref_datasets.list[[dataset]][["batch_effect_corrected"]]
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
 
-##### Get the Patient vs [comp_cancer] Z-scores using exprTable funstion
+##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores using exprTable function
 expr_data <- exprTable( genes = rownames(expr_data), data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, type = "z", scaling = scaling)[[2]]
 
-expr_data.z <- expr_data[, paste0( "Patient vs ", comp_cancer_group)]
+if ( comp_cancer_group != int_cancer_group ) {
+
+  expr_data.z <- expr_data[, "Diff" ]
+} else {
+  expr_data.z <- expr_data[, paste0( "Patient vs ", comp_cancer_group)]
+}
+
 names(expr_data.z) <- rownames(expr_data)
     
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
@@ -3021,33 +3073,33 @@ data_normalised
 
 Principal component analysis (PCA) was performed to reduce the dimensionality of data to visually assess similarities and differences between samples. This exploratory analysis facilitates identification of the key factors affecting the variability in the expression data.
 
-* PCA plot
+* **PCA plot**
 
 Scatter plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.
 
-> Before batch-effects correction
+* Before batch-effects correction
 
 ```{r pca_combined_data_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
 ref_datasets.list[[dataset]][["pca_combined_data_processed"]][[2]]
 ```
 
-> After batch-effects correction
+* After batch-effects correction
 
 ```{r pca_batch_effect_corrected_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
 ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 ```
 
-* Scree plot
+* **Scree plot**
 
 Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. 
 
-> Before batch-effects correction
+* Before batch-effects correction
 
 ```{r scree_combined_data_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_datasets.list[[dataset]][["pca_combined_data_processed"]][[3]]
 ```
 
-> After batch-effects correction
+* After batch-effects correction
 
 ```{r scree_batch_effect_corrected_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_datasets.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
@@ -3116,7 +3168,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. SD - standard deviation across groups
 
 </font>
 </details>
@@ -3142,7 +3194,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each mutated gene. Variants' tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report. In case of multiple varaints detected in single gene the variant with the lowest tier is reported and other potential consequences are listed in column *CONSEQUENCE_OTHER*. Genes are ordered by **increasing variants TIER** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. SD - standard deviation across groups
 
 </font>
 </details>
@@ -3453,7 +3505,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -3478,7 +3530,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4087,7 +4139,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName = params$sa
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4104,7 +4156,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName = params$sa
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4188,7 +4240,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName  = params$s
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4205,7 +4257,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName  = params$s
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4289,7 +4341,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName  = params$s
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4306,7 +4358,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName  = params$s
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4389,7 +4441,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName  = params$s
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4406,7 +4458,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName  = params$s
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentile in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentile in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4494,7 +4546,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName = params$sa
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4511,7 +4563,7 @@ exprTable( genes = genes, data = data, targets = targets, sampleName = params$sa
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -4563,7 +4615,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 **Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"} script; **1 = high** and **3 = low priority**
 
@@ -4591,7 +4643,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** columns. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) columns. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 **Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36) script; *1 = high* and *3 = low priority*
 
@@ -5016,7 +5068,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) columns. SD - standard deviation across groups; CN - copy-number
 
 </font>
 </details>
@@ -5050,7 +5102,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) columns. SD - standard deviation across groups; CN - copy-number
 
 </font>
 </details>
@@ -5097,7 +5149,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) columns. SD - standard deviation across groups; CN - copy-number
 
 </font>
 </details>
@@ -5131,7 +5183,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** columns. SD - standard deviation across groups; CN - copy-number
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each gene. The **CN values** based on patient's genomic data are presented in *Patient (CN)* column with a horizontal blue bar indicating the CN value of each gene in the context of other genes. If mutation data is availbale, then the variants’ tier, consequence, class and tumour allele freuqnecy (AF), as well as genomic and protein change are also provided on right-hand side based on information from [PCGR](https://github.com/sigven/pcgr){target="_blank"} report (similar to [Mutated genes] section). Genes are ordered by **Patient (CN)** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) columns. SD - standard deviation across groups; CN - copy-number
 
 </font>
 </details>
@@ -5463,7 +5515,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. SD - standard deviation across groups
 
 </font>
 </details>
@@ -5489,7 +5541,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
@@ -5563,7 +5615,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. SD - standard deviation across groups
 
 </font>
 </details>
@@ -5589,7 +5641,7 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Patient vs `r comp_cancer_group`** column illustrates the difference between percentiles in patient sample and reference cancer cohort for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** column. TSG - tumour suppressor gene; SD - standard deviation across groups
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene; SD - standard deviation across groups
 
 </font>
 </details>
