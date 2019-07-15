@@ -39,7 +39,7 @@ All [fusions](./fusions) listed in the unfiltered [pizzly](https://github.com/pm
 ## Counts post-processing
 
 
-<img src="img/counts_post-processing_scheme.pdf" width="80%"> 
+<img src="img/counts_post-processing_scheme.png" width="80%"> 
 
 >Counts post-processing scheme.
 
@@ -48,13 +48,13 @@ All [fusions](./fusions) listed in the unfiltered [pizzly](https://github.com/pm
 
 ### Gene-wise Z-score transformation
 
-<img src="img/Z-score_transformation_gene_wise.pdf" width="80%"> 
+<img src="img/Z-score_transformation_gene_wise.png" width="80%"> 
 
 >Gene-wise Z-score transformation scheme.
 
 ### Group-wise centering
 
-<img src="img/centering_group_wise.pdf" width="80%"> 
+<img src="img/centering_group_wise.png" width="80%"> 
 
 >Group-wise centering scheme.
 
