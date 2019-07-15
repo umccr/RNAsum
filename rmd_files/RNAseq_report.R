@@ -125,7 +125,14 @@ if ( is.na(opt$transform)  ) {
 
 if ( is.na(opt$norm)  ) {
   
-  opt$norm <- "TMM"
+  if ( opt$transform == "CPM"  ) {
+    
+    opt$norm <- "TMM"
+    
+  } else if ( opt$transform == "TPM"  ) {
+    
+    opt$norm <- "quantile"
+  }
 }
 
 if ( is.na(opt$filter)  ) {
@@ -240,23 +247,29 @@ if ( is.na(opt$plots_mode) ) {
   q()
 }
 
-##### Make sure that TMM, TMMwzp, RLE or upperquartile normalisation is used for CPM-tansformed data and quantile normalisation is used for TPM-tansformed data
-if ( opt$transform == "TPM" && opt$norm == "TMM" ) {
+
+##### Make sure that either CPM or TPM transformation is selected
+if ( opt$transform != "CPM" && opt$transform != "TPM" ) {
   
-  cat(paste0("\nOnly TPM normalisation is not available for TPM-tansformed data!\n\nQuantile normalisation will be performed for ", opt$transform, "-tansformed data.\n\n"))
+  cat(paste0("\nWrong transformation method was selected! \"", opt$transform, "\" transformation is not available!\n\nUse \"CPM\" or \"TPM\" transformation methods.\n\n"))
+  q()
+}
+
+##### Make sure that TMM, TMMwzp, RLE or upperquartile normalisation is used for CPM-tansformed data and quantile normalisation is used for TPM-tansformed data
+if ( opt$transform == "TPM" && opt$norm != "quantile" && opt$norm != "none" ) {
+  
+  cat(paste0("\nWrong normalisation method was selected! ", opt$norm, " normalisation is not available for TPM-tansformed data!\n\nQuantile normalisation will be performed for TPM-tansformed data.\n\n"))
   
   opt$norm <- "quantile"
   
 } else if ( opt$transform == "CPM" && opt$norm == "quantile" ) {
   
-  cat(paste0("\nQuantile normalisation is available only for TPM-tansformed data! \"TMM\", \"TMMwzp\", \"RLE\" and \"upperquartile\" methods are available for ", opt$transform, "-tansformed data.\n\n"))
-  
+  cat(paste0("\nQuantile normalisation is available only for TPM-tansformed data! \"TMM\", \"TMMwzp\", \"RLE\" and \"upperquartile\" methods are available for CPM-tansformed data.\n\n"))
   q()
   
-} else if ( opt$transform == "CPM" &&  opt$norm != "TMM" && opt$norm != "TMMwzp" && opt$norm != "RLE" && opt$norm != "upperquartile" ) {
+} else if ( opt$transform == "CPM" && opt$norm != "TMM" && opt$norm != "TMMwzp" && opt$norm != "RLE" && opt$norm != "upperquartile" && opt$norm != "none" ) {
   
   cat(paste0("\nWrong normalisation method was selected! \"TMM\", \"TMMwzp\", \"RLE\" and \"upperquartile\" methods are available for ", opt$transform, "-tansformed data.\n\n"))
-  
   q()
 }
 
