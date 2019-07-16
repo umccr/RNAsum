@@ -163,7 +163,7 @@ Argument | Description | Required
 --count_file | Location and name of the *[kallisto](https://pachterlab.github.io/kallisto/about)* read count file from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* (see [example](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)) | **Yes**
 --report_dir | Desired location for the report | **Yes**
 --transform | Transformation method for converting read counts. Available options are: `CPM` (defualt) and `TPM` | No
---norm | Normalisation method. Available options are: `TMM` (for *CPM-transformed* data, defualt) and `quantile` (for *TPM-transformed* data) | No
+--norm | Normalisation method. Available options are: `TMM` (defualt), `TMMwzp`, `RLE`, `upperquartile` or `none` for *CPM-transformed* data, and `quantile` (defualt) or `none` for *TPM-transformed* data | No
 --filter | Filtering out low expressed genes. Available options are: `TRUE` (defualt) and `FALSE` | No
 --log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (defualt) and `FALSE` | No
 --scaling | Apply [`gene-wise`](img/Z-score_transformation_gene_wise.png) (default) or [`group-wise`](img/Z-score_transformation_group_wise.png) data scaling | No
