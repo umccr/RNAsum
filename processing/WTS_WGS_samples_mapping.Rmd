@@ -8,6 +8,10 @@ output:
     toc: false
     toc_float: false
     code_folding: hide
+params:
+  project: "Avner"
+  secondary: 
+  sample_name: "CCR170115b_MH17T002P033_RNA"
 ---
 
 ```{r custom, echo=FALSE, message=FALSE, warning=FALSE}
@@ -37,8 +41,16 @@ This currently requires specifying the project name and will pull out all files 
 An alternative use is to set the "secondary" analysis flag to match the samples that need to be processed, regardless of processing status. The `PROJECT` name will be used to name config and sample files, but any sample with the matching `SECONDARY` entry in the `secondary analysis` column of the spreadsheet will be added. This is useful when re-processing samples for research projects. Long term, the idea is that we get rid of this filtering step completely and just generate sync lists and templates for all samples that still need to be processed, then mark the processing stage in Google-LIMS to avoid duplication.
 
 ```{r project, eval=FALSE}
-PROJECT <- 'Avner'
-SECONDARY <- ''
+PROJECT <- params$project
+
+if ( is.null(params$secondary) ) {
+  
+  SECONDARY <- ""
+  
+} else {
+  SECONDARY <- params$secondary
+}
+
 
 ```
 
@@ -88,9 +100,8 @@ Find all samples that belong to the provided project and that have been processe
 bcbio <- samples %>%
   dplyr::filter(((project == PROJECT & results != '-') | 
            (secondary_analysis == SECONDARY))) %>% 
-  dplyr::select(fastq, results, run, project, sample_id, sample_name, subject_id, 
-         phenotype, row_id) %>%
-  dplyr::mutate(targetname = paste(runname, sample_name, sep = '_')) %>%
+  dplyr::select(fastq, results, run, project, sample_id, sample_name, subject_id, type, phenotype, row_id) %>%
+  dplyr::mutate(targetname = paste(sample_name, sep = '_')) %>%
   dplyr::mutate(targetname = str_replace_all(targetname, '-', '_')) 
 
 ```
