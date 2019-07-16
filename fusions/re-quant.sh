@@ -1,5 +1,7 @@
 #!/bin/bash
 #script for requantifying pizzly results
+#recommend running this in an interactive session
+#expects kallisto in the path (recommend conda installation "conda install -c bioconda kallisto")
 
 #check input parameters
 while getopts "t:f:1:2:" option
