@@ -573,11 +573,6 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
       
     targets <- targets[ targets$Target %!in% int_cancer, ]
     data <- data[ ,rownames(targets) ]
-    
-    plot_height <- 300
-      
-  } else {
-    plot_height <- 600
   }
   
   ##### Initiate lists with stats for each group
@@ -641,13 +636,13 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
     ##### Reorder groups
     gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(ext_cancer, int_cancer, "Patient"))
     
-    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("cornflowerblue", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = plot_height, showlegend=FALSE)
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("cornflowerblue", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 400, showlegend=FALSE)
   }
   
+  ##### Generate interactive CFD plot with plotly
   ##### Include the internal reference cohort in the plot
   if ( comp_cancer == int_cancer ) {
         
-    ##### Generate interactive CFD plot with plotly
     p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black")) %>%
     
       ##### Add sample data
@@ -706,8 +701,8 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   
   ##### Skip the internal reference cohort in the plot
   } else {
-    ##### Generate interactive CFD plot with plotly
-  p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black")) %>%
+    
+    p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black")) %>%
   
     ##### Add sample data
     add_markers(y = group.z.gene[[ sampleName ]]$cum, x = group.z.gene[[ sampleName ]]$z,
@@ -755,7 +750,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   ##### Combine CDF plot with boxplot if this option is selected
   if ( addBoxPlot ) {
     
-    p1_2 <- subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE) %>%
+    p1_2 <- subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE, heights = c(0.7, 0.3)) %>%
   layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[ sampleName ]]$z)-1.5, max(group.z[[ sampleName ]]$z)+1.5)),
           yaxis = list(title = "Cumulative fraction"),
           legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
@@ -822,6 +817,12 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
 
 ##### Generate boxplot presenting expression profiles for selected set of genes
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, plot_mode = "static", hexcode, scaling = "gene-wise") {
+  
+    if ( comp_cancer != int_cancer ) {
+      
+      targets <- targets[ targets$Target %!in% int_cancer, ]
+      data <- data[ ,rownames(targets) ]
+    }
   
   ##### Perform Z-score transformation of the median expression values
   if ( scaling == "gene-wise" ) {
@@ -1876,13 +1877,18 @@ if ( file.exists(pizzly_file) ) {
 
 ##### Read in the quantification file from kallisto
 ##### ... but first check if kallisto re-quntified transcripts file is available
-kallisto_file <- paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/")
+kallisto_quant_pizzly_file <- paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/")
+kallisto_file <- paste(dataDir, "kallisto/abundance.tsv", sep = "/")
 runKallistoChunk <- TRUE
 runFusionChunk <- TRUE
 
-if ( file.exists(kallisto_file) ) {
+if ( file.exists(kallisto_quant_pizzly_file) ) {
 
-ref_genes.list[["kallisto"]] <- read.table(kallisto_file, header = TRUE)
+  ref_genes.list[["kallisto"]] <- read.table(kallisto_quant_pizzly_file, header = TRUE)
+
+} else if ( file.exists(kallisto_file) ) {
+  
+  ref_genes.list[["kallisto"]] <- read.table(kallisto_file, header = TRUE)
 
 } else {
   
