@@ -818,11 +818,11 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
 ##### Generate boxplot presenting expression profiles for selected set of genes
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, plot_mode = "static", hexcode, scaling = "gene-wise") {
   
-    if ( comp_cancer != int_cancer ) {
+  if ( comp_cancer != int_cancer ) {
       
-      targets <- targets[ targets$Target %!in% int_cancer, ]
-      data <- data[ ,rownames(targets) ]
-    }
+    targets <- targets[ targets$Target %!in% int_cancer, ]
+    data <- data[ ,rownames(targets) ]
+  }
   
   ##### Perform Z-score transformation of the median expression values
   if ( scaling == "gene-wise" ) {
@@ -836,12 +836,13 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   
   ##### Make sure that all genes are present in the expression matrix
   genes <- genes[ genes %in% rownames(data.z) ]
-  
-  ##### Sort genes by the highest values in the "comp_cancer" cohort
+   
+  ##### Sort genes by the greatest difference between the patient and the "comp_cancer" cohort
   comp_cancer.medians <- rowMedians( data.z[ genes ,targets$Target==comp_cancer ] )
   names(comp_cancer.medians) <- genes
-  genes <- genes [ order(comp_cancer.medians) ]
-   
+  comp_cancer.medians.diff <- comp_cancer.medians - data.z[ genes ,targets$Target=="Patient" ]
+  genes <- genes[ order(comp_cancer.medians.diff) ]
+  
   ##### Prepare dataframe for plotly
   gene.expr.df <- NULL
   
@@ -1869,10 +1870,15 @@ ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$ge
 ##### Read in the pizzly fusion calls
 ##### Check if pizzly output file exists
 pizzly_file <- paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/")
+pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(sampleName, "-flat-filtered.tsv"), sep = "/")
 
 if ( file.exists(pizzly_file) ) {
   
   ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file, header = TRUE)
+  
+} else if ( file.exists(pizzly_file_filtered) ) {
+  
+  ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file_filtered, header = TRUE)
 }
 
 ##### Read in the quantification file from kallisto
