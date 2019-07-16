@@ -158,7 +158,7 @@ To run the pipeline execure the *[RNAseq_report.R](./rmd_files/RNAseq_report.R)*
 
 Argument | Description | Required
 ------------ | ------------ | ------------
---sample_name | Desired sample name to be presented in the report | **Yes**
+--sample_name | The name of the sample to be analysed and reported | **Yes**
 --dataset | Tissue from which the sample is derived. Available options are [TCGA](https://tcga-data.nci.nih.gov/) project IDs listed in [TCGA projects summary table](./TCGA_projects_summary.md) `Project` column | **Yes**
 --count_file | Location and name of the *[kallisto](https://pachterlab.github.io/kallisto/about)* read count file from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* (see [example](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)) | **Yes**
 --report_dir | Desired location for the report | **Yes**
