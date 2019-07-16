@@ -35,7 +35,7 @@ params:
   ensembl_version: 
   ucsc_genome_assembly:  
   ref_data_dir: '../data'
-  annot_file: '../data/genes/tx2gene.ensembl.v95.csv'
+  annot_file: 'genes/tx2gene.ensembl.v95.csv'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
   genes_hrd: 'genes/Genes_HRD.txt'
@@ -354,7 +354,7 @@ colnames(data.subset_scree.df) <- c("PC", "Variances")
       ##### Add access token, required by orca function, to the shell environment
       Sys.setenv('MAPBOX_TOKEN' = 'secret token')
   
-      ##### Change directory to folder with CDF plots
+      ##### Change directory to folder with PCA plots
       setwd(PlotsDir)
  
       ##### Save the static image into a file
@@ -566,7 +566,19 @@ exprGroupStats_groupWise <- function(data, targets, target) {
 }
 
 ##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
-cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, addBoxPlot = FALSE, plot_mode = "static", scaling = "gene-wise") {
+cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, addBoxPlot = FALSE, plot_mode = "static", scaling = "gene-wise") {
+  
+  ##### Remove the internal reference cohort data if the patient samples origins from other tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
+  if ( comp_cancer != int_cancer ) {
+      
+    targets <- targets[ targets$Target %!in% int_cancer, ]
+    data <- data[ ,rownames(targets) ]
+    
+    plot_height <- 300
+      
+  } else {
+    plot_height <- 600
+  }
   
   ##### Initiate lists with stats for each group
   targets.list <- unique(targets$Target)
@@ -629,10 +641,72 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
     ##### Reorder groups
     gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(ext_cancer, int_cancer, "Patient"))
     
-    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("lightcyan2", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = 600, showlegend=FALSE)
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = c("cornflowerblue", "red", "black"), opacity = 0.5, orientation = 'h', width = 800, height = plot_height, showlegend=FALSE)
   }
   
-  ##### Generate interactive CFD plot with plotly
+  ##### Include the internal reference cohort in the plot
+  if ( comp_cancer == int_cancer ) {
+        
+    ##### Generate interactive CFD plot with plotly
+    p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black")) %>%
+    
+      ##### Add sample data
+      add_markers(y = group.z.gene[[ sampleName ]]$cum, x = group.z.gene[[ sampleName ]]$z,
+                  text = rownames(group.z.gene[[ sampleName ]] ),
+                  name = "Patient",
+                  marker = list(size = 12, color = "black"),
+                  showlegend = TRUE) %>%
+    
+      add_lines(y = group.z[[ sampleName ]]$cum, x = group.z[[ sampleName ]]$z, 
+                line = list(color = "grey"),
+                text = rownames( group.z[[ sampleName ]] ),
+                name = "Patient", showlegend = FALSE) %>%
+        
+      ##### Add int_cancer data
+      add_markers(y = group.z.gene[[ int_cancer ]]$cum, x =  group.z.gene[[ int_cancer ]]$z,
+                  text = rownames( group.z.gene[[ int_cancer ]]),
+                  name = int_cancer,
+                  marker = list(size = 12, opacity = 0.5, color = "red"),
+                  showlegend = TRUE) %>%
+    
+      add_lines(y = group.z[[ int_cancer ]]$cum, x = group.z[[ int_cancer ]]$z, opacity = 0.5,
+                line = list(color = "red", dash = "dash"),
+                text = rownames( group.z[[ int_cancer ]] ),
+                name = int_cancer, showlegend = FALSE) %>%
+          
+      ##### Add ext_cancer data
+      add_markers(y = group.z.gene[[ ext_cancer ]]$cum, x =  group.z.gene[[ ext_cancer ]]$z,
+                  text = rownames( group.z.gene[[ ext_cancer ]] ),
+                  name = ext_cancer,
+                  marker = list(size = 12, opacity = 0.5, color = "cornflowerblue"),
+                  showlegend = TRUE) %>%
+    
+      add_lines(y = group.z[[ ext_cancer ]]$cum, x = group.z[[ ext_cancer ]]$z, opacity = 0.5,
+                line = list(color = "cornflowerblue", dash = "dash"),
+                text = rownames( group.z[[ ext_cancer ]] ),
+                name = ext_cancer, showlegend = FALSE) %>%
+      
+      ##### Add quantile lines
+      add_lines(y = seq(0,1,0.1), x = rep(quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
+                line = list(color = "gray", dash = "dash"),
+                name = "Q1", showlegend = FALSE) %>%
+      
+      add_lines(y = seq(0,1,0.1), x = rep(quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
+                line = list(color = "gray", dash = "dash"),
+                name = "Q2", showlegend = FALSE) %>%
+      
+      add_lines(y = seq(0,1,0.1), x = rep(quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
+                line = list(color = "gray", dash = "dash"),
+                name = "Q3", showlegend = FALSE) %>% 
+      
+          layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[ sampleName ]]$z)-1.5, max(group.z[[ sampleName ]]$z)+1.5)),
+             yaxis = list(title = "Cumulative fraction"),
+             legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white")
+      )
+  
+  ##### Skip the internal reference cohort in the plot
+  } else {
+    ##### Generate interactive CFD plot with plotly
   p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black")) %>%
   
     ##### Add sample data
@@ -646,19 +720,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
               line = list(color = "grey"),
               text = rownames( group.z[[ sampleName ]] ),
               name = "Patient", showlegend = FALSE) %>%
-    
-    ##### Add int_cancer data
-    add_markers(y = group.z.gene[[ int_cancer ]]$cum, x =  group.z.gene[[ int_cancer ]]$z,
-                text = rownames( group.z.gene[[ int_cancer ]]),
-                name = int_cancer,
-                marker = list(size = 12, opacity = 0.5, color = "red"),
-                showlegend = TRUE) %>%
-  
-    add_lines(y = group.z[[ int_cancer ]]$cum, x = group.z[[ int_cancer ]]$z, opacity = 0.5,
-              line = list(color = "red", dash = "dash"),
-              text = rownames( group.z[[ int_cancer ]] ),
-              name = int_cancer, showlegend = FALSE) %>%
-    
+        
     ##### Add ext_cancer data
     add_markers(y = group.z.gene[[ ext_cancer ]]$cum, x =  group.z.gene[[ ext_cancer ]]$z,
                 text = rownames( group.z.gene[[ ext_cancer ]] ),
@@ -688,6 +750,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, add
            yaxis = list(title = "Cumulative fraction"),
            legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white")
     )
+  }
   
   ##### Combine CDF plot with boxplot if this option is selected
   if ( addBoxPlot ) {
@@ -791,7 +854,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   ##### Reorder groups
   gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c("Patient", int_cancer, ext_cancer))
     
-  p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.2, showlegend = TRUE, width = 800, height = 400 ) %>% 
+  p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.3, showlegend = TRUE, width = 800, height = 400 ) %>% 
     add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
     
     layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
@@ -821,7 +884,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   
   } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
     
-    p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.2, showlegend = TRUE, width = 800, height = 600 ) %>% 
+    p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = c(I("black"), "red", "cornflowerblue"), opacity=0.3, showlegend = TRUE, width = 800, height = 600 ) %>% 
     add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
     
     layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
@@ -1653,6 +1716,7 @@ knitr::knit_hooks$set(plot = allow_thumbnails)
 ##### Load libraries
 suppressMessages(library(edgeR))
 suppressMessages(library(limma))
+suppressMessages(library(preprocessCore))
 suppressMessages(library(rapportools))
 suppressMessages(library(openxlsx))
 suppressMessages(library(readr))
@@ -1691,39 +1755,39 @@ if (tolower(params$scaling) == "gene-wise"){
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
 ##### Define the reference datasets based on user-defined input
-ref_dataset <- list( "paad" = c(paste(params$ref_data_dir, "Datasets_list_PAAD.txt", sep="/"), "PDAC (UMCCR)", "PDAC (TCGA)"), 
-                     "cesc" = c(paste(params$ref_data_dir, "Datasets_list_CESC.txt", sep="/"), "PDAC (UMCCR)", "CESC (TCGA)"), 
-                     "blca" = c(paste(params$ref_data_dir, "Datasets_list_BLCA.txt", sep="/"), "PDAC (UMCCR)", "BLCA (TCGA)"),
-                     "brca" = c(paste(params$ref_data_dir, "Datasets_list_BRCA.txt", sep="/"), "PDAC (UMCCR)", "BRCA (TCGA)"),
-                     "thca" = c(paste(params$ref_data_dir, "Datasets_list_THCA.txt", sep="/"), "PDAC (UMCCR)", "THCA (TCGA)"),
-                     "hnsc" = c(paste(params$ref_data_dir, "Datasets_list_HNSC.txt", sep="/"), "PDAC (UMCCR)", "HNSC (TCGA)"),
-                     "lgg" = c(paste(params$ref_data_dir, "Datasets_list_LGG.txt", sep="/"), "PDAC (UMCCR)", "LGG (TCGA)"),
-                     "kirc" = c(paste(params$ref_data_dir, "Datasets_list_KIRC.txt", sep="/"), "PDAC (UMCCR)", "KIRC (TCGA)"),
-                     "lusc" = c(paste(params$ref_data_dir, "Datasets_list_LUSC.txt", sep="/"), "PDAC (UMCCR)", "LUSC (TCGA)"),
-                     "luad" = c(paste(params$ref_data_dir, "Datasets_list_LUAD.txt", sep="/"), "PDAC (UMCCR)", "LUAD (TCGA)"),
-                     "prad" = c(paste(params$ref_data_dir, "Datasets_list_PRAD.txt", sep="/"), "PDAC (UMCCR)", "PRAD (TCGA)"),
-                     "skcm" = c(paste(params$ref_data_dir, "Datasets_list_SKCM.txt", sep="/"), "PDAC (UMCCR)", "SKCM (TCGA)"),
-                     "stad" = c(paste(params$ref_data_dir, "Datasets_list_STAD.txt", sep="/"), "PDAC (UMCCR)", "STAD (TCGA)"),
-                     "lihc" = c(paste(params$ref_data_dir, "Datasets_list_LIHC.txt", sep="/"), "PDAC (UMCCR)", "LIHC (TCGA)"),
-                     "coad" = c(paste(params$ref_data_dir, "Datasets_list_COAD.txt", sep="/"), "PDAC (UMCCR)", "COAD (TCGA)"),
-                     "kirp" = c(paste(params$ref_data_dir, "Datasets_list_KIRP.txt", sep="/"), "PDAC (UMCCR)", "KIRP (TCGA)"),
-                     "ov" = c(paste(params$ref_data_dir, "Datasets_list_OV.txt", sep="/"), "PDAC (UMCCR)", "OV (TCGA)"),
-                     "sarc" = c(paste(params$ref_data_dir, "Datasets_list_SARC.txt", sep="/"), "PDAC (UMCCR)", "SARC (TCGA)"),
-                     "pcpg" = c(paste(params$ref_data_dir, "Datasets_list_PCPG.txt", sep="/"), "PDAC (UMCCR)", "PCPG (TCGA)"),
-                     "ucec" = c(paste(params$ref_data_dir, "Datasets_list_UCEC.txt", sep="/"), "PDAC (UMCCR)", "UCEC (TCGA)"),
-                     "laml" = c(paste(params$ref_data_dir, "Datasets_list_LAML.txt", sep="/"), "PDAC (UMCCR)", "LAML (TCGA)"),
-                     "esca" = c(paste(params$ref_data_dir, "Datasets_list_ESCA.txt", sep="/"), "PDAC (UMCCR)", "ESCA (TCGA)"),
-                     "gbm" = c(paste(params$ref_data_dir, "Datasets_list_GBM.txt", sep="/"), "PDAC (UMCCR)", "GBM (TCGA)"),
-                     "tgct" = c(paste(params$ref_data_dir, "Datasets_list_TGCT.txt", sep="/"), "PDAC (UMCCR)", "TGCT (TCGA)"),
-                     "thym" = c(paste(params$ref_data_dir, "Datasets_list_THYM.txt", sep="/"), "PDAC (UMCCR)", "THYM (TCGA)"),
-                     "read" = c(paste(params$ref_data_dir, "Datasets_list_READ.txt", sep="/"), "PDAC (UMCCR)", "READ (TCGA)"),
-                     "kich" = c(paste(params$ref_data_dir, "Datasets_list_KICH.txt", sep="/"), "PDAC (UMCCR)", "KICH (TCGA)"),
-                     "uvm" = c(paste(params$ref_data_dir, "Datasets_list_UVM.txt", sep="/"), "PDAC (UMCCR)", "UVM (TCGA)"),
-                     "meso" = c(paste(params$ref_data_dir, "Datasets_list_MESO.txt", sep="/"), "PDAC (UMCCR)", "MESO (TCGA)"),
-                     "acc" = c(paste(params$ref_data_dir, "Datasets_list_ACC.txt", sep="/"), "PDAC (UMCCR)", "ACC (TCGA)"),
-                     "ucs" = c(paste(params$ref_data_dir, "Datasets_list_UCS.txt", sep="/"), "PDAC (UMCCR)", "UCS (TCGA)"),
-                     "dlbc" = c(paste(params$ref_data_dir, "Datasets_list_DLBC.txt", sep="/"), "PDAC (UMCCR)", "DLBC (TCGA)"),
-                     "chol" = c(paste(params$ref_data_dir, "Datasets_list_CHOL.txt", sep="/"), "PDAC (UMCCR)", "CHOL (TCGA)")
+ref_dataset <- list( "paad" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_PAAD.txt", sep="/"), "PDAC (UMCCR)", "PDAC (TCGA)"), 
+                     "cesc" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_CESC.txt", sep="/"), "PDAC (UMCCR)", "CESC (TCGA)"), 
+                     "blca" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_BLCA.txt", sep="/"), "PDAC (UMCCR)", "BLCA (TCGA)"),
+                     "brca" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_BRCA.txt", sep="/"), "PDAC (UMCCR)", "BRCA (TCGA)"),
+                     "thca" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_THCA.txt", sep="/"), "PDAC (UMCCR)", "THCA (TCGA)"),
+                     "hnsc" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_HNSC.txt", sep="/"), "PDAC (UMCCR)", "HNSC (TCGA)"),
+                     "lgg" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_LGG.txt", sep="/"), "PDAC (UMCCR)", "LGG (TCGA)"),
+                     "kirc" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_KIRC.txt", sep="/"), "PDAC (UMCCR)", "KIRC (TCGA)"),
+                     "lusc" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_LUSC.txt", sep="/"), "PDAC (UMCCR)", "LUSC (TCGA)"),
+                     "luad" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_LUAD.txt", sep="/"), "PDAC (UMCCR)", "LUAD (TCGA)"),
+                     "prad" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_PRAD.txt", sep="/"), "PDAC (UMCCR)", "PRAD (TCGA)"),
+                     "skcm" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_SKCM.txt", sep="/"), "PDAC (UMCCR)", "SKCM (TCGA)"),
+                     "stad" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_STAD.txt", sep="/"), "PDAC (UMCCR)", "STAD (TCGA)"),
+                     "lihc" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_LIHC.txt", sep="/"), "PDAC (UMCCR)", "LIHC (TCGA)"),
+                     "coad" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_COAD.txt", sep="/"), "PDAC (UMCCR)", "COAD (TCGA)"),
+                     "kirp" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_KIRP.txt", sep="/"), "PDAC (UMCCR)", "KIRP (TCGA)"),
+                     "ov" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_OV.txt", sep="/"), "PDAC (UMCCR)", "OV (TCGA)"),
+                     "sarc" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_SARC.txt", sep="/"), "PDAC (UMCCR)", "SARC (TCGA)"),
+                     "pcpg" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_PCPG.txt", sep="/"), "PDAC (UMCCR)", "PCPG (TCGA)"),
+                     "ucec" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_UCEC.txt", sep="/"), "PDAC (UMCCR)", "UCEC (TCGA)"),
+                     "laml" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_LAML.txt", sep="/"), "PDAC (UMCCR)", "LAML (TCGA)"),
+                     "esca" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_ESCA.txt", sep="/"), "PDAC (UMCCR)", "ESCA (TCGA)"),
+                     "gbm" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_GBM.txt", sep="/"), "PDAC (UMCCR)", "GBM (TCGA)"),
+                     "tgct" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_TGCT.txt", sep="/"), "PDAC (UMCCR)", "TGCT (TCGA)"),
+                     "thym" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_THYM.txt", sep="/"), "PDAC (UMCCR)", "THYM (TCGA)"),
+                     "read" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_READ.txt", sep="/"), "PDAC (UMCCR)", "READ (TCGA)"),
+                     "kich" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_KICH.txt", sep="/"), "PDAC (UMCCR)", "KICH (TCGA)"),
+                     "uvm" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_UVM.txt", sep="/"), "PDAC (UMCCR)", "UVM (TCGA)"),
+                     "meso" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_MESO.txt", sep="/"), "PDAC (UMCCR)", "MESO (TCGA)"),
+                     "acc" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_ACC.txt", sep="/"), "PDAC (UMCCR)", "ACC (TCGA)"),
+                     "ucs" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_UCS.txt", sep="/"), "PDAC (UMCCR)", "UCS (TCGA)"),
+                     "dlbc" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_DLBC.txt", sep="/"), "PDAC (UMCCR)", "DLBC (TCGA)"),
+                     "chol" = c(paste(params$ref_data_dir, "ref_datasets/Datasets_list_CHOL.txt", sep="/"), "PDAC (UMCCR)", "CHOL (TCGA)")
 )
 
 dataset <- tolower(params$dataset)
@@ -1761,7 +1825,7 @@ dataDir <- paste(dataDir[-c(length(dataDir), length(dataDir)-1)], collapse ="/")
 sampleName <- params$sample_name
 
 ##### Read-in the annotation file for tximport
-tx2ensembl <- read.csv(file.path(params$annot_file), header = FALSE)
+tx2ensembl <- read.csv(file.path(paste(params$ref_data_dir, params$annot_file, sep = "/")), header = FALSE)
 colnames(tx2ensembl) <- c("tx_name", "gene_id")
 
 ##### Look at countsFromAbundance parameter to change the method to generate the counts
@@ -2091,7 +2155,7 @@ for ( group in targets_mod.list ) {
     y[[group]] <- edgeR::DGEList(counts=data,  group=target$Target)
     
     ##### Convert data into RPKM
-    y[[group]]$transformed <- edgeR::rpkm(yy[[group]], gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
+    y[[group]]$transformed <- edgeR::rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
     
     ##### Remove genes with TPM of at least 0.2 in less than 10% of samples
     keep <- rowSums(y[[group]]$transformed>0.2) >= ncol(y[[group]]$transformed)/10
@@ -3214,7 +3278,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[1]
 
 if ( !is.na(gene) && gene %in% rownames(data) ) {
   ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3241,7 +3305,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3268,7 +3332,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3295,7 +3359,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3322,7 +3386,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3349,7 +3413,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3376,7 +3440,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3403,7 +3467,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3430,7 +3494,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3457,7 +3521,7 @@ gene <- mut_genes.expr.z[[2]]$SYMBOL[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3550,7 +3614,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[1]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3577,7 +3641,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3604,7 +3668,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3631,7 +3695,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3658,7 +3722,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3685,7 +3749,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3712,7 +3776,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3739,7 +3803,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3766,7 +3830,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -3793,7 +3857,7 @@ gene <- cancer_genes.expr.z[[2]]$SYMBOL[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4116,8 +4180,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_1_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -4217,8 +4281,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_2_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -4318,8 +4382,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_3_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -4419,8 +4483,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_4_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
@@ -4522,8 +4586,8 @@ mRNA expression levels of fusion genes detected in patient's sample and their av
 ```{r fusion_5_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
+cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -4665,7 +4729,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[1]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4692,7 +4756,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[2]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4719,7 +4783,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4745,7 +4809,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4772,7 +4836,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4799,7 +4863,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[6]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4826,7 +4890,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[7]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4853,7 +4917,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[8]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4880,7 +4944,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[9]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -4907,7 +4971,7 @@ gene <- unique(sv_genes.expr.z[[2]]$SYMBOL)[10]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -5206,7 +5270,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[1]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
 
 } else {
   if ( is.na(gene) ) {
@@ -5234,7 +5298,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[2]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
@@ -5262,7 +5326,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[3]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
@@ -5290,7 +5354,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[4]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
@@ -5318,7 +5382,7 @@ gene <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL[5]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
@@ -5348,7 +5412,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[1]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
@@ -5376,7 +5440,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[2]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
@@ -5404,7 +5468,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[3]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
@@ -5432,7 +5496,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[4]
   
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
@@ -5460,7 +5524,7 @@ gene <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL[5]
 
 ##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
   
 } else {
   if ( is.na(gene) ) {
