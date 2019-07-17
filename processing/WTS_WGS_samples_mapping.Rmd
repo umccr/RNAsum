@@ -139,7 +139,8 @@ names(SAMPLES_match) <- SAMPLES
 for ( sample in SAMPLES ) {
   
   # Get the "subject_id"
-  subject.id <- template[ template$sample_name == sample , ]$subject_id
+  WTS_subset <- template[ template$sample_name == sample , ]
+  subject.id <- WTS_subset$subject_id
   
   WGS_subset <- template %>%
     dplyr::filter(((type == 'WGS' & subject_id == subject.id)))
@@ -154,17 +155,22 @@ for ( sample in SAMPLES ) {
     while ( length(WGS_sample_match) == 0 ) {
       
       max.distance <- max.distance + 0.0001
-      WGS_sample_match <- agrep(sample, WGS_subset$sample_name, ignore.case = TRUE, value = FALSE, max.distance = 0.9)
+      print(max.distance)
+      print(sample)
+      WGS_sample_match <- which.max(stringsim(sample,WGS_subset$sample_name,method='jw', p=0.1))
     }
     
     # Report all WGS samples is these match with the lowest possible maximum distance
-    SAMPLES_match[[ sample ]] <- WGS_subset[ WGS_sample_match, ]
+    SAMPLES_match[[ sample ]] <- cbind(WTS_subset, WGS_subset[ WGS_sample_match, ])
     
   } else {
     
-    SAMPLES_match[[ sample ]] <- WGS_subset
+    SAMPLES_match[[ sample ]] <- cbind(WTS_subset, WGS_subset)
   }
 }
+
+# Combined info for all samples
+SAMPLES_match.table <- rbindlist(SAMPLES_match, use.names=TRUE, fill=FALSE)
 
 ```
 
