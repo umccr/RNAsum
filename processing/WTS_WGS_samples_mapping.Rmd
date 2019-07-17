@@ -11,7 +11,7 @@ output:
 params:
   project: "Avner"
   secondary: 
-  sample_name: "CCR170115b_MH17T002P033_RNA"
+  sample_names: "CCR170012,CCR170013,CCR170031-P010tmr,17MHP002FNA-CCR170028,17MHP002Org-CCR170058,17MHP031Tmr-CCR170090_S2,CCR170093_MHP013_O,CCR170119_VPT_M032_S4,CCR170123_VPT_M006B_S7,CCR170028R_MHP002_T,CCR170058R_MHP002_O,CCR170012R_MHP013_T,CCR170093R_MHP013_O,CCR170013R_MHP006_T,CCR170123R_MHP006_O,CCR170090R_MHP031_T,CCR170119R_MHP032_O,CCR170031R_MHP010_T,CCR170057_AH17T001P001,CCR170118_AH17PdxPc2P001,CCR180021_VPX-AH001-P2,CCR180051_VPY-MH002,CCR170080-MH17T002P030,CCR180059_VPT-M030,CCR180010_WH18T002P010,CCR180054_VPT-WH010,CCR180044_VPT-W003-p13,CCR170131B_MM17T002P008,CCR180065_VPT-MM008_O,CCR180043_WH18F002P016,CCR180072_VPT-WH16_O,CCR170057_RNA_AH17T001P001,CCR170058_RNA_WPT002,CCR170063_RNA_WH17T001P002,CCR170070_RNA_VPT_A001,CCR170093_RNA_WPT_013,CCR170119_RNA_VPT_M032,CCR170122_RNA_VPT_M030,CCR170123_RNA_VPT_M006B"
 ---
 
 ```{r custom, echo=FALSE, message=FALSE, warning=FALSE}
@@ -28,6 +28,8 @@ library(googledrive)
 library(here)
 library(skimr)
 library(purrr)
+library(stringdist)
+library( data.table)
 ```
 
 ## Introduction
@@ -41,6 +43,7 @@ This currently requires specifying the project name and will pull out all files 
 An alternative use is to set the "secondary" analysis flag to match the samples that need to be processed, regardless of processing status. The `PROJECT` name will be used to name config and sample files, but any sample with the matching `SECONDARY` entry in the `secondary analysis` column of the spreadsheet will be added. This is useful when re-processing samples for research projects. Long term, the idea is that we get rid of this filtering step completely and just generate sync lists and templates for all samples that still need to be processed, then mark the processing stage in Google-LIMS to avoid duplication.
 
 ```{r project, eval=FALSE}
+##### Collect samples selection criteria
 PROJECT <- params$project
 
 if ( is.null(params$secondary) ) {
@@ -51,7 +54,11 @@ if ( is.null(params$secondary) ) {
   SECONDARY <- params$secondary
 }
 
+SAMPLES <- params$sample_names
 
+# Extract info about individual samples
+SAMPLES <- unlist(strsplit(SAMPLES, split=',', fixed=TRUE))
+  
 ```
 
 ### 2. Import data from Google spreadsheet
@@ -122,4 +129,44 @@ template <- template[!(template$type=='WGS' & template$phenotype=='normal'), ]
 ### 5. Generating templates for WTS-WGS results mapping
 
 Generate a file with pointers to the sample FASTQs and their WGS-WTS result path (if both available).
+
+```{r removeTopups, eval=FALSE}
+# Create a list with relevant info each euqried sample,
+SAMPLES_match <- vector("list", length(SAMPLES))
+names(SAMPLES_match) <- SAMPLES
+  
+# Loop though each euqried sample, get the "subject_id", list WGS ("type") samples with that "subject_id" and in case there are multiple WGS samples use pattern matching to get the WGS sample that best matches with the queried WTS "sample_name"
+for ( sample in SAMPLES ) {
+  
+  # Get the "subject_id"
+  subject.id <- template[ template$sample_name == sample , ]$subject_id
+  
+  WGS_subset <- template %>%
+    dplyr::filter(((type == 'WGS' & subject_id == subject.id)))
+  
+  # Select the WGS sample that best matches with the queried WTS "sample_name"
+  if ( nrow(WGS_subset) > 1 ) {
+    
+    # Increas the maximum distance (by 0.01) allowed for a match untill some match is found
+    max.distance <- 0
+    WGS_sample_match <- NULL
+    
+    while ( length(WGS_sample_match) == 0 ) {
+      
+      max.distance <- max.distance + 0.0001
+      WGS_sample_match <- agrep(sample, WGS_subset$sample_name, ignore.case = TRUE, value = FALSE, max.distance = 0.9)
+    }
+    
+    # Report all WGS samples is these match with the lowest possible maximum distance
+    SAMPLES_match[[ sample ]] <- WGS_subset[ WGS_sample_match, ]
+    
+  } else {
+    
+    SAMPLES_match[[ sample ]] <- WGS_subset
+  }
+}
+
+```
+
+
 
