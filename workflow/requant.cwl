@@ -13,7 +13,7 @@ inputs:
 
 steps:
   concat:
-    run: ./cat.cwl
+    run: ./tools/cat.cwl
     in:
       transcriptome: transcriptome
       fusionsfasta: fusionsfasta
@@ -21,21 +21,21 @@ steps:
       - reference
 
   zip:
-    run: ./zip.cwl
+    run: ./tools/zip.cwl
     in:
       transcriptsWithFusions: concat/reference
     out:
       - zippedReference
 
   indexing:
-    run: ./kallisto-index.cwl
+    run: ./tools/kallisto-index.cwl
     in:
       fasta: zip/zippedReference
     out: 
       - index
       
   quantifying:
-    run: ./kallisto-quant.cwl
+    run: ./tools/kallisto-quant.cwl
     in:
       fastqs: reads
       index: indexing/index
