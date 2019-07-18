@@ -197,7 +197,7 @@ if ( is.na(opt$grch_version)  ) {
 }
 
 ##### Check if specified dataset type is valid
-if ( tolower(opt$dataset) %!in% tolower(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM")) ) {
+if ( tolower(opt$dataset) %!in% tolower(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET")) ) {
   
   cat("\nInvalid dataset! Please use one of the following:\n\n")
   cat("[ ACC ] - this will compare the patient's data in the context of samples from TCGA Adrenocortical Carcinoma cohort\n\n")
@@ -233,6 +233,7 @@ if ( tolower(opt$dataset) %!in% tolower(c("ACC", "BLCA", "BRCA", "CESC", "CHOL",
   cat("[ UCEC ] - this will compare the patient's data in the context of samples from TCGA Uterine Corpus Endometrial Carcinoma cohort\n\n")
   cat("[ UCS ] - this will compare the patient's data in the context of samples from TCGA Uterine Carcinosarcoma cohort\n\n")
   cat("[ UVM ] - this will compare the patient's data in the context of samples from TCGA Uveal Melanoma cohort\n\n")
+  cat("[ BLCA-NET ] - this will compare the patient's data in the context of samples from TCGA Bladder Urothelial Carcinoma cohort (including neuroendocrine tumours)\n\n")
   q()
 }
 
