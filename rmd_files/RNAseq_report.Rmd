@@ -6122,6 +6122,61 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
 
 ***
 
+### - HRD genes
+
+**`r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %in% rownames(ref_datasets.list[[dataset]][["batch_effect_corrected"]])))`** reliably measured [HRD genes] were screened for suitable drugs (see [HRD genes] section).
+
+```{r drugs_predictive_hrd_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
+##### Generate table with drugs targeting mutated cancer genes
+genes <- hrd_genes.expr.z[[2]]$SYMBOL
+
+drugsTable.hrd_genes <- civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "mutation")
+
+drugsTable.hrd_genes[[1]]
+
+##### Create directory for tables
+drugsTableDir <- paste(params$report_dir, "drugsTables", sep = "/")
+
+if ( !file.exists(drugsTableDir) ) {
+
+        dir.create(drugsTableDir, recursive=TRUE)
+}
+
+##### Save the expression table as html file
+if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactive" ) {
+  DT::saveWidget(widget=drugsTable.hrd_genes[[1]], file=paste(drugsTableDir, "drugsTable.hrd_genes.html", sep = "/"), selfcontained=TRUE)
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target="_blank"}**
+
+* **A - Validated association**: Proven/consensus association in human medicine
+* **B - Clinical evidence**: Clinical trial or other primary patient data supports association
+* **C - Case study**: Individual case reports from clinical journals
+* **D - Preclinical evidence**: *In vivo* or *in vitro* models support association
+* **E - Inferential association**: Indirect evidence
+
+**[Trust Rating](https://civicdb.org/help/evidence/trust-ratings){target="_blank"}**
+
+* **5**: Strong, well supported evidence from a lab or journal with respected academic standing. Experiments are well controlled, and results are clean and reproducible across multiple replicates. Evidence confirmed using independent methods. The study is statistically well powered
+* **4**: Strong, well supported evidence. Experiments are well controlled, and results are convincing. Any discrepancies from expected results are well-explained and not concerning
+* **3**: Evidence is convincing, but not supported by a breadth of experiments. May be smaller scale projects, or novel results without many follow-up experiments. Discrepancies from expected results are explained and not concerning
+* **2**: Evidence is not well supported by experimental data, and little follow-up data is available. Publication is from a journal with low academic impact. Experiments may lack proper controls, have small sample size, or are not statistically convincing
+* **1**: Claim is not supported well by experimental evidence. Results are not reproducible, or have very small sample size. No follow-up is done to validate novel claims
+
+**[Actionability Score ](https://civicdb.org/help/variants/actionability-score){target="_blank"}**
+
+* [CIViC Actionability Score](https://civicdb.org/help/variants/actionability-score){target="_blank"} allows to assess the accumulation of evidence for each variant. It is calculated by adding all Evidence Item Scores for each variant. The Evidence Item Score is calculated by multiplying the evidence level (A=10 points, B=5 points, C=3 points, D=1 point, E=0.25 points) by the trust rating (each Star = 1 point).
+
+</font> 
+</details>
+
+***
+
 ## Addendum
 
 <details>
