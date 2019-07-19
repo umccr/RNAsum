@@ -16,12 +16,13 @@
 #
 #	  Command line use example: Rscript RNAseq_report.R  --sample_name CCR170115b_MH17T002P033_RNA  --dataset PAAD  --count_file ../data/CCR170115b_MH17T002P033_RNA-ready.counts  --report_dir ../RNAseq_report  --transform CPM  --norm TMM  --filter TRUE  --log TRUE  --umccrise ../data//umccrised/2016_249_17_MH_P033__CCR170115b_MH17T002P033  --clinical_info ../data/clinical_data.xlsx  --subject_id 2016.249.17.MH.P033  --plots_mode static
 #
-#   sample_name:   Desired sample name to be presented in the report
-#   dataset:       Dataset to be used as external reference cohort
-#   count_file:    Location and name of the read count file from bcbio RNA-seq pipeline
-#   report_dir:    Desired location for the report
+#   sample_name:  Desired sample name to be presented in the report
+#   dataset:      Dataset to be used as external reference cohort
+#   count_file:   Location and name of the read count file from bcbio RNA-seq pipeline
+#   report_dir:   Desired location for the report
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (defualt) and "TPM"
 #   norm:         Normalisation method. Currently, "TMM" is used for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
+#   batch_rm:     Remove batch-associated effects between datasets. Available options are: "TRUE" (defualt) and "FALSE"
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (defualt) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (defualt) and "FALSE"
 #   scaling:      Apply "gene-wise" (default) or "group-wise" data scaling
@@ -29,10 +30,10 @@
 #   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "3")
 #   cn_loss (optional):  CN threshold value to classify genes within lost regions (default is "1.5")
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "3")
-#   clinical_info (optional):   Location of xslx file with clinical information
-#   subject_id (optional):     Subject ID required to match sample with clinical information (specified in flag --clinical_info)
+#   clinical_info (optional): Location of xslx file with clinical information
+#   subject_id (optional):    Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   plots_mode:    Plotting mode. Available options are: "interactive" (default), "semi-interactive" and "static" 
-#   hide_code_btn :    Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
+#   hide_code_btn : Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (defualt) and "FALSE"
 #   grch_version :  Human reference genome version used for genes annotation (default is "37")
 #
 ################################################################################
@@ -72,6 +73,8 @@ option_list = list(
               help="Transformation method to be used when converting read counts"),
   make_option(c("-n", "--norm"), action="store", default=NA, type='character',
               help="Normalisation method"),
+  make_option(c("-k", "--batch_rm"), action="store", default=NA, type='character',
+              help="Remove batch-associated effects between datasets"),
   make_option(c("-f", "--filter"), action="store", default=NA, type='character',
               help="Filtering out low expressed genes"),
   make_option(c("-l", "--log"), action="store", default=NA, type='character',
@@ -133,6 +136,11 @@ if ( is.na(opt$norm)  ) {
     
     opt$norm <- "quantile"
   }
+}
+
+if ( is.na(opt$batch_rm)  ) {
+  
+  opt$batch_rm <- TRUE
 }
 
 if ( is.na(opt$filter)  ) {
@@ -275,4 +283,4 @@ if ( opt$transform == "TPM" && opt$norm != "quantile" && opt$norm != "none" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", tolower(opt$dataset), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = tolower(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", tolower(opt$dataset), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = tolower(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))

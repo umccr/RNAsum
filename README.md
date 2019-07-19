@@ -164,6 +164,7 @@ Argument | Description | Required
 --report_dir | Desired location for the report | **Yes**
 --transform | Transformation method for converting read counts. Available options are: `CPM` (defualt) and `TPM` | No
 --norm | Normalisation method. Available options are: `TMM` (defualt), `TMMwzp`, `RLE`, `upperquartile` or `none` for *CPM-transformed* data, and `quantile` (defualt) or `none` for *TPM-transformed* data | No
+--batch_rm | Remove batch-associated effects between datasets. Available options are: `TRUE` (defualt) and `FALSE`  | No
 --filter | Filtering out low expressed genes. Available options are: `TRUE` (defualt) and `FALSE` | No
 --log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (defualt) and `FALSE` | No
 --scaling | Apply [`gene-wise`](img/Z-score_transformation_gene_wise.png) (default) or [`group-wise`](img/Z-score_transformation_group_wise.png) data scaling | No
