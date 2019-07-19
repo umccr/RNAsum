@@ -30,7 +30,6 @@ library(here)
 library(skimr)
 library(purrr)
 library(data.table)
-library(stringdist)
 ```
 
 ```{r define_functions, comment=NA, message=FALSE, warning=FALSE}
@@ -179,14 +178,14 @@ template <- template[!(template$type=='WGS' & template$phenotype=='normal'), ]
 
 Generate a file with pointers to the sample FASTQs and their WGS-WTS result path (if both available).
 
-First, for each queried WTS sample get the `subject_id`, list WGS (column `type`) samples with the corresponding `subject_id` and,  in case there are multiple WGS samples listed for given `subject_id`, use pattern matching to get the WGS sample that best matches with the queried WTS `sample_name`. To do this, for each *WGS `sample_name`* search for the the *overlap* with *WTS `sample_name`* and then compute the *similarity score* between the *`sample_name` overlap* and the full *WGS `sample_name`*. Multiply this score by the *square root of length of the overlap* to make sure that the longest overlap will get the highest score. WGS sample with the highest final *similarity score* is mapped with the corresponding WTS sample.
+First, for each queried WTS sample get the `subject_id`, list WGS (column `type`) samples with the corresponding `subject_id` and,  in case there are multiple WGS samples listed for given `subject_id`, use pattern matching to get the WGS sample that best matches with the queried WTS `sample_name`. To do this, for each *WGS `sample_name`* search for the the *overlap* with *WTS `sample_name`* and then report the *WGS `sample_name`* with the greatest *overlap* with the corresponding *WTS `sample_name`*.
 
 ```{r wts_wgs_templates, comment = NA, message=FALSE, warning=FALSE}
 # Create a list with relevant info each euqried sample,
 SAMPLES_match <- vector("list", length(SAMPLES))
 names(SAMPLES_match) <- SAMPLES
   
-# Loop though each euqried sample, get the "subject_id", list WGS ("type") samples with the corresponding "subject_id" and in case there are multiple WGS samples use pattern matching to get the WGS sample that best matches with the queried WTS "sample_name"
+# Loop though each queried samples, get the "subject_id", list WGS ("type") samples with the corresponding "subject_id" and in case there are multiple WGS samples use pattern matching to get the WGS sample that best matches with the queried WTS "sample_name"
 for ( sample_WTS in SAMPLES ) {
   
   # Get the "subject_id"
@@ -201,27 +200,21 @@ for ( sample_WTS in SAMPLES ) {
     
     if ( params$debug ) { cat("\n\nWTS sample: ", sample_WTS) }
     
-    stringsim_scores <- NULL
+    sample_WTGS.overlaps <- NULL
     
-    # For each WGS "sample_name" (actually "targetname") search for the the overlap with WTS sample (after removing "_" to minimise chance that these will contribute to the matching score "stringsim_scores")
+    # For each WGS "sample_name" (actually "targetname") search for the the overlap with WTS sample (after removing "_" to minimise chance that these will contribute to the matching patterns")
     for ( sample_WGS in WGS_subset$targetname ) {
       
       sample_WTGS.overlap <- str_overlap(str_replace_all(sample_WTS, '_', ''), str_replace_all(sample_WGS, '_', ''))
+      sample_WTGS.overlaps <- c( sample_WTGS.overlaps, sample_WTGS.overlap[[2]])
       
       if ( params$debug ) { cat("\nWGS: ", sample_WGS, "\tWTGS overlap: ", sample_WTGS.overlap[[1]],  "\tOverlap length: ", sample_WTGS.overlap[[2]]) }
-      
-      # Now compute the similarity scores between the WTS-WGS "targetname" overlap and the full WGS "targetname". Multiply this score by the square root of length of the overlap to make sure that the longest overlap will get the highest score
-      stringsim_score <- stringsim(sample_WTGS.overlap[[1]], sample_WGS, method='osa', p=0.1 ) * nchar(sample_WTGS.overlap[[1]])^2
-      stringsim_scores <- c( stringsim_scores, stringsim_score)
-      
-      if ( params$debug ) { cat("\tstringsim_score: ", stringsim_score) }
-      
     }
     
-    if ( params$debug ) { cat("\nWTS - WGS match: ", sample_WTS, " - ", WGS_subset[ which.max(stringsim_scores), ]$sample_name) }
+    if ( params$debug ) { cat("\nWTS - WGS match: ", sample_WTS, " - ", WGS_subset[ which.max(sample_WTGS.overlaps), ]$sample_name) }
     
-    # Report WGS sample with best match and combine info with WTS sample info
-    SAMPLES_match[[ sample_WTS ]] <- cbind(WTS_subset, WGS_subset[ which.max(stringsim_scores), ])
+    # Report WGS sample with greatest name overlap and combine info with WTS sample info
+    SAMPLES_match[[ sample_WTS ]] <- cbind(WTS_subset, WGS_subset[ which.max(sample_WTGS.overlaps), ])
     
   } else if ( nrow(WGS_subset) == 1 ) {
     
@@ -237,11 +230,11 @@ names(SAMPLES_match.table) <- paste( names(SAMPLES_match[[ sample_WTS ]]), c(rep
 #### Summary table
 
 ```{r wts_wgs_templates_table_summary, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = SAMPLES_match.table[ , c("project.WTS", "subject_id.WTS", "sample_name.WTS",  "sample_name.WGS", "results.WTS", "results.WGS", "phenotype.WTS", "phenotype.WGS") ], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE)
+DT::datatable( data = SAMPLES_match.table[ , c("project.WTS", "subject_id.WTS", "sample_name.WTS",  "sample_name.WGS", "phenotype.WTS", "phenotype.WGS", "results.WTS", "results.WGS", "fastq.WTS", "fastq.WGS") ], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 900, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE)
 ```
 
 #### Full table
 
 ```{r wts_wgs_templates_table_full, comment = NA, message=FALSE, warning=FALSE}
-DT::datatable( data = SAMPLES_match.table, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE)
+DT::datatable( data = SAMPLES_match.table, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 900, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE)
 ```
