@@ -162,11 +162,11 @@ Argument | Description | Required
 --dataset | Tissue from which the sample is derived. Available options are [TCGA](https://tcga-data.nci.nih.gov/) project IDs listed in [TCGA projects summary table](./TCGA_projects_summary.md) `Project` column | **Yes**
 --count_file | Location and name of the *[kallisto](https://pachterlab.github.io/kallisto/about)* read count file from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* (see [example](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)) | **Yes**
 --report_dir | Desired location for the report | **Yes**
---transform | Transformation method for converting read counts. Available options are: `CPM` (defualt) and `TPM` | No
---norm | Normalisation method. Available options are: `TMM` (defualt), `TMMwzp`, `RLE`, `upperquartile` or `none` for *CPM-transformed* data, and `quantile` (defualt) or `none` for *TPM-transformed* data | No
---batch_rm | Remove batch-associated effects between datasets. Available options are: `TRUE` (defualt) and `FALSE`  | No
---filter | Filtering out low expressed genes. Available options are: `TRUE` (defualt) and `FALSE` | No
---log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (defualt) and `FALSE` | No
+--transform | Transformation method for converting read counts. Available options are: `CPM` (default) and `TPM` | No
+--norm | Normalisation method. Available options are: `TMM` (default), `TMMwzp`, `RLE`, `upperquartile` or `none` for *CPM-transformed* data, and `quantile` (default) or `none` for *TPM-transformed* data | No
+--batch_rm | Remove batch-associated effects between datasets. Available options are: `TRUE` (default) and `FALSE`  | No
+--filter | Filtering out low expressed genes. Available options are: `TRUE` (default) and `FALSE` | No
+--log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (default) and `FALSE` | No
 --scaling | Apply [`gene-wise`](img/Z-score_transformation_gene_wise.png) (default) or [`group-wise`](img/Z-score_transformation_group_wise.png) data scaling | No
 --umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr) (see [example](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) (see [example](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv)) and [Manta](https://github.com/Illumina/manta) (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv)) output files) from genome-based data | No
 --pcgr_tier | Tier threshold for reporting variants reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available, default is `3`) | No
@@ -175,7 +175,8 @@ Argument | Description | Required
 --clinical_info | Location of *xslx* file with clinical information (see [example](./data/test_data/test_clinical_data.xlsx) ) | No
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
 --plots_mode | Plotting mode. Available options: `interactive` (all possible plots will be interactive; default) and `semi-interactive` (only plots in `Input data`, `CN altered genes`, `Immune markers` and `HRD genes` sections will be interactive) or `static` (all plots will be static) | No
---hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (defualt) and `FALSE` | No
+--save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` and `FALSE` (default) | No
+--hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (default) and `FALSE` | No
 --grch_version | Human reference genome version used for genes annotation. Available options: `37` (default) and `38` | No
 
 <br />
