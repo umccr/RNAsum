@@ -2192,7 +2192,11 @@ targets_mod.list <- unique(target_mod$Dataset)
 ##### Create lists with processed data each group
 y <- vector("list", length(targets_mod.list))
 names(y) <- targets_mod.list
-  
+
+##### Keep info about samples with 
+filter.min <- NULL
+filter.max <- NULL
+    
 #### For each group...
 for ( group in targets_mod.list ) {
   
@@ -2207,7 +2211,9 @@ for ( group in targets_mod.list ) {
     y[[group]] <- edgeR::DGEList(counts=data,  group=target$Dataset)
     
     ##### Remove genes with CPM of at least 1 in less than 10% of samples
-    #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
+    filter.min <- min(filter.min, round(min(as.numeric(colSums(data)*1e-6)), digits=0))
+    filter.max <- max(filter.max, round(max(as.numeric(colSums(data)*1e-6)), digits=0))
+    #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to",filter.min, "reads in sample with the lowest sequencing depth, and", filter.max, "reads in sample with the greatest sequencing depth\n")
     
     keep <- rowSums(edgeR::cpm(y[[group]])>1) >= ncol(data)/10
     
@@ -2251,26 +2257,33 @@ for ( group in targets_mod.list ) {
     ##### Convert data into RPKM
     y[[group]]$transformed <- edgeR::rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes=FALSE, log=FALSE)
     
-    ##### Remove genes with TPM of at least 0.2 in less than 10% of samples
-    keep <- rowSums(y[[group]]$transformed>0.2) >= ncol(y[[group]]$transformed)/10
-    
-    ##### Keep the genes of interest too
-    keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
-    
-    y[[group]]$filtered <- y[[group]]$counts[keep, ]
-    y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
-    
     ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
     if ( params$log ) {
       
       y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed+0.25))
-      y[[group]]$filtered.transformed <- log2(tpm_from_rpkm(y[[group]]$filtered.transformed+0.25))
+      
+      ##### Remove genes with TPM of at least 1 in less than 10% of samples
+      keep <- rowSums(y[[group]]$transformed>(1+0.25)) >= ncol(y[[group]]$transformed)/10
+      
+      ##### Keep the genes of interest too
+      keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
     
+      y[[group]]$filtered <- y[[group]]$counts[keep, ]
+      y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
+   
     } else {
       
       y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
-      y[[group]]$filtered.transformed <- tpm_from_rpkm(y[[group]]$filtered.transformed)
-    }
+      
+      ##### Remove genes with TPM of at least 1 in less than 10% of samples
+      keep <- rowSums(y[[group]]$transformed>1) >= ncol(y[[group]]$transformed)/10
+      
+      ##### Keep the genes of interest too
+      keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
+    
+      y[[group]]$filtered <- y[[group]]$counts[keep, ]
+      y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
+          }
   
   ##### TPM transformation without filtering
   } else if ( !params$filter && params$transform == "TPM" ) {
@@ -2344,6 +2357,20 @@ for (i in 2:ncol(y[["comb"]]$transformed)) {
   den.x <- sort(c(den.x, den$x))
   den.y <- sort(c(den.y, den$y))
 }
+
+##### Plot read counts against transformed data
+suppressMessages(library(plotly))
+
+plot(exp(y[["comb"]]$transformed[,ncol(y[["comb"]]$transformed)]),ref_datasets.list[[dataset]][["combined_data"]][,ncol(ref_datasets.list[[dataset]][["combined_data"]])])
+
+##### Limit the x and y-axis so we can see what is happening at the smaller counts
+plot(exp(y[["comb"]]$transformed[,ncol(y[["comb"]]$transformed)]),ref_datasets.list[[dataset]][["combined_data"]][,ncol(ref_datasets.list[[dataset]][["combined_data"]])], ylim=c(0,50),xlim=c(0,3))
+
+# Add a vertical line at 0.5 CPM
+abline(v=0.5)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
 
 if ( params$filter ) {
   
