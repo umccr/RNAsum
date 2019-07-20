@@ -1861,7 +1861,7 @@ ref_datasets.list <- vector("list", length(ref_datasets))
 names(ref_datasets.list) <- ref_datasets
 
 ##### Create a list with various sets of genes
-ref_genes <- c("genes_cancer", "oncokb_genes", "genes_immune", "genes_hrd")
+ref_genes <- c("genes_cancer", "genes_oncokb", "genes_immune", "genes_hrd")
 ref_genes.list <- vector("list", length(ref_genes))
 names(ref_genes.list) <- ref_genes
 
@@ -2030,11 +2030,7 @@ if ( file.exists(sv_file_1) ) {
 }
 
 ##### Record all genes of interest
-for ( genes.list in ref_genes.list ) {
-  
-  
-  
-}
+genes2keep <- unique( c(ref_genes.list[["genes_cancer"]]$symbol, ref_genes.list[["genes_oncokb"]]$Hugo.Symbol, ref_genes.list[["genes_immune"]]$SYMBOL, ref_genes.list[["genes_hrd"]]$SYMBOL, as.character(ref_genes.list[["pizzly"]]$geneA.name), as.character(ref_genes.list[["pizzly"]]$geneB.name), ref_genes.list[["pcgr"]]$SYMBOL, ref_genes.list[["purple"]]$Gene, unlist(strsplit(ref_genes.list[["manta"]]$Gene, split='&', fixed=TRUE))))
 
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_clin_vars, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
@@ -2158,6 +2154,30 @@ if ( length(sampleID.col) > 0 ) {
 }
 ```
 
+```{r goi_annotation, comment = NA, message=FALSE, warning=FALSE}
+##### Get gene symbols for the genes of interest. These genes will not be filtered out due to low/insufficient expression
+##### Get genes annotation and genomic locations
+edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
+  
+##### Get keytypes for gene SYMBOL
+keys <- keys(edb, keytype="GENEID")
+  
+##### Get genes genomic coordiantes
+gene_info <- ensembldb::select(edb, keys=keys, columns=c("GENEID", "GENENAME"), keytype="GENEID")
+names(gene_info) <- gsub("GENEID", "ENSEMBL", names(gene_info))
+names(gene_info) <- gsub("GENENAME", "SYMBOL", names(gene_info))
+  
+##### Limit genes annotation to the gene of interest
+genes2keep <-  gene_info[ gene_info$SYMBOL %in% genes2keep,  ]
+  
+##### Remove rows with duplicated ENSEMBL IDs
+genes2keep = genes2keep[!duplicated(genes2keep$ENSEMBL),]
+rownames(genes2keep) <- genes2keep$ENSEMBL
+  
+##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc)
+genes2keep = genes2keep[!duplicated(genes2keep$SYMBOL),]
+```
+
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
 ##### Filtering to remove low expressed genes. For differential expression and related analyses, gene expression is rarely considered at the level of raw counts since libraries sequenced at a greater depth will result in higher counts. Rather, it is common practice to transform raw counts onto a scale that accounts for such library size differences. Genes with very low counts across all libraries provide little evidence for differential expression. In the biological point of view, a gene must be expressed at some minimal level before it is likely to be translated into a protein or to be biologically important. In addition, the pronounced discretenes of these counts interferes with some of the statistical approximations that are used later in the pipeline. These genes should be filtered out prior to further analysis. Users should filter with CPM rather than filtering on the counts directly, as the latter does not account for differences in library sizes between samples. For instance for the CPM-transformed data we keep only genes that have CPM of 1
 
@@ -2189,6 +2209,10 @@ for ( group in targets_mod.list ) {
     #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to", round(min(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the lowest sequencing depth, and", round(max(as.numeric(colSums(data)*1e-6)), digits=0), "reads in sample with the greatest sequencing depth\n")
     
     keep <- rowSums(edgeR::cpm(y[[group]])>1) >= ncol(data)/10
+    
+    ##### Keep the genes of interest too
+    keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
+
     y[[group]]$filtered <- y[[group]][keep, , keep.lib.sizes=FALSE]
     
     #cat(nrow(y[[group]]$filtered$counts), "genes remained after filtering out of the", nrow(data), "genes in the input read count matrix\n\n")
@@ -2228,6 +2252,10 @@ for ( group in targets_mod.list ) {
     
     ##### Remove genes with TPM of at least 0.2 in less than 10% of samples
     keep <- rowSums(y[[group]]$transformed>0.2) >= ncol(y[[group]]$transformed)/10
+    
+    ##### Keep the genes of interest too
+    keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
+    
     y[[group]]$filtered <- y[[group]]$counts[keep, ]
     y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
     
@@ -2585,7 +2613,7 @@ for ( dataset in names(ref_datasets.list) ) {
   ##### Add info about immune response markers
   gene_info <- merge(gene_info, ref_genes.list[["genes_immune"]], by = "SYMBOL", all.x = TRUE)
   
-  ##### Keep only immune response marjers for which there is available annotation
+  ##### Keep only immune response markers for which there is available annotation
   ref_genes.list[["genes_immune"]] <- ref_genes.list[["genes_immune"]][ ref_genes.list[["genes_immune"]]$SYMBOL %in% gene_info$SYMBOL, ]
   
   ##### Merge genes genomic coordinates info with their annotation and expression data
