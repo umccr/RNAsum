@@ -2367,11 +2367,21 @@ if ( params$filter ) {
   suppressMessages(library(plotly))
   
   ##### Organise the data into data frame
-  data.df <- as.data.frame(cbind( exp(y[["comb"]]$transformed[,ncol(y[["comb"]]$transformed)]), ref_datasets.list[[dataset]][["combined_data"]][,ncol(ref_datasets.list[[dataset]][["combined_data"]])]))
-  names(data.df) <- c("Transformed", "Counts")
+  if ( params$log ) {
+    
+    data.df <- as.data.frame(cbind( exp(y[["comb"]]$transformed[,ncol(y[["comb"]]$transformed)]), ref_datasets.list[[dataset]][["combined_data"]][,ncol(ref_datasets.list[[dataset]][["combined_data"]])]))
+    names(data.df) <- c("Transformed", "Counts")
+    
+    data.df$Transformed <- log(data.df$Transformed)
+    
+  } else {
+    
+     data.df <- as.data.frame(cbind( y[["comb"]]$transformed[,ncol(y[["comb"]]$transformed)], ref_datasets.list[[dataset]][["combined_data"]][,ncol(ref_datasets.list[[dataset]][["combined_data"]])]))
+    names(data.df) <- c("Transformed", "Counts")
+  }
   
-  ##### Keep only genes with read counts below the 90th percentile
-  data.df <- data.df[ data.df$Counts < quantile(data.df$Counts, 0.9), ]
+  ##### Keep only genes with read counts below the 99th percentile
+  data.df <- data.df[ data.df$Counts < quantile(data.df$Counts, 0.99), ]
   
   ##### Keep only every 25th genes to reduce the size of the plot
   data.df <- data.df[ seq(1,nrow(data.df), by=25), ]
@@ -2389,7 +2399,7 @@ if ( params$filter ) {
   par(mfrow=c(1,2))
   
   ##### Before filtering
-  plot(density(y[["comb"]]$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y[["comb"]]$transformed[,1]), lwd=2, xlim=c(den.x[1],max(data.df$Transformed)), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
   
@@ -2402,7 +2412,7 @@ if ( params$filter ) {
   data_transformation_nonfiltered <- recordPlot()
   
   ##### After filtering
-  plot(density(y[["comb"]]$filtered.transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
+  plot(density(y[["comb"]]$filtered.transformed[,1]), lwd=2, xlim=c(den.x[1],max(data.df$Transformed)), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed and filtered data", xlab=params$transform)
   abline(v=0, lty=3)
   
@@ -3278,7 +3288,7 @@ NOTE: the `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_d
 
 The read count data were converted into **`r params$transform`**s using *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html){target="_blank"}* functions. `r if ( !params$filter ) { c("The option for filtering out genes with low counts is switched OFF") } else if ( params$filter ) { c("Genes with low counts were filtered out") }`. `r if ( !params$log ) { c("The data were not log-transformed") } else if ( params$log ) { c("The data were log2-transformed") }`. 
 
-`r if ( params$transform == "CPM" ) { paste0("The CPM of 1 (cut-off for removing low expressed genes) corresponds to ", cpm.min, " reads in sample with the lowest sequencing depth, and ", cpm.max, " reads in sample with the greatest sequencing depth. The plot below presents the relation between read counts and the corresponding ", params$transform, " values in the patient data. The red vertical line indicates the threshold for filtering genes with low counts.") } else { cat(" ") }`
+`r if ( params$transform == "CPM" ) { paste0("The CPM of 1 (cut-off for removing low expressed genes) corresponds to ", cpm.min, " reads in sample with the lowest sequencing depth, and ", cpm.max, " reads in sample with the greatest sequencing depth. The plot below presents the relation between read counts and the corresponding ", params$transform, " values in the patient data. The red vertical line indicates the threshold for filtering genes with low counts.") } else { paste0("The plot below presents the relation between read counts and the corresponding ", params$transform, " values in the patient data. The red vertical line indicates the threshold for filtering genes with low counts.") }`
 
 ```{r counts_vs_transformed, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = params$filter}
 counts_vs_transformed
