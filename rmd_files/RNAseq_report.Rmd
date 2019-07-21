@@ -2193,9 +2193,10 @@ targets_mod.list <- unique(target_mod$Dataset)
 y <- vector("list", length(targets_mod.list))
 names(y) <- targets_mod.list
 
-##### Keep info about samples with 
-filter.min <- NULL
-filter.max <- NULL
+##### Keep info about samples with the lowest and greates counts for defined CPM threshold
+cpm.min <- round(min(as.numeric(colSums(ref_datasets.list[[dataset]][["combined_data"]])*1e-6)), digits=0)
+cpm.max <- round(max(as.numeric(colSums(ref_datasets.list[[dataset]][["combined_data"]])*1e-6)), digits=0)
+#cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to",cpm.min, "reads in sample with the lowest sequencing depth, and", cpm.max, "reads in sample with the greatest sequencing depth\n")
     
 #### For each group...
 for ( group in targets_mod.list ) {
@@ -2211,11 +2212,8 @@ for ( group in targets_mod.list ) {
     y[[group]] <- edgeR::DGEList(counts=data,  group=target$Dataset)
     
     ##### Remove genes with CPM of at least 1 in less than 10% of samples
-    filter.min <- min(filter.min, round(min(as.numeric(colSums(data)*1e-6)), digits=0))
-    filter.max <- max(filter.max, round(max(as.numeric(colSums(data)*1e-6)), digits=0))
-    #cat("The CPM of 1 (cut-off for removing low expressed genes) corresponds to",filter.min, "reads in sample with the lowest sequencing depth, and", filter.max, "reads in sample with the greatest sequencing depth\n")
-    
-    keep <- rowSums(edgeR::cpm(y[[group]])>1) >= ncol(data)/10
+    filter.threshold <- 1
+    keep <- rowSums(edgeR::cpm(y[[group]])>filter.threshold) >= ncol(data)/10
     
     ##### Keep the genes of interest too
     keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
@@ -2263,7 +2261,8 @@ for ( group in targets_mod.list ) {
       y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed+0.25))
       
       ##### Remove genes with TPM of at least 1 in less than 10% of samples
-      keep <- rowSums(y[[group]]$transformed>(1+0.25)) >= ncol(y[[group]]$transformed)/10
+      filter.threshold <- 1+0.25
+      keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed)/10
       
       ##### Keep the genes of interest too
       keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
@@ -2276,14 +2275,15 @@ for ( group in targets_mod.list ) {
       y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
       
       ##### Remove genes with TPM of at least 1 in less than 10% of samples
-      keep <- rowSums(y[[group]]$transformed>1) >= ncol(y[[group]]$transformed)/10
+      filter.threshold <- 1
+      keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed)/10
       
       ##### Keep the genes of interest too
       keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
     
       y[[group]]$filtered <- y[[group]]$counts[keep, ]
       y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
-          }
+    }
   
   ##### TPM transformation without filtering
   } else if ( !params$filter && params$transform == "TPM" ) {
@@ -2358,21 +2358,31 @@ for (i in 2:ncol(y[["comb"]]$transformed)) {
   den.y <- sort(c(den.y, den$y))
 }
 
-##### Plot read counts against transformed data
-suppressMessages(library(plotly))
-
-plot(exp(y[["comb"]]$transformed[,ncol(y[["comb"]]$transformed)]),ref_datasets.list[[dataset]][["combined_data"]][,ncol(ref_datasets.list[[dataset]][["combined_data"]])])
-
-##### Limit the x and y-axis so we can see what is happening at the smaller counts
-plot(exp(y[["comb"]]$transformed[,ncol(y[["comb"]]$transformed)]),ref_datasets.list[[dataset]][["combined_data"]][,ncol(ref_datasets.list[[dataset]][["combined_data"]])], ylim=c(0,50),xlim=c(0,3))
-
-# Add a vertical line at 0.5 CPM
-abline(v=0.5)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
 
 if ( params$filter ) {
+  
+  ##### Plot read counts against transformed data
+  suppressMessages(library(plotly))
+  
+  ##### Organise the data into data frame
+  data.df <- as.data.frame(cbind( exp(y[["comb"]]$transformed[,ncol(y[["comb"]]$transformed)]), ref_datasets.list[[dataset]][["combined_data"]][,ncol(ref_datasets.list[[dataset]][["combined_data"]])]))
+  names(data.df) <- c("Transformed", "Counts")
+  
+  ##### Keep only genes with read counts below the 90th percentile
+  data.df <- data.df[ data.df$Counts < quantile(data.df$Counts, 0.9), ]
+  
+  ##### Keep only every 25th genes to reduce the size of the plot
+  data.df <- data.df[ seq(1,nrow(data.df), by=25), ]
+  
+  ##### Generate plot for filtered data
+  counts_vs_transformed <- plot_ly( data.df, x = ~Transformed, y = ~Counts, width = 600, height = 300, color = I('black'), marker = list(size = 5), type="scatter", mode = "markers", name = paste0(params$transform, " / Counts (Patient)") ) %>% 
+    add_trace(x = c(filter.threshold, filter.threshold), y= c(0, max(data.df$Counts)), mode = "lines", color = I("red"), name = "Filtering threshold") %>%
+    
+    layout(title = "", xaxis = list(title = paste0(params$transform, "s")), yaxis = list(title = "Read counts"), showlegend=TRUE)
+
+  ##### Detach plotly package. Otherwise it clashes with other graphics devices
+  detach("package:plotly", unload=FALSE)
+  
   
   par(mfrow=c(1,2))
   
@@ -3264,8 +3274,17 @@ NOTE: the `r if (params$filter) { nrow(ref_datasets.list[[dataset]][["combined_d
 
 **Data transformation and filtering**
 
-The read count data were converted into **`r params$transform`**s using *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html){target="_blank"}* functions. `r if ( !params$filter ) { c("The option for filtering out genes with low counts is switched OFF") } else if ( params$filter ) { c("Genes with low counts were filtered out") }`. `r if ( !params$log ) { c("The data were not log-transformed") } else if ( params$log ) { c("The data were log2-transformed") }`. Plot(s) below present `r params$transform` data distribution.
+The read count data were converted into **`r params$transform`**s using *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html){target="_blank"}* functions. `r if ( !params$filter ) { c("The option for filtering out genes with low counts is switched OFF") } else if ( params$filter ) { c("Genes with low counts were filtered out") }`. `r if ( !params$log ) { c("The data were not log-transformed") } else if ( params$log ) { c("The data were log2-transformed") }`. 
 
+`r if ( params$transform == "CPM" ) { paste0("The CPM of 1 (cut-off for removing low expressed genes) corresponds to ", cpm.min, " reads in sample with the lowest sequencing depth, and ", cpm.max, " reads in sample with the greatest sequencing depth. The plot below presents the relation between read counts and the corresponding ", params$transform, " values in the patient data. The red vertical line indicates the threshold for filtering genes with low counts.") } else { cat(" ") }`
+
+```{r counts_vs_transformed, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = params$filter}
+counts_vs_transformed
+```
+
+
+Plot(s) below present `r params$transform` data distribution `r if ( params$filter ) { c(" before and after filtering genes with low counts.") } else { cat(".")}`
+ 
 ```{r data_transformation_present, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15) }
 data_transformation_nonfiltered
 data_transformation_filtered
