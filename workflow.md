@@ -20,9 +20,9 @@ The description of the main workflow components involved in (**1**) *[read count
     	* [Data scaling](#data-scaling)
     * [Fusion genes re-quantification](#fusion-genes-re-quantification)
 * [2. Integration with WGS-based results](#2-integration-with-wgs-based-results)
-	* [SNVs](#snvs)
-	* [CN altered regions](#cn-altered-regions)
-	* [SV regions](#sv-regions)
+	* [Somatic SNVs and small indels](#somatic-snvs-and-small-indels)
+	* [Structural variants](#structural-variants)
+	* [Somatic CNVs](#somatic-cnvs)
 * [3. Results annotation](#3-results-annotation)
 * [4. Report generation](#4-report-generation)
 
@@ -103,10 +103,12 @@ Z-scores are comparable by measuring the observations in multiples of the standa
 
 * Extract expression values across all samples for a given **gene** ([Figure 2](./img/Z-score_transformation_gene_wise.png)A)
 * Compute **Z-scores** for individual samples (see equation in ([Figure 2](./img/Z-score_transformation_gene_wise.png)B)
-* Compute **median Z-scores** for the **external reference** and **internal reference**\* sets ([Figure 2](./img/Z-score_transformation_gene_wise.png)C)
+* Compute **median Z-scores** for ([Figure 2](./img/Z-score_transformation_gene_wise.png)C):
+	1.  **external reference** set
+	2. **internal reference** set\*
 * Present patient sample **Z-score** in the context the reference cohorts' **median Z-scores** ([Figure 2](./img/Z-score_transformation_gene_wise.png)D)
 
-\* internal reference cohort is used only for pancreatic cancer patients
+\* used only for pancreatic cancer patients
 
 ##### Group-wise
 
@@ -118,35 +120,53 @@ The group-wise centering apporach is presented in [Figure 3](./img/centering_gro
 ###### Figure 3
 >Group-wise centering scheme.
 
-* Extract expression values for each **group** ([Figure 2](./img/centering_group_wise.png)A)
-	* patient **sample**
-	* **external reference** set
-	* **internal reference** set\*
+* Extract expression values for each **group** ([Figure 3](./img/centering_group_wise.png)A)
+	1. patient **sample**
+	2. **external reference** set
+	3. **internal reference** set\*
 * For each gene compute **mean expression** value in individual groups ([Figure 3](./img/centering_group_wise.png)B)
 * **Center** the mean expression values for each gene in individual groups ([Figure 3](./img/centering_group_wise.png)C)
 * Present patient sample **centered** expression values in the context the reference cohorts' **centered** values ([Figure 3](./img/centering_group_wise.png)D)
 
-\* internal reference cohort is used only for pancreatic cancer patients
+\* used only for pancreatic cancer patients
 
 ### Fusion genes re-quantification
 
-
+* **Add fusion** transcripts detected by [pizzly](https://github.com/pmelsted/pizzly) to the reference transcriptome sequences
+* **Re-quantify** abundances of transcripts, including fusion transcripts detected by [pizzly](https://github.com/pmelsted/pizzly) using [kallisto](https://pachterlab.github.io/kallisto/about).
+* Use the re-quantified fusion transcripts (see example [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/quant_pizzly_post/abundance.tsv) file) for presenting expression levels of candidate fusion genes
 
 ## 2. Integration with WGS-based results
 
-### SNVs
+For patients with available [WGS](./README.md#wgs) data processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline (see ```--umccrise``` [argument](README.md/#arguments)) the expression level information for [mutated](#somatic-snvs-and-small-indels) genes or genes located within detected [structural variants](#structural-variants) (SVs) or [copy-number](#somatic-cnvs) (CN) [altered regions](#somatic-cnvs), as well as the genome-based findings are incorporated and used s a primary source for expression profiles prioritisation.
 
-### CN altered regions
+### Somatic SNVs and small indels
 
-### SV regions
+* Check if **[PCGR](https://github.com/sigven/pcgr)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)) is available
+* **Extract** expression level **information** and genome-based findings for genes with detected genomic variants (use ```--pcgr_tier``` [argument](README.md/#arguments) to define [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) threshold value)
+* **Ordered genes** by increasing variants **[tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
 
+### Structural variants
+
+* Check if **[Manta](https://github.com/Illumina/manta)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv)) is available
+* **Extract** expression level **information** and genome-based findings for genes located within detected SVs
+* **Ordered genes** by increasing **[SV score](https://github.com/vladsaveliev/simple_sv_annotation)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
+* **Compare** [gene fusions](./fusions) detected in WTS data ([pizzly](https://github.com/pmelsted/pizzly)) and WGS data ([Manta](https://github.com/Illumina/manta))
+* **Priritise** WGS-supported [gene fusions](./fusions)
+
+### Somatic CNVs
+
+* Check if **[PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv)) is available
+* **Extract** expression level **information** and genome-based findings for genes located within detected CNVs (use ```--cn_loss ``` and ```--cn_gain ``` [arguments](README.md/#arguments) to define CN threshold values to classify genes within lost and gained regions)
+* **Ordered genes** by increasing (for genes within lost regions) or decreasing (for genes within gained regions) **[CN](https://github.com/umccr/umccrise/blob/master/workflow.md#somatic-cnv)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
 
 ## 3. Results annotation
 
-
+* [OncoKB](https://oncokb.org/)
+* [CIViC](https://civicdb.org/)
+* [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) database
+* [FusionGDB](https://ccsm.uth.edu/FusionGDB/)
 
 ### 4. Report generation
-
-
 
 The generated html-based ***Transcriptome Patient Summary*** **report** contains several sections described more in detail in [report_structure.md](report_structure.md):
