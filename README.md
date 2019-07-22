@@ -267,4 +267,4 @@ The generated html-based ***Transcriptome Patient Summary*** **report** includes
 * [Addendum](report_structure.md#addendum)
 
 \* if clinical information is available; see `--clinical_info` [argument](#arguments) <br />
-\** if genome-based results are available; see `--umccrise ` [argument](#arguments)
+\** if genome-based results are available; see `--umccrise` [argument](#arguments)
