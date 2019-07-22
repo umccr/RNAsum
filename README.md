@@ -60,31 +60,33 @@ The pipeline consist of four main components illustrated and breifly described b
 
 ## Reference data
 
-The reference expression data is availbale for **33 cancer types** and were derived from [external](#external-reference-cohorts) ([TCGA](https://tcga-data.nci.nih.gov/)) and [internal](#internal-reference-cohort) (UMCCR) resources.
+The reference expression data is availbale for **33 cancer types** and were derived from [external](#external-reference-cohorts) ([TCGA](https://tcga-data.nci.nih.gov/)) and [internal](#internal-reference-cohort) ([UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)) resources.
 
 
 ### External reference cohorts
 
 In order to explore expression changes in queried sample we have built a high-quality pancreatic cancer reference cohort. 
 
-Depending on the tissue from which the patient's sample was taken, one of **33 cancer datasets** from [TCGA](https://tcga-data.nci.nih.gov/) can be used as a reference cohort for comparing expression changes in genes of interest in investigated sample. The available cancer types are listed in [TCGA projects summary table](./TCGA_projects_summary.md). These datasets have been processed using methods described in [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data) repository. The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section). 
+Depending on the tissue from which the patient's sample was taken, one of **33 cancer datasets** from [TCGA](https://tcga-data.nci.nih.gov/) can be used as a reference cohort for comparing expression changes in genes of interest in investigated sample. The available cancer types are listed in **[TCGA projects summary table](./TCGA_projects_summary.md)**. These datasets have been processed using methods described in [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data) repository. The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section). 
 
-Of note, each dataset was **cleaned** based on the quality metrics provided in the *Merged Sample Quality Annotations* file **[merged_sample_quality_annotations.tsv](http://api.gdc.cancer.gov/data/1a7d7be8-675d-4e60-a105-19d4121bdebf)** from [TCGA Pan-Cancer Clinical Data Resource](https://gdc.cancer.gov/about-data/publications/PanCan-Clinical-2018) (see [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/tree/master/expression/README.md#data-clean-up) repository for more details, including sample inclusion criteria).
+###### Note
+
+Each dataset was **cleaned** based on the quality metrics provided in the *Merged Sample Quality Annotations* file **[merged_sample_quality_annotations.tsv](http://api.gdc.cancer.gov/data/1a7d7be8-675d-4e60-a105-19d4121bdebf)** from [TCGA Pan-Cancer Clinical Data Resource](https://gdc.cancer.gov/about-data/publications/PanCan-Clinical-2018) (see [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/tree/master/expression/README.md#data-clean-up) repository for more details, including sample inclusion criteria).
 
 
 ### Internal reference cohort
 
-The [TCGA datasets](./TCGA_projects_summary.md) are expected to demonstrate prominent batch effects when compared to the input WTS data due to differences in applied experimental procedures and analytical pipelines. Moreover, TCGA data may include samples from tissue material of lower quality and cellularity compared to samples processed using local protocols. To address these issues, we have built a high-quality internal reference cohort processed using the same pipelines as the investigated sample. 
+The publically available TCGA datasets are expected to demonstrate prominent [batch effects](https://www.ncbi.nlm.nih.gov/pubmed/20838408) when compared to the in-house WTS data due to differences in applied experimental procedures and analytical pipelines. Moreover, TCGA data may include samples from tissue material of lower quality and cellularity compared to samples processed using local protocols. To address these issues, we have built a high-quality internal reference cohort processed using the same pipelines as input data (see [Data pre-processing](./workflow.md#data-pre-processing) section on the [workflow](./workflow.md) page). 
 
-This set of **40 pancreatic cancer samples** is based on WTS data generated at **UMCCR** and processed with **[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)** *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* to minimise potential batch effects between queried sample and the reference cohorts and to make sure the data are comparable. The internal reference cohort assembly is summarised in [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house) repository.
+This internal reference set of **40 pancreatic cancer samples** is based on WTS data generated at **[UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)** and processed with **[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)** *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* to minimise potential batch effects between investigated samples and the reference cohort and to make sure the data are comparable. The internal reference cohort assembly is summarised in [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house) repository.
 
-- **USED FOR BATCH-EFFECTS CORRECTION** (regardless of the input sample tissue origin) to minimise technical-related variation in the data (present due to differences in protocoles used for data generation and processing)
+###### Note
 
-- **ALSO** use as a cancer group to be used to compare per-gene expression values and report in the summary tables for PDACs
+The are two rationales for using the internal reference cohort:
 
+1. In case of **pancreatic cancer samples** this cohort serves as a reference point for **comparing per-gene expression levels** observed in the investigated single-subject data and data from other pancreatic cancer patients cohort.
 
-
-
+2. In case of samples from **any cancer type** the data from the internal reference cohort is used in batch effects correction procedure performed to minimise technical-related variation in the data.
 
 ## Input data
 
@@ -93,14 +95,16 @@ The pipeline accepts [WTS](#wts) data processed by *[bcbio-nextgen](https://gith
 
 ### WTS 
 
-The following output files from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* are use in the pipeline:
+The only required WTS input data are **read counts** provided in quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) (see example *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* file and its [description](https://pachterlab.github.io/kallisto/starting#results)). The per-transcript abundances are reported in *estimated counts* (`est_counts`) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`tpm`), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** detected by [pizzly](https://github.com/pmelsted/pizzly) can be provided (see example *[flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)*). 
 
-Tool | Output file | Example | Required
+Table below lists all input data accepted in the pipeline:
+
+Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
-[kallisto](https://pachterlab.github.io/kallisto/about) | Quantified abundances of transcripts | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv) | **Yes**
-[kallisto](https://pachterlab.github.io/kallisto/about) | Re-quantified abundances of transcripts, including fusion transcripts identified by [pizzly](https://github.com/pmelsted/pizzly) | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/quant_pizzly_post/abundance.tsv) | No
-[pizzly](https://github.com/pmelsted/pizzly) | List of detected fusion genes | [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
-[clinker](https://github.com/Oshlack/Clinker) | Plots of detected fusion genes using [pizzly](https://github.com/pmelsted/pizzly) | [EIF4A2_PTMA.pdf](./data/test_data/final/test_sample_WTS/clinker/EIF4A2_PTMA.pdf) | No
+Quantified **abundances** of transcripts | [kallisto](https://pachterlab.github.io/kallisto/about) | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv) | **Yes**
+**Re-quantified abundances** of transcripts, including fusion transcripts identified by [pizzly](https://github.com/pmelsted/pizzly) | [kallisto](https://pachterlab.github.io/kallisto/about) | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/quant_pizzly_post/abundance.tsv) | No
+List of detected **fusion genes** | [pizzly](https://github.com/pmelsted/pizzly) | [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
+Plots of detected **fusion genes** using [pizzly](https://github.com/pmelsted/pizzly) | [clinker](https://github.com/Oshlack/Clinker) | [EIF4A2_PTMA.pdf](./data/test_data/final/test_sample_WTS/clinker/EIF4A2_PTMA.pdf) | No
 
 <br />
 
@@ -122,15 +126,20 @@ These files are expected to be organised following the folder structure below
       |____<GeneY_GeneZ>.pdf
 ```
 
+###### Note
+
+Detected [fusion genes](./fusions) are expected to be listed in the [flat table](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) generated with [pizzly](https://github.com/pmelsted/pizzly). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
+
+
 ### WGS
 
-The following output files from *[umccrise](https://github.com/umccr/umccrise)* are accepted in the pipeline:
+The following *[umccrise](https://github.com/umccr/umccrise)* output files are accepted as input data in the pipeline:
 
-Tool | Output file | Example | Required
+Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
-[PCGR](https://github.com/sigven/pcgr) | List of detected and annotated single-nucleotide variants (SNVs) and indels | [test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv) | No
-[PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) | List of genes involved in CN altered regions | [test_sample_WGS.purple.gene.cnv](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv) | No
-[Manta](https://github.com/Illumina/manta) | List of genes involved in SV regions | [test_sample_WGS-sv-prioritize-manta-pass.tsv](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv) | No
+List of detected and annotated single-nucleotide variants (**SNVs**) and indels | [PCGR](https://github.com/sigven/pcgr) | [test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv) | No
+List of genes involved in **CN** altered regions | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) | [test_sample_WGS.purple.gene.cnv](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv) | No
+List of genes involved in **SV** regions | [Manta](https://github.com/Illumina/manta) | [test_sample_WGS-sv-prioritize-manta-pass.tsv](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv) | No
 
 <br />
 
