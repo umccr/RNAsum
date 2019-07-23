@@ -24,6 +24,12 @@ The description of the main workflow components involved in (**1**) *[read count
 	* [Structural variants](#structural-variants)
 	* [Somatic CNVs](#somatic-cnvs)
 * [3. Results annotation](#3-results-annotation)
+	* [Key cancer genes](#key-cancer-genes)
+	* [OncoKB](#oncokb)
+	* [VICC](#vicc)
+	* [CIViC](#civiv)
+	* [CGI](#cgi)
+	* [FusionGDB](#fusiongdb)
 * [4. Report generation](#4-report-generation)
 
 <!-- vim-markdown-toc -->
@@ -162,17 +168,19 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ## 3. Results annotation
 
-* [UMCCR key cancer genes set](https://github.com/umccr/umccrise/blob/master/workflow.md#somatic-cnv) build of off several sources:
-	* Cancermine with at least 2 publication with at least 3 citations
-	* NCG known cancer genes,
-	* Tier 1 COSMIC Cancer Gene Census (CGC)
-	* CACAO hotspot genes (curated from ClinVar, CiViC, cancerhotspots)
+### Key cancer genes
+
+* [UMCCR key cancer genes set](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/make_umccr_cancer_genes.Rmd) build of off several sources:
+	* [Cancermine](http://bionlp.bcgsc.ca/cancermine/) with at least 2 publication with at least 3 citations
+	* [NCG known cancer genes](http://ncg.kcl.ac.uk/)
+	* Tier 1 [COSMIC Cancer Gene Census](https://cancer.sanger.ac.uk/census) (CGC)
+	* [CACAO](https://github.com/sigven/cacao) hotspot genes (curated from [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/), [CiViC](https://civicdb.org/), [Cancer Hotspots](https://www.cancerhotspots.org/))
 	* At least 2 matches in the following 5 sources and 8 clinical panels:
-		* Cancer predisposition genes (CPSR list)
-		* COSMIC Cancer Gene Census (tier 2)
-		* AZ300
+		* Cancer predisposition genes ([CPSR](https://github.com/sigven/cpsr) list)
+		* [COSMIC Cancer Gene Census](https://cancer.sanger.ac.uk/census) (tier 2)
+		* AstraZeneca 300 (AZ300)
 		* Familial Cancer
-		* OncoKB annotated
+		* [OncoKB](https://oncokb.org/) annotated
 		* MSKC-IMPACT
 		* MSKC-Heme
 		* PMCC-CCP
@@ -181,12 +189,33 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 		* Foundation One
 		* Foundation Heme
 		* Vogelstein
-* [OncoKB](https://oncokb.org/)
-* [The Variant Interpretation for Cancer Consortium](https://cancervariants.org/) (VICC)
-* [CIViC](https://civicdb.org/)
-* [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) database
-* [FusionGDB](https://ccsm.uth.edu/FusionGDB/)
+
+* Used for extracting expression levels of cancer genes (presented in the `Cancer genes` report section)
+* Used to prioritise candidate [fusion genes](#fusion-genes-re-quantification-re-quantification)
+
+### OncoKB
+
+* [OncoKB](https://oncokb.org/cancerGenes) gene list is used to annotate altered genes across various sections in the report (`External resources` column in report `Summary tables`) 
+
+
+### VICC
+
+* [The Variant Interpretation for Cancer Consortium](https://cancervariants.org/) (VICC) knowledgebase is used to annotate altered genes across various sections in the report (`External resources` column in report `Summary tables`) 
+
+
+### CIViC
+
+* The [Clinical Interpretation of Variants in Cancer](https://civicdb.org/) (CIViC) database is used to annotate altered genes across various sections in the report (`External resources` column in report `Summary tables`) 
+* Used to flag clinically actionable aberrations in the `Drug matching` report section
+
+### CGI
+
+* The [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) database is used to flag genes known to be involved in gene fusions and to prioritise candidate [fusion genes](#fusion-genes-re-quantification-re-quantification)
+ 
+### FusionGDB
+
+* [FusionGDB](https://ccsm.uth.edu/FusionGDB/) database is used to flag genes known to be involved in gene fusions and to prioritise candidate [fusion genes](#fusion-genes-re-quantification-re-quantification)
 
 ### 4. Report generation
 
-The generated html-based ***Transcriptome Patient Summary*** **report** contains several sections described more in detail in [report_structure.md](report_structure.md).
+The final producst is an html-based ***Transcriptome Patient Summary*** **report** containing searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report containing sections are described more in detail in [report_structure.md](report_structure.md).
