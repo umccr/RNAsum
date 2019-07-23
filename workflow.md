@@ -169,4 +169,4 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### 4. Report generation
 
-The generated html-based ***Transcriptome Patient Summary*** **report** contains several sections described more in detail in [report_structure.md](report_structure.md):
+The generated html-based ***Transcriptome Patient Summary*** **report** contains several sections described more in detail in [report_structure.md](report_structure.md).
