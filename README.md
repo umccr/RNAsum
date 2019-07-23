@@ -1,6 +1,6 @@
 # RNA-seq report
 
-This reporting tool is designed to post-process, summarise and visualise an output from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)*. Its main application is to complement genome-based findings and to provide additional evidence for detected alterations.
+RNA-seq report workflow is designed to post-process, summarise and visualise an output from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)*. Its main application is to complement genome-based findings from [umccrise](https://github.com/umccr/umccrise) pipeline and to provide additional evidence for detected alterations.
 
 
 ## Table of contents
@@ -48,7 +48,7 @@ The pipeline consist of four main components illustrated and breifly described b
 
 <br/>
 
-1. Process the RNA-seq data from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and  **[gene fusions](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)**. The [gene fusion](./fusions) candidates are re-quantified and the read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
+1. Process the patient sample WTS from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and  **[gene fusions](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)**, and add expression data from [reference patient cohorts](#reference-data). The [gene fusion](./fusions) candidates are re-quantified and the read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
 
 2. Feed in **genome-based findings** from whole-genome sequencing (WGS) data to focus on genes of interest and provide additional evidence for dysregulation of mutated genes, or genes located within detected structural variants (SVs) or copy-number (CN) altered regions. The RNA-seq report pipeline is designed to be compatible with WGS patient report based on [umccrise](https://github.com/umccr/umccrise) pipeline output.
 
@@ -219,6 +219,7 @@ cd rmd_files
 ```
 
 * example data is provided in [data/test_data](./data/test_data) folder
+* Usually the data processing and report generation would take less than **15 minutes** using **8GB RAM** memory and **1 CPU**
 
 
 #### 1. Required arguments only
