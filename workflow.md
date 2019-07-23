@@ -162,7 +162,27 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ## 3. Results annotation
 
+* [UMCCR key cancer genes set](https://github.com/umccr/umccrise/blob/master/workflow.md#somatic-cnv) build of off several sources:
+	* Cancermine with at least 2 publication with at least 3 citations
+	* NCG known cancer genes,
+	* Tier 1 COSMIC Cancer Gene Census (CGC)
+	* CACAO hotspot genes (curated from ClinVar, CiViC, cancerhotspots)
+	* At least 2 matches in the following 5 sources and 8 clinical panels:
+		* Cancer predisposition genes (CPSR list)
+		* COSMIC Cancer Gene Census (tier 2)
+		* AZ300
+		* Familial Cancer
+		* OncoKB annotated
+		* MSKC-IMPACT
+		* MSKC-Heme
+		* PMCC-CCP
+		* Illumina-TS500
+		* TEMPUS
+		* Foundation One
+		* Foundation Heme
+		* Vogelstein
 * [OncoKB](https://oncokb.org/)
+* [The Variant Interpretation for Cancer Consortium](https://cancervariants.org/) (VICC)
 * [CIViC](https://civicdb.org/)
 * [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) database
 * [FusionGDB](https://ccsm.uth.edu/FusionGDB/)
