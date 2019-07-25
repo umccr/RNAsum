@@ -419,7 +419,8 @@ exprGroupsStats_geneWise <- function(data, targets) {
   ##### Perform Z-score transformation of the expression values
   data.z <- t(apply(data, 1, scale, scale = TRUE))
   colnames(data.z) <- colnames(data)
-
+  data.z <- na.omit(data.z)
+  
   ##### Perform the gene-wise calculations across all groups
   ##### Convert a expression values into corresponding percentiles
   data.q <- t(apply(data, 1, perc.rank))
@@ -653,14 +654,14 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
     ##### Reorder groups
     if ( !is.null(add_cancer) ) {
       
-      gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(ext_cancer, int_cancer, add_cancer, "Patient"))
-      group.colors <- c("cornflowerblue", "red", "forestgreen", "black")
+      gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c( add_cancer, ext_cancer, int_cancer, "Patient"))
+      group.colours <- c("forestgreen", "cornflowerblue", "red", "black")
     } else {
       gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c(ext_cancer, int_cancer, "Patient"))
-      group.colors <- c("cornflowerblue", "red", "black")
+      group.colours <- c("cornflowerblue", "red", "black")
     }
     
-    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = group.colors, opacity = 0.5, orientation = 'h', width = 800, height = 400, showlegend=FALSE)
+    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = group.colours, opacity = 0.5, orientation = 'h', width = 800, height = 400, showlegend=FALSE)
   }
   
   ##### Generate interactive CDF plot with plotly
@@ -881,7 +882,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   if ( !is.null(add_cancer) ) {
       
     gene.expr.df$Group <- factor(gene.expr.df$Group, levels=c("Patient", int_cancer, ext_cancer, add_cancer))
-    group.colours <- c(I("black"), "cornflowerblue", "forestgreen")
+    group.colours <- c(I("black"), "red", "cornflowerblue", "forestgreen")
     
   } else {
     
@@ -1850,7 +1851,7 @@ if ( length(ref_dataset[[dataset]]) > 3 ) {
 }
 
 ##### Define the cancer group to be used to compare per-gene expression values and report in the summary tables
-if ( dataset == "paad" ) {
+if ( dataset == "paad" || dataset == "paad-ipmn" || dataset == "paad-net" ) {
   
   comp_cancer_group <- int_cancer_group
   
