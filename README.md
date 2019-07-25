@@ -42,7 +42,7 @@ conda activate rnaseq-report
 
 ## Workflow
 
-The pipeline consist of four main components illustrated and breifly described below. See the [workflow.md](workflow.md) for the complete description of the workflow.
+The pipeline consist of four main components illustrated and breifly described below. See the [workflow.md](workflow.md) for the complete description of the **[data processing workflow](workflow.md)**.
 
 <img src="img/RNAseq_report_workflow.png" width="100%"> 
 
@@ -262,7 +262,7 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_
 
 ### Output
 
-The generated html-based ***Transcriptome Patient Summary*** **report** includes searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report consist of several sections described more in detail in [report_structure.md](report_structure.md):
+The generated html-based ***Transcriptome Patient Summary*** **report** includes searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report consist of several sections, including:
 
 * [Input data](report_structure.md#input-data)
 * [Clinical information\*](report_structure.md#clinical-information)
@@ -278,3 +278,6 @@ The generated html-based ***Transcriptome Patient Summary*** **report** includes
 
 \* if clinical information is available; see `--clinical_info` [argument](#arguments) <br />
 \** if genome-based results are available; see `--umccrise` [argument](#arguments)
+
+Detailed description of the **[report structure](report_structure.md)**, including **[results prioritisation](report_structure.md)** and **[visualisation](report_structure.md)** is available in [report_structure.md](report_structure.md).
+ 
