@@ -92,7 +92,7 @@ The **read count** data (see [Input data](./README.md#input-data) section in the
 
 ([Figure 1](./img/counts_post-processing_scheme.png)F)
 
-* Consider the patient **sample** + **internal reference** (regardless of the patient sample origin) as one batch (both sets processed with the same pipeline) and corresponding [TCGA](https://tcga-data.nci.nih.gov/) dataset as another batch. The objective is to remove data variation due to technical factors.
+* Consider the patient **sample** + **internal reference** (regardless of the patient sample origin) as one batch (both sets processed with the same pipeline) and corresponding **[TCGA](https://tcga-data.nci.nih.gov/) dataset** as another batch. The objective is to remove data variation due to technical factors.
 
 #### Data scaling
 
@@ -130,8 +130,8 @@ The group-wise centering apporach is presented in [Figure 3](./img/centering_gro
 	1. patient **sample**
 	2. **external reference** set
 	3. **internal reference** set\*
-* For each gene compute **mean expression** value in individual groups ([Figure 3](./img/centering_group_wise.png)B)
-* **Center** the mean expression values for each gene in individual groups ([Figure 3](./img/centering_group_wise.png)C)
+* For each gene compute **median expression** value in individual groups ([Figure 3](./img/centering_group_wise.png)B)
+* **Center** the median expression values for each gene in individual groups ([Figure 3](./img/centering_group_wise.png)C)
 * Present patient sample **centered** expression values in the context the reference cohorts' **centered** values ([Figure 3](./img/centering_group_wise.png)D)
 
 \* used only for pancreatic cancer patients
