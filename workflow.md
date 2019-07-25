@@ -1,6 +1,6 @@
 ## RNA-seq report workflow
 
-The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)* data **[processing](#1-data-processing)**, (**2**) **[integration](#2-integration-with-wgs-based-results)** with **WGS**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**3**) results **[annotation](#3-results-annotation)** and (**4**) presentation in the *Transcriptome Patient Summary* **[report](#4-report-generation)**. 
+The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)* data **[processing](#1-data-processing)**, (**2**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**3**) results **[annotation](#3-results-annotation)** and (**4**) presentation in the *Transcriptome Patient Summary* **[report](#4-report-generation)**. 
 
 <img src="img/RNAseq_report_workflow.png" width="100%"> 
 
@@ -27,7 +27,7 @@ The description of the main workflow components involved in (**1**) *[read count
 	* [Key cancer genes](#key-cancer-genes)
 	* [OncoKB](#oncokb)
 	* [VICC](#vicc)
-	* [CIViC](#civiv)
+	* [CIViC](#civic)
 	* [CGI](#cgi)
 	* [FusionGDB](#fusiongdb)
 * [4. Report generation](#4-report-generation)
@@ -52,7 +52,7 @@ The **read count** data (see [Input data](./README.md#input-data) section in the
 * Load read count files from the following three sets of data:
 
 	1. patient **sample** (see [Input data](./README.md#input-data) section in the main page)
-	2. **external reference** cohort ([TCGA](https://tcga-data.nci.nih.gov/), available cancer types are listed in [TCGA projects summary table](./TCGA_projects_summary.md)) corresponding to the patient cancer sample.
+	2. **external reference** cohort ([TCGA](https://tcga-data.nci.nih.gov/), available cancer types are listed in [TCGA projects summary table](./TCGA_projects_summary.md)) corresponding to the patient cancer sample
 	3. UMCCR **internal reference** set of in-house pancreatic cancer samples (regardless of the patient sample origin; see [Input data](./README.md#input-data) section in the main page)
 
 #### Transformation
@@ -144,7 +144,7 @@ The group-wise centering apporach is presented in [Figure 3](./img/centering_gro
 
 ## 2. Integration with WGS-based results
 
-For patients with available [WGS](./README.md#wgs) data processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline (see ```--umccrise``` [argument](README.md/#arguments)) the expression level information for [mutated](#somatic-snvs-and-small-indels) genes or genes located within detected [structural variants](#structural-variants) (SVs) or [copy-number](#somatic-cnvs) (CN) [altered regions](#somatic-cnvs), as well as the genome-based findings are incorporated and used s a primary source for expression profiles prioritisation.
+For patients with available [WGS](./README.md#wgs) data processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline (see ```--umccrise``` [argument](README.md/#arguments)) the expression level information for [mutated](#somatic-snvs-and-small-indels) genes or genes located within detected [structural variants](#structural-variants) (SVs) or [copy-number](#somatic-cnvs) (CN) [altered regions](#somatic-cnvs), as well as the genome-based findings are incorporated and used as primary source for expression profiles prioritisation.
 
 ### Somatic SNVs and small indels
 
@@ -157,8 +157,8 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 * Check if **[Manta](https://github.com/Illumina/manta)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv)) is available
 * **Extract** expression level **information** and genome-based findings for genes located within detected SVs
 * **Ordered genes** by increasing **[SV score](https://github.com/vladsaveliev/simple_sv_annotation)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
-* **Compare** [gene fusions](./fusions) detected in WTS data ([pizzly](https://github.com/pmelsted/pizzly)) and WGS data ([Manta](https://github.com/Illumina/manta))
-* **Priritise** WGS-supported [gene fusions](./fusions)
+* **Compare** [gene fusions](./fusions) detected in [WTS](./README.md#wts) data ([pizzly](https://github.com/pmelsted/pizzly)) and [WGS](./README.md#wgs) data ([Manta](https://github.com/Illumina/manta))
+* **Priritise** [WGS](./README.md#wgs)-supported [gene fusions](./fusions)
 
 ### Somatic CNVs
 
@@ -167,6 +167,8 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 * **Ordered genes** by increasing (for genes within lost regions) or decreasing (for genes within gained regions) **[CN](https://github.com/umccr/umccrise/blob/master/workflow.md#somatic-cnv)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
 
 ## 3. Results annotation
+
+[WTS](./README.md#wts)- and/or [WGS](./README.md#wgs)-based results for the altered genes are collated with **knowledge** derived from in-house resources and public **databases** (listed below) to provide additional source of evidence for their significance, e.g. to flag variants with clinical significance or potential druggable targets.
 
 ### Key cancer genes
 
@@ -191,21 +193,21 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 		* Vogelstein
 
 * Used for extracting expression levels of cancer genes (presented in the `Cancer genes` report section)
-* Used to prioritise candidate [fusion genes](#fusion-genes-re-quantification-re-quantification)
+* Used to prioritise candidate [fusion genes](#fusion-genes-re-quantification)
 
 ### OncoKB
 
-* [OncoKB](https://oncokb.org/cancerGenes) gene list is used to annotate altered genes across various sections in the report (`External resources` column in report `Summary tables`) 
+* [OncoKB](https://oncokb.org/cancerGenes) gene list is used to annotate altered genes across various sections in the report (annotations and URL links in `External resources` column in report `Summary tables`) 
 
 
 ### VICC
 
-* [The Variant Interpretation for Cancer Consortium](https://cancervariants.org/) (VICC) knowledgebase is used to annotate altered genes across various sections in the report (`External resources` column in report `Summary tables`) 
+* [The Variant Interpretation for Cancer Consortium](https://cancervariants.org/) (VICC) knowledgebase is used to annotate altered genes across various sections in the report (annotations and URL links in `External resources` column in report `Summary tables`) 
 
 
 ### CIViC
 
-* The [Clinical Interpretation of Variants in Cancer](https://civicdb.org/) (CIViC) database is used to annotate altered genes across various sections in the report (`External resources` column in report `Summary tables`) 
+* The [Clinical Interpretation of Variants in Cancer](https://civicdb.org/) (CIViC) database is used to annotate altered genes across various sections in the report (annotations and URL links in `External resources` column in report `Summary tables`) 
 * Used to flag clinically actionable aberrations in the `Drug matching` report section
 
 ### CGI
@@ -218,4 +220,4 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### 4. Report generation
 
-The final producst is an html-based ***Transcriptome Patient Summary*** **report** containing searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report containing sections are described more in detail in [report_structure.md](report_structure.md).
+The final html-based ***Transcriptome Patient Summary*** **report** contains searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources providing additional source of evidence for their significance. The individual report sections are described more in detail in [report_structure.md](report_structure.md).
