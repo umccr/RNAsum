@@ -131,9 +131,11 @@ The group-wise centering apporach is presented in [Figure 3](./img/centering_gro
 	1. patient **sample**
 	2. **internal reference** set\*
 	3.  **external reference** set
+	
 * For each gene compute **median expression** value in ([Figure 3](./img/centering_group_wise.png)B):
 	1. **internal reference** set\*
 	2.  **external reference** set
+	
 * **Center** the median expression values for each gene in individual groups ([Figure 3](./img/centering_group_wise.png)C)
 * Present patient sample **centered** expression values in the context the reference cohorts' **centered** values ([Figure 3](./img/centering_group_wise.png)D)
 
