@@ -110,8 +110,9 @@ Z-scores are comparable by measuring the observations in multiples of the standa
 * Extract expression values across all samples for a given **gene** ([Figure 2](./img/Z-score_transformation_gene_wise.png)A)
 * Compute **Z-scores** for individual samples (see equation in ([Figure 2](./img/Z-score_transformation_gene_wise.png)B)
 * Compute **median Z-scores** for ([Figure 2](./img/Z-score_transformation_gene_wise.png)C):
-	1.  **external reference** set
-	2. **internal reference** set\*
+	1. **internal reference** set\*
+	2.  **external reference** set
+
 * Present patient sample **Z-score** in the context the reference cohorts' **median Z-scores** ([Figure 2](./img/Z-score_transformation_gene_wise.png)D)
 
 \* used only for pancreatic cancer patients
@@ -126,11 +127,13 @@ The group-wise centering apporach is presented in [Figure 3](./img/centering_gro
 ###### Figure 3
 >Group-wise centering scheme.
 
-* Extract expression values for each **group** ([Figure 3](./img/centering_group_wise.png)A)
+* Extract expression values for ([Figure 3](./img/centering_group_wise.png)A):
 	1. patient **sample**
-	2. **external reference** set
-	3. **internal reference** set\*
-* For each gene compute **median expression** value in individual groups ([Figure 3](./img/centering_group_wise.png)B)
+	2. **internal reference** set\*
+	3.  **external reference** set
+* For each gene compute **median expression** value in ([Figure 3](./img/centering_group_wise.png)B):
+	1. **internal reference** set\*
+	2.  **external reference** set
 * **Center** the median expression values for each gene in individual groups ([Figure 3](./img/centering_group_wise.png)C)
 * Present patient sample **centered** expression values in the context the reference cohorts' **centered** values ([Figure 3](./img/centering_group_wise.png)D)
 
