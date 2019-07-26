@@ -841,7 +841,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
 
 
 ##### Generate boxplot presenting expression profiles for selected set of genes
-glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, plot_mode = "static", hexcode, scaling = "gene-wise") {
+glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, plot_mode = "static", hexcode, type = "z", sort = "diff", scaling = "gene-wise") {
   
   if ( comp_cancer != int_cancer ) {
       
@@ -851,23 +851,45 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   
   ##### Perform Z-score transformation of the median expression values
   if ( scaling == "gene-wise" ) {
-      
+    
     data.z <- t(scale(t(data)))
+    
+    if ( type == "perc" ) {
+        
+      ##### Convert a expression values into corresponding percentiles
+      data.z <- t(apply(data.z, 1, perc.rank))
+    }
+    
   } else {
+    
     data.z <- scale(data, scale = FALSE)
+    
+    if ( type == "perc" ) {
+        
+      ##### Convert a expression values into corresponding percentiles
+      data.z <- t(apply(data.z, 1, perc.rank))
+    }
   }
   
   targets$Target[ targets$Target==sampleName ] <- "Patient"
   
   ##### Make sure that all genes are present in the expression matrix
   genes <- genes[ genes %in% rownames(data.z) ]
-   
-  ##### Sort genes by the greatest difference between the patient and the "comp_cancer" cohort
-  comp_cancer.medians <- rowMedians( data.z[ genes ,targets$Target==comp_cancer ] )
-  names(comp_cancer.medians) <- genes
-  comp_cancer.medians.diff <- comp_cancer.medians - data.z[ genes ,targets$Target=="Patient" ]
-  genes <- genes[ order(comp_cancer.medians.diff) ]
   
+  ##### Genes sorting for visualisation
+  ##### Sort genes by the greatest difference between the patient and the "comp_cancer" cohort
+  if ( sort = "diff" ) {
+    
+    comp_cancer.medians <- rowMedians( data.z[ genes ,targets$Target==comp_cancer ] )
+    names(comp_cancer.medians) <- genes
+    comp_cancer.medians.diff <- comp_cancer.medians - data.z[ genes ,targets$Target=="Patient" ]
+    genes <- genes[ order(comp_cancer.medians.diff) ]
+  
+  ##### Sort genes alphabetically
+  } else {
+    genes <- genes[ order(genes) ]
+  }
+
   ##### Prepare dataframe for plotly
   gene.expr.df <- NULL
   
@@ -913,10 +935,10 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     setwd(PlotsDir)
  
     ##### Save the static image into a file
-    orca(p, format = "png", file = paste0(hexcode, "_glance_expr_plot.png"), width = 1200, height = 600)
+    orca(p, format = "png", file = paste0(hexcode, "_glance_expr_plot.", type, ".png"), width = 1200, height = 600)
   
     ##### Present the static plot in the report
-    include_graphics(paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.png"), sep = "/"), dpi = 72)
+    include_graphics(paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".png"), sep = "/"), dpi = 72)
   
   } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
     
@@ -926,7 +948,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
     
     ##### Save interactive plot as html file
-    htmlwidgets::saveWidget(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.html"), sep = "/"))
+    htmlwidgets::saveWidget(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
     
     return( p )
   }
@@ -2391,7 +2413,7 @@ if ( params$filter ) {
   counts_vs_transformed <- plot_ly( data.df, x = ~Transformed, y = ~Counts, width = 800, height = 300, color = I('black'), marker = list(size = 5), type="scatter", mode = "markers", name = paste0(params$transform, " / Counts (Patient)") ) %>% 
     add_trace(x = c(filter.threshold, filter.threshold), y= c(0, max(data.df$Counts)), mode = "lines", color = I("red"), name = "Filtering threshold") %>%
     
-    layout(title = "", xaxis = list(title = paste0(params$transform, "s")), yaxis = list(title = "Read counts"), showlegend=TRUE)
+    layout(title = "", xaxis = list(title = paste0(params$transform, "s")), yaxis = list(title = "Counts"), showlegend=TRUE)
 
   ##### Detach plotly package. Otherwise it clashes with other graphics devices
   detach("package:plotly", unload=FALSE)
@@ -5787,16 +5809,18 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-### - Expression overview
+### - Expression overview {.tabset}
 
 Overview of immune markers expression profiles in patient's sample and in samples from cancer patients.
+
+#### Z-scores
 
 ```{r glance_expr_plot_immune_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes", scaling = scaling)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling)
 
 } else {
   cat("No expression data is available for immune markers!")
@@ -5810,7 +5834,35 @@ detach("package:plotly", unload=FALSE)
 <summary>Plot legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered by **increasing** median expression (Z-score) values in the **`r comp_cancer_group`** cohort.
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered  **alphabetically**.
+
+</font>
+</details>
+
+***
+
+#### Percentiles
+
+```{r glance_expr_plot_immune_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+
+##### Generate overview boxplot
+if ( !is.null(genes) ) {
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling)
+
+} else {
+  cat("No expression data is available for immune markers!")
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+<details>
+<summary>Plot legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered  **alphabetically**.
 
 </font>
 </details>
@@ -5887,16 +5939,18 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-### - Expression overview
+### - Expression overview {.tabset}
 
 Overview of HRD genes expression profiles in patient's sample and in samples from cancer patients.
+
+#### Z-scores
 
 ```{r glance_expr_plot_hrd_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", scaling = scaling)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling)
 
 } else {
   cat("No expression data is available for HRD genes!")
@@ -5910,7 +5964,35 @@ detach("package:plotly", unload=FALSE)
 <summary>Plot legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered by **increasing** median expression (Z-score) values in the **`r comp_cancer_group`** cohort.
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered  **alphabetically**.
+
+</font>
+</details>
+
+***
+
+#### Percentiles
+
+```{r glance_expr_plot_hrd_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+
+##### Generate overview boxplot
+if ( !is.null(genes) ) {
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling)
+
+} else {
+  cat("No expression data is available for HRD genes!")
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+<details>
+<summary>Plot legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered  **alphabetically**.
 
 </font>
 </details>
