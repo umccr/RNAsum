@@ -419,7 +419,10 @@ exprGroupsStats_geneWise <- function(data, targets) {
   ##### Perform Z-score transformation of the expression values
   data.z <- t(apply(data, 1, scale, scale = TRUE))
   colnames(data.z) <- colnames(data)
-  data.z <- na.omit(data.z)
+  
+  ##### Remove rows with potential NA's, which is due to SD = 0 across all samples
+  data.z <- data.z[rowSums(!is.na(data.z)) > 0, , drop = FALSE]
+  data <- data[ rownames(data) %in% rownames(data.z), , drop = FALSE]
   
   ##### Perform the gene-wise calculations across all groups
   ##### Convert a expression values into corresponding percentiles
@@ -458,6 +461,7 @@ exprGroupsStats_geneWise <- function(data, targets) {
       
       group_stats.list[[group]] <- as.data.frame(group_stats.list[[group]])
       names( group_stats.list[[group]] ) <- c("median", "sd", "z", "quantile", "cum")
+      rownames( group_stats.list[[group]] ) <- rownames(data)
       
     } else if ( sum(c(targets$Target %in% group), na.rm = TRUE) > 1 && nrow(data) == 1 ) {
       
@@ -597,6 +601,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
     ##### Get stats for each group
     gene.data <- data[ gene, , drop = FALSE]
     group.z.gene <- exprGroupsStats_geneWise(gene.data, targets)[[1]]
+    
     
     ##### ... and for each sample in individual groups
     gene.stats <- exprGroupsStats_geneWise(gene.data, targets)[[2]]
@@ -1075,7 +1080,10 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
 
     ##### Calculate z-score for each group  
     group.stats <- exprGroupsStats_geneWise(data, targets)[[1]]
-      
+    
+    ##### Make sure to iclude only genes for which Z-scores were calaculated  (genes with SD = 0 across all samples will give NA)
+    group.z <- group.z[ rownames(group.z) %in% rownames(group.stats[[targets.list[1]]]), ]
+    
     #### Present expression data as percentiles or z-score values (default)
     for ( group in targets.list ) {
         
