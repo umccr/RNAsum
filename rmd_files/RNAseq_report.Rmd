@@ -853,11 +853,14 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   if ( scaling == "gene-wise" ) {
     
     data.z <- t(scale(t(data)))
+    y_title <- "mRNA expression (Z-score)"
     
     if ( type == "perc" ) {
         
       ##### Convert a expression values into corresponding percentiles
       data.z <- t(apply(data.z, 1, perc.rank))
+      
+      y_title <- "mRNA expression (percentile)"
     }
     
   } else {
@@ -878,7 +881,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   
   ##### Genes sorting for visualisation
   ##### Sort genes by the greatest difference between the patient and the "comp_cancer" cohort
-  if ( sort = "diff" ) {
+  if ( sort == "diff" ) {
     
     comp_cancer.medians <- rowMedians( data.z[ genes ,targets$Target==comp_cancer ] )
     names(comp_cancer.medians) <- genes
@@ -915,7 +918,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = group.colours, opacity=0.3, showlegend = TRUE, width = 800, height = 400 ) %>% 
     add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
     
-    layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
+    layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = y_title), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
     
   ##### Create directory for "at glance" plots
   PlotsDir <- paste(params$report_dir, "glanceExprPlots", sep = "/")
@@ -945,7 +948,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = group.colours, opacity=0.3, showlegend = TRUE, width = 800, height = 600 ) %>% 
     add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
     
-    layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = "mRNA expression (Z-score)"), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
+    layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = y_title), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
     
     ##### Save interactive plot as html file
     htmlwidgets::saveWidget(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
@@ -5978,7 +5981,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling)
 
 } else {
   cat("No expression data is available for HRD genes!")
