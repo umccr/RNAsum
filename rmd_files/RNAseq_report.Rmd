@@ -2838,14 +2838,17 @@ targets <- ref_datasets.list[[dataset]][["sample_annot"]]
 ##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores using exprTable function
 expr_data.z <- exprTable( genes = rownames(expr_data), data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
 
-expr_data.perc <- exprTable( genes = expr_data.z$SYMBOL, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
-
 expr_genes <- expr_data.z$SYMBOL
+
+expr_data.perc <- exprTable( genes = expr_genes, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
+
+##### Make sure the tables have the same genes order
+expr_data.perc <- expr_data.perc[ expr_genes, ]
 
 if ( comp_cancer_group != int_cancer_group ) {
 
   expr_data.z <- expr_data.z[, "Diff" ]
-  expr_data.perc <- expr_data.z[, "Diff" ]
+  expr_data.perc <- expr_data.perc[, "Diff" ]
 } else {
   expr_data.z <- expr_data.z[, paste0( "Patient vs ", comp_cancer_group)]
   expr_data.perc <- expr_data.perc[, paste0( "Patient vs ", comp_cancer_group)]
@@ -5234,7 +5237,7 @@ Scatterplot comparing the per-gene difference in **mRNA expression** between pat
 
 Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values > `r params$cn_gain` (**gains**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
-##### Z-scores
+#### Z-scores
 
 ```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
@@ -5295,7 +5298,49 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-##### Percentiles
+<details>
+<summary>CN data distribution</summary>
+
+`r if ( runPurpleChunk ) { c(" ") } else { c("CN information for this sample is NOT AVAILABLE.") }`
+
+```{r cn_data_distribution_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9, eval = runPurpleChunk }
+##### Generate a histogram illustrating CN data distribution
+suppressMessages(library(plotly))
+
+if ( params$plots_mode == "static" ) {
+
+  PlotsDir <- paste(params$report_dir, "CNdataPlots", sep = "/")
+  if ( !file.exists(PlotsDir) ) {
+      
+    dir.create(PlotsDir, recursive=TRUE)
+  }
+        
+  ##### Add access token, required by orca function, to the shell environment
+  Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  
+  ##### Change directory to folder with CDF plots
+  setwd(PlotsDir)
+ 
+  ##### Save the static image into a file
+  orca(cn_dist_plot, format = "png", file = "cn_data_dist_plot.png", width = 1200, height = 600)
+  
+  ##### Present the static plot in the report
+  include_graphics(paste(PlotsDir, "cn_data_dist_plot.png", sep = "/"), dpi = 144)
+    
+} else if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactive" ) {
+
+  cn_dist_plot
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+</details>
+
+***
+
+#### Percentiles
 
 ```{r mut_cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
@@ -5327,8 +5372,7 @@ detach("package:plotly", unload=FALSE)
 
 `r if ( runPurpleChunk ) { c(" ") } else { c("CN information for this sample is NOT AVAILABLE.") }`
 
-
-```{r cn_data_distribution_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9, eval = runPurpleChunk }
+```{r cn_data_distribution_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9, eval = runPurpleChunk }
 ##### Generate a histogram illustrating CN data distribution
 suppressMessages(library(plotly))
 
