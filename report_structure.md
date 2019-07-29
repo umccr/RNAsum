@@ -3,13 +3,14 @@
 <!-- vim-markdown-toc GFM -->
 * [Input data](#input-data)
 * [Clinical information](#clinical-information)
+* [Findings summary](#findings-summary)
 * [Mutated genes](#mutated-genes)
-* [Cancer genes](#cancer-genes)
 * [Fusion genes](#fusion-genes)
 * [Structural variants](#structural-variants)
 * [CN altered genes](#cn-altered-genes)
 * [Immune markers](#immune-markers)
 * [HRD genes](#hrd-genes)
+* [Cancer genes](#cancer-genes)
 * [Drug matching](#drug-matching)
 * [Addendum](#addendum)
 
@@ -29,10 +30,9 @@ Treatment regimen information for this patient is AVAILABLE.
 
 NOTE: for confidentiality reasons, the timeline (x-axis) projecting patient’s treatment regimens (y-axis) is set to start from 1st January 2000, but the treatments lengths are preserved.
 
+### Findings summary
 
 ### Mutated genes
-
-### Cancer genes
 
 ### Fusion genes
 
@@ -46,6 +46,8 @@ If WGS results from **[umccrise](https://github.com/umccr/umccrise)** are availa
 ### Immune markers
 
 ### HRD genes
+
+### Cancer genes
 
 ### Drug matching
 
