@@ -95,7 +95,7 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 3. ref_genes.list[["genes_immune"]] = list of immune reponse markers provided in OmniSeq report (https://www.omniseq.com/)
 
-# 4. ref_genes.list[["genes_hrd"]] = list of hrd (homologous recombination deficiency) genes - provided by Richard
+# 4. ref_genes.list[["genes_hrd"]] = list of hrd (homologous recombination deficiency) genes
 
 # 5. ref_genes.list[["pcgr"]] = list and PCGR annotation of mutated genes in given patient based on PCGR report
 
@@ -105,9 +105,11 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 
 # 8. ref_genes.list[["pizzly"]] = list and PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
 
-# 9. ref_genes.list[["kallisto"]] = genes quantification file from KALLISTO. This is required for gene fusion events filtering
+# 9. ref_genes.list[["summary"]] = summary of above-mentioned gene lists
 
-# 10. ref_genes.list[["pizzly_manta"]] = list and annotation of gene fusion events detected in given patient based on both PIZZLY and MANTA results
+# 10. ref_genes.list[["kallisto"]] = genes quantification file from KALLISTO. This is required for gene fusion events filtering
+
+# 11. ref_genes.list[["pizzly_manta"]] = list and annotation of gene fusion events detected in given patient based on both PIZZLY and MANTA results
 ```
 
 ```{r code_display, echo = FALSE}
@@ -1969,6 +1971,7 @@ ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$ge
 ##### Check if pizzly output file exists
 pizzly_file <- paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/")
 pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(sampleName, "-flat-filtered.tsv"), sep = "/")
+runFusionChunk <- TRUE
 
 if ( file.exists(pizzly_file) ) {
   
@@ -1977,18 +1980,19 @@ if ( file.exists(pizzly_file) ) {
 } else if ( file.exists(pizzly_file_filtered) ) {
   
   ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file_filtered, header = TRUE)
+} else {
+  runClinkerChunk <- FALSE
+  runFusionChunk <- FALSE
 }
 
 ##### Read in the quantification file from kallisto
-##### ... but first check if kallisto re-quntified transcripts file is available
-kallisto_quant_pizzly_file <- paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/")
+##### ... and check if kallisto re-quntified transcripts file is also available
+kallisto_quant_file <- paste(dataDir, "kallisto/quant_pizzly_post/abundance.tsv", sep = "/")
 kallisto_file <- paste(dataDir, "kallisto/abundance.tsv", sep = "/")
-runKallistoChunk <- TRUE
-runFusionChunk <- TRUE
 
-if ( file.exists(kallisto_quant_pizzly_file) ) {
+if ( file.exists(kallisto_quant_file) ) {
 
-  ref_genes.list[["kallisto"]] <- read.table(kallisto_quant_pizzly_file, header = TRUE)
+  ref_genes.list[["kallisto"]] <- read.table(kallisto_quant_file, header = TRUE)
 
 } else if ( file.exists(kallisto_file) ) {
   
@@ -1997,9 +2001,6 @@ if ( file.exists(kallisto_quant_pizzly_file) ) {
 } else {
   
   ref_genes.list[["kallisto"]] <- NULL
-  runKallistoChunk <- FALSE
-  runClinkerChunk <- FALSE
-  runFusionChunk <- FALSE
 }
 
 ##### Read in mutation data for investigate sample
@@ -2076,9 +2077,6 @@ if ( file.exists(sv_file_1) ) {
   ref_genes.list[["manta"]] <- NULL
   runSVsChunk <- FALSE
 }
-
-##### Record all genes of interest
-genes2keep <- unique( c(ref_genes.list[["genes_cancer"]]$symbol, ref_genes.list[["genes_oncokb"]]$Hugo.Symbol, ref_genes.list[["genes_immune"]]$SYMBOL, ref_genes.list[["genes_hrd"]]$SYMBOL, as.character(ref_genes.list[["pizzly"]]$geneA.name), as.character(ref_genes.list[["pizzly"]]$geneB.name), ref_genes.list[["pcgr"]]$SYMBOL, ref_genes.list[["purple"]]$Gene, unlist(strsplit(ref_genes.list[["manta"]]$Gene, split='&', fixed=TRUE))))
 
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_clin_vars, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
@@ -2200,6 +2198,93 @@ if ( length(sampleID.col) > 0 ) {
 } else {
   runClinicalChunk <- FALSE
 }
+```
+
+```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
+##### Record all genes of interest, including...
+# Cancer genes derived from UMCCR Cancer Gene list and from OncoKB portal (http://oncokb.org/#/cancerGenes)
+ref_genes.list[["summary"]]$Cancer <- unique(c(ref_genes.list[["genes_cancer"]]$symbol, ref_genes.list[["genes_cancer"]]$symbol))
+
+# Immune reponse markers provided in OmniSeq report (https://www.omniseq.com/)
+ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$SYMBOL)
+
+# HRD (homologous recombination deficiency) genes
+ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
+
+# PCGR annotation of mutated genes in given patient based on PCGR report, including only those with variants classified according to user-defined tier
+if ( runPcgrChunk ) {
+  
+  ref_genes.list[["summary"]]$Mutated <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
+}
+
+# PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results, including only those with CN values meeting user-defined thresholds
+if ( runPurpleChunk ) {
+  
+  ref_genes.list[["summary"]]$CN <- ref_genes.list[["purple"]]
+  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN %!in% "",  ]
+  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MinCopyNumber < params$cn_loss | ref_genes.list[["summary"]]$CN$MaxCopyNumber > params$cn_gain, ]$Gene)
+}
+
+# MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
+if ( runSVsChunk ) {
+  
+  ref_genes.list[["summary"]]$SV <- ref_genes.list[["manta"]]
+  ref_genes.list[["summary"]]$SV <- ref_genes.list[["summary"]]$SV[ ref_genes.list[["summary"]]$SV$Gene != "",  ]$Gene
+  # ...and distinguish classified by MANTA as fusion genes
+  ref_genes.list[["summary"]]$SV <- unique(unlist(strsplit(ref_genes.list[["summary"]]$SV, split='&', fixed=TRUE)))
+}
+
+# PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
+if ( runFusionChunk ) {
+  
+  ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(ref_genes.list[["pizzly"]]$geneA.name), as.character(ref_genes.list[["pizzly"]]$geneB.name)))
+}
+
+##### Record all genes of interest
+genes2keep <- unique( unlist(ref_genes.list[["summary"]]) )
+```
+
+```{r goi_sunburst, comment = NA, message=FALSE, warning=FALSE}
+suppressMessages(library(plotly))
+
+##### Prepare dataframe for Sunburst plot summarising all altered genes
+##### Identify genes that appear in more then two lists
+if ( runFusionChunk || runPcgrChunk || runPurpleChunk || runSVsChunk ) {
+  
+  alt_genes <- sort(table(unlist(ref_genes.list[["summary"]])), decreasing = TRUE)
+  alt_genes <- alt_genes[ alt_genes > 1 ]
+  
+  alt_genes.list <- ref_genes.list[["summary"]]
+  
+  for ( i in 1:length(ref_genes.list[["summary"]]) ) {
+    
+    alt_genes.list[[i]] <- alt_genes[ names(alt_genes) %in% alt_genes.list[[i]] ]
+  }
+  
+  ##### Don't show cancer genes list (too long)
+  alt_genes.list$Cancer <- NULL
+  
+  sunburst.df <- data.frame(ids = names(alt_genes.list),
+    labels = names(alt_genes.list),
+    parents = rep("", length(alt_genes.list)),
+    values = as.numeric(lengths(alt_genes.list))/100,
+    stringsAsFactors = FALSE
+  )
+  
+  for ( i in 1:length(alt_genes.list) ) {
+    
+    sunburst.df <- rbind( sunburst.df , data.frame(ids = paste(names(alt_genes.list)[i], names(alt_genes.list[[i]]), sep = " - "), 
+               labels = paste0("\t\t", names(alt_genes.list[[i]]), "\t\t"),
+               parents = rep(names(alt_genes.list)[i], length(alt_genes.list[[i]])),
+               values = as.numeric(alt_genes.list[[i]])
+               ) )
+  }
+  
+  sunburst_plot <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst')
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
 ```
 
 ```{r goi_annotation, comment = NA, message=FALSE, warning=FALSE}
@@ -2998,7 +3083,7 @@ cn_dist_plot <- plot_ly(x = cn_data.all$MeanCopyNumber, type = 'histogram', name
 detach("package:plotly", unload=FALSE)
 ```
 
-```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runKallistoChunk}
+```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 #read in the pizzly fusion calls
 pizzly.fusions <- ref_genes.list[["pizzly"]]
 quant <- ref_genes.list[["kallisto"]]
@@ -3424,6 +3509,17 @@ treatment_timeline
 ```
 
 </details>
+
+***
+
+## Findings summary
+
+Genes listed in at least two report sections are summarised in the sunburst plot below. The number next to each gene indicates the number of times it appears cross the following report sections: [Mutated genes], [Fusion genes], [Structural variants], [CN altered genes], [Immune markers] or [HRD genes]. That numner is also reflected by the width of corresponding branch. 
+
+```{r findings_summary, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
+##### Present findings summary in sunburst plot
+sunburst_plot
+```
 
 ***
 
@@ -4144,7 +4240,7 @@ The following steps were performed to define **abundant transcripts** involved i
 
 </details>
 
-Fusion genes information for this sample is **`r if ( runKallistoChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ***
 
@@ -4251,7 +4347,7 @@ Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusio
 
 <span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
-SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 **`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
 
@@ -4358,7 +4454,7 @@ Expression profiles for 5 gene fusion events involving **DNA-supported fusion** 
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[1]) ) { paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-") }}`
 
-```{r fusion_1_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
+```{r fusion_1_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 targets <- ref_datasets.list[[dataset]][["sample_annot"]]
 data <- ref_datasets.list[[dataset]][["data_to_report"]]
@@ -4465,7 +4561,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[2]) ) { paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-") }}`
 
-```{r fusion_2_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
+```{r fusion_2_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- as.vector(pizzly.fusions$geneA.name[2])
 geneB <- as.vector(pizzly.fusions$geneB.name[2])
@@ -4566,7 +4662,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[3]) ) { paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-") }}`
 
-```{r fusion_3_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
+```{r fusion_3_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- as.vector(pizzly.fusions$geneA.name[3])
 geneB <- as.vector(pizzly.fusions$geneB.name[3])
@@ -4667,7 +4763,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[4]) ) { paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-") }}`
 
-```{r fusions_4_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
+```{r fusion_4_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- as.vector(pizzly.fusions$geneA.name[4])
 geneB <- as.vector(pizzly.fusions$geneB.name[4])
@@ -4767,7 +4863,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[5]) ) { paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-") }}`
 
-```{r fusion_5_process, comment = NA, message=TRUE, warning=FALSE, eval = runKallistoChunk}
+```{r fusion_5_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Convert the fusion image from pdf to png and present it in the report
 geneA <- as.vector(pizzly.fusions$geneA.name[5])
 geneB <- as.vector(pizzly.fusions$geneB.name[5])
