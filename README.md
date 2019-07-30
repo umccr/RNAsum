@@ -84,7 +84,7 @@ This internal reference set of **40 pancreatic cancer samples** is based on WTS 
 
 The are two rationales for using the internal reference cohort:
 
-1. In case of **pancreatic cancer samples** this cohort serves as a reference point for **comparing per-gene expression levels** observed in the investigated single-subject data and data from other pancreatic cancer patients cohort.
+1. In case of **pancreatic cancer samples** this cohort serves as a reference point for **comparing per-gene expression levels** observed in the investigated single-subject data and data from other pancreatic cancer patients.
 
 2. In case of samples from **any cancer type** the data from the internal reference cohort is used in batch effects correction procedure performed to minimise technical-related variation in the data.
 
@@ -266,13 +266,14 @@ The generated html-based ***Transcriptome Patient Summary*** **report** includes
 
 * [Input data](report_structure.md#input-data)
 * [Clinical information\*](report_structure.md#clinical-information)
+* [Findings summary](report_structure.md#findings-summary)
 * [Mutated genes\**](report_structure.md#mutated-genes)
-* [Cancer genes](report_structure.md#cancer-genes)
 * [Fusion genes](report_structure.md#fusion-genes)
 * [Structural variants\**](report_structure.md#structural-variants)
 * [CN altered genes\**](report_structure.md#cn-altered-genes)
 * [Immune markers](report_structure.md#immune-markers)
 * [HRD genes](report_structure.md#hrd-genes)
+* [Cancer genes](report_structure.md#cancer-genes)
 * [Drug matching](report_structure.md#drug-matching)
 * [Addendum](report_structure.md#addendum)
 

@@ -3514,9 +3514,9 @@ treatment_timeline
 
 ## Findings summary
 
-Genes listed in at least two report sections are summarised in the sunburst plot below. The number next to each gene indicates the number of times it appears cross the following report sections: [Mutated genes], [Fusion genes], [Structural variants], [CN altered genes], [Immune markers] or [HRD genes]. That numner is also reflected by the width of corresponding branch. 
+Genes listed in at least two report sections are summarised in the sunburst plot below. The number next to each gene indicates the number of times it appears cross the following report sections: [Mutated genes], [Fusion genes], [Structural variants], [CN altered genes], [Immune markers] or [HRD genes]. That number is also reflected by the width of corresponding branch. Click on the category of interest to expand corresponding branches.
 
-```{r findings_summary, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
+```{r findings_summary, comment = NA, message=FALSE, warning=FALSE, fig.width = 6, fig.height = 6 }
 ##### Present findings summary in sunburst plot
 sunburst_plot
 ```
@@ -3858,342 +3858,6 @@ if ( !is.na(gene) && gene %in% rownames(data) ) {
 } else {
   if ( is.na(gene) ) {
     cat(paste0("There are ", length(mut_genes.expr.z[[2]]$SYMBOL), " mutated genes that include tier 1-", params$pcgr_tier, " variants!"))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-## Cancer genes
-
-mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources *UMCCR cancer genes*, *[OncoKB](http://oncokb.org/#/about){target="_blank"}* (cancer genes listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data){target="_blank"}), *[MSK-IMPACT](https://www.mskcc.org/msk-impact){target="_blank"}*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf){target="_blank"}*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx){target="_blank"}*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme){target="_blank"}*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full){target="_blank"}* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census){target="_blank"}* (CGC).
-
-### - Summary table {.tabset}
-
-Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_datasets.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_datasets.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
-
-#### Z-scores
-
-```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
-targets <- ref_datasets.list[[dataset]][["sample_annot"]]
-data <- ref_datasets.list[[dataset]][["data_to_report"]]
-
-cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
-
-##### Present the expression summary table
-cancer_genes.expr.z[[1]]
-
-##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=cancer_genes.expr.z[[1]], file=paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
-}
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-#### Percentiles
-
-```{r cancer_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
-
-##### Present the expression summary table
-cancer_genes.expr.perc[[1]]
-
-##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=cancer_genes.expr.perc[[1]], file=paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
-}
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-### - Expression gene profiles {.tabset}
-
-Expression profiles for 10 altered cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients.
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[1]`
-
-```{r cdf_plot_cancer_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[1]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[2]`
-
-```{r cdf_plot_cancer_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[2]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[3]`
-
-```{r cdf_plot_cancer_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[3]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[4]`
-
-```{r cdf_plot_cancer_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[4]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[5]`
-
-```{r cdf_plot_cancer_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[5]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[6]`
-
-```{r cdf_plot_cancer_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[6]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[7]`
-
-```{r cdf_plot_cancer_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[7]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[8]`
-
-```{r cdf_plot_cancer_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[8]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[9]`
-
-```{r cdf_plot_cancer_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[9]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
-  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
-    cat(paste(gene, "is not expressed!", sep=" "))
-  } else {
-    cat(paste("No expression data is available for", gene, "!", sep=" "))
-  }
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-#### `r cancer_genes.expr.z[[2]]$SYMBOL[10]`
-
-```{r cdf_plot_cancer_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-gene <- cancer_genes.expr.z[[2]]$SYMBOL[10]
-
-##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
-if ( !is.na(gene) && gene %in% rownames(data) ) {
-  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
-
-} else {
-  if ( is.na(gene) ) {
-    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
   } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
     cat(paste(gene, "is not expressed!", sep=" "))
   } else {
@@ -6216,6 +5880,342 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 </font>
 </details>
+
+***
+
+## Cancer genes
+
+mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources *UMCCR cancer genes*, *[OncoKB](http://oncokb.org/#/about){target="_blank"}* (cancer genes listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data){target="_blank"}), *[MSK-IMPACT](https://www.mskcc.org/msk-impact){target="_blank"}*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf){target="_blank"}*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx){target="_blank"}*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme){target="_blank"}*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full){target="_blank"}* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census){target="_blank"}* (CGC).
+
+### - Summary table {.tabset}
+
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_datasets.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_datasets.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+
+#### Z-scores
+
+```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+targets <- ref_datasets.list[[dataset]][["sample_annot"]]
+data <- ref_datasets.list[[dataset]][["data_to_report"]]
+
+cancer_genes.expr.z <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+
+##### Present the expression summary table
+cancer_genes.expr.z[[1]]
+
+##### Save the expression table as html file
+if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+  DT::saveWidget(widget=cancer_genes.expr.z[[1]], file=paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
+
+</font>
+</details>
+
+***
+
+#### Percentiles
+
+```{r cancer_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
+cancer_genes.expr.perc <- exprTable( genes = rownames(ref_genes.list[["genes_cancer"]]), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_datasets.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+
+##### Present the expression summary table
+cancer_genes.expr.perc[[1]]
+
+##### Save the expression table as html file
+if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+  DT::saveWidget(widget=cancer_genes.expr.perc[[1]], file=paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each cancer gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, and inclusion in various sequencing panels are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
+
+</font>
+</details>
+
+***
+
+### - Expression gene profiles {.tabset}
+
+Expression profiles for 10 altered cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients.
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[1]`
+
+```{r cdf_plot_cancer_genes_1, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[1]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[2]`
+
+```{r cdf_plot_cancer_genes_2, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[2]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[3]`
+
+```{r cdf_plot_cancer_genes_3, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[3]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[4]`
+
+```{r cdf_plot_cancer_genes_4, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[4]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[5]`
+
+```{r cdf_plot_cancer_genes_5, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[5]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[6]`
+
+```{r cdf_plot_cancer_genes_6, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[6]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[7]`
+
+```{r cdf_plot_cancer_genes_7, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[7]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[8]`
+
+```{r cdf_plot_cancer_genes_8, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[8]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[9]`
+
+```{r cdf_plot_cancer_genes_9, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[9]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+***
+
+#### `r cancer_genes.expr.z[[2]]$SYMBOL[10]`
+
+```{r cdf_plot_cancer_genes_10, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+gene <- cancer_genes.expr.z[[2]]$SYMBOL[10]
+
+##### Generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+if ( !is.na(gene) && gene %in% rownames(data) ) {
+  cdfPlot(gene = gene, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling)
+
+} else {
+  if ( is.na(gene) ) {
+    cat(paste("There are", length(cancer_genes.expr.z[[2]]$SYMBOL), "altered cancer genes detected!", sep=" "))
+  } else if ( gene %in% ref_datasets.list[[dataset]][["gene_annot_all"]]$SYMBOL ) {
+    cat(paste(gene, "is not expressed!", sep=" "))
+  } else {
+    cat(paste("No expression data is available for", gene, "!", sep=" "))
+  }
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
 
 ***
 
