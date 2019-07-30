@@ -20,6 +20,7 @@
 #   dataset:      Dataset to be used as external reference cohort
 #   count_file:   Location and name of the read count file from bcbio RNA-seq pipeline
 #   report_dir:   Desired location for the report
+#   ref_data_dir: Location of the reference and annotation files
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (default) and "TPM"
 #   norm:         Normalisation method. Currently, "TMM" is used for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
 #   batch_rm:     Remove batch-associated effects between datasets. Available options are: "TRUE" (default) and "FALSE"
@@ -70,6 +71,8 @@ option_list = list(
               help="Location and name of the read count file from bcbio RNA-seq pipeline"),
   make_option(c("-r", "--report_dir"), action="store", default=NA, type='character',
               help="Desired location for the report"),
+  make_option(c("-v", "--ref_data_dir"), action="store", default=NA, type='character',
+              help="Location of the reference and annotation files"),
   make_option(c("-t", "--transform"), action="store", default=NA, type='character',
               help="Transformation method to be used when converting read counts"),
   make_option(c("-n", "--norm"), action="store", default=NA, type='character',
@@ -293,4 +296,4 @@ if ( opt$transform == "TPM" && opt$norm != "quantile" && opt$norm != "none" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", tolower(opt$dataset), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = tolower(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", tolower(opt$dataset), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = tolower(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
