@@ -18,6 +18,7 @@ params:
   dataset: 
   count_file: 
   report_dir: 
+  ref_data_dir: '../data'
   transform: 
   filter: 
   norm: 
@@ -36,7 +37,6 @@ params:
   grch_version: 
   ensembl_version: 
   ucsc_genome_assembly:  
-  ref_data_dir: '../data'
   annot_file: 'genes/tx2gene.ensembl.v95.csv'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
   genes_immune: 'genes/Genes_immune.txt'
@@ -2201,28 +2201,17 @@ if ( length(sampleID.col) > 0 ) {
 ```
 
 ```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
-##### Record all genes of interest, including...
-# Cancer genes derived from UMCCR Cancer Gene list and from OncoKB portal (http://oncokb.org/#/cancerGenes)
-ref_genes.list[["summary"]]$Cancer <- unique(c(ref_genes.list[["genes_cancer"]]$symbol, ref_genes.list[["genes_cancer"]]$symbol))
-
-# Immune reponse markers provided in OmniSeq report (https://www.omniseq.com/)
-ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$SYMBOL)
-
-# HRD (homologous recombination deficiency) genes
-ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
-
+##### Record all genes of interest to make sure that these are not filtered out during read counts data processing
 # PCGR annotation of mutated genes in given patient based on PCGR report, including only those with variants classified according to user-defined tier
 if ( runPcgrChunk ) {
   
   ref_genes.list[["summary"]]$Mutated <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
 }
 
-# PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results, including only those with CN values meeting user-defined thresholds
-if ( runPurpleChunk ) {
+# PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
+if ( runFusionChunk ) {
   
-  ref_genes.list[["summary"]]$CN <- ref_genes.list[["purple"]]
-  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN %!in% "",  ]
-  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MinCopyNumber < params$cn_loss | ref_genes.list[["summary"]]$CN$MaxCopyNumber > params$cn_gain, ]$Gene)
+  ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(ref_genes.list[["pizzly"]]$geneA.name), as.character(ref_genes.list[["pizzly"]]$geneB.name)))
 }
 
 # MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
@@ -2234,57 +2223,25 @@ if ( runSVsChunk ) {
   ref_genes.list[["summary"]]$SV <- unique(unlist(strsplit(ref_genes.list[["summary"]]$SV, split='&', fixed=TRUE)))
 }
 
-# PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
-if ( runFusionChunk ) {
+# PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results, including only those with CN values meeting user-defined thresholds
+if ( runPurpleChunk ) {
   
-  ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(ref_genes.list[["pizzly"]]$geneA.name), as.character(ref_genes.list[["pizzly"]]$geneB.name)))
+  ref_genes.list[["summary"]]$CN <- ref_genes.list[["purple"]]
+  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN %!in% "",  ]
+  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MinCopyNumber < params$cn_loss | ref_genes.list[["summary"]]$CN$MaxCopyNumber > params$cn_gain, ]$Gene)
 }
+
+# Immune reponse markers provided in OmniSeq report (https://www.omniseq.com/)
+ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$SYMBOL)
+
+# HRD (homologous recombination deficiency) genes
+ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
+
+# Cancer genes derived from UMCCR Cancer Gene list and from OncoKB portal (http://oncokb.org/#/cancerGenes)
+ref_genes.list[["summary"]]$Cancer <- unique(c(ref_genes.list[["genes_cancer"]]$symbol, ref_genes.list[["genes_cancer"]]$symbol))
 
 ##### Record all genes of interest
 genes2keep <- unique( unlist(ref_genes.list[["summary"]]) )
-```
-
-```{r goi_sunburst, comment = NA, message=FALSE, warning=FALSE}
-suppressMessages(library(plotly))
-
-##### Prepare dataframe for Sunburst plot summarising all altered genes
-##### Identify genes that appear in more then two lists
-if ( runFusionChunk || runPcgrChunk || runPurpleChunk || runSVsChunk ) {
-  
-  alt_genes <- sort(table(unlist(ref_genes.list[["summary"]])), decreasing = TRUE)
-  alt_genes <- alt_genes[ alt_genes > 1 ]
-  
-  alt_genes.list <- ref_genes.list[["summary"]]
-  
-  for ( i in 1:length(ref_genes.list[["summary"]]) ) {
-    
-    alt_genes.list[[i]] <- alt_genes[ names(alt_genes) %in% alt_genes.list[[i]] ]
-  }
-  
-  ##### Don't show cancer genes list (too long)
-  alt_genes.list$Cancer <- NULL
-  
-  sunburst.df <- data.frame(ids = names(alt_genes.list),
-    labels = names(alt_genes.list),
-    parents = rep("", length(alt_genes.list)),
-    values = as.numeric(lengths(alt_genes.list))/100,
-    stringsAsFactors = FALSE
-  )
-  
-  for ( i in 1:length(alt_genes.list) ) {
-    
-    sunburst.df <- rbind( sunburst.df , data.frame(ids = paste(names(alt_genes.list)[i], names(alt_genes.list[[i]]), sep = " - "), 
-               labels = paste0("\t\t", names(alt_genes.list[[i]]), "\t\t"),
-               parents = rep(names(alt_genes.list)[i], length(alt_genes.list[[i]])),
-               values = as.numeric(alt_genes.list[[i]])
-               ) )
-  }
-  
-  sunburst_plot <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst')
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
 ```
 
 ```{r goi_annotation, comment = NA, message=FALSE, warning=FALSE}
@@ -3407,6 +3364,149 @@ if ( !is.null(add_cancer_group) ) {
 }
 ```
 
+```{r goi_summary_update, comment = NA, message=FALSE, warning=FALSE}
+##### Update altered genes in ...
+# gene fusion section: Include only those which are DNA-supported (see Structural variants section) or reported in FusionGDB 
+if ( runFusionChunk ) {
+
+  ref_genes.list[["summary"]]$Fusion <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
+  ref_genes.list[["summary"]]$Fusion <- unique(c(ref_genes.list[["summary"]]$Fusion$SYMBOL, ref_genes.list[["summary"]]$Fusion$SYMBOL.1))
+}
+
+# copy-number (CN) section: include only genes with CN values > 3 or < 0.5
+if ( runPurpleChunk ) {
+  
+  #### Keep only genes with CN values > 3 or < 0.5 are annotated
+  ref_genes.list[["summary"]]$CN <- ref_datasets.list[[dataset]][["expr_mut_cn_data"]]
+  ref_genes.list[["summary"]]$CN <- as.character(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$CN < 0.5 | ref_genes.list[["summary"]]$CN$CN > 3,  ]$Gene)
+}
+```
+
+```{r goi_sunburst, comment = NA, message=FALSE, warning=FALSE}
+suppressMessages(library(plotly))
+
+##### Prepare dataframe for Sunburst plot summarising all altered genes
+alt_genes.all.list <- ref_genes.list[["summary"]]
+
+##### Don't show cancer genes list (too long)
+alt_genes.all.list$Cancer <- NULL
+
+##### Note all altered genes
+alt_genes.all <- sort(table(unlist(alt_genes.all.list)), decreasing = TRUE)
+
+for ( alt in names(alt_genes.all.list) ) {
+    
+  alt_genes.all.list[[ alt ]] <- alt_genes.all[ names(alt_genes.all) %in% alt_genes.all.list[[ alt ]] ]
+}
+  
+sunburst.all.df <- data.frame(ids = names(alt_genes.all.list),
+  labels = names(alt_genes.all.list),
+  parents = rep("", length(alt_genes.all.list)),
+  values = as.numeric(lengths(alt_genes.all.list))/100,
+  stringsAsFactors = FALSE
+)
+  
+for ( alt in names(alt_genes.all.list) ) {
+    
+  sunburst.all.df <- rbind( sunburst.all.df , data.frame(ids = paste( alt, names(alt_genes.all.list[[ alt ]]), sep = " - "), 
+        labels = paste0("\t\t", names(alt_genes.all.list[[ alt ]]), "\t\t"),
+        parents = rep( alt , length(alt_genes.all.list[[ alt ]])),
+        values = as.numeric(alt_genes.all.list[[ alt ]])
+        ) )
+}
+  
+sunburst.all_plot <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
+
+##### Now include only Identify genes that appear in more then two lists
+alt_genes.list <- alt_genes.all.list
+alt_genes <- alt_genes.all[ alt_genes.all > 1 ]
+
+for ( alt in names(alt_genes.list) ) {
+  
+  if ( length(alt_genes[ names(alt_genes) %in% names(alt_genes.list[[ alt ]]) ])  > 0 ) {
+    
+    alt_genes.list[[ alt ]] <- alt_genes[ names(alt_genes) %in% names(alt_genes.list[[ alt ]]) ]
+  
+  } else {
+    alt_genes.list[[ alt ]] <- NULL
+  }
+}
+  
+sunburst.df <- data.frame(ids = names(alt_genes.list),
+  labels = names(alt_genes.list),
+  parents = rep("", length(alt_genes.list)),
+  values = as.numeric(lengths(alt_genes.list))/100,
+  stringsAsFactors = FALSE
+)
+  
+for ( alt in names(alt_genes.list) ) {
+    
+  sunburst.df <- rbind( sunburst.df , data.frame(ids = paste( alt, names(alt_genes.list[[ alt ]]), sep = " - "), 
+        labels = paste0("\t\t", names(alt_genes.list[[ alt ]]), "\t\t"),
+        parents = rep( alt , length(alt_genes.list[[ alt ]])),
+        values = as.numeric(alt_genes.list[[ alt ]])
+        ) )
+}
+
+sunburst_plot <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+```{r goi_summary_table, comment = NA, message=FALSE, warning=FALSE}
+##### Prepare dataframe for a table summarising all altered genes
+##### Create lists with alterations detected in each gene
+genes.list <- names(alt_genes.all)
+summary_table.list <- vector("list", length(genes.list))
+names(summary_table.list) <- genes.list
+  
+##### Go through all alterated genes and note the alterations types
+for ( gene in names(alt_genes.all) ) {
+    
+  for ( alt in names(alt_genes.all.list) ) {
+    
+    if ( gene %in% names(alt_genes.all.list[[ alt ]])  ) {
+      
+      summary_table.list[[ gene ]] <- c( summary_table.list[[ gene ]], "Yes" )
+    } else {
+      summary_table.list[[ gene ]] <- c( summary_table.list[[ gene ]], "-" )
+    }
+  }
+  
+  ##### Add links to external resources
+  ##### Provide link to VICC meta-knowledgebase ( https://search.cancervariants.org )
+  summary_table.list[[ gene ]] <- c( summary_table.list[[ gene ]], paste0("<a href='https://search.cancervariants.org/#", gene, "' target='_blank'>VICC</a>"))
+      
+  ##### Provide link to OncoKB
+  if ( gene %in% rownames(ref_genes.list[["genes_oncokb"]]) ) {
+    
+    if ( ref_genes.list[["genes_oncokb"]][  gene, "OncoKB"] == "Yes" ) {
+          
+      summary_table.list[[ gene ]][ length(summary_table.list[[ gene ]])] <- paste( summary_table.list[[ gene ]][ length(summary_table.list[[ gene ]])] , paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>OncoKB</a>"), sep = ", ")
+    }
+  }
+      
+  ##### Provide link to CIViC database druggable genes ( https://civicdb.org )
+  if ( gene %in% caner_genes_annot.list[["civic_clin_evid"]]$gene ) {
+    
+    summary_table.list[[ gene ]][ length(summary_table.list[[ gene ]])] <- paste( summary_table.list[[ gene ]][ length(summary_table.list[[ gene ]])] , paste0("<a href='", unique(caner_genes_annot.list[["civic_clin_evid"]][ caner_genes_annot.list[["civic_clin_evid"]]$gene == gene , "gene_civic_url"]), "' target='_blank'>CIViC</a>"), sep = ", ")
+  }
+}
+
+##### Convert the list into data frame
+summary_table.df <- data.frame(matrix(unlist(summary_table.list), nrow=length(summary_table.list), byrow=T),stringsAsFactors=FALSE)
+
+##### Add gene names and number of section in which individual genes are reported
+summary_table.df <- cbind(names(summary_table.list), summary_table.df)
+summary_table.df <- cbind(summary_table.df, as.numeric(alt_genes.all))
+
+colnames(summary_table.df) <- c("Gene", names(alt_genes.all.list), "Resources", "Count")
+
+##### Add GeneCards links
+summary_table.df$Gene <- paste0("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene=", summary_table.df$Gene, "' target='_blank'>", summary_table.df$Gene, "</a>")
+```
+
 ***
 
 ## Input data
@@ -3512,13 +3612,40 @@ treatment_timeline
 
 ***
 
-## Findings summary
+## Findings summary {.tabset}
 
-Genes listed in at least two report sections are summarised in the sunburst plot below. The number next to each gene indicates the number of times it appears cross the following report sections: [Mutated genes], [Fusion genes], [Structural variants], [CN altered genes], [Immune markers] or [HRD genes]. That number is also reflected by the width of corresponding branch. Click on the category of interest to expand corresponding branches.
+### Per-alteration plot
 
-```{r findings_summary, comment = NA, message=FALSE, warning=FALSE, fig.width = 6, fig.height = 6 }
-##### Present findings summary in sunburst plot
+**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: [Mutated genes], [Fusion genes] (supported by *genomic data* or *reported* in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}), [Structural variants], [CN altered genes] (*CN* values *> 3* or < *0.5*), [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
+
+```{r findings_summary_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
+##### Present per-alteration findings summary sunburst plot for all altered genes
 sunburst_plot
+```
+
+<details>
+<summary>All altered genes</summary>
+
+```{r findings_summary_all_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
+##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections 
+sunburst.all_plot
+```
+
+</details>
+
+***
+
+### Per-gene table
+
+Table summarising **all altered genes** listed across following report sections: [Mutated genes], [Fusion genes] (supported by *genomic data* or *reported* in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}), [Structural variants], [CN altered genes] (*CN* values *> 3* or < *0.5*), [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
+
+```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
+##### Present per-gene findings summary table
+DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = colnames(summary_table.df), `font-size` = '12px', 'text-align' = 'center' ) %>%
+      ##### Colour cells according to evidence level and trust rating
+      DT::formatStyle(columns = colnames(summary_table.df)[c(2:ncol(summary_table.df)-2)], 
+                      backgroundColor = DT::styleEqual(c("-", "Yes"), c("transparent", "black")), color = DT::styleEqual(c("-", "Yes"), c("black", "white")))
 ```
 
 ***
@@ -4993,9 +5120,7 @@ CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } 
 
 ### - Expression vs CN {.tabset}
 
-Scatterplot comparing the per-gene difference in **mRNA expression** between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 3 or < 0.5 are annotated. NOTE: only [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available), genes involved in [Fusion genes] and [Structural variants] (if SV information is available) are presented.
-
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values > `r params$cn_gain` (**gains**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+Scatterplot comparing the per-gene difference in **mRNA expression** between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 3 or < 0.5 are annotated.
 
 #### Z-scores
 
@@ -5006,8 +5131,10 @@ suppressMessages(library(plotly))
 data <- ref_datasets.list[[dataset]][["expr_mut_cn_data"]]
 data$Alteration <- as.character(data$Alteration)
   
+cn_genes <- data$Gene
+
 ##### Limit the data to include only cancer genes
-cn_genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
+#cn_genes <- as.vector(data$Gene[ data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]) ])
 
 ##### Add fusion genes
 if ( runFusionChunk ) {
@@ -5016,8 +5143,8 @@ if ( runFusionChunk ) {
   data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneA.name  ] <- paste0( data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneA.name  ], "; Fusion")
   data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneB.name  ] <- paste0( data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneB.name  ], "; Fusion")
   
-  cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneA.name) )
-  cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneB.name) )
+  #cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneA.name) )
+  #cn_genes <- c( unique(cn_genes, pizzly.fusions.cut$geneB.name) )
 }
             
 ##### Add genes involved in SVs (if data available)
@@ -5026,7 +5153,7 @@ if ( runSVsChunk ) {
   ##### Change the alteration type to "fusion" for fusion genes
   data$Alteration[ data$Gene %in% unique(manta_sv$Gene)  ] <- paste0( data$Alteration[ data$Gene %in% unique(manta_sv$Gene)  ], "; SV")
   
-  cn_genes <- c( unique(cn_genes, unique(manta_sv$Gene)) )
+  #cn_genes <- c( unique(cn_genes, unique(manta_sv$Gene)) )
 }
 
 ##### Remove altaration status "None" for gene which are not mutated but are involved in fusions or SVs
@@ -5036,8 +5163,8 @@ data$Alteration <- gsub( "None; ", "", data$Alteration)
 if ( runPcgrChunk && length(cn_genes) > 0 ) {
   
   ##### Add mutated genes with vatiants within user-defined tiers
-  cn_genes <- c( unique(cn_genes, ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) )
-  data <- data[ data$Gene %in% cn_genes, ]
+  #cn_genes <- c( unique(cn_genes, ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) )
+  #data <- data[ data$Gene %in% cn_genes, ]
  
   mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = 0.5, cn_top = 3, comp_cancer = comp_cancer_group, type = "z", plot_mode = params$plots_mode)
   
