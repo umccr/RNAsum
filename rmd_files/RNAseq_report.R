@@ -127,6 +127,11 @@ if ( !is.na(opt$clinical_info) && is.na(opt$subject_id)  ) {
 }
 
 ##### Set default parameters
+if ( is.na(opt$ref_data_dir)  ) {
+  
+  opt$ref_data_dir <- "../data"
+}
+
 if ( is.na(opt$transform)  ) {
   
   opt$transform <- "CPM"
