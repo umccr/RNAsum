@@ -183,7 +183,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data) {
   target.comb <- rbind(target.ext, target.int)
   
   ##### Add sample info
-  target.sample <- data.frame("Patient", sample_name)
+  target.sample <- data.frame(sample_name, sample_name)
   names(target.sample) <- names(target.comb)
   rownames(target.sample) <- sample_name
   target.comb <- rbind( target.comb, target.sample )
@@ -2057,6 +2057,8 @@ names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "
 ##### Search for row with clinical info for investigated patient
 sampleID.col <- grep(params$subject_id, ref_dataset.list[[dataset]][["clinical_info"]])
 
+runClinicalChunk <- FALSE
+
 if ( length(sampleID.col) > 0 ) {
   
   ##### Identify column and row with patients details
@@ -2135,9 +2137,9 @@ if ( length(sampleID.col) > 0 ) {
                 title = "",
                 subtitle = "",
                 save = TRUE,
-                subdir = PlotsDir)
+                subdir = "clinical_info")
     
-    cv_timeline.png <- readPNG(paste(PlotsDir, "cv_timeline.png", sep="/"), native = FALSE, info = FALSE)
+    cv_timeline.png <- readPNG("clinical_info/cv_timeline.png", native = FALSE, info = FALSE)
     
     ##### Change the size of the timeline png plot and save it as "treatment_timeline.png"
     png::writePNG(cv_timeline.png, paste(PlotsDir, "treatment_timeline.png", sep="/"), dpi=300)
@@ -2145,15 +2147,12 @@ if ( length(sampleID.col) > 0 ) {
     #plot(cv_timeline.png)
     #invisible(dev.off())
     
-    ##### Remove the original plot
-    system(paste("rm ", paste(PlotsDir, "cv_timeline.png", sep="/")), ignore.stdout = TRUE, ignore.stderr = TRUE)
+    ##### Remove the original plot folder
+    system("rm -rf clinical_info", ignore.stdout = TRUE, ignore.stderr = TRUE)
     
   } else {
-    runClinicalChunk <- FALSE
+    runClinicalChunk <- TRUE
   }
-
-} else {
-  runClinicalChunk <- FALSE
 }
 ```
 
