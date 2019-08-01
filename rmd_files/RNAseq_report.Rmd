@@ -32,8 +32,8 @@ params:
   save_tables: FALSE
   hide_code_btn: TRUE
   pcgr_tier: 3
-  cn_loss: 1
-  cn_gain: 3
+  cn_loss: 5
+  cn_gain: 95
   grch_version: 37
   ensembl_version: 75
   ucsc_genome_assembly: 19
@@ -954,7 +954,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
 
 
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
-mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = 1.5, cn_top = 3, comp_cancer, type = "z", plot_mode = "static") {
+mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer, type = "z", plot_mode = "static") {
   
   ##### Extract info for genes to be annotated on the plot
   genes2annot <- data[ data$CN > cn_top | data$CN < cn_bottom ,]$Gene
@@ -2181,7 +2181,27 @@ if ( runPurpleChunk ) {
   
   ref_genes.list[["summary"]]$CN <- ref_genes.list[["purple"]]
   ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN %!in% "",  ]
-  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MinCopyNumber < params$cn_loss | ref_genes.list[["summary"]]$CN$MaxCopyNumber > params$cn_gain, ]$Gene)
+  
+  ##### Get the CN mean
+  ref_genes.list[["summary"]]$CN$MeanCopyNumber <- rowMeans(cbind(ref_genes.list[["summary"]]$CN$MinCopyNumber, ref_genes.list[["summary"]]$CN$MaxCopyNumber))
+    
+  ##### Deal with negative CN values
+  ref_genes.list[["summary"]]$CN$MeanCopyNumber[ ref_genes.list[["summary"]]$CN$MeanCopyNumber < 0 ] <- 0
+
+  ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
+  if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
+    
+    cn_data.all.percent <- quantile(ref_genes.list[["summary"]]$CN$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
+    
+    cn_bottom <- round(cn_data.all.percent[2], digits = 0)
+    cn_top <- round(cn_data.all.percent[20], digits = 0)
+  
+  } else {
+    cn_bottom <- params$cn_loss
+    cn_top <- params$cn_gain
+  }
+  
+  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MeanCopyNumber < cn_bottom | ref_genes.list[["summary"]]$CN$MeanCopyNumber > cn_top, ]$Gene)
 }
 
 # Immune reponse markers provided in OmniSeq report (https://www.omniseq.com/)
@@ -2851,12 +2871,6 @@ if ( comp_cancer_group != int_cancer_group ) {
 
 names(expr_data.z) <- expr_genes
 names(expr_data.perc) <- expr_genes
-  
-##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
-cn_data <- cn_data[ cn_data$Gene %!in% "", ]
-
-##### Keep only genes with available expression data
-cn_data <- cn_data[ cn_data$Gene %in% names(expr_data.z), ]
 
 ##### Calculate the mean CN for each gene
 cn_data$MeanCopyNumber <- rowMeans(cbind(cn_data$MinCopyNumber, cn_data$MaxCopyNumber))
@@ -2864,10 +2878,34 @@ cn_data$MeanCopyNumber <- rowMeans(cbind(cn_data$MinCopyNumber, cn_data$MaxCopyN
 ##### Deal with negative CN values
 cn_data$MeanCopyNumber[ cn_data$MeanCopyNumber < 0 ] <- 0
 
-##### Keep only altered genes with CN values below loss threshold (default CN value = 1) and above gain threshold (default CN value = 4)
+##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
+cn_data <- cn_data[ cn_data$Gene %!in% "", ]
+
+##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
 cn_data.all <- cn_data
-cn_data <- cn_data[ cn_data$MeanCopyNumber < params$cn_loss | cn_data$MeanCopyNumber > params$cn_gain, ]
+
+##### Get the percentiles from from the CN values
+cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
   
+if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
+
+  cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_data.all.percent[2] | cn_data$MeanCopyNumber > cn_data.all.percent[20], ]
+  
+  cn_bottom <- round(cn_data.all.percent[2], digits = 0)
+  cn_top <- round(cn_data.all.percent[20], digits = 0)
+  
+  cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_bottom | cn_data$MeanCopyNumber > cn_top, ]
+  
+} else {
+  cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_bottom | cn_data$MeanCopyNumber > cn_top, ]
+  
+  cn_bottom <- params$cn_loss
+  cn_top <- params$cn_gain
+}
+
+##### Keep only genes with available expression data
+cn_data <- cn_data[ cn_data$Gene %in% names(expr_data.z), ]
+
 ##### Add mutation data if available
 if ( !is.null(ref_genes.list[["pcgr"]]) ) {
 
@@ -2966,28 +3004,25 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
 ```{r cn_data_distribution, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 suppressMessages(library(plotly))
 
-##### Get the percentiles from from the CN values
-cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
-  
 ##### Draw histogram of CN data
 cn_dist_plot <- plot_ly(x = cn_data.all$MeanCopyNumber, type = 'histogram', name = "CN data", width = 800, height = 500) %>%
   
-  ##### Add 10th percentile threshold
+  ##### Add 5th percentile threshold
   add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[2],11), 
               line = list(color = "black", dash = "dash"), opacity = 0.4,
-              name = "10th percentile", showlegend = TRUE) %>%
+              name = "5th percentile", showlegend = TRUE) %>%
   
   ##### Add 50th percentile
   add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[11],11), 
               line = list(color = "black", dash = "dash"), opacity = 0.7,
               name = "50th percentile", showlegend = TRUE) %>%
   
-  ##### Add 90th percentile threshold
+  ##### Add 95th percentile threshold
   add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[20],11), 
               line = list(color = "black", dash = "dash"), opacity = 1,
-              name = "80th percentile", showlegend = TRUE) %>%
+              name = "95th percentile", showlegend = TRUE) %>%
   
-  layout(xaxis = list( range=c(0,3), title = "CN values"), yaxis = list( title = "Frequency"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F)
+  layout(xaxis = list( title = "CN values"), yaxis = list( title = "Frequency"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F)
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3329,9 +3364,9 @@ if ( runFusionChunk ) {
 # copy-number (CN) section: include only genes with CN values > 3 or < 0.5
 if ( runPurpleChunk ) {
   
-  #### Keep only genes with CN values > 3 or < 0.5 are annotated
+  #### Keep only genes with user-define CN values
   ref_genes.list[["summary"]]$CN <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-  ref_genes.list[["summary"]]$CN <- as.character(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$CN < 0.5 | ref_genes.list[["summary"]]$CN$CN > 3,  ]$Gene)
+  ref_genes.list[["summary"]]$CN <- as.character(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$CN < cn_bottom | ref_genes.list[["summary"]]$CN$CN > cn_top,  ]$Gene)
 }
 ```
 
@@ -3569,7 +3604,7 @@ treatment_timeline
 
 ### Per-alteration plot
 
-**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: [Mutated genes], [Fusion genes] (supported by *genomic data* or *reported* in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}), [Structural variants], [CN altered genes] (*CN* values *> 3* or < *0.5*), [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
+**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: [Mutated genes], [Fusion genes] (supported by *genomic data* or *reported* in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}), [Structural variants], [CN altered genes] (*CN* values > *`r cat(cn_bottom)`* or < *`r cat(cn_top)`*), [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
 
 ```{r findings_summary_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for all altered genes
@@ -3590,7 +3625,7 @@ sunburst.all_plot
 
 ### Per-gene table
 
-Table summarising **all altered genes** listed across following report sections: [Mutated genes], [Fusion genes] (supported by *genomic data* or *reported* in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}), [Structural variants], [CN altered genes] (*CN* values *> 3* or < *0.5*), [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
+Table summarising **all altered genes** listed across following report sections: [Mutated genes], [Fusion genes] (supported by *genomic data* or *reported* in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}), [Structural variants], [CN altered genes] (*CN* values > *`r cat(cn_bottom)`* or < *`r cat(cn_top)*), [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
@@ -5073,7 +5108,7 @@ CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } 
 
 ### - Expression vs CN {.tabset}
 
-Scatterplot comparing the per-gene difference in **mRNA expression** between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}). Genes with CN values > 3 or < 0.5 are annotated.
+Scatterplot comparing the per-gene difference in **mRNA expression** between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
 #### Z-scores
 
@@ -5108,12 +5143,12 @@ if ( runPcgrChunk && length(cn_genes) > 0 ) {
   
   data <- data[ data$Gene %in% cn_genes, ]
  
-  mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = 0.5, cn_top = 3, comp_cancer = comp_cancer_group, type = "z", plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", plot_mode = params$plots_mode)
   
 } else if ( length(cn_genes) > 0) {
   
   data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, alt_data = FALSE, cn_bottom = 0.5, cn_top = 3, comp_cancer = comp_cancer_group, type = "z", plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", plot_mode = params$plots_mode)
   
 } else {
   
@@ -5177,12 +5212,12 @@ suppressMessages(library(plotly))
 
 if ( runPcgrChunk && length(cn_genes) > 0 ) {
  
-  mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = 0.5, cn_top = 3, comp_cancer = comp_cancer_group, type = "perc", plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", plot_mode = params$plots_mode)
   
 } else if ( length(cn_genes) > 0) {
   
   data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, alt_data = FALSE, cn_bottom = 0.5, cn_top = 3, comp_cancer = comp_cancer_group, type = "perc", plot_mode = params$plots_mode)
+  mutCNexprPlot(data = data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", plot_mode = params$plots_mode)
   
 } else {
   
@@ -5240,7 +5275,7 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r params$cn_gain`) or lossed (CN values < `r params$cn_loss`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r cn_top`) or lossed (CN values < `r cn_bottom`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
@@ -5325,7 +5360,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### Losses {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values < `r params$cn_loss` (**losses**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values < `r cn_bottom` (**losses**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
 ##### Z-scores
 
@@ -5333,7 +5368,7 @@ Table summarising the **mRNA expression** values in cancer and patient samples f
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN losses
 cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-cn_data <- cn_data[ cn_data$CN < params$cn_loss, ]
+cn_data <- cn_data[ cn_data$CN < cn_bottom, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
 genes = cn_genes[ cn_genes %in% rownames(cn_data) ]
 
@@ -6514,7 +6549,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
-**`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r params$cn_gain` (**gains**) or < `r params$cn_loss` (**losses**, see [CN altered genes] section), and reported as either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or involved in [Fusion genes] or [Structural variants] (if SV information is available) were screened for suitable drugs.
+**`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r cn_top` (**gains**) or < `r cn_bottom` (**losses**, see [CN altered genes] section).
 
 #### Gains
 
