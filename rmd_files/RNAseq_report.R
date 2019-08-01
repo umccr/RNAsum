@@ -176,7 +176,7 @@ if ( is.na(opt$pcgr_tier)  ) {
 
 if ( is.na(opt$cn_loss)  ) {
   
-  opt$cn_loss <- 1.5
+  opt$cn_loss <- 1
 }
 
 if ( is.na(opt$cn_gain)  ) {
