@@ -24,7 +24,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 13 | `KIRP` | Kidney Renal Papillary Cell Carcinoma | 1 | **283** (verify)
 14 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **254** (verify)
 15 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
-16 | `SARC` | Sarcoma | 1 | **218** (verify)
+16 | `SARC` | Sarcoma | 1 | **214**
 17 | `PCPG`  | Pheochromocytoma and Paraganglioma | 1 | **186** (verify)
 18 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **184** (verify)
 19 | `LAML`  | Acute Myeloid Leukaemia | 3 | **173** (verify)
