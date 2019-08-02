@@ -207,7 +207,7 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### VICC
 
-* [The Variant Interpretation for Cancer Consortium](https://cancervariants.org/) (VICC) knowledgebase is used to annotate altered genes across various sections in the report (annotations and URL links in `External resources` column in report `Summary tables`) 
+* [Variant Interpretation for Cancer Consortium](https://cancervariants.org/) (VICC) knowledgebase is used to annotate altered genes across various sections in the report (annotations and URL links in `External resources` column in report `Summary tables`) 
 
 
 ### CIViC
