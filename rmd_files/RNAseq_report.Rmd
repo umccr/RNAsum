@@ -946,7 +946,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = y_title), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
     
     ##### Save interactive plot as html file
-    htmlwidgets::saveWidget(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
+    saveWidgetFix(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
     
     return( p )
   }
@@ -1034,7 +1034,7 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
     
     ##### Save interactive plot as html file
-    htmlwidgets::saveWidget(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
+    saveWidgetFix(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
   
     return( p )
   }
@@ -1784,6 +1784,17 @@ split_sv_field = function(.data, field, is_pct = F) {
       !!f1_q := format_val(!!f1_q, is_pct),
       !!f2_q := format_val(!!f2_q, is_pct)
     )
+}
+
+##### A wrapper to saveWidget which compensates for arguable BUG in saveWidget which requires `file` to be in current working directory (see post https://github.com/ramnathv/htmlwidgets/issues/299 )
+saveWidgetFix <- function (widget,file,...) {
+
+  wd<-getwd()
+  on.exit(setwd(wd))
+  outDir<-dirname(file)
+  file<-basename(file)
+  setwd(outDir);
+  htmlwidgets::saveWidget(widget,file=file,...)
 }
 ```
 
@@ -2839,8 +2850,8 @@ if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactiv
   }
 
   ##### Save the expression tables as html file
-  DT::saveWidget(widget=genes.expr.z[[1]], file=paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained=TRUE)
-  DT::saveWidget(widget=genes.expr.perc[[1]], file=paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=genes.expr.z[[1]], file=paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=genes.expr.perc[[1]], file=paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -3675,7 +3686,7 @@ mut_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=mut_genes.expr.z[[1]], file=paste(exprTableDir, "mut_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=mut_genes.expr.z[[1]], file=paste(exprTableDir, "mut_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -3701,7 +3712,7 @@ mut_genes.expr.perc[[1]]
 ##### Save the expression table as html file
 ##### Create directory for tables
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=mut_genes.expr.perc[[1]], file=paste(exprTableDir, "mut_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=mut_genes.expr.perc[[1]], file=paste(exprTableDir, "mut_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -4101,7 +4112,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
           dir.create(fusionsTableDir, recursive=TRUE)
   }
 
-  DT::saveWidget(widget=pizzly.fusions.summary, file=paste(fusionsTableDir, "pizzly.fusions.summary.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=pizzly.fusions.summary, file=paste(fusionsTableDir, "pizzly.fusions.summary.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -4204,7 +4215,7 @@ pizzly.fusions.genomicView
 ```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Save the table as html file
 if ( c(runSVsChunk && nrow(fusion_annot_top) > 0 && (params$plots_mode == "interactive" || params$plots_mode == "semi-interactive")) && params$save_tables ) {
-  DT::saveWidget(widget=pizzly.fusions.genomicView, file=paste(fusionsTableDir, "pizzly.fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
+  saveWidgetFix(widget=pizzly.fusions.genomicView, file=paste(fusionsTableDir, "pizzly.fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
 }
 ```
 
@@ -4786,7 +4797,7 @@ sv_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=sv_genes.expr.z[[1]], file=paste(exprTableDir, "sv_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=sv_genes.expr.z[[1]], file=paste(exprTableDir, "sv_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -4814,7 +4825,7 @@ sv_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=sv_genes.expr.perc[[1]], file=paste(exprTableDir, "sv_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=sv_genes.expr.perc[[1]], file=paste(exprTableDir, "sv_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -5313,7 +5324,7 @@ mut_cn_expr_genes.expr.gains.z[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=mut_cn_expr_genes.expr.gains.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.z.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=mut_cn_expr_genes.expr.gains.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -5347,7 +5358,7 @@ mut_cn_expr_genes.expr.gains.perc[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=mut_cn_expr_genes.expr.gains.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.perc.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=mut_cn_expr_genes.expr.gains.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.perc.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -5394,7 +5405,7 @@ mut_cn_expr_genes.expr.losses.z[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=mut_cn_expr_genes.expr.losses.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.z.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=mut_cn_expr_genes.expr.losses.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -5428,7 +5439,7 @@ mut_cn_expr_genes.expr.losses.perc[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=mut_cn_expr_genes.expr.losses.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.perc.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=mut_cn_expr_genes.expr.losses.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.perc.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -5760,7 +5771,7 @@ immune_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=immune_genes.expr.z[[1]], file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=immune_genes.expr.z[[1]], file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -5786,7 +5797,7 @@ immune_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=immune_genes.expr.perc[[1]], file=paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=immune_genes.expr.perc[[1]], file=paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -5890,7 +5901,7 @@ hrd_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=hrd_genes.expr.z[[1]], file=paste(exprTableDir, "hrd_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=hrd_genes.expr.z[[1]], file=paste(exprTableDir, "hrd_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -5916,7 +5927,7 @@ hrd_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=hrd_genes.expr.perc[[1]], file=paste(exprTableDir, "hrd_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=hrd_genes.expr.perc[[1]], file=paste(exprTableDir, "hrd_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6013,7 +6024,7 @@ cancer_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=cancer_genes.expr.z[[1]], file=paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=cancer_genes.expr.z[[1]], file=paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6038,7 +6049,7 @@ cancer_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=cancer_genes.expr.perc[[1]], file=paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=cancer_genes.expr.perc[[1]], file=paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6356,7 +6367,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
           dir.create(drugsTableDir, recursive=TRUE)
   }
 
-  DT::saveWidget(widget=drugsTable.mut_genes[[1]], file=paste(drugsTableDir, "drugsTable.mut_genes.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=drugsTable.mut_genes[[1]], file=paste(drugsTableDir, "drugsTable.mut_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6413,7 +6424,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
           dir.create(drugsTableDir, recursive=TRUE)
   }
 
-  DT::saveWidget(widget=drugsTable.cancer_genes[[1]], file=paste(drugsTableDir, "drugsTable.cancer_genes.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=drugsTable.cancer_genes[[1]], file=paste(drugsTableDir, "drugsTable.cancer_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6466,7 +6477,7 @@ drugsTable.fusion_genes[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=drugsTable.fusion_genes[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=drugsTable.fusion_genes[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6516,7 +6527,7 @@ drugsTable.sv_genes[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=drugsTable.sv_genes[[1]], file=paste(drugsTableDir, "drugsTable.sv_genes.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=drugsTable.sv_genes[[1]], file=paste(drugsTableDir, "drugsTable.sv_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6567,7 +6578,7 @@ drugsTable.CN_altered_genes_gains[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=drugsTable.CN_altered_genes_gains[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_gains.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=drugsTable.CN_altered_genes_gains[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_gains.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6612,7 +6623,7 @@ drugsTable.CN_altered_genes_losses[[1]]
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=drugsTable.CN_altered_genes_losses[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_losses.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=drugsTable.CN_altered_genes_losses[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_losses.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
@@ -6667,7 +6678,7 @@ if ( !file.exists(drugsTableDir) ) {
 
 ##### Save the expression table as html file
 if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
-  DT::saveWidget(widget=drugsTable.hrd_genes[[1]], file=paste(drugsTableDir, "drugsTable.hrd_genes.html", sep = "/"), selfcontained=TRUE)
+  saveWidgetFix(widget=drugsTable.hrd_genes[[1]], file=paste(drugsTableDir, "drugsTable.hrd_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
 
