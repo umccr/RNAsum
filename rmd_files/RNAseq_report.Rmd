@@ -3619,7 +3619,7 @@ treatment_timeline
 
 ### Per-alteration plot
 
-**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: [Mutated genes], [Fusion genes] (supported by *genomic data* or *reported* in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}), [Structural variants], [CN altered genes] (*CN* values > *`r cn_bottom`* or < *`r cn_top`*), [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
+**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, ")") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
 
 ```{r findings_summary_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for all altered genes
@@ -3640,7 +3640,7 @@ sunburst.all_plot
 
 ### Per-gene table
 
-Table summarising **all altered genes** listed across following report sections: [Mutated genes], [Fusion genes] (supported by *genomic data* or *reported* in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}), [Structural variants], [CN altered genes] (*CN* values > *`r cn_bottom`* or < *`r cn_top`*), [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
+Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, ")") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
@@ -5290,11 +5290,11 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained (CN values > `r cn_top`) or lossed (CN values < `r cn_bottom`) regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, ")") }` regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values > `r cn_top` (**gains**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values > `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
 ##### Z-scores
 
@@ -5375,7 +5375,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### Losses {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values < `r cn_bottom` (**losses**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
 ##### Z-scores
 
@@ -6564,7 +6564,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
-**`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r cn_top` (**gains**) or < `r cn_bottom` (**losses**, see [CN altered genes] section).
+**`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**) or < `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**, see [CN altered genes] section).
 
 #### Gains
 
