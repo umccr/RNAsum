@@ -32,8 +32,8 @@ params:
   save_tables: FALSE
   hide_code_btn: TRUE
   pcgr_tier: 3
-  cn_loss: 5
-  cn_gain: 95
+  cn_loss: 2
+  cn_gain: 98
   grch_version: 37
   ensembl_version: 75
   ucsc_genome_assembly: 19
@@ -2188,13 +2188,13 @@ if ( runPurpleChunk ) {
   ##### Deal with negative CN values
   ref_genes.list[["summary"]]$CN$MeanCopyNumber[ ref_genes.list[["summary"]]$CN$MeanCopyNumber < 0 ] <- 0
 
-  ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
-  if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
+  ##### Keep only altered genes with CN values below loss threshold (default 2nd percentile) and above gain threshold (default 98th percentile)
+  if ( params$cn_loss == 2 && params$cn_gain == 98 ) {
     
-    cn_data.all.percent <- quantile(ref_genes.list[["summary"]]$CN$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
+    cn_data.all.percent <- quantile(ref_genes.list[["summary"]]$CN$MeanCopyNumber, probs = seq(0, 1, .02), na.rm = TRUE)
     
     cn_bottom <- round(cn_data.all.percent[2], digits = 0)
-    cn_top <- round(cn_data.all.percent[20], digits = 0)
+    cn_top <- round(cn_data.all.percent[50], digits = 0)
   
   } else {
     cn_bottom <- params$cn_loss
@@ -2881,18 +2881,16 @@ cn_data$MeanCopyNumber[ cn_data$MeanCopyNumber < 0 ] <- 0
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
 cn_data <- cn_data[ cn_data$Gene %!in% "", ]
 
-##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
+##### Keep only altered genes with CN values below loss threshold (default 2nd percentile) and above gain threshold (default 98th percentile)
 cn_data.all <- cn_data
 
 ##### Get the percentiles from from the CN values
-cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
+cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .02), na.rm = TRUE)
   
-if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
-
-  cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_data.all.percent[2] | cn_data$MeanCopyNumber > cn_data.all.percent[20], ]
+if ( params$cn_loss == 2 && params$cn_gain == 98 ) {
   
   cn_bottom <- round(cn_data.all.percent[2], digits = 0)
-  cn_top <- round(cn_data.all.percent[20], digits = 0)
+  cn_top <- round(cn_data.all.percent[50], digits = 0)
   
   cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_bottom | cn_data$MeanCopyNumber > cn_top, ]
   

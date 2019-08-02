@@ -176,12 +176,12 @@ if ( is.na(opt$pcgr_tier)  ) {
 
 if ( is.na(opt$cn_loss)  ) {
   
-  opt$cn_loss <- 5
+  opt$cn_loss <- 2
 }
 
 if ( is.na(opt$cn_gain)  ) {
   
-  opt$cn_gain <- 95
+  opt$cn_gain <- 98
 }
 
 if ( is.na(opt$plots_mode)  ) {
