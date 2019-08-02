@@ -43,6 +43,8 @@ If WGS results from **[umccrise](https://github.com/umccr/umccrise)** are availa
 
 ### CN altered genes
 
+Section overlaying the mRNA expression data for [cancer genes](#cancer-genes) with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple)) and mutation status, if available.
+
 ### Immune markers
 
 ### HRD genes

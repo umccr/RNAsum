@@ -2164,6 +2164,60 @@ if ( length(sampleID.col) > 0 ) {
 }
 ```
 
+```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
+##### Combine UMCCR cancer gene list with OncoKB cancer genes
+genes_cancer <- ref_genes.list[["genes_oncokb"]]
+genes_cancer$UMCCR <- rep("No", nrow(genes_cancer))
+genes_cancer$Oncogene <- rep("-", nrow(genes_cancer))
+genes_cancer$TSG <- rep("-", nrow(genes_cancer))
+genes_cancer$Fusion <- rep("-", nrow(genes_cancer))
+genes_cancer$Germline <- rep("-", nrow(genes_cancer))
+
+##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
+ref_genes.list[["genes_cancer"]]$germ <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$germ)
+ref_genes.list[["genes_cancer"]]$germ <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$germ)
+ref_genes.list[["genes_cancer"]]$fusion <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$fusion)
+ref_genes.list[["genes_cancer"]]$fusion <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$fusion)
+ref_genes.list[["genes_cancer"]]$tumorsuppressor <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$tumorsuppressor)
+ref_genes.list[["genes_cancer"]]$tumorsuppressor <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$tumorsuppressor)
+ref_genes.list[["genes_cancer"]]$oncogene <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$oncogene)
+ref_genes.list[["genes_cancer"]]$oncogene <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$oncogene)
+
+for ( gene in unlist(ref_genes.list[["genes_cancer"]]$symbol ) ) {
+
+  ##### Check if the UMCCR genes is already reported in OncoKB
+  if ( gene %in% genes_cancer$Hugo.Symbol ) {
+   
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$UMCCR <- "Yes"
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
+    
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, 2] <- as.numeric(genes_cancer[ genes_cancer$Hugo.Symbol==gene, 2]) + 1
+    
+  ##### Add if not present
+  } else {
+    
+    genes_cancer <- rbind(genes_cancer, c(gene, 1, "No", rep("", 8), "Yes"))
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
+    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
+  }
+}
+
+##### Make the data frame to look nicer
+rownames(genes_cancer) <- genes_cancer$Hugo.Symbol
+names(genes_cancer) <- c("Gene", "Gene panels no.", "OncoKB", "Oncogene (OncoKB)", "TSG (OncoKB)", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "UMCCR", "Oncogene", "TSG", "Fusion", "Germline")
+genes_cancer <- genes_cancer[,c("Oncogene", "TSG", "Fusion", "Germline", "Gene panels no.", "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC")]
+genes_cancer[ genes_cancer=="No" ] <- "-"
+genes_cancer[ genes_cancer=="" ] <- "-"
+
+ref_genes.list[["genes_cancer"]] <- genes_cancer
+ref_genes.list[["genes_oncokb"]] <- genes_cancer[ rownames(genes_cancer) %in% ref_genes.list[["genes_oncokb"]]$Hugo.Symbol, ]
+```
+
 ```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Record all genes of interest to make sure that these are not filtered out during read counts data processing
 # PCGR annotation of mutated genes in given patient based on PCGR report, including only those with variants classified according to user-defined tier
@@ -2199,6 +2253,9 @@ if ( runPurpleChunk ) {
   ##### Deal with negative CN values
   ref_genes.list[["summary"]]$CN$MeanCopyNumber[ ref_genes.list[["summary"]]$CN$MeanCopyNumber < 0 ] <- 0
 
+  ##### Limit the data to include only cancer genes
+  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
+
   ##### Keep only altered genes with CN values below loss threshold (default 2nd percentile) and above gain threshold (default 98th percentile)
   if ( params$cn_loss == 2 && params$cn_gain == 98 ) {
     
@@ -2222,7 +2279,7 @@ ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$SY
 ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
 
 # Cancer genes derived from UMCCR Cancer Gene list and from OncoKB portal (http://oncokb.org/#/cancerGenes)
-ref_genes.list[["summary"]]$Cancer <- unique(c(ref_genes.list[["genes_cancer"]]$symbol, ref_genes.list[["genes_cancer"]]$symbol))
+ref_genes.list[["summary"]]$Cancer <- unique(ref_genes.list[["genes_cancer"]]$symbol)
 
 ##### Record all genes of interest
 genes2keep <- unique( unlist(ref_genes.list[["summary"]]) )
@@ -2774,60 +2831,6 @@ for ( dataset in names(ref_dataset.list) ) {
 }
 ```
 
-```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
-##### Combine UMCCR cancer gene list with OncoKB cancer genes
-genes_cancer <- ref_genes.list[["genes_oncokb"]]
-genes_cancer$UMCCR <- rep("No", nrow(genes_cancer))
-genes_cancer$Oncogene <- rep("-", nrow(genes_cancer))
-genes_cancer$TSG <- rep("-", nrow(genes_cancer))
-genes_cancer$Fusion <- rep("-", nrow(genes_cancer))
-genes_cancer$Germline <- rep("-", nrow(genes_cancer))
-
-##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
-ref_genes.list[["genes_cancer"]]$germ <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$germ)
-ref_genes.list[["genes_cancer"]]$germ <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$germ)
-ref_genes.list[["genes_cancer"]]$fusion <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$fusion)
-ref_genes.list[["genes_cancer"]]$fusion <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$fusion)
-ref_genes.list[["genes_cancer"]]$tumorsuppressor <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$tumorsuppressor)
-ref_genes.list[["genes_cancer"]]$tumorsuppressor <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$tumorsuppressor)
-ref_genes.list[["genes_cancer"]]$oncogene <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$oncogene)
-ref_genes.list[["genes_cancer"]]$oncogene <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$oncogene)
-
-for ( gene in unlist(ref_genes.list[["genes_cancer"]]$symbol ) ) {
-
-  ##### Check if the UMCCR genes is already reported in OncoKB
-  if ( gene %in% genes_cancer$Hugo.Symbol ) {
-   
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$UMCCR <- "Yes"
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
-    
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, 2] <- as.numeric(genes_cancer[ genes_cancer$Hugo.Symbol==gene, 2]) + 1
-    
-  ##### Add if not present
-  } else {
-    
-    genes_cancer <- rbind(genes_cancer, c(gene, 1, "No", rep("", 8), "Yes"))
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
-    genes_cancer[ genes_cancer$Hugo.Symbol==gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[[ "genes_cancer"]]$symbol==gene]
-  }
-}
-
-##### Make the data frame to look nicer
-rownames(genes_cancer) <- genes_cancer$Hugo.Symbol
-names(genes_cancer) <- c("Gene", "Gene panels no.", "OncoKB", "Oncogene (OncoKB)", "TSG (OncoKB)", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "UMCCR", "Oncogene", "TSG", "Fusion", "Germline")
-genes_cancer <- genes_cancer[,c("Oncogene", "TSG", "Fusion", "Germline", "Gene panels no.", "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC")]
-genes_cancer[ genes_cancer=="No" ] <- "-"
-genes_cancer[ genes_cancer=="" ] <- "-"
-
-ref_genes.list[["genes_cancer"]] <- genes_cancer
-ref_genes.list[["genes_oncokb"]] <- genes_cancer[ rownames(genes_cancer) %in% ref_genes.list[["genes_oncokb"]]$Hugo.Symbol, ]
-```
-
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
 ##### Save the entire expression data with cancer genes annotaiton as a data table html file
 ##### Generate expression summary table for mutated genes
@@ -2914,6 +2917,9 @@ if ( params$cn_loss == 2 && params$cn_gain == 98 ) {
 
 ##### Keep only genes with available expression data
 cn_data <- cn_data[ cn_data$Gene %in% names(expr_data.z), ]
+
+##### Limit the data to include only cancer genes
+cn_data <- cn_data[ cn_data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
 
 ##### Add mutation data if available
 if ( !is.null(ref_genes.list[["pcgr"]]) ) {
@@ -3619,11 +3625,15 @@ treatment_timeline
 
 ### Per-alteration plot
 
-**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, ")") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
+**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
 
-```{r findings_summary_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
+```{r findings_summary_plot, comment = NA, message=TRUE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for all altered genes
-sunburst_plot
+if ( nrow(sunburst.df) > 0 ) {
+  sunburst_plot
+} else {
+  cat("No genes are listed in more then one section. Expand the \"All altered genes\" to view the summary plot for all altered genes.")
+}
 ```
 
 <details>
@@ -3640,7 +3650,7 @@ sunburst.all_plot
 
 ### Per-gene table
 
-Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, ")") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
+Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
@@ -4768,7 +4778,7 @@ SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } el
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
@@ -5117,7 +5127,7 @@ detach("package:plotly", unload=FALSE)
 
 ## CN altered genes
 
-Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}) and mutation status, if available.
+Section overlaying the mRNA expression data for **[Cancer genes]** with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}) and mutation status, if available.
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
@@ -5290,7 +5300,7 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, ")") }` regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are either [Cancer genes], [Mutated genes] with [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants (if mutation information is available) or are involved in [Fusion genes] or [Structural variants] (if SV information is available). The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
@@ -5375,7 +5385,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### Losses {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values < `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
 ##### Z-scores
 
