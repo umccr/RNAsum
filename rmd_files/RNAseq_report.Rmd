@@ -32,8 +32,8 @@ params:
   save_tables: FALSE
   hide_code_btn: TRUE
   pcgr_tier: 3
-  cn_loss: 2
-  cn_gain: 98
+  cn_loss: 5
+  cn_gain: 95
   grch_version: 37
   ensembl_version: 75
   ucsc_genome_assembly: 19
@@ -2256,13 +2256,13 @@ if ( runPurpleChunk ) {
   ##### Limit the data to include only cancer genes
   ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
 
-  ##### Keep only altered genes with CN values below loss threshold (default 2nd percentile) and above gain threshold (default 98th percentile)
-  if ( params$cn_loss == 2 && params$cn_gain == 98 ) {
+  ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
+  if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
     
-    cn_data.all.percent <- quantile(ref_genes.list[["summary"]]$CN$MeanCopyNumber, probs = seq(0, 1, .02), na.rm = TRUE)
+    cn_data.all.percent <- quantile(ref_genes.list[["summary"]]$CN$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
     
     cn_bottom <- round(cn_data.all.percent[2], digits = 0)
-    cn_top <- round(cn_data.all.percent[50], digits = 0)
+    cn_top <- round(cn_data.all.percent[20], digits = 0)
   
   } else {
     cn_bottom <- params$cn_loss
@@ -2895,16 +2895,16 @@ cn_data$MeanCopyNumber[ cn_data$MeanCopyNumber < 0 ] <- 0
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
 cn_data <- cn_data[ cn_data$Gene %!in% "", ]
 
-##### Keep only altered genes with CN values below loss threshold (default 2nd percentile) and above gain threshold (default 98th percentile)
+##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
 cn_data.all <- cn_data
 
 ##### Get the percentiles from from the CN values
-cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .02), na.rm = TRUE)
+cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
   
-if ( params$cn_loss == 2 && params$cn_gain == 98 ) {
+if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
   
   cn_bottom <- round(cn_data.all.percent[2], digits = 0)
-  cn_top <- round(cn_data.all.percent[50], digits = 0)
+  cn_top <- round(cn_data.all.percent[20], digits = 0)
   
   cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_bottom | cn_data$MeanCopyNumber > cn_top, ]
   
@@ -3025,17 +3025,17 @@ cn_dist_plot <- plot_ly(x = cn_data.all$MeanCopyNumber, type = 'histogram', name
   ##### Add 5th percentile threshold
   add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[2],11), 
               line = list(color = "black", dash = "dash"), opacity = 0.4,
-              name = "2nd percentile", showlegend = TRUE) %>%
+              name = "5th percentile", showlegend = TRUE) %>%
   
   ##### Add 50th percentile
-  add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[26],11), 
+  add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[11],11), 
               line = list(color = "black", dash = "dash"), opacity = 0.7,
               name = "50th percentile", showlegend = TRUE) %>%
   
   ##### Add 95th percentile threshold
-  add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[50],11), 
+  add_lines(y = seq(0,1000, 100), x = rep(cn_data.all.percent[20],11), 
               line = list(color = "black", dash = "dash"), opacity = 1,
-              name = "98th percentile", showlegend = TRUE) %>%
+              name = "95th percentile", showlegend = TRUE) %>%
   
   layout(xaxis = list( title = "CN values"), yaxis = list( title = "Frequency"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F)
 
