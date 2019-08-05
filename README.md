@@ -198,7 +198,7 @@ Argument | Description | Required
 
 ### Examples 
 
-Below are command line use examples for generating *Transcriptome Patient Summary* report using:
+Below are command line use examples for generating *Patient Transcriptome Summary* report using:
 
 1. [required arguments only](#1-required-arguments-only)
 2. **[genome-based results](#2-add-genome-based-results)**
@@ -237,7 +237,7 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --count_
 
 #### 2. Add genome-based results
 
-This is the **preferred scenario for using** ***Transcriptome Patient Summary***, in which the genome-based findings will be used as a primary source for expression profiles prioritisation. These can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. The **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. The results in the **`Fusion genes`** section will be ordered based on the evidence from genome-based data. The [TCGA](https://tcga-data.nci.nih.gov/) cervical squamous cell carcinoma dataset is used as reference cohort (`--dataset CESC `).
+This is the **preferred scenario for using** ***Patient Transcriptome Summary***, in which the genome-based findings will be used as a primary source for expression profiles prioritisation. These can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. The **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. The results in the **`Fusion genes`** section will be ordered based on the evidence from genome-based data. The [TCGA](https://tcga-data.nci.nih.gov/) cervical squamous cell carcinoma dataset is used as reference cohort (`--dataset CESC `).
 
 The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to be organised following the folder structure described in [Input data:WGS](#wgs) section.
 
@@ -250,7 +250,7 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --count_
 
 #### 3. Add clinical information
 
-For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Transcriptome Patient Summary* report. This can be added by specifying location of a relevant excel spreadsheet (see example [test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx)) using the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`, along with `START` and `STOP` dates of corresponding treatments. The [TCGA](https://tcga-data.nci.nih.gov/) pancreatic adenocarcinoma dataset is used as reference cohort (`--dataset PAAD `).
+For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Patient Transcriptome Summary* report. This can be added by specifying location of a relevant excel spreadsheet (see example [test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx)) using the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`, along with `START` and `STOP` dates of corresponding treatments. The [TCGA](https://tcga-data.nci.nih.gov/) pancreatic adenocarcinoma dataset is used as reference cohort (`--dataset PAAD `).
 
 
 ```
@@ -262,7 +262,7 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_
 
 ### Output
 
-The generated html-based ***Transcriptome Patient Summary*** **report** includes searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report consist of several sections, including:
+The generated html-based ***Patient Transcriptome Summary*** **report** includes searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report consist of several sections, including:
 
 * [Input data](report_structure.md#input-data)
 * [Clinical information\*](report_structure.md#clinical-information)

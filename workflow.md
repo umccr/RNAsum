@@ -1,6 +1,6 @@
 ## RNA-seq report data processing workflow
 
-The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)* data **[processing](#1-data-processing)**, (**2**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**3**) results **[annotation](#3-results-annotation)** and (**4**) presentation in the *Transcriptome Patient Summary* **[report](#4-report-generation)**. 
+The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)* data **[processing](#1-data-processing)**, (**2**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**3**) results **[annotation](#3-results-annotation)** and (**4**) presentation in the *Patient Transcriptome Summary* **[report](#4-report-generation)**. 
 
 <img src="img/RNAseq_report_workflow.png" width="100%"> 
 
@@ -225,5 +225,5 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### 4. Report generation
 
-The final html-based ***Transcriptome Patient Summary*** **report** contains searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources providing additional source of evidence for their significance. The individual **[report sections](report_structure.md)**, **[results prioritisation](report_structure.md)** and **[visualisation](report_structure.md)** are described more in detail in [report_structure.md](report_structure.md).
+The final html-based ***Patient Transcriptome Summary*** **report** contains searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources providing additional source of evidence for their significance. The individual **[report sections](report_structure.md)**, **[results prioritisation](report_structure.md)** and **[visualisation](report_structure.md)** are described more in detail in [report_structure.md](report_structure.md).
 
