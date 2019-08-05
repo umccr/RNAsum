@@ -122,100 +122,81 @@ if ( is.na(opt$sample_name) || is.na(opt$dataset) || is.na(opt$count_file) || is
 if ( !is.na(opt$clinical_info) && is.na(opt$subject_id)  ) {
   
   cat("\nSubject ID is missing! Please provide subject ID used in the clinical data by using \"--subject_id\" argument.\n\n")
-  
   q()
 }
 
 ##### Set default parameters
 if ( is.na(opt$ref_data_dir)  ) {
-  
   opt$ref_data_dir <- "../data"
 }
 
 if ( is.na(opt$transform)  ) {
-  
   opt$transform <- "CPM"
 }
 
 if ( is.na(opt$norm)  ) {
   
   if ( opt$transform == "CPM"  ) {
-    
     opt$norm <- "TMM"
     
   } else if ( opt$transform == "TPM"  ) {
-    
     opt$norm <- "quantile"
   }
 }
 
 if ( is.na(opt$batch_rm)  ) {
-  
   opt$batch_rm <- TRUE
 }
 
 if ( is.na(opt$filter)  ) {
-  
   opt$filter <- TRUE
 }
 
 if ( is.na(opt$log)  ) {
-  
   opt$log <- TRUE
 }
 
 if ( is.na(opt$scaling)  ) {
-  
   opt$scaling <- "gene-wise"
 }
 
 if ( is.na(opt$pcgr_tier)  ) {
-  
   opt$pcgr_tier <- 3
 }
 
 if ( is.na(opt$cn_loss)  ) {
-  
   opt$cn_loss <- 5
 }
 
 if ( is.na(opt$cn_gain)  ) {
-  
   opt$cn_gain <- 95
 }
 
 if ( is.na(opt$plots_mode)  ) {
-  
   opt$plots_mode <- "interactive"
 }
 
 if ( is.na(opt$save_tables)  ) {
-  
   opt$save_tables <- FALSE
 }
 
 if ( is.na(opt$hide_code_btn)  ) {
-  
   opt$hide_code_btn <- TRUE
 }
 
 if ( is.na(opt$grch_version)  ) {
-  
   ensembl_version <- 75
   ucsc_genome_assembly <- 19
   
 } else if ( opt$grch_version == 37 ) {
-  
   ensembl_version <- 75
   ucsc_genome_assembly <- 19
   
 } else if ( opt$grch_version == 38 ) {
-  
   ensembl_version <- 86
   ucsc_genome_assembly <- 38
   
 } else {
-  
   cat("\nCurrently human reference genome (GRCh) versions \"37\" and \"38\" are supported.\n\n")
   q()
 }
@@ -265,7 +246,6 @@ if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL",
 
 ##### Embed interactive (default) plots, unless semi-interactive or static mode is specified
 if ( is.na(opt$plots_mode) ) {
-  
   opt$plots_mode<- "static"
   
 } else if ( opt$plots_mode != "interactive" && opt$plots_mode != "semi-interactive" && opt$plots_mode != "static" ) {
@@ -286,7 +266,6 @@ if ( opt$transform != "CPM" && opt$transform != "TPM" ) {
 if ( opt$transform == "TPM" && opt$norm != "quantile" && opt$norm != "none" ) {
   
   cat(paste0("\nWrong normalisation method was selected! ", opt$norm, " normalisation is not available for TPM-tansformed data!\n\nQuantile normalisation will be performed for TPM-tansformed data.\n\n"))
-  
   opt$norm <- "quantile"
   
 } else if ( opt$transform == "CPM" && opt$norm == "quantile" ) {
