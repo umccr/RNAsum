@@ -112,9 +112,7 @@ knitr::knit_hooks$set(timeit = function(before) {
   }
 })
 
-knitr::opts_chunk$set(
-  timeit = TRUE
-)
+knitr::opts_chunk$set(timeit = TRUE)
 ```
 
 ```{r define_functions, comment=NA, message=FALSE, warning=FALSE}
@@ -1936,6 +1934,9 @@ caner_genes_annot.list[["cancer_biomarkers_trans"]] <- read.table(paste(params$r
 ##### Read in FusionGDB database (https://ccsm.uth.edu/FusionGDB/) used to annotate reported fusion events, with info about head and tail genes.
 caner_genes_annot.list[["FusionGDB"]] <- read.table(paste(params$ref_data_dir, params$FusionGDB, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="", fill = TRUE)
 names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "TgeneID", "FGname", "FGID")
+
+##### Clean the space
+rm(txi.kallisto, kallisto.counts, tx2ensembl)
 ```
 
 ```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
@@ -2017,6 +2018,10 @@ if ( length(sampleID.col) > 0 ) {
   } else {
     runClinicalChunk <- FALSE
   }
+
+##### Clean the space
+rm(list = ls(pattern='^treamtent.*'))
+rm(clinical_info, cv_timeline.png)
 }
 ```
 
@@ -2070,6 +2075,9 @@ genes_cancer[ genes_cancer=="" ] <- "-"
 
 ref_genes.list[["genes_cancer"]] <- genes_cancer
 ref_genes.list[["genes_oncokb"]] <- genes_cancer[ rownames(genes_cancer) %in% ref_genes.list[["genes_oncokb"]]$Hugo.Symbol, ]
+
+##### Clean the space
+rm(genes_cancer)
 ```
 
 ```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -2155,6 +2163,9 @@ rownames(genes2keep) <- genes2keep$ENSEMBL
   
 ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc)
 genes2keep = genes2keep[!duplicated(genes2keep$SYMBOL),]
+
+##### Clean the space
+rm(edb, keys, gene_info)
 ```
 
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -2177,7 +2188,6 @@ cpm.max <- round(max(as.numeric(colSums(ref_dataset.list[[dataset]][["combined_d
   
 #### For each group...
 for ( group in targets_mod.list ) {
-  
     target <- target_mod[ target_mod$Dataset==group, ]
     data <- ref_dataset.list[[dataset]][["combined_data"]]
     data <- data[ , target_mod$Dataset==group]
@@ -2194,7 +2204,6 @@ for ( group in targets_mod.list ) {
     
     ##### Keep the genes of interest too
     keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
-
     y[[group]]$filtered <- y[[group]][keep, , keep.lib.sizes=FALSE]
     
     ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
@@ -2238,7 +2247,6 @@ for ( group in targets_mod.list ) {
       
       ##### Keep the genes of interest too
       keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
-    
       y[[group]]$filtered <- y[[group]]$counts[keep, ]
       y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
    
@@ -2298,6 +2306,9 @@ if ( params$filter ) {
   y[["comb"]]$filtered <- cbind(y[[targets_mod.list[1]]]$filtered, y[[targets_mod.list[2]]]$filtered)
   y[["comb"]]$filtered.transformed <- cbind(y[[targets_mod.list[1]]]$filtered.transformed, y[[targets_mod.list[2]]]$filtered.transformed)
 }
+
+##### Clean the space
+rm(target, target_mod, genes_mod, keep)
 ```
 
 ```{r data_transformation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
@@ -2321,9 +2332,8 @@ for (i in 2:ncol(y[["comb"]]$transformed)) {
   den.y <- sort(c(den.y, den$y))
 }
 
+##### Plot read counts against transformed data
 if ( params$filter ) {
-  
-  ##### Plot read counts against transformed data
   suppressMessages(library(plotly))
   
   ##### Organise the data into data frame
@@ -2431,6 +2441,9 @@ if ( params$filter ) {
   legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], bty="n", bg = "transparent")
   invisible(dev.off())
 }
+
+##### Clean the space
+rm(data, data.df, target, den.x, den.y)
 ```
 
 ```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE }
@@ -2459,7 +2472,6 @@ for ( group in targets_mod.list ) {
     
     ##### Normalisation using quantile method
     if ( params$filter ) {
-      
       y[[group]]$noNorm <- y[[group]]$filtered.transformed
       y[[group]]$filtered.transformed <- data.matrix(y[[group]]$filtered.transformed) 
       
@@ -2467,11 +2479,9 @@ for ( group in targets_mod.list ) {
         y[[group]]$norm  <- normalize.quantiles(y[[group]]$filtered.transformed, copy = TRUE)
         colnames(y[[group]]$norm) <- colnames(y[[group]]$filtered.transformed)
         rownames(y[[group]]$norm) <- rownames(y[[group]]$filtered.transformed)
-        
       } else {
         y[[group]]$norm  <- y[[group]]$filtered.transformed
       }
-    
     } else {
       y[[group]]$noNorm <- y[[group]]$transformed
       y[[group]]$transformed <- data.matrix(y[[group]]$transformed)
@@ -2497,6 +2507,8 @@ if ( tolower(params$norm) != "none" ) {
   ref_dataset.list[[dataset]][["combined_data_processed"]] <- y[["comb"]]$noNorm
 }
 
+##### Clean the space
+rm(targets_mod.list)
 ```
 
 ```{r data_normalisation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
@@ -2531,6 +2543,9 @@ boxplot(y[["comb"]]$norm, las=2, col=targets.colour[[2]], main="", pch=".", las=
 title(main=paste0("Normalised data (", params$norm, ")"), ylab=params$transform)
 legend("topright", legend=c(ext_cancer_group, int_cancer_group, "Patient"), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
 invisible(dev.off())
+
+##### Clean the space
+rm(targets.colour, den, y)
 ```
 
 ```{r batch_effect_correction, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm}
@@ -2550,13 +2565,11 @@ suppressMessages(library(plotly))
 ##### Perform principal component analysis (PCA) using combined-only data and batch-effect corrected data
 ##### Loop through combined datasets and perform PCA
 for ( dataset in names(ref_dataset.list) ) {
-  
   target <- ref_dataset.list[[dataset]][["sample_annot"]]
   target$Dataset <- gsub(sampleName, "Patient", target$Dataset)
   target$Target <- gsub(sampleName, "Patient", target$Target)
   
   if ( params$batch_rm ) {
-    
     ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(ref_dataset.list[[dataset]][["combined_data_processed"]], target, title = "Before batch-effects correction", plot_mode = params$plots_mode)
     
     ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(ref_dataset.list[[dataset]][["batch_effect_corrected"]], target, title = "After batch-effects correction",  plot_mode = params$plots_mode)
@@ -2564,7 +2577,6 @@ for ( dataset in names(ref_dataset.list) ) {
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["batch_effect_corrected"]]
     
   } else {
-    
     ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(ref_dataset.list[[dataset]][["combined_data_processed"]], target, plot_mode = params$plots_mode)
     
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["combined_data_processed"]]
@@ -2617,6 +2629,9 @@ for ( dataset in names(ref_dataset.list) ) {
   ##### Get data matrix with gene symbols
   ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
 }
+
+##### Clean the space
+rm(data, target, data.df, edb, keys)
 ```
 
 ```{r gene_annot_processed_data, comment = NA, message=FALSE, warning=FALSE}
@@ -2645,32 +2660,38 @@ for ( dataset in names(ref_dataset.list) ) {
   write.table(prepare2write(rownames(ref_dataset.list[[dataset]][["data_to_report"]])), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset,  ".combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
   write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/", params$sample_name, ".", params$dataset, ".sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
+
+##### Clean the space
+rm(data, data.df, gene_info)
 ```
 
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
 ##### Save the entire expression data with cancer genes annotaiton as a data table html file
 ##### Generate expression summary table for mutated genes
 if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactive" ) {
-    
   targets <- ref_dataset.list[[dataset]][["sample_annot"]]
   data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_dataset.list[[dataset]][["gene_annot"]])) ], 2, as.numeric)
   rownames(data) <- ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL
-    
+  
+  ##### Z-scores
   genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
   
+  ##### Percentiles
   genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
   
   ##### Create directory for saving tables
   exprTableDir <- paste(params$report_dir, "exprTables", sep = "/")
     
   if ( !file.exists(exprTableDir) ) {
-    
     dir.create(exprTableDir, recursive=TRUE)
   }
 
   ##### Save the expression tables as html file
   saveWidgetFix(widget=genes.expr.z[[1]], file=paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained=TRUE)
   saveWidgetFix(widget=genes.expr.perc[[1]], file=paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+
+##### Clean the space
+rm(data, targets, genes.expr.z, genes.expr.perc)
 }
 ```
 
@@ -2685,13 +2706,13 @@ expr_data.z <- exprTable( genes = rownames(expr_data), data = expr_data, targets
 
 expr_genes <- expr_data.z$SYMBOL
 
+##### ...percerntiles
 expr_data.perc <- exprTable( genes = expr_genes, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
 
 ##### Make sure the tables have the same genes order
 expr_data.perc <- expr_data.perc[ expr_genes, ]
 
 if ( comp_cancer_group != int_cancer_group ) {
-
   expr_data.z <- expr_data.z[, "Diff" ]
   expr_data.perc <- expr_data.perc[, "Diff" ]
 } else {
@@ -2718,7 +2739,6 @@ cn_data.all <- cn_data
 cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
   
 if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
-  
   cn_bottom <- round(cn_data.all.percent[2], digits = 0)
   cn_top <- round(cn_data.all.percent[20], digits = 0)
   
@@ -2739,9 +2759,9 @@ cn_data <- cn_data[ cn_data$Gene %in% rownames(ref_genes.list[["genes_cancer"]])
 
 ##### Add mutation data if available
 if ( !is.null(ref_genes.list[["pcgr"]]) ) {
-
   mut_data <- ref_genes.list[["pcgr"]]
-    ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
+  
+  ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
   mut_data <- mut_data[ mut_data$SYMBOL %!in% "", ]
 
   ##### Prepare mutation data to include multiple mutations per gene
@@ -2751,17 +2771,13 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   rownames(gene.mut) <- names(expr_data.z)
 
   for ( i in 1:nrow(gene.mut) ) {
-  
     ##### Check if any mutations are reported for each gene
     if (  rownames(gene.mut)[i] %in% mut_data$SYMBOL ) {
     
       ##### Deal with multiple mutations per gene
       if ( length(mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE) > 1 ) {
-
         gene.mut[ rownames(gene.mut)[i],"Alteration" ] <- "Mutation: multiple hits"
-
       } else {
-      
         gene.mut[ rownames(gene.mut)[i],"Alteration" ] <- paste0("Mutation: ", mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE)
       }
     }
@@ -2769,7 +2785,6 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
 
   ##### If there is no expression value for a specific gene than assume it's not expressed at all and assign the lowest value observed in that sample
   for ( gene in unique(mut_data$SYMBOL) ) {
-  
     if ( gene %!in% rownames(gene.mut) ) {
         
       expr_data.z <- c(expr_data.z, min(expr_data.z))
@@ -2780,11 +2795,8 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
       
       ##### Deal with multiple mutations per gene
       if ( length(mut_data[ mut_data$SYMBOL %in% gene,  ]$CONSEQUENCE) > 1 ) {
-
         gene.mut <- rbind( gene.mut,  "multiple hits")
-
       } else {
-      
         gene.mut <- rbind( gene.mut,  mut_data[ mut_data$SYMBOL %in% gene,  ]$CONSEQUENCE )
       }
       rownames(gene.mut)[nrow(gene.mut)] <- gene
@@ -2811,7 +2823,6 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   colnames(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Perc_diff", "Alteration")
   
 } else {
-  
   ##### Skip the step for processing mutation info and deal with expression and copy-number data
   ##### Subset expression and copy-number data to include only overlapping genes
   genes.intersect <- intersect(cn_data$Gene, names(expr_data.z))
@@ -2830,6 +2841,9 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub)
   colnames(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Perc_diff")
 }
+
+##### Clean the space
+rm(cn_data, cn_data.sub, expr_data, gene.mut, mut_data, targets, expr_data.z, expr_data.perc, expr_data.z.sub, expr_data.perc.sub, expr_genes, gene.mut.sub, genes.intersect)
 ```
 
 ```{r cn_data_distribution, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
@@ -2857,43 +2871,45 @@ cn_dist_plot <- plot_ly(x = cn_data.all$MeanCopyNumber, type = 'histogram', name
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
+
+##### Clean the space
+rm(cn_data.all)
 ```
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-#read in the pizzly fusion calls
+##### Read in the pizzly fusion calls
 pizzly.fusions <- ref_genes.list[["pizzly"]]
 quant <- ref_genes.list[["kallisto"]]
-#sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
+
+##### Sort and filter quantification file on tpm values. First, grep only the transcript ids for fusion genes from quantification #file. Currently filtering on quantiles. Selected 0.997 because that reduces the #final fusion calls to the value we are #interested in (~15)
 quant.fusions.only.transcripts <- quant[grep(":", quant$target_id), ]
 quant.sorted.filtered <- dplyr::filter(dplyr::arrange(quant.fusions.only.transcripts, desc(quant.fusions.only.transcripts$tpm)), tpm >= (quantile(quant.fusions.only.transcripts$tpm, 0.9)))
 
-#initialize an empty dataframe
+##### Initialize an empty dataframe
 result <- data.frame()
 
-#let's try using for loop for iterating over pizzly.fusions dataframe and get transcriptID and fusion gene pair information.
-#can also filter quant.sorted.filtered$target_id to have only fusion gene target ids (that is two transcripts instead of one-
-#this will increase speed
-
+##### Let's try using for loop for iterating over pizzly.fusions dataframe and get transcriptID and fusion gene pair information.
+##### Can also filter quant.sorted.filtered$target_id to have only fusion gene target ids (that is two transcripts instead of one, this will increase speed
 for (row in 1:nrow(pizzly.fusions)){
   y <- strsplit(as.character(pizzly.fusions[row, "transcripts.list"]), "\\;")
   y <- unname(y)
   for (i in 1:length(y[[1]])){
     if (y[[1]][i] %in% quant.sorted.filtered$target_id){
-      #creating a new dataframe for the filtered pizzly results
+      
+      ##### Creating a new dataframe for the filtered pizzly results
       result <- rbind(result, data.frame(pizzly.fusions[row,]))
     }
   }
 }
 
-#remove duplicated values from result filtered using expression count (as multiple transcripts might support fusion between same gene) and sort the results by number of events (first by split count and then paircount)
+##### Remove duplicated values from result filtered using expression count (as multiple transcripts might support fusion between same gene) and sort the results by number of events (first by split count and then paircount)
 deduped.result <- unique(result)
 
 if ( nrow(deduped.result) > 0 ) {
-    
   idx <- order(deduped.result$splitcount, deduped.result$paircount, decreasing = TRUE)
   deduped.result <- deduped.result[idx, ]
   
-  #Extract only those fusion genes that are in cancer genes list
+  ##### Extract only those fusion genes that are in cancer genes list
   result.cancer_genes <- data.frame()
   for (row in 1:nrow(pizzly.fusions)){
     if(pizzly.fusions[row,"geneA.name"] %in% rownames(ref_genes.list[["genes_cancer"]]) | pizzly.fusions[row,"geneB.name"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
@@ -2905,12 +2921,11 @@ if ( nrow(deduped.result) > 0 ) {
   ##### Ordering pizzly's cancer genes results on the basis of read count values
   ##### Skip ordering if no of the fusion genes is a cancer gene
   if ( nrow(result.cancer_genes) > 0 ) {
-    
     idx2 <- order(result.cancer_genes$splitcount, result.cancer_genes$paircount, decreasing = TRUE)
     result.cancer_genes <- result.cancer_genes[idx2,]
   }
   
-  #extracting rows from pizzly results that are not in re-quant i.e. deduped.result or cancer genes list i.e. result.cancer_genes
+  ##### Extracting rows from pizzly results that are not in re-quant i.e. deduped.result or cancer genes list i.e. result.cancer_genes
   result.other_genes <- pizzly.fusions[ rownames(pizzly.fusions) %!in% c(rownames(result.cancer_genes), rownames(deduped.result)), ]
   
   ##### Ordering pizzly's other genes results on the basis of read count values
@@ -2920,7 +2935,7 @@ if ( nrow(deduped.result) > 0 ) {
     result.other_genes <- result.other_genes[idx3,]
   }
   
-  #combing all the three above sorted dataframes
+  ##### Combing all the three above sorted dataframes
   pizzly.fusions <- rbind(deduped.result, result.cancer_genes, result.other_genes)
   
   ##### Flag known fusions based on info from Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
@@ -2950,7 +2965,6 @@ if ( nrow(deduped.result) > 0 ) {
   ##### Add annotations about known fusion events
   ##### Loop through all genes involved in deteced gene fusions (pizzly results) and check which are already reported
   for ( i in 1:nrow(pizzly.fusions) ) {
-    
     geneA <- as.character(pizzly.fusions$geneA.name[i])
     geneB <- as.character(pizzly.fusions$geneB.name[i])
           
@@ -2979,40 +2993,32 @@ if ( nrow(deduped.result) > 0 ) {
       
     ##### Now check if any ofthe pizzly detected fusion genes are reported
     } else {
-      
       pizzly.fusions$reported_fusion[i] <- "-"
       
       ##### Check the Cancer Genome Interpreter (CGI) database first
       ##### Check pizzly genes A and genes A in reported fusions
       if ( geneA %in% known_translocations$geneA ) {
-        
         pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
         
       ##### Check pizzly genes A and genes B in reported fusions
       } else if ( geneA %in% known_translocations$geneB ) {
-        
         pizzly.fusions$reported_fusion_geneA[i] <- "Yes"
       }
       
       ##### Check pizzly genes B and genes A in reported fusions
       if ( geneB %in% known_translocations$geneA ) {
-        
         pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
         
       ##### Check pizzly genes B and genes B in reported fusions
       } else if ( geneB %in% known_translocations$geneB ) {
-        
         pizzly.fusions$reported_fusion_geneB[i] <- "Yes"
       }
       
       ##### Flag if any of the genes are effector gene
       if ( geneA %in% known_translocations$effector_gene  ) {
-            
         pizzly.fusions$effector_gene[i] <- geneA
-        
       } else if ( geneB == known_translocations$effector_gene  ) {
-            
-          pizzly.fusions$effector_gene[i] <- geneB
+        pizzly.fusions$effector_gene[i] <- geneB
       }
     }
   }
@@ -3040,7 +3046,6 @@ if ( nrow(deduped.result) > 0 ) {
   
   ##### Remove duplicated rows
   if ( any(duplicated(pizzly.fusions)) ) {
-    
     pizzly.fusions <- pizzly.fusions[ -c(which( duplicated(pizzly.fusions) )), ]
   }
   
@@ -3048,9 +3053,12 @@ if ( nrow(deduped.result) > 0 ) {
   pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, pizzly.fusions$fusions_abundant, pizzly.fusions$paircount, pizzly.fusions$splitcount, pizzly.fusions$fusions_cancer, pizzly.fusions$reported_fusion_geneA, pizzly.fusions$reported_fusion_geneB, decreasing = TRUE), ]
 
 } else {
-  
   runFusionChunk <- FALSE
 }
+
+##### Clean the space and return output
+rm(quant, quant.fusions.only.transcripts, known_translocations.CGI, known_translocations.FusionGDB, result, result.cancer_genes, result.other_genes)
+rm(list = ls(pattern='^idx*'))
 ```
 
 ```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
@@ -3062,7 +3070,8 @@ for (row in 1:nrow(deduped.result)){
   y <- unname(y)
   for (i in 1:length(y[[1]])){
     if (y[[1]][i] %in% quant.sorted.filtered$target_id){
-      #creating a new dataframe for the reads supporting individual transcript ID for each filtered fusion gene pair 
+      
+      ##### Creating a new dataframe for the reads supporting individual transcript ID for each filtered fusion gene pair 
       fusion_reads_inter <- data.frame(deduped.result[ row, names(deduped.result) %!in% "transcripts.list" ])
       fusion_reads_inter$transcriptID = y[[1]][i]
       tpm = quant.sorted.filtered[grep(y[[1]][i], quant.sorted.filtered$target_id), ]$tpm 
@@ -3074,6 +3083,9 @@ for (row in 1:nrow(deduped.result)){
 
 ##### Rearrange the table to move the transcripts list at the end
 fusion_reads <- fusion_reads %>% dplyr::select(-"transcriptID","transcriptID")
+
+##### Clean the space
+rm(deduped.result, quant.sorted.filtered, fusion_reads_inter)
 ```
 
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
@@ -3371,7 +3383,10 @@ Plot(s) below present `r params$transform` data distribution `r if ( params$filt
  
 ```{r data_transformation_present, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15) }
 data_transformation_nonfiltered
-data_transformation_filtered
+
+if ( params$filter ) {
+  data_transformation_filtered
+}
 ```
 
 **Data normalisation**
@@ -3382,7 +3397,10 @@ Box-plots below present `r params$transform` data for individual samples, colour
 
 ```{r data_normalisation_present, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15) }
 data_nonnormalised
-data_normalised
+
+if ( params$norm != "none" ) {
+  data_normalised
+}
 ```
 
 **Exploratory data analysis**
@@ -3458,6 +3476,10 @@ if ( nrow(sunburst.df) > 0 ) {
 ```{r findings_summary_all_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections 
 sunburst.all_plot
+```
+
+```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
+rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, sunburst_plot, sunburst.all_plot, data.annot)
 ```
 
 </details>
