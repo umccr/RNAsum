@@ -177,6 +177,8 @@ if ( is.na(opt$cn_gain)  ) {
 
 if ( is.na(opt$dataset_name_incl)  ) {
   dataset_name_incl <- ""
+} else if ( isFALSE(opt$dataset_name_incl)  ) {
+  dataset_name_incl <- ""
 } else {
   dataset_name_incl <- paste0(".", opt$dataset)
 }
