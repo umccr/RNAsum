@@ -33,6 +33,7 @@
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "95th percentile" of all CN values)
 #   clinical_info (optional): Location of xslx file with clinical information
 #   subject_id (optional):    Subject ID required to match sample with clinical information (specified in flag --clinical_info)
+#   dataset_name_incl:  Include dataset in the report name. Available options are: "TRUE" and "FALSE" (default)
 #   plots_mode:    Plotting mode. Available options are: "interactive" (default), "semi-interactive" and "static" 
 #   save_tables:   Save interactive summary tables as HTML. Available options are: "TRUE" and "FALSE" (default)
 #   hide_code_btn : Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (default) and "FALSE"
@@ -97,6 +98,8 @@ option_list = list(
               help="Location of xslx file with clinical information"),
   make_option(c("-i", "--subject_id"), action="store", default=NA, type='character',
               help="Sample ID"),
+  make_option(c("-w", "--dataset_name_incl"), action="store", default=NA, type='character',
+              help="Include dataset in the report name"),
   make_option(c("-p", "--plots_mode"), action="store", default=NA, type='character',
               help="Interactive (default), semi-interactive or static mode for plots"),
   make_option(c("-u", "--save_tables"), action="store", default=NA, type='character',
@@ -170,6 +173,12 @@ if ( is.na(opt$cn_loss)  ) {
 
 if ( is.na(opt$cn_gain)  ) {
   opt$cn_gain <- 95
+}
+
+if ( is.na(opt$dataset_name_incl)  ) {
+  dataset_name_incl <- ""
+} else {
+  dataset_name_incl <- paste0(".", opt$dataset)
 }
 
 if ( is.na(opt$plots_mode)  ) {
@@ -281,4 +290,4 @@ if ( opt$transform == "TPM" && opt$norm != "quantile" && opt$norm != "none" ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, ".", toupper(opt$dataset), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, plots_mode = tolower(opt$plots_mode), save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, dataset_name_incl = dataset_name_incl, plots_mode = tolower(opt$plots_mode), save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))

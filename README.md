@@ -183,6 +183,7 @@ Argument | Description | Required
 --cn_gain | CN threshold value to classify genes within gained regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `95th percentile` of all CN values) | No
 --clinical_info | Location of *xslx* file with clinical information (see [example](./data/test_data/test_clinical_data.xlsx) ) | No
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
+--dataset_name_incl | Include dataset in the report name. Available options are: `TRUE` and `FALSE` (default) | No
 --plots_mode | Plotting mode. Available options: `interactive` (all possible plots will be interactive; default) and `semi-interactive` (only plots in `Input data`, `CN altered genes`, `Immune markers` and `HRD genes` sections will be interactive) or `static` (all plots will be static) | No
 --save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` and `FALSE` (default) | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (default) and `FALSE` | No
