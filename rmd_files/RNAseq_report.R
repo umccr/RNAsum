@@ -116,7 +116,7 @@ opt = parse_args(OptionParser(option_list=option_list))
 if ( is.na(opt$sample_name) || is.na(opt$dataset) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
 
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\n")
 
   q()
 }
@@ -289,6 +289,12 @@ if ( opt$transform == "TPM" && opt$norm != "quantile" && opt$norm != "none" ) {
   
   cat(paste0("\nWrong normalisation method was selected! \"TMM\", \"TMMwzp\", \"RLE\", \"upperquartile\" or \"none\" methods are available for CPM-tansformed data.\n\n"))
   q()
+}
+
+##### Create user-defined directory for the report
+if ( !file.exists(opt$report_dir) ) {
+  
+  dir.create(opt$report_dir, recursive=TRUE)
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
