@@ -34,7 +34,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 23 | `TGCT`  | Testicular Germ Cell Tumours | 1 | **155** (verify)
 24 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
 25 | `THYM`  | Thymoma | 1 | **120** (verify)
-26 | `READ` | Rectum Adenocarcinoma | 1 | **96** (verify)
+26 | `READ` | Rectum Adenocarcinoma | 1 | **87**
 27 | `KICH`  | Kidney Chromophobe | 1 | **83** (verify)
 28 | `UVM`   | Uveal Melanoma | 1 | **80** (verify)
 29 | `MESO` | Mesothelioma | 1 | **78** (verify)
