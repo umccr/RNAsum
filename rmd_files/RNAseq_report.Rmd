@@ -2932,10 +2932,6 @@ deduped.result <- unique(result)
 if ( nrow(deduped.result) > 0 ) {
   idx <- order(deduped.result$splitcount, deduped.result$paircount, decreasing = TRUE)
   deduped.result <- deduped.result[idx, ]
-  
-  deduped.status <- TRUE
-} else {
-  deduped.status <- FALSE
 }
 
 ##### Extracting rows from pizzly results that are not in re-quant i.e. deduped.result or cancer genes list i.e. result.cancer_genes
@@ -3066,34 +3062,7 @@ if ( any(duplicated(pizzly.fusions)) ) {
 pizzly.fusions <- pizzly.fusions[ order(pizzly.fusions$reported_fusion, pizzly.fusions$fusions_abundant, pizzly.fusions$splitcount, pizzly.fusions$paircount, pizzly.fusions$fusions_cancer, pizzly.fusions$reported_fusion_geneA, pizzly.fusions$reported_fusion_geneB, decreasing = TRUE), ]
 
 ##### Clean the space and return output
-rm(quant, pizzly.fusion.candidates, pizzly.fusion.transcripts, quant.fusions.only.transcripts, known_translocations.CGI, known_translocations.FusionGDB, result, result.cancer_genes, result.other_genes)
-```
-
-```{r fusions_reads, comment = NA, message=TRUE, warning=FALSE, eval = deduped.status}
-##### Get the number of reads supporting fusions of interest
-fusion_reads <- data.frame()
-
-for (row in 1:nrow(deduped.result)){
-  y <- strsplit(as.character(deduped.result[row, "transcripts.list"]), "\\;")
-  y <- unname(y)
-  for (i in 1:length(y[[1]])){
-    if (y[[1]][i] %in% quant.sorted.filtered$target_id){
-      
-      ##### Creating a new dataframe for the reads supporting individual transcript ID for each filtered fusion gene pair 
-      fusion_reads_inter <- data.frame(deduped.result[ row, names(deduped.result) %!in% "transcripts.list" ])
-      fusion_reads_inter$transcriptID = y[[1]][i]
-      tpm = quant.sorted.filtered[grep(y[[1]][i], quant.sorted.filtered$target_id), ]$tpm 
-      fusion_reads_inter$tpm = tpm
-      fusion_reads <- rbind(fusion_reads, fusion_reads_inter)
-    }
-  }
-}
-
-##### Rearrange the table to move the transcripts list at the end
-fusion_reads <- fusion_reads %>% dplyr::select(-"transcriptID","transcriptID")
-
-##### Clean the space
-rm(deduped.result, quant.sorted.filtered, fusion_reads_inter)
+rm(quant, deduped.result, pizzly.fusion.transcripts, pizzly.fusion.candidates, quant.sorted.filtered, quant.fusions.only.transcripts, known_translocations.CGI, known_translocations.FusionGDB, result, result.cancer_genes, result.other_genes)
 ```
 
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
@@ -4142,17 +4111,24 @@ fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 ```
 
-```{r fusion_tables_1, comment = NA, message=TRUE, warning=FALSE, eval=deduped.status}
-##### Present a table with number of reads supporting this fusion
-##### Check if the fusion has abundant transcript(s)
-fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
+<details>
+<summary>Fusion transcripts list</summary>
 
-if( nrow(fusion_reads.top) !=0 ) {
-    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-    kable_styling(font_size = 12, "striped", "bordered") %>%
+```{r fusion_1_table, comment = NA, message=TRUE, warning=FALSE}
+##### List all fusion transcript candidates for given fusion event
+fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
+
+fusion_reads.selected <- fusion_reads.selected %>% 
+  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
+  unnest(transcripts.list) %>%
+  select(transcripts.list)
+
+kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-}
 ```
+
+</details>
 
 ***
 
@@ -4243,17 +4219,24 @@ fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 ```
 
-```{r fusion_tables_2, comment = NA, message=TRUE, warning=FALSE, eval=deduped.status}
-##### Present a table with number of reads supporting this fusion
-##### Check if the fusion has abundant transcript(s)
-fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
+<details>
+<summary>Fusion transcripts list</summary>
 
-if( nrow(fusion_reads.top) !=0 ) {
-    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-    kable_styling(font_size = 12, "striped", "bordered") %>%
+```{r fusion_2_table, comment = NA, message=TRUE, warning=FALSE}
+##### List all fusion transcript candidates for given fusion event
+fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
+
+fusion_reads.selected <- fusion_reads.selected %>% 
+  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
+  unnest(transcripts.list) %>%
+  select(transcripts.list)
+
+kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-}
 ```
+
+</details>
 
 ***
 
@@ -4344,16 +4327,18 @@ fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 ```
 
-```{r fusion_3_table, comment = NA, message=TRUE, warning=FALSE, eval=deduped.status}
-##### Present a table with number of reads supporting this fusion
-##### Check if the fusion has abundant transcript(s)
-fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
+```{r fusion_3_table, comment = NA, message=TRUE, warning=FALSE}
+##### List all fusion transcript candidates for given fusion event
+fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
 
-if( nrow(fusion_reads.top) !=0 ) {
-    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-    kable_styling(font_size = 12, "striped", "bordered") %>%
+fusion_reads.selected <- fusion_reads.selected %>% 
+  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
+  unnest(transcripts.list) %>%
+  select(transcripts.list)
+
+kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-}
 ```
 
 ***
@@ -4445,17 +4430,24 @@ fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 ```
 
-```{r fusion_4_table, comment = NA, message=TRUE, warning=FALSE, eval=deduped.status}
-##### Present a table with number of reads supporting this fusion
-##### Check if the fusion has abundant transcript(s)
-fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
+<details>
+<summary>Fusion transcripts list</summary>
 
-if( nrow(fusion_reads.top) !=0 ) {
-    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-    kable_styling(font_size = 12, "striped", "bordered") %>%
+```{r fusion_4_table, comment = NA, message=TRUE, warning=FALSE}
+##### List all fusion transcript candidates for given fusion event
+fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
+
+fusion_reads.selected <- fusion_reads.selected %>% 
+  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
+  unnest(transcripts.list) %>%
+  select(transcripts.list)
+
+kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-}
 ```
+
+</details>
 
 ***
 
@@ -4548,17 +4540,24 @@ fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
 clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
 ```
 
-```{r fusion_5_table, comment = NA, message=TRUE, warning=FALSE, eval=deduped.status}
-##### Present a table with number of reads supporting this fusion
-##### Check if the fusion has abundant transcript(s)
-fusion_reads.top <- fusion_reads[ fusion_reads$geneA.name == geneA & fusion_reads$geneB.name == geneB, ]
+<details>
+<summary>Fusion transcripts list</summary>
 
-if( nrow(fusion_reads.top) !=0 ) {
-    kable(fusion_reads.top, row.names = FALSE, caption = paste0("Number of reads supporting ", paste(geneA, geneB, sep="-"), " fusion")) %>%
-    kable_styling(font_size = 12, "striped", "bordered") %>%
+```{r fusion_5_table, comment = NA, message=TRUE, warning=FALSE}
+##### List all fusion transcript candidates for given fusion event
+fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
+
+fusion_reads.selected <- fusion_reads.selected %>% 
+  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
+  unnest(transcripts.list) %>%
+  select(transcripts.list)
+
+kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
+  kable_styling(font_size = 12, "striped", "bordered") %>%
     scroll_box(width = "100%")
-}
 ```
+
+</details>
 
 ***
 
