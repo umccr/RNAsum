@@ -28,7 +28,7 @@
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (default) and "FALSE"
 #   scaling:      Apply "gene-wise" (default) or "group-wise" data scaling
 #   umccrise (optional):  Location of the corresponding umccrise output from genomic-related data (including PCGR, PURPLE and Manta output files)
-#   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "3")
+#   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "4")
 #   cn_loss (optional):  CN threshold value to classify genes within lost regions (default is "5th percentile" of all CN values)
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "95th percentile" of all CN values)
 #   clinical_info (optional): Location of xslx file with clinical information
@@ -167,7 +167,7 @@ if ( is.na(opt$scaling)  ) {
 }
 
 if ( is.na(opt$pcgr_tier)  ) {
-  opt$pcgr_tier <- 3
+  opt$pcgr_tier <- 4
 }
 
 if ( is.na(opt$cn_loss)  ) {
