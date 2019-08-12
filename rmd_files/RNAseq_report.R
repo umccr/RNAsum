@@ -29,6 +29,7 @@
 #   scaling:      Apply "gene-wise" (default) or "group-wise" data scaling
 #   umccrise (optional):  Location of the corresponding umccrise output from genomic-related data (including PCGR, PURPLE and Manta output files)
 #   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "4")
+#   pcgr_splice_vars (optional): Include non-coding splice region variants reported in PCGR. Available options are: "TRUE" (default) and "FALSE" 
 #   cn_loss (optional):  CN threshold value to classify genes within lost regions (default is "5th percentile" of all CN values)
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "95th percentile" of all CN values)
 #   clinical_info (optional): Location of xslx file with clinical information
@@ -91,6 +92,8 @@ option_list = list(
               help="Location of the corresponding WGS-related data"),
   make_option(c("-j", "--pcgr_tier"), action="store", default=NA, type='character',
               help="Tier threshold for reporting variants reported in PCGR"),
+  make_option(c("-y", "--pcgr_splice_vars"), action="store", default=NA, type='character',
+              help="Include non-coding splice region variants reported in PCGR"),
   make_option(c("-a", "--cn_loss"), action="store", default=NA, type='character',
               help="CN threshold value to classify genes within lost regions"),
   make_option(c("-b", "--cn_gain"), action="store", default=NA, type='character',
@@ -120,7 +123,6 @@ if ( is.na(opt$sample_name) || is.na(opt$dataset) || is.na(opt$count_file) || is
 
   cat("\nPlease type in required arguments!\n\n")
   cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\n")
-
   q()
 }
 
@@ -168,6 +170,10 @@ if ( is.na(opt$scaling)  ) {
 
 if ( is.na(opt$pcgr_tier)  ) {
   opt$pcgr_tier <- 4
+}
+
+if ( is.na(opt$pcgr_splice_vars)  ) {
+  opt$pcgr_splice_vars <- as.logical(TRUE)
 }
 
 if ( is.na(opt$cn_loss)  ) {
@@ -305,4 +311,4 @@ if ( !file.exists(opt$report_dir) ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, dataset_name_incl = dataset_name_incl, plots_mode = tolower(opt$plots_mode), save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), top_genes = as.numeric(opt$top_genes), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, dataset_name_incl = dataset_name_incl, plots_mode = tolower(opt$plots_mode), save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), pcgr_splice_vars = as.logical(opt$pcgr_splice_vars), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), top_genes = as.numeric(opt$top_genes), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
