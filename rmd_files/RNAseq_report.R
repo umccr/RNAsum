@@ -173,7 +173,7 @@ if ( is.na(opt$pcgr_tier)  ) {
 }
 
 if ( is.na(opt$pcgr_splice_vars)  ) {
-  opt$pcgr_splice_vars <- as.logical(TRUE)
+  opt$pcgr_splice_vars <- TRUE
 }
 
 if ( is.na(opt$cn_loss)  ) {
