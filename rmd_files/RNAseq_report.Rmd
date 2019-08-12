@@ -1280,9 +1280,16 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
       names(group.z)[ match("Diff", names(group.z)) ] <- paste0("Patient vs ", comp_cancer)
   }
   
+  ##### Define table height
+  if ( nrow(group.z) == 2 ) {
+    table_height <- 230
+  } else {
+    table_height <- NULL
+  }
+  
   ##### Generate a table with genes annotations and coloured expression values in each group
   if ( !is.null(cn_data) ) {
-    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, height = NULL, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, height = table_height, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = '12px', 'text-align' = 'center' ) %>%
       
       ##### Colour cells according to the expression values quantiles in each group
@@ -1298,7 +1305,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
     
   ##### Generate a table with genes annotations and coloured expression values in each group
   } else {
-    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, height = NULL, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, height = table_height, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = '12px', 'text-align' = 'center' ) %>%
       
       ##### Colour cells according to the expression values quantiles in each group
@@ -3480,7 +3487,7 @@ rm(summary_table.df)
 
 ## Mutated genes
 
-mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer cohorts. NOTE, only PCGR [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` `r if ( params$pcgr_splice_vars ) { cat("and non-coding splice region " ) }` variants are reported.
+mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer cohorts. NOTE, only PCGR [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` `r if ( params$pcgr_splice_vars ) { c("and non-coding splice region " ) }` variants are reported.
 
 Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
@@ -3832,16 +3839,15 @@ suppressMessages(library(plotly))
 ##### Provide detailed expression info for the top ranked fusion events
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
+genes <- as.character(pizzly.fusions$geneA.name)
 
-##### Create lists to stor 
+##### Create lists to store
 output_A <- list()
 output_B <- list()
 output_transcripts <- list()
 output_table_Z <- list()
 output_table_perc <- list()
 clinker_fusions <- NULL
-
-genes <- as.character(pizzly.fusions$geneA.name)
 
 ##### Deal with no genes or when more than 10 genes are of interest
 if ( length(genes) == 0 ) {
@@ -3910,6 +3916,7 @@ for( i in 1:genes_no ) {
 
     ##### Convert the fusion clinker plots from pdf to png and present it in the report
     fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+    cat(paste0("![](", paste(dataDir, "clinker", paste0(geneA, "_", geneB), sep="/"), ".png)"), "\n")
   }
     
   ##### List all fusion transcript candidates for given fusion event along with corresponding breakpoints
