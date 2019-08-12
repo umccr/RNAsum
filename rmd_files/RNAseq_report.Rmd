@@ -3869,7 +3869,7 @@ for( i in 1:genes_no ) {
       unnest(transcripts.list) %>%
       dplyr::select(transcripts.list)
     
-    output_transcripts[[length(output_transcripts) + 1]] <- DT::datatable( data = fusion_reads.selected, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 400, height = 260, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+    output_transcripts[[length(output_transcripts) + 1]] <- DT::datatable( data = fusion_reads.selected, filter="none", rownames = TRUE, extensions = c('Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', scrollX = FALSE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 400, height = 195, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_reads.selected), `font-size` = '12px', 'text-align' = 'center' )
     
   if ( geneA %in% rownames(data) && geneB %in% rownames(data) ) {
@@ -3907,13 +3907,9 @@ for( i in 1:genes_no ) {
     
     ##### List fusion events for which Clinker plot is available (for PIEdb portal)
     clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
-    
-    #pdf(paste0(paste(dataDir, "clinker", paste0(geneA, "-", geneB, ".pdf"), sep="/")) , useDingbats=FALSE)
-    
-    #dev.off()
-    
+
     ##### Convert the fusion clinker plots from pdf to png and present it in the report
-    #fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+    fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
   }
     
   ##### List all fusion transcript candidates for given fusion event along with corresponding breakpoints
@@ -3927,9 +3923,7 @@ for( i in 1:genes_no ) {
   cat("\nmRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.\n")
     
   if ( geneA %in% rownames(data) && geneB %in% rownames(data) ) {
-    cat(renderTags(output_A[[i]])$html)
-    cat(renderTags(output_B[[i]])$html)
-    
+    cat("\n##### - Summary table  {.tabset}\n")
     cat("\n###### Z-scores\n")
     cat(renderTags(output_table_Z[[i]])$html)
     cat("\n<details>")
@@ -3948,6 +3942,10 @@ for( i in 1:genes_no ) {
     cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. TSG - tumour suppressor gene")
     cat("</font>")
     cat("</details>\n")
+    
+    cat("\n##### - Expression profiles\n")
+    cat(renderTags(output_A[[i]])$html)
+    cat(renderTags(output_B[[i]])$html)
     cat("\n***\n")
   } else {
     cat("Expression data is not available for one of the genes.")
