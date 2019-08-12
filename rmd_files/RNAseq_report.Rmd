@@ -29,10 +29,12 @@ params:
   umccrise: '../data/test_data/umccrised/test_sample_WGS'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   subject_id: 'test.subject'
+  top_genes: 10
   plots_mode: 'interactive'
   save_tables: FALSE
   hide_code_btn: TRUE
-  pcgr_tier: 3
+  pcgr_tier: 4
+  pcgr_splice_vars: TRUE
   cn_loss: 5
   cn_gain: 95
   grch_version: 37
@@ -631,7 +633,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   ##### Generate interactive CDF plot with plotly
   ##### Include the internal reference cohort in the plot
   if ( comp_cancer == int_cancer ) {
-    p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black")) %>%
+    p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black"), width = 700, height = 200) %>%
     
       ##### Add sample data
       add_markers(y = group.z.gene[[ sampleName ]]$cum, x = group.z.gene[[ sampleName ]]$z,
@@ -689,7 +691,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   
   ##### Skip the internal reference cohort in the plot
   } else {
-    p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black")) %>%
+    p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black"), width = 700, height = 200) %>%
   
     ##### Add sample data
     add_markers(y = group.z.gene[[ sampleName ]]$cum, x = group.z.gene[[ sampleName ]]$z,
@@ -1280,7 +1282,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   
   ##### Generate a table with genes annotations and coloured expression values in each group
   if ( !is.null(cn_data) ) {
-    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, height = NULL, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = '12px', 'text-align' = 'center' ) %>%
       
       ##### Colour cells according to the expression values quantiles in each group
@@ -1296,7 +1298,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
     
   ##### Generate a table with genes annotations and coloured expression values in each group
   } else {
-    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, height = NULL, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = '12px', 'text-align' = 'center' ) %>%
       
       ##### Colour cells according to the expression values quantiles in each group
@@ -1312,6 +1314,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
   
   ##### Clean the space and return output
   rm(genes, data, cn_data, sv_data, targets, sampleName, genes_annot, oncokb_annot, cancer_genes, mut_annot, fusion_genes, genes.absent, targets.list, group.stats, brks.q, clrs.q)
+  
   return( list(dt.table,  group.z) )
 }
 
@@ -1711,7 +1714,6 @@ suppressMessages(library(dplyr))
 suppressMessages(library(tidyr))
 suppressMessages(library(rlang))
 suppressMessages(library(DT))
-suppressMessages(library(kableExtra))
 suppressMessages(library(matrixStats))
 suppressMessages(library(tibble))
 suppressMessages(library(knitr))
@@ -1827,7 +1829,6 @@ ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$ge
 pizzly_file <- paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/")
 pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(sampleName, "-flat-filtered.tsv"), sep = "/")
 runFusionChunk <- TRUE
-runClinkerChunk <- FALSE
 
 if ( file.exists(pizzly_file) ) {
   ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file, header = TRUE)
@@ -2079,8 +2080,13 @@ rm(genes_cancer)
 # PCGR annotation of mutated genes in given patient based on PCGR report, including only those with variants classified according to user-defined tier
 if ( runPcgrChunk ) {
   ref_genes.list[["summary"]]$Mutated <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
+  
+  ##### Include splice region variants
+  if ( params$pcgr_splice_vars ) {
+    ref_genes.list[["summary"]]$Mutated <- unique( c(ref_genes.list[["summary"]]$Mutated,  ref_genes.list[["pcgr"]][ grepl("NONCODING.*splice region", paste0(ref_genes.list[["pcgr"]]$TIER, ".", ref_genes.list[["pcgr"]]$CONSEQUENCE), fixed = FALSE), ]$SYMBOL) )
+  }
 }
-
+    
 # PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
 if ( runFusionChunk ) {
   ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(ref_genes.list[["pizzly"]]$geneA.name), as.character(ref_genes.list[["pizzly"]]$geneB.name)))
@@ -3349,7 +3355,7 @@ counts_vs_transformed
 
 Plot(s) below present `r params$transform` data distribution `r if ( params$filter ) { c(" before and after filtering genes with low counts.") } else { cat(".")}`
  
-```{r data_transformation_present, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15) }
+```{r data_transformation_display, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15) }
 data_transformation_nonfiltered
 
 if ( params$filter ) {
@@ -3363,7 +3369,7 @@ During the sample preparation or sequencing process, external factors that are n
 
 Box-plots below present `r params$transform` data for individual samples, coloured by sample groups, before and after `r params$norm` normalisation.
 
-```{r data_normalisation_present, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15) }
+```{r data_normalisation_display, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15) }
 data_nonnormalised
 
 if ( params$norm != "none" ) {
@@ -3379,11 +3385,11 @@ Principal component analysis (PCA) was performed to reduce the dimensionality of
 
 Scatter plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.
 
-```{r pca_combined_data_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
+```{r pca_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[2]]
 ```
 
-```{r pca_batch_effect_corrected_present, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm, fig.width = 8, fig.height = 8 }
+```{r pca_batch_effect_corrected_display, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm, fig.width = 8, fig.height = 8 }
 ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 ```
 
@@ -3391,13 +3397,13 @@ ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 
 Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. 
 
-```{r scree_combined_data_present, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
+```{r scree_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[3]]
 ```
 
 `r if ( params$batch_rm ) { cat("* After batch-effects correction") } else { cat(" ") }`
 
-```{r scree_batch_effect_corrected_present, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm, fig.width = 12, fig.height = 5 }
+```{r scree_batch_effect_corrected_display, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm, fig.width = 12, fig.height = 5 }
 ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
 ```
 
@@ -3480,25 +3486,25 @@ Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } els
 
 ### - Summary table {.tabset}
 
-Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL))` include [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants. Of these, the expression of **`r length(which(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which((unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL))` include [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants `r if ( params$pcgr_splice_vars ) { cat(paste0("and ", length(ref_genes.list[["summary"]]$Mutated) - length(unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)), " non-coding splice region variant" )) }`. Of these, the expression of **`r length(which(ref_genes.list[["summary"]]$Mutated %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["summary"]]$Mutated %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Z-scores
 
-```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
+```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk, results = "asis"}
 ##### Generate expression summary table for mutated genes (based on PCGR report)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Consider only genes with mutations calssified within user-defined tiers
-genes <- unique(ref_genes.list[["pcgr"]][ ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
+genes <- ref_genes.list[["summary"]]$Mutated
 
 ##### Deal with no genes or when more than 10 genes are of interest
 if ( length(genes) == 0 ) {
   genes <- NULL
   limit_genes <- FALSE
-} else if ( length(genes) > 10 ) {
+} else if ( length(genes) > params$top_genes ) {
   limit_genes <- TRUE
-  genes_no <- 10
+  genes_no <- params$top_genes
 } else {
   limit_genes <- FALSE
   genes_no <- length(genes)
@@ -3623,8 +3629,6 @@ The following steps were performed to define **abundant transcripts** involved i
 
 Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-***
-
 ### - Summary
 
 Out of the `r if ( runFusionChunk ) { nrow(pizzly.fusions.cut) } else { c("0") }` fusion event(s) <span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involve **DNA-supported** fusion genes (see [Structural variants] section), <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, <span style="color:#0000ff">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_abundant == "Yes" , ]) } else { c("0") }`**</span> contain **highly abundant** fusion transcript(s) and <span style="color:#767689">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$fusions_cancer == "Yes" , ]) } else { c("0") }`**</span> involve **[Cancer genes]**.
@@ -3673,14 +3677,7 @@ if ( runFusionChunk ) {
     
   ##### Present gene fusion events in a table
   pizzly.fusions.summary <- DT::datatable( data = pizzly.fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
-      DT::formatStyle( columns = names(pizzly.fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
-    
-      ##### Highlight rows with fusions involving hihgly abundant transcripts (red), cancer genes (blue) or DNA support (from MANTA)
-      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Abundant transcript(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightblue')) ) %>%
-      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
-      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
-      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "DNA support (gene B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
-      DT::formatStyle( columns = colnames(pizzly.fusions.table) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
+      DT::formatStyle( columns = names(pizzly.fusions.table), `font-size` = '12px', 'text-align' = 'center' )
   
   pizzly.fusions.summary
 }
@@ -3727,8 +3724,6 @@ Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusio
 <span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$geneA_dna_support == "Yes" | pizzly.fusions.cut$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(pizzly.fusions.cut[ pizzly.fusions.cut$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
-
-**`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
 
 ```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
 ##### Keep only fusions with abundant transcript(s) or cancer gene(s) involved
@@ -3832,7 +3827,142 @@ Expression profiles for gene fusion events involving **DNA-supported fusion** ge
 
 <span style="color:#ff0000">NOTE</span>: the *Fusion genes visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
-**`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
+```{r top_hits_fusions, echo=FALSE, comment = NA, message=FALSE, warning=FALSE}
+suppressMessages(library(plotly))
+##### Provide detailed expression info for the top ranked fusion events
+targets <- ref_dataset.list[[dataset]][["sample_annot"]]
+data <- ref_dataset.list[[dataset]][["data_to_report"]]
+
+##### Create lists to stor 
+output_A <- list()
+output_B <- list()
+output_transcripts <- list()
+output_table_Z <- list()
+output_table_perc <- list()
+clinker_fusions <- NULL
+
+genes <- as.character(pizzly.fusions$geneA.name)
+
+##### Deal with no genes or when more than 10 genes are of interest
+if ( length(genes) == 0 ) {
+  genes <- NULL
+} else if ( length(genes) > params$top_genes ) {
+  genes_no <- params$top_genes
+} else {
+  genes_no <- length(genes)
+}
+
+##### Add genes B to the fusions gene list
+genes <- c(genes, as.character(pizzly.fusions$geneB.name))
+
+##### Collect info and plots for each of the top fusions
+for( i in 1:genes_no ) {
+  
+  geneA <- as.vector(pizzly.fusions$geneA.name[i])
+  geneB <- as.vector(pizzly.fusions$geneB.name[i])
+  
+  ##### List all fusion transcript candidates for given fusion event along with corresponding breakpoints
+  fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
+    
+    fusion_reads.selected <- fusion_reads.selected %>% 
+      transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
+      unnest(transcripts.list) %>%
+      dplyr::select(transcripts.list)
+    
+    output_transcripts[[length(output_transcripts) + 1]] <- DT::datatable( data = fusion_reads.selected, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 400, height = 260, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(fusion_reads.selected), `font-size` = '12px', 'text-align' = 'center' )
+    
+  if ( geneA %in% rownames(data) && geneB %in% rownames(data) ) {
+    
+    ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
+    ##### Gene A
+    output_A[[length(output_A) + 1]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    
+    ##### Gene B
+    output_B[[length(output_B) + 1]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    
+    ##### Generate expression summary tables
+    genes <- c(geneA, geneB)
+    
+    ##### Z-scores
+    output_table_Z[[length(output_table_Z) + 1]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+    
+    ##### Percentiles
+    output_table_perc[[length(output_table_perc) + 1]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+  }
+}
+```
+
+```{r top_hits_fusions_display, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk, results="asis"}
+##### Now once the plots are ready show them in separate tabs
+for( i in 1:genes_no ) {
+  geneA <- as.vector(pizzly.fusions$geneA.name[i])
+  geneB <- as.vector(pizzly.fusions$geneB.name[i])
+  
+  cat("\n#### ", paste(pizzly.fusions$geneA.name[i], pizzly.fusions$geneB.name[i], sep="-"), "\n")
+  
+  ##### Check if clinker fusion plot exists. Skip this section if it doesn't
+  if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
+    cat("\n##### Fusion genes visualisation\n")
+    
+    ##### List fusion events for which Clinker plot is available (for PIEdb portal)
+    clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
+    
+    #pdf(paste0(paste(dataDir, "clinker", paste0(geneA, "-", geneB, ".pdf"), sep="/")) , useDingbats=FALSE)
+    
+    #dev.off()
+    
+    ##### Convert the fusion clinker plots from pdf to png and present it in the report
+    #fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
+  }
+    
+  ##### List all fusion transcript candidates for given fusion event along with corresponding breakpoints
+  cat("\n<details>\n")
+  cat("\n<summary>Fusion transcripts list</summary>\n")
+  cat(renderTags(output_transcripts[[i]])$html)
+  cat("</details>\n")
+  cat("\n***\n")
+  
+  cat("\n##### Fusion genes expression  {.tabset}\n")
+  cat("\nmRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.\n")
+    
+  if ( geneA %in% rownames(data) && geneB %in% rownames(data) ) {
+    cat(renderTags(output_A[[i]])$html)
+    cat(renderTags(output_B[[i]])$html)
+    
+    cat("\n###### Z-scores\n")
+    cat(renderTags(output_table_Z[[i]])$html)
+    cat("\n<details>")
+    cat("<summary>Table legend</summary>")
+    cat("<font size=\"2\">")
+    cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ",  comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. TSG - tumour suppressor gene\n"))
+    cat("</font>")
+    cat("</details>\n")
+    cat("\n***\n")
+    
+    cat("\n###### Percentiles\n")
+    cat(renderTags(output_table_perc[[i]])$html)
+    cat("<details>")
+    cat("<summary>Table legend</summary>")
+    cat("<font size=\"2\">")
+    cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. TSG - tumour suppressor gene")
+    cat("</font>")
+    cat("</details>\n")
+    cat("\n***\n")
+  } else {
+    cat("Expression data is not available for one of the genes.")
+  }
+}
+
+##### Write list of fusion events for which Clinker plot is available into a file
+write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+
+##### Clean the space
+rm(list = ls(pattern='^output*'))
+```
 
 #### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[1]) ) { paste(pizzly.fusions$geneA.name[1], pizzly.fusions$geneB.name[1], sep="-") }}`
 
@@ -3862,31 +3992,6 @@ clinker_fusions <- ""
 ```
 
 ##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
-
-```{r fusion_1_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
-clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
-```
-
-<details>
-<summary>Fusion transcripts list</summary>
-
-```{r fusion_1_table, comment = NA, message=TRUE, warning=FALSE}
-##### List all fusion transcript candidates for given fusion event
-fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
-
-fusion_reads.selected <- fusion_reads.selected %>% 
-  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
-  unnest(transcripts.list) %>%
-  dplyr::select(transcripts.list)
-
-kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-    scroll_box(width = "100%")
-```
-
-</details>
 
 ***
 
@@ -3944,428 +4049,6 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[2]) ) { paste(pizzly.fusions$geneA.name[2], pizzly.fusions$geneB.name[2], sep="-") }}`
-
-```{r fusion_2_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
-##### Convert the fusion image from pdf to png and present it in the report
-geneA <- as.vector(pizzly.fusions$geneA.name[2])
-geneB <- as.vector(pizzly.fusions$geneB.name[2])
-
-if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
-  runFusionChunk <- TRUE
-} else {
-  cat("Expression data is not available for one of the genes.")
-  runFusionChunk <- FALSE
-}
-
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
-  runClinkerChunk <- TRUE
-} else {
-  runClinkerChunk <- FALSE
-}
-```
-
-##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
-
-```{r fusion_2_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
-clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
-```
-
-<details>
-<summary>Fusion transcripts list</summary>
-
-```{r fusion_2_table, comment = NA, message=TRUE, warning=FALSE}
-##### List all fusion transcript candidates for given fusion event
-fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
-
-fusion_reads.selected <- fusion_reads.selected %>% 
-  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
-  unnest(transcripts.list) %>%
-  dplyr::select(transcripts.list)
-
-kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-    scroll_box(width = "100%")
-```
-
-</details>
-
-***
-
-##### Fusion genes expression {.tabset}
-
-mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
-
-```{r fusion_2_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-###### Z-scores
-
-```{r fusion_2_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_dataset.list[[dataset]][["gene_annot"]]
-fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-genes = fusion.df$SYMBOL
-  
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-###### Percentiles
-
-```{r fusion_2_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[3]) ) { paste(pizzly.fusions$geneA.name[3], pizzly.fusions$geneB.name[3], sep="-") }}`
-
-```{r fusion_3_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
-##### Convert the fusion image from pdf to png and present it in the report
-geneA <- as.vector(pizzly.fusions$geneA.name[3])
-geneB <- as.vector(pizzly.fusions$geneB.name[3])
-
-if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
-  runFusionChunk <- TRUE
-} else {
-  cat("Expression data is not available for one of the genes.")
-  runFusionChunk <- FALSE
-}
-
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
-  runClinkerChunk <- TRUE
-} else {
-  runClinkerChunk <- FALSE
-}
-```
-
-##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
-
-```{r fusion_3_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
-clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
-```
-
-<details>
-<summary>Fusion transcripts list</summary>
-
-```{r fusion_3_table, comment = NA, message=TRUE, warning=FALSE}
-##### List all fusion transcript candidates for given fusion event
-fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
-
-fusion_reads.selected <- fusion_reads.selected %>% 
-  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
-  unnest(transcripts.list) %>%
-  dplyr::select(transcripts.list)
-
-kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-    scroll_box(width = "100%")
-```
-
-</details>
-
-***
-
-##### Fusion genes expression {.tabset}
-
-mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
-
-```{r fusion_3_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-###### Z-scores
-
-```{r fusion_3_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_dataset.list[[dataset]][["gene_annot"]]
-fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-genes = fusion.df$SYMBOL
-  
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-###### Percentiles
-
-```{r fusions_3_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[4]) ) { paste(pizzly.fusions$geneA.name[4], pizzly.fusions$geneB.name[4], sep="-") }}`
-
-```{r fusion_4_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
-##### Convert the fusion image from pdf to png and present it in the report
-geneA <- as.vector(pizzly.fusions$geneA.name[4])
-geneB <- as.vector(pizzly.fusions$geneB.name[4])
-
-if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
-  runFusionChunk <- TRUE
-} else {
-  cat("Expression data is not available for one of the genes.")
-  runFusionChunk <- FALSE
-}
-
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
-  runClinkerChunk <- TRUE
-} else {
-  runClinkerChunk <- FALSE
-}
-```
-
-##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }`  
-
-```{r fusion_4_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
-clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
-```
-
-<details>
-<summary>Fusion transcripts list</summary>
-
-```{r fusion_4_table, comment = NA, message=TRUE, warning=FALSE}
-##### List all fusion transcript candidates for given fusion event
-fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
-
-fusion_reads.selected <- fusion_reads.selected %>% 
-  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
-  unnest(transcripts.list) %>%
-  dplyr::select(transcripts.list)
-
-kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-    scroll_box(width = "100%")
-```
-
-</details>
-
-***
-
-##### Fusion genes expression {.tabset}
-
-mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
-
-```{r fusion_4_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-###### Z-scores
-
-```{r fusion_4_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_dataset.list[[dataset]][["gene_annot"]]
-fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-genes = fusion.df$SYMBOL
-  
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-###### Percentiles
-
-```{r fusion_4_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName  = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes  = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentile in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-#### `r if ( runFusionChunk ) { if ( !is.na(pizzly.fusions$geneA.name[5]) ) { paste(pizzly.fusions$geneA.name[5], pizzly.fusions$geneB.name[5], sep="-") }}`
-
-```{r fusion_5_process, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
-##### Convert the fusion image from pdf to png and present it in the report
-geneA <- as.vector(pizzly.fusions$geneA.name[5])
-geneB <- as.vector(pizzly.fusions$geneB.name[5])
-
-if ( !is.na(geneA) && !is.na(geneB) && geneA %in% rownames(data) && geneB %in% rownames(data) ) {
-  runFusionChunk <- TRUE
-} else {
-  cat("Expression data is not available for one of the genes.")
-  runFusionChunk <- FALSE
-}
-
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-if ( file.exists(paste0(dataDir, "/clinker/", geneA, "_", geneB, ".pdf")) ) {
-  runClinkerChunk <- TRUE
-} else {
-  runClinkerChunk <- FALSE
-}
-
-##### Write list of fusion events for which Clinker plot is available into a file
-write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-```
-
-##### `r if ( runClinkerChunk ) { c("Fusion genes visualisation") } else { c("") }` 
-
-```{r fusion_5_plot, comment = NA, message=TRUE, warning=FALSE, eval=runClinkerChunk}
-##### Check if clinker fusion plot exists. Skip this section if it doesn't
-fusion_png(geneA, geneB, paste(dataDir, "clinker", sep="/") )
-clinker_fusions <- c(clinker_fusions, paste0(geneA, "-", geneB))
-```
-
-<details>
-<summary>Fusion transcripts list</summary>
-
-```{r fusion_5_table, comment = NA, message=TRUE, warning=FALSE}
-##### List all fusion transcript candidates for given fusion event
-fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
-
-fusion_reads.selected <- fusion_reads.selected %>% 
-  transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
-  unnest(transcripts.list) %>%
-  dplyr::select(transcripts.list)
-
-kable(fusion_reads.selected, row.names = FALSE, col.names = "", caption = paste0("List of ", paste(geneA, geneB, sep="-"), " fusion transcripts")) %>%
-  kable_styling(font_size = 12, "striped", "bordered") %>%
-    scroll_box(width = "100%")
-```
-
-</details>
-
-***
-
-##### Fusion genes expression {.tabset}
-
-mRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.
-
-```{r fusion_5_cdf_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk}
-suppressMessages(library(plotly))
-##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
-cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-***
-
-###### Z-scores
-
-```{r fusion_5_gene_table, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-fusion.df <- ref_dataset.list[[dataset]][["gene_annot"]]
-fusion.df <- rbind(fusion.df[fusion.df$SYMBOL==geneA, ], fusion.df[fusion.df$SYMBOL==geneB, ])
-genes = fusion.df$SYMBOL
-
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-###### Percentiles
-
-```{r fusion_5_gene_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
 ## Structural variants
 
 mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
@@ -4394,9 +4077,9 @@ genes <- genes[ genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBO
 if ( length(genes) == 0 ) {
   genes <- NULL
   limit_genes <- FALSE
-} else if ( length(genes) > 10 ) {
+} else if ( length(genes) > params$top_genes ) {
   limit_genes <- TRUE
-  genes_no <- 10
+  genes_no <- params$top_genes
 } else {
   limit_genes <- FALSE
   genes_no <- length(genes)
@@ -4677,8 +4360,8 @@ genes_gains = as.character(cn_genes[ cn_genes %in% rownames(cn_data) ])
 if ( length(genes_gains) == 0 ) {
   genes_gains <- NULL
   genes_gains_no <- 0
-} else if ( length(genes_gains) > 10 ) {
-  genes_gains_no <- 10
+} else if ( length(genes_gains) > params$top_genes ) {
+  genes_gains_no <- params$top_genes
 } else {
   genes_gains_no <- length(genes_gains)
 }
@@ -4767,13 +4450,13 @@ genes_losses = as.character(cn_genes[ cn_genes %in% rownames(cn_data) ])
 if ( length(genes_losses) == 0 ) {
   genes_losses <- NULL
   genes_losses_no <- 0
-} else if ( length(genes_losses) > 10 ) {
-  genes_losses_no <- 10
+} else if ( length(genes_losses) > params$top_genes ) {
+  genes_losses_no <- params$top_genes
 } else {
   genes_losses_no <- length(genes_losses)
 }
   
-if ( genes_gains_no + genes_losses_no > 10 ) {
+if ( genes_gains_no + genes_losses_no > params$top_genes ) {
   limit_genes <- TRUE
 } else {
   limit_genes <- FALSE
@@ -4915,7 +4598,7 @@ rm(output)
 
 Section presenting expression levels of immune markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune markers the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["summary"]]$Immune %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["summary"]]$Immune %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -5045,7 +4728,7 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 Section presenting expression levels of homologous recombination deficiency (HRD) genes to assess how many of these demonstrate low expression, which may indicate potential promoter methylation events. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["summary"]]$HRD %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -5308,7 +4991,7 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 List of drugs targeting variants in detected [Mutated genes], dysregulated [Cancer genes], [Fusion genes], [Structural variants]-affected genes and [CN altered genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
 
-### Mutated genes
+### - Mutated genes -
 
 Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
@@ -5368,7 +5051,7 @@ cat(drugsTable_legend)
 
 ***
 
-### Fusion genes {.tabset}
+### - Fusion genes -
 
 Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
@@ -5393,7 +5076,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
 <summary>Table legend</summary>
 <font size="2">
 
-```{r drugsTable_legend_mut_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_fusion_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
 cat(drugsTable_legend)
 ```
 
@@ -5402,7 +5085,7 @@ cat(drugsTable_legend)
 
 ***
 
-### Structural variants
+### - Structural variants -
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
@@ -5426,7 +5109,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
 <summary>Table legend</summary>
 <font size="2">
 
-```{r drugsTable_legend_mut_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_sv_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
 cat(drugsTable_legend)
 ```
 
@@ -5435,7 +5118,7 @@ cat(drugsTable_legend)
 
 ***
 
-### CN altered genes {.tabset}
+### - CN altered genes - {.tabset}
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
@@ -5443,7 +5126,7 @@ CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } 
 
 #### Gains
 
-```{r drugs_predictive_CN_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+```{r drugs_predictive_cn_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
@@ -5461,7 +5144,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
 <summary>Table legend</summary>
 <font size="2">
 
-```{r drugsTable_legend_mut_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_cn_gains_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
 cat(drugsTable_legend)
 ```
 
@@ -5472,7 +5155,7 @@ cat(drugsTable_legend)
 
 #### Losses
 
-```{r drugs_predictive_CN_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+```{r drugs_predictive_cn_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
@@ -5490,7 +5173,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
 <summary>Table legend</summary>
 <font size="2">
 
-```{r drugsTable_legend_mut_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_cn_losses_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
 cat(drugsTable_legend)
 ```
 
@@ -5499,7 +5182,7 @@ cat(drugsTable_legend)
 
 ***
 
-### HRD genes
+### - HRD genes -
 
 **`r length(which(hrd_genes.expr.z[[2]]$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** reliably measured [HRD genes] were screened for suitable drugs (see [HRD genes] section).
 
@@ -5521,7 +5204,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
 <summary>Table legend</summary>
 <font size="2">
 
-```{r drugsTable_legend_mut_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_hrd_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
 cat(drugsTable_legend)
 ```
 
@@ -5530,7 +5213,7 @@ cat(drugsTable_legend)
 
 ***
 
-### Cancer genes
+### - Cancer genes -
 
 **50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients were screened for suitable drugs (see [Cancer genes] section).
 
@@ -5552,7 +5235,7 @@ if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interact
 <summary>Table legend</summary>
 <font size="2">
 
-```{r drugsTable_legend_mut_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_cancer_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
 cat(drugsTable_legend)
 ```
 
