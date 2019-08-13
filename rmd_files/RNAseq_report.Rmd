@@ -219,23 +219,25 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, da
   return( list(datasets.comb, target.comb) )
 }
 
-##### Assign colours to different datasets
-getDatasetsColours <- function(datasets) {
+##### Assign colours to different elements
+getColours <- function(elements) {
   
-  ##### Predefined selection of colours for datasets
-  if ( length(unique(datasets)) == 3 ) {
-    datasets.colours <- c("powderblue", "red", "gray50")
-  } else if ( length(unique(datasets)) == 4 ) {
-    datasets.colours <- c("powderblue", "red", "forestgreen", "gray50")
+  ##### Predefined selection of colours for elements
+  if ( length(unique(elements)) == 3 ) {
+    elements.colours <- c("powderblue", "red", "gray50")
+  } else if ( length(unique(elements)) == 4 ) {
+    elements.colours <- c("powderblue", "red", "forestgreen", "gray50")
+  } else {
+    elements.colours <- rainbow(length(elements))
   }
   
-  f.datasets <- factor(datasets)
-  vec.datasets <- datasets.colours[1:length(levels(f.datasets))]
-  datasets.colour <- rep(0,length(f.datasets))
-  for(i in 1:length(f.datasets))
-    datasets.colour[i] <- vec.datasets[ f.datasets[i]==levels(f.datasets)]
+  f.elements <- factor(elements)
+  vec.elements <- elements.colours[1:length(levels(f.elements))]
+  elements.colour <- rep(0,length(f.elements))
+  for(i in 1:length(f.elements))
+    elements.colour[i] <- vec.elements[ f.elements[i]==levels(f.elements)]
   
-  return( list(vec.datasets, datasets.colour) )
+  return( list(vec.elements, elements.colour) )
 }
 
 ##### Calculate TPM from RPKM (from http://luisvalesilva.com/datasimple/rna-seq_units.html )
@@ -282,8 +284,8 @@ pca <- function(data, targets, title = "", plot_mode = "static", report_dir ) {
   colnames(data.subset_pca.df) <- c("Target", "Dataset", "PC1", "PC2", "PC3")
   
   ##### Assigne colours to targets and datasets
-  targets.colour <- getDatasetsColours(targets$Target)
-  datasets.colour <- getDatasetsColours(targets$Dataset)
+  targets.colour <- getColours(targets$Target)
+  datasets.colour <- getColours(targets$Dataset)
   
   ##### Create a list with dataframe and samples colouring info
   pca.list <- list(data.subset_pca.df, importance_pca, targets.colour, datasets.colour)
@@ -800,6 +802,139 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   rm(gene, targets, data, sampleName, targets.list, group.z, group.z.gene, gene.data, gene.stats, data.z, gene.expr.df, group.colours)
 }
 
+##### Convert density to counts
+density2freq <- function(density) {
+  freq = length(density)/sum(density) * density
+  return(freq)
+}
+
+##### Generate density and expression distribution plots for selected gene, highlighting samples of interest
+densityPlot <- function(gene, data, main_title, x_title, sampleName, distributions = NULL, plot_mode = "static", scaling = "gene-wise", report_dir) {
+  
+  if ( scaling == "gene-wise" ) {
+    data.z <- t(scale(t(data)))
+  } else {
+    data.z <- scale(data, scale = FALSE)
+  }
+  
+  ##### Used data for user-defined genes
+  data.z <- data.z[ gene, ,drop=FALSE]
+
+  ##### Create data frame and fill it with expression and density values for each sample for selected gene
+  data.df <- data.frame(gene = "Observed distribution", sample = colnames(data.z)[order(data.z)], expr = sort(data.z), dens = density2freq(density(data.z, n=ncol(data.z))$y))
+  
+  ##### Generate values to generate various distributions
+  if ( !is.null(distributions) ) {
+    
+    ##### Use the density values obtained from the expression values
+    expr.sorted <- sort(data.z)
+    
+    ##### Get min and max values based on the expression data
+    data.x <- seq(min(expr.sorted), max(expr.sorted), length.out = ncol(data.z))
+    
+    ##### Create empty data frame
+    data.df.dist <- data.frame(matrix(ncol = 4, nrow = 0))
+    colnames(data.df.dist) <- c("gene", "sample", "expr", "dens")
+    
+    ##### Generate y-values to mirror distributions of interest
+    ##### Generate y-values for normal distribution. Useful resource https://stats.idre.ucla.edu/r/modules/probabilities-and-distributions/
+    if ( "normal" %in% tolower(distributions) ) {
+      data.y <- dnorm(data.x, mean = mean(data.x), sd = (max(data.x)-mean(data.x))/5)
+      data.df.dist <- rbind(data.df.dist, data.frame(gene="Normal distribution", sample = colnames(data.z)[order(data.z)], expr=data.x, dens=density2freq(data.y)))
+    } 
+    
+    ##### Generate x- and y-values for binomial distribution. Useful link https://stat.ethz.ch/R-manual/R-devel/library/stats/html/Binomial.html
+    if ( "binomial" %in% tolower(distributions) ) {
+      data.x <- 1:ncol(data.z)
+      data.y <- dbinom(data.x, ncol(data.z), 0.25)
+      data.x <- rescale(data.x, to = c(min(expr.sorted), max(expr.sorted)))
+      data.df.dist <- rbind(data.df.dist, data.frame(gene="Binomial distribution (p=0.25)", sample = colnames(data.z)[order(data.z)], expr=data.x, dens=density2freq(data.y)))
+      
+      data.x <- 1:ncol(data.z)
+      data.y <- dbinom(data.x, ncol(data.z), 0.75)
+      data.x <- rescale(data.x, to = c(min(expr.sorted), max(expr.sorted)))
+      data.df.dist <- rbind(data.df.dist, data.frame(gene="Binomial distribution (p=0.75)", sample = colnames(data.z)[order(data.z)], expr=data.x, dens=density2freq(data.y)))
+    }
+    
+    ##### Draw n/2 samples from a normal distributions with one median and another n/2 samples from a second normal distribution with a different median. Useful link                  https://stats.stackexchange.com/questions/355344/simulating-a-bimodal-distribution-in-the-range-of-15-in-r
+    if ( "bimodal" %in% tolower(distributions) ){
+      data.x1 <- seq(min(expr.sorted), median(expr.sorted), length.out = ncol(data.z)/2)
+      data.x2 <- seq(median(expr.sorted), max(expr.sorted), length.out = ncol(data.z)/2)
+      
+      ##### Combine both normal distributions to generate a bimodal distribution. Make sure the the length of this vector is equal to the number samples in the data
+      data.x <- c(data.x1, data.x2)
+      data.x <- data.x[1:ncol(data.z)]
+      
+      ##### Generate y-values for bimodal distribution
+      data.y <- c(dnorm(data.x1, mean = mean(data.x1), sd = (max(data.x1)-mean(data.x1))/3), dnorm(data.x2, mean = mean(data.x2), sd = (max(data.x2)-mean(data.x2))/3))
+      data.y <- data.y[1:ncol(data.z)]
+      
+      ##### Add bimodal dist values to the distribution dataframe
+      data.df.dist <- rbind(data.df.dist, data.frame(gene = "Bimodal distribution", sample = colnames(data.z)[order(data.z)], expr = data.x, dens = density2freq(data.y)))
+    }
+    
+    data.df <- rbind(data.df, data.df.dist)
+    
+    ##### Extract expression for selected sample in the distributions dataframe
+    data.df.selected <- data.df[ sampleName == data.df$sample, ]
+  }
+  
+  ##### Get min and max values based on the expression data
+  den.x <- sort(data.df$expr)
+  den.y <- sort(data.df$dens)
+  
+  ##### Assign colours to distributions
+  genes.colour <- getColours(rev(unique(data.df$gene)))
+  
+  ##### Generate interactive density plot
+  p <- plot_ly(data.df, x = ~expr, y = ~dens, type = 'scatter', mode = 'lines', color = ~gene, colors = genes.colour[[1]], width = 800, height = 200) %>%
+    add_markers(y = data.df.selected$dens, x = data.df.selected$expr, 
+                name = "Patient",
+                text = "Patient",
+                mode = 'markers',
+                marker = list(size = 8, colors = data.df.selected$sample, color = rep(I("black"), each = nrow(data.df.selected)), line = list(color = "grey", width = 2)),
+                showlegend = TRUE,
+                inherit = FALSE) %>%
+     layout(title = main_title,
+           xaxis = list(title = x_title, range = c(den.x[1],den.x[length(den.x)])),
+           yaxis = list (title = 'Weight', range = c(den.y[1],den.y[length(den.y)]), side = "right"),
+           legend = list(x = -100, y = 0.5))
+  
+  ##### Create directory for "at glance" plots
+  PlotsDir <- paste(report_dir, "exprDistrPlots", sep = "/")
+    
+  if ( !file.exists(PlotsDir) ) {
+
+    dir.create(PlotsDir, recursive=TRUE)
+  }
+    
+  ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
+  if ( plot_mode == "static" ) {
+  
+    ##### Add access token, required by orca function, to the shell environment
+    Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  
+    ##### Change directory to folder with plots
+    setwd(PlotsDir)
+ 
+    ##### Save the static image into a file
+    orca(p, format = "png", file = paste0(gene, "_expr_distr_plot.png"), width = 1200, height = 600)
+  
+    ##### Present the static plot in the report
+    include_graphics(paste(PlotsDir, paste0(gene, "_expr_distr_plot.png"), sep = "/"), dpi = 72)
+  
+  ##### Save interactive plot as html file
+  } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
+    saveWidgetFix(p, file = paste(PlotsDir, paste0(gene, "_expr_distr_plot.html"), sep = "/"))
+    
+    return( p )
+  }
+  
+  ##### Clean the space
+  rm(gene, expr.sorted)
+  rm(list = ls(pattern='^data*'))
+}
+
 ##### Generate boxplot presenting expression profiles for selected set of genes
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, plot_mode = "static", hexcode, type = "z", sort = "diff", scaling = "gene-wise", report_dir) {
   
@@ -893,14 +1028,8 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     ##### Present the static plot in the report
     include_graphics(paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".png"), sep = "/"), dpi = 72)
   
+  ##### Save interactive plot as html file
   } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
-    
-    p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = group.colours, opacity=0.3, showlegend = TRUE, width = 800, height = 600 ) %>% 
-    add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
-    
-    layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = y_title), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
-    
-    ##### Save interactive plot as html file
     saveWidgetFix(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
     
     return( p )
@@ -985,7 +1114,7 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
     ##### Save interactive plot as html file
     saveWidgetFix(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
-  
+    
     return( p )
   }
   
@@ -1724,6 +1853,7 @@ suppressMessages(library(DT))
 suppressMessages(library(matrixStats))
 suppressMessages(library(tibble))
 suppressMessages(library(knitr))
+suppressMessages(library(scales))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggforce))
 suppressMessages(library(pdftools))
@@ -1750,8 +1880,8 @@ if (tolower(params$scaling) == "gene-wise"){
 ##### Define the reference datasets based on user-defined input
 dataset <- toupper(params$dataset)
 
-ref_dataset <- list( "ext_ref" = c(paste0(params$ref_data_dir, "/ref_data/TCGA_", strsplit(dataset, split='-', fixed=TRUE)[[1]][1], "_Counts.exp"), paste0(params$ref_data_dir, "/ref_data/TCGA_", dataset, "_Target.txt"), paste0(strsplit(dataset, split='-', fixed=TRUE)[[1]][1], " (TCGA)")),
-                     "int_ref" = c(paste0(params$ref_data_dir, "/ref_data/UMCCR_PDAC_Counts.exp"), paste0(params$ref_data_dir, "/ref_data/UMCCR_PDAC_Target.txt"), "PAAD (UMCCR)")
+ref_dataset <- list( "ext_ref" = c(paste0(params$ref_data_dir, "/ref_data/TCGA_", strsplit(dataset, split='-', fixed=TRUE)[[1]][1], "_Counts.exp.gz"), paste0(params$ref_data_dir, "/ref_data/TCGA_", dataset, "_Target.txt"), paste0(strsplit(dataset, split='-', fixed=TRUE)[[1]][1], " (TCGA)")),
+                     "int_ref" = c(paste0(params$ref_data_dir, "/ref_data/UMCCR_PDAC_Counts.exp.gz"), paste0(params$ref_data_dir, "/ref_data/UMCCR_PDAC_Target.txt"), "PAAD (UMCCR)")
 )
 
 ##### Create a list with reference datasets
@@ -2327,7 +2457,7 @@ if ( !file.exists(PlotsDir) ) {
 
 ##### Assigne colours to targets and datasets
 target <- ref_dataset.list[[dataset]][["sample_annot"]]
-targets.colour <- getDatasetsColours(target$Target)
+targets.colour <- getColours(target$Target)
   
 ##### Collect the most extreme density values for set the x-axis and y-axis boundaries
 den.x <- density(y[["comb"]]$transformed[,1])$x
@@ -2583,14 +2713,14 @@ for ( dataset in names(ref_dataset.list) ) {
   target$Target <- gsub(sampleName, "Patient", target$Target)
   
   if ( params$batch_rm ) {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], target = target, title = "Before batch-effects correction", plot_mode = params$plots_mode)
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], target = target, title = "Before batch-effects correction", plot_mode = params$plots_mode, report_dir = params$report_dir)
     
-    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], target = target, title = "After batch-effects correction",  plot_mode = params$plots_mode)
+    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], target = target, title = "After batch-effects correction",  plot_mode = params$plots_mode, report_dir = params$report_dir)
     
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["batch_effect_corrected"]]
     
   } else {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], target = target, plot_mode = params$plots_mode)
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], target = target, plot_mode = params$plots_mode, report_dir = params$report_dir)
     
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["combined_data_processed"]]
   }
@@ -3575,13 +3705,16 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r cdf_plots_mut, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk, results="asis"}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
-output <- list()
+output_cdf <- list()
+output_density <- list()
 genes <- mut_genes.expr.z[[2]]$SYMBOL
 
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output[[length(output) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[length(output_cdf) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    
+    output_density[[length(output_density) + 1]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
   }
 }
 
@@ -3589,7 +3722,12 @@ for( i in 1:genes_no ) {
 for( i in 1:genes_no ){
   if ( genes[i] %in% rownames(data) ) {
     cat("\n#### ", genes[i], "\n")
-    cat(renderTags(output[[i]])$html)
+    cat(renderTags(output_cdf[[i]])$html)
+    cat("<br />")
+    cat("\n<details>\n")
+    cat("\n<summary>Expression distribution patterns</summary>\n")
+    cat(renderTags(output_density[[i]])$html)
+    cat("\n</details>\n")
     cat("\n***\n")
   }
 }
@@ -3598,7 +3736,7 @@ for( i in 1:genes_no ){
 detach("package:plotly", unload=FALSE)
 
 ##### Clean the space
-rm(output)
+rm(list = ls(pattern='^output*'))
 ```
 
 ## Fusion genes
@@ -3832,7 +3970,7 @@ Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusio
 
 Expression profiles for gene fusion events involving **DNA-supported fusion** genes (see [Structural variants] section), gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, **abundant transcripts** or **[Cancer genes]**, indicated in <span style="color:#02d653">green</span>, <span style="color:#ff0000">red</span>, <span style="color:#0000ff">blue</span> and <span style="color:#767689">grey</span> columns in the [Fusion genes] table, respectively, and with the highest *Split count* and *Pair count* values. 
 
-<span style="color:#ff0000">NOTE</span>: the *Fusion genes visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
+<span style="color:#ff0000">NOTE</span>: the *Fusion gene visualisation* is not available for gene pairs for which no junctions were found by [clinker](https://github.com/Oshlack/Clinker){target="_blank"}.
 
 ```{r top_hits_fusions, echo=FALSE, comment = NA, message=FALSE, warning=FALSE}
 suppressMessages(library(plotly))
@@ -3842,8 +3980,10 @@ data <- ref_dataset.list[[dataset]][["data_to_report"]]
 genes <- as.character(pizzly.fusions$geneA.name)
 
 ##### Create lists to store
-output_A <- list()
-output_B <- list()
+output_cdf_A <- list()
+output_cdf_B <- list()
+output_density_A <- list()
+output_density_B <- list()
 output_transcripts <- list()
 output_table_Z <- list()
 output_table_perc <- list()
@@ -3879,10 +4019,14 @@ for( i in 1:genes_no ) {
     
     ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
     ##### Gene A
-    output_A[[length(output_A) + 1]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf_A[[length(output_cdf_A) + 1]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    
+    output_density_A[[length(output_density_A) + 1]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
     
     ##### Gene B
-    output_B[[length(output_B) + 1]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf_B[[length(output_cdf_B) + 1]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    
+    output_density_B[[length(output_density_B) + 1]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
     
     ##### Generate expression summary tables
     genes <- c(geneA, geneB)
@@ -3929,15 +4073,26 @@ for( i in 1:genes_no ) {
   cat("\n</details>\n")
   cat("\n***\n")
   
-  cat("\n##### Fusion genes expression  {.tabset}\n")
+  cat("\n##### Fusion genes expression {.tabset}\n")
   cat("\nmRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.\n")
     
   if ( geneA %in% rownames(data) && geneB %in% rownames(data) ) {
     
     ##### Display CDF plots for each fusion gene pair
     suppressMessages(library(plotly))
-    cat(renderTags(output_A[[i]])$html)
-    cat(renderTags(output_B[[i]])$html)
+    cat(renderTags(output_cdf_A[[i]])$html)
+    cat("<br />")
+    cat("\n<details>\n")
+    cat("\n<summary>Expression distribution patterns</summary>\n")
+    cat(renderTags(output_density_A[[i]])$html)
+    cat("\n</details>\n")
+    
+    cat(renderTags(output_cdf_B[[i]])$html)
+    cat("<br />")
+    cat("\n<details>\n")
+    cat("\n<summary>Expression distribution patterns</summary>\n")
+    cat(renderTags(output_density_B[[i]])$html)
+    cat("\n</details>\n")
     
     cat("\n###### Z-scores\n")
     cat(renderTags(output_table_Z[[i]])$html)
@@ -4079,13 +4234,16 @@ Expression profiles for 10 SVs-affected genes with the highest priority (low [ti
 ```{r cdf_plots_sv, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk, results="asis"}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
-output <- list()
+output_cdf <- list()
+output_density <- list()
 genes <- unique(sv_genes.expr.z[[2]]$SYMBOL)
 
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output[[length(output) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[length(output_cdf) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    
+    output_density[[length(output_density) + 1]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
   }
 }
 
@@ -4093,7 +4251,12 @@ for( i in 1:genes_no ) {
 for( i in 1:genes_no ){
   if ( genes[i] %in% rownames(data) ) {
     cat("\n#### ", genes[i], "\n")
-    cat(renderTags(output[[i]])$html)
+    cat(renderTags(output_cdf[[i]])$html)    
+    cat("<br />")
+    cat("\n<details>\n")
+    cat("\n<summary>Expression distribution patterns</summary>\n")
+    cat(renderTags(output_density[[i]])$html)
+    cat("\n</details>\n")
     cat("\n***\n")
   }
 }
@@ -4102,7 +4265,7 @@ for( i in 1:genes_no ){
 detach("package:plotly", unload=FALSE)
 
 ##### Clean the space
-rm(output)
+rm(list = ls(pattern='^output*'))
 ```
 
 ## CN altered genes
@@ -4466,13 +4629,16 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r cdf_plot_mut_cn_expr_gains, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk, results="asis"}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
-output <- list()
+output_cdf <- list()
+output_density <- list()
 genes <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_gains_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output[[length(output) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[length(output_cdf) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    
+    output_density[[length(output_density) + 1]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
   }
 }
 
@@ -4480,7 +4646,12 @@ for( i in 1:genes_gains_no ) {
 for( i in 1:genes_gains_no ){
   if ( genes[i] %in% rownames(data) ) {
     cat("\n##### ", genes[i], "\n")
-    cat(renderTags(output[[i]])$html)
+    cat(renderTags(output_cdf[[i]])$html)
+    cat("<br />")
+    cat("\n<details>\n")
+    cat("\n<summary>Expression distribution patterns</summary>\n")
+    cat(renderTags(output_density[[i]])$html)
+    cat("\n</details>\n")
     cat("\n***\n")
   }
 }
@@ -4489,7 +4660,7 @@ for( i in 1:genes_gains_no ){
 detach("package:plotly", unload=FALSE)
 
 ##### Clean the space
-rm(output)
+rm(list = ls(pattern='^output*'))
 ```
 
 #### Losses {.tabset}
@@ -4497,13 +4668,16 @@ rm(output)
 ```{r cdf_plot_mut_cn_expr_losses, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPcgrChunk, results="asis"}
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
-output <- list()
+output_cdf <- list()
+output_density <- list()
 genes <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_losses_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output[[length(output) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[length(output_cdf) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    
+    output_density[[length(output_density) + 1]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir )
   }
 }
 
@@ -4511,7 +4685,12 @@ for( i in 1:genes_losses_no ) {
 for( i in 1:genes_losses_no ){
   if ( genes[i] %in% rownames(data) ) {
     cat("\n##### ", genes[i], "\n")
-    cat(renderTags(output[[i]])$html)
+    cat(renderTags(output_cdf[[i]])$html)
+    cat("<br />")
+    cat("\n<details>\n")
+    cat("\n<summary>Expression distribution patterns</summary>\n")
+    cat(renderTags(output_density[[i]])$html)
+    cat("\n</details>\n")
     cat("\n***\n")
   }
 }
@@ -4520,7 +4699,7 @@ for( i in 1:genes_losses_no ){
 detach("package:plotly", unload=FALSE)
 
 ##### Clean the space
-rm(output)
+rm(list = ls(pattern='^output*'))
 ```
 
 ## Immune markers
