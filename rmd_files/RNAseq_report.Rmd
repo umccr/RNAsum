@@ -16,7 +16,7 @@ output:
 params:
   sample_name: 'test_sample_WTS'
   dataset: 'PAAD-NET'
-  dataset_name_incl: ""
+  dataset_name_incl: ''
   count_file: '../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv'
   report_dir: '../data/test_data/final/test_sample_WTS/RNAseq_report'
   ref_data_dir: '../data'
@@ -231,10 +231,10 @@ getColours <- function(elements) {
     elements.colours <- rainbow(length(elements))
   }
   
-  f.elements <- factor(elements)
+  f.elements <- factor(elements, levels = unique(elements))
   vec.elements <- elements.colours[1:length(levels(f.elements))]
   elements.colour <- rep(0,length(f.elements))
-  for(i in 1:length(f.elements))
+  for (i in 1:length(f.elements))
     elements.colour[i] <- vec.elements[ f.elements[i]==levels(f.elements)]
   
   return( list(vec.elements, elements.colour) )
@@ -3710,9 +3710,9 @@ genes <- mut_genes.expr.z[[2]]$SYMBOL
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output_cdf[[length(output_cdf) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
     
-    output_density[[length(output_density) + 1]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
   }
 }
 
@@ -3726,6 +3726,10 @@ for( i in 1:genes_no ){
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("\n</details>\n")
+    cat("\n***\n")
+  } else {
+    cat("\n#### ", genes[i], "\n")
+    cat("\nExpression data is not available for that gene.\n")
     cat("\n***\n")
   }
 }
@@ -4008,7 +4012,7 @@ for( i in 1:genes_no ) {
   ##### List all fusion transcript candidates for given fusion event along with corresponding breakpoints
   fusion_reads.selected <- ref_genes.list[["pizzly"]][ ref_genes.list[["pizzly"]]$geneA.name == geneA & ref_genes.list[["pizzly"]]$geneB.name == geneB, ]
     
-    output_transcripts[[length(output_transcripts) + 1]] <- fusion_reads.selected %>% 
+    output_transcripts[[i]] <- fusion_reads.selected %>% 
       transform(transcripts.list = strsplit(as.character(transcripts.list), ";")) %>%
       unnest(transcripts.list) %>%
       dplyr::select(transcripts.list)
@@ -4017,23 +4021,23 @@ for( i in 1:genes_no ) {
     
     ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
     ##### Gene A
-    output_cdf_A[[length(output_cdf_A) + 1]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
     
-    output_density_A[[length(output_density_A) + 1]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
     
     ##### Gene B
-    output_cdf_B[[length(output_cdf_B) + 1]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
     
-    output_density_B[[length(output_density_B) + 1]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
     
     ##### Generate expression summary tables
     genes <- c(geneA, geneB)
     
     ##### Z-scores
-    output_table_Z[[length(output_table_Z) + 1]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+    output_table_Z[[i]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
     
     ##### Percentiles
-    output_table_perc[[length(output_table_perc) + 1]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+    output_table_perc[[i]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
   }
 }
 
@@ -4074,53 +4078,56 @@ for( i in 1:genes_no ) {
   cat("\n##### Fusion genes expression {.tabset}\n")
   cat("\nmRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.\n")
     
-  if ( geneA %in% rownames(data) && geneB %in% rownames(data) ) {
+  ##### Display CDF plots for each fusion gene pair
+  suppressMessages(library(plotly))
     
-    ##### Display CDF plots for each fusion gene pair
-    suppressMessages(library(plotly))
+  if ( geneA %in% rownames(data) ) {
     cat(renderTags(output_cdf_A[[i]])$html)
-    cat("<br />")
     cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density_A[[i]])$html)
     cat("\n</details>\n")
-    
-    cat(renderTags(output_cdf_B[[i]])$html)
     cat("<br />")
+  } else {
+    cat(paste0("\nExpression data is not available for ", geneA, ".\n"))
+  }
+  
+  if ( geneB %in% rownames(data) ) {
+    cat(renderTags(output_cdf_B[[i]])$html)
     cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density_B[[i]])$html)
     cat("\n</details>\n")
-    
-    cat("\n###### Z-scores\n")
-    cat(renderTags(output_table_Z[[i]])$html)
     cat("<br />")
-    cat("\n<details>\n")
-    cat("\n<summary>Table legend</summary>\n")
-    cat("\n<font size=\"2\">\n")
-    cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ",  comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. TSG - tumour suppressor gene\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n***\n")
-    
-    cat("\n###### Percentiles\n")
-    cat(renderTags(output_table_perc[[i]])$html)
-    cat("<br />")
-    cat("\n<details>\n")
-    cat("\n<summary>Table legend</summary>\n")
-    cat("\n<font size=\"2\">\n")
-    cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. TSG - tumour suppressor gene\n")
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n***\n")
   } else {
-    cat("Expression data is not available for one of the genes.")
+    cat(paste0("\nExpression data is not available for ", geneA, ".\n"))
   }
+    
+  cat("\n###### Z-scores\n")
+  cat(renderTags(output_table_Z[[i]])$html)
+  cat("<br />")
+  cat("\n<details>\n")
+  cat("\n<summary>Table legend</summary>\n")
+  cat("\n<font size=\"2\">\n")
+  cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ",  comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. TSG - tumour suppressor gene\n"))
+  cat("\n</font>\n")
+  cat("\n</details>\n")
+  cat("\n***\n")
+    
+  cat("\n###### Percentiles\n")
+  cat(renderTags(output_table_perc[[i]])$html)
+  cat("<br />")
+  cat("\n<details>\n")
+  cat("\n<summary>Table legend</summary>\n")
+  cat("\n<font size=\"2\">\n")
+  cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. TSG - tumour suppressor gene\n")
+  cat("\n</font>\n")
+  cat("\n</details>\n")
+  cat("\n***\n")
 }
 
 ##### Write list of fusion events for which Clinker plot is available into a file
 write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
-
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -4240,9 +4247,9 @@ genes <- unique(sv_genes.expr.z[[2]]$SYMBOL)
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output_cdf[[length(output_cdf) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
     
-    output_density[[length(output_density) + 1]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
   }
 }
 
@@ -4256,6 +4263,10 @@ for( i in 1:genes_no ){
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("\n</details>\n")
+    cat("\n***\n")
+  } else {
+    cat("\n#### ", genes[i], "\n")
+    cat("\nExpression data is not available for that gene.\n")
     cat("\n***\n")
   }
 }
@@ -4635,9 +4646,9 @@ genes <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_gains_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output_cdf[[length(output_cdf) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
     
-    output_density[[length(output_density) + 1]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
   }
 }
 
@@ -4651,6 +4662,10 @@ for( i in 1:genes_gains_no ){
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("\n</details>\n")
+    cat("\n***\n")
+  } else {
+    cat("\n#### ", genes[i], "\n")
+    cat("\nExpression data is not available for that gene.\n")
     cat("\n***\n")
   }
 }
@@ -4674,9 +4689,9 @@ genes <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_losses_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output_cdf[[length(output_cdf) + 1]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
     
-    output_density[[length(output_density) + 1]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir )
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir )
   }
 }
 
@@ -4690,6 +4705,10 @@ for( i in 1:genes_losses_no ){
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("\n</details>\n")
+    cat("\n***\n")
+  } else {
+    cat("\n#### ", genes[i], "\n")
+    cat("\nExpression data is not available for that gene.\n")
     cat("\n***\n")
   }
 }
@@ -4786,7 +4805,7 @@ suppressMessages(library(plotly))
 if ( !is.null(genes) ) {
   glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = params$report_dir)
 } else {
-  cat("No expression data is available for immune markers!")
+  cat("\nNo expression data is available for immune markers!\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4813,7 +4832,7 @@ suppressMessages(library(plotly))
 if ( !is.null(genes) ) {
   glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = params$report_dir)
 } else {
-  cat("No expression data is available for immune markers!")
+  cat("\nNo expression data is available for immune markers!\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4916,7 +4935,7 @@ suppressMessages(library(plotly))
 if ( !is.null(genes) ) {
   glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = params$report_dir)
 } else {
-  cat("No expression data is available for HRD genes!")
+  cat("\nNo expression data is available for HRD genes!\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4943,7 +4962,7 @@ suppressMessages(library(plotly))
 if ( !is.null(genes) ) {
   glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = params$report_dir)
 } else {
-  cat("No expression data is available for HRD genes!")
+  cat("\nNo expression data is available for HRD genes!\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -5047,7 +5066,7 @@ genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 if ( !is.null(genes) ) {
   glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = params$report_dir)
 } else {
-  cat("No expression data is available for cancer genes!")
+  cat("\nNo expression data is available for cancer genes!\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -5076,7 +5095,7 @@ genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 if ( !is.null(genes) ) {
   glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = params$report_dir)
 } else {
-  cat("No expression data is available for cancer genes!")
+  cat("\nNo expression data is available for cancer genes!\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
