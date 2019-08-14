@@ -20,7 +20,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 4 | `LGG`   | Brain Lower Grade Glioma | 1 | **300** (verify)
 5 | `KIRC`  | Kidney Renal Clear Cell Carcinoma | 1 | **300** (verify)
 6 | `LUSC`  | Lung Squamous Cell Carcinoma | 1 | **300** (verify)
-7 | `LUAD`  | Lung Adenocarcinoma | 1 | **300** (verify)
+7 | `LUAD`  | Lung Adenocarcinoma | 1 | **300**
 8 | `PRAD`  | Prostate Adenocarcinoma | 1 | **300** (verify)
 9 | `SKCM`  | Skin Cutaneous Melanoma | 1 | **300** (verify)
 10 | `STAD`  | Stomach Adenocarcinoma | 1 | **300** (verify)
