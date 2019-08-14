@@ -17,9 +17,9 @@ RNA-seq report workflow is designed to post-process, summarise and visualise an 
 * [Usage](#usage)
   * [Arguments](#arguments)
   * [Examples](#examples)
-  	 * [Required arguments only](#1-required-arguments-only)
-  	 * [Add genome-based results](#2-add-genome-based-results)
-  	 * [Add clinical information](#3-add-clinical-information)
+  	 * [WTS data only](#1-wts-data-only)
+  	 * [WTS and WGS data](#2-wts-and-wgs-data)
+  	 * [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
   * [Output](#output)
 
 <!-- vim-markdown-toc -->
@@ -203,9 +203,9 @@ Argument | Description | Required
 
 Below are command line use examples for generating *Patient Transcriptome Summary* report using:
 
-1. [required arguments only](#1-required-arguments-only)
-2. **[genome-based results](#2-add-genome-based-results)**
-3. [clinical information](#3-add-clinical-information)
+1. [WTS data only](#1-wts-data-only)
+2. **[WTS and WGS data](#2-wts-and-wgs-data)**
+3. [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
 
 ###### Note
 
@@ -225,9 +225,9 @@ cd rmd_files
 * Usually the data processing and report generation would take less than **15 minutes** using **8GB RAM** memory and **1 CPU**
 
 
-#### 1. Required arguments only
+#### 1. WTS data only
 
-In this scenario, only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. No results will be provided in ~~`Mutated genes`~~, ~~`Structural variants`~~ and ~~`CN altered genes`~~ sections. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data. The [TCGA](https://tcga-data.nci.nih.gov/) bladder urothelial carcinoma dataset is used as reference cohort (`--dataset BLCA`).
+In this scenario, only [WTS](#wts) data will be used and only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data. The [TCGA](https://tcga-data.nci.nih.gov/) bladder urothelial carcinoma dataset is used as reference cohort (`--dataset BLCA`) in this example.
 
 The input files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
 
@@ -235,12 +235,12 @@ The input files are expected to be organised following the folder structure desc
 Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
 ```
 
->The interactive HTML report named `test_sample_WTS.blca.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
 
 
-#### 2. Add genome-based results
+#### 2. WTS and WGS data
 
-This is the **preferred scenario for using** ***Patient Transcriptome Summary***, in which the genome-based findings will be used as a primary source for expression profiles prioritisation. These can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. The **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. The results in the **`Fusion genes`** section will be ordered based on the evidence from genome-based data. The [TCGA](https://tcga-data.nci.nih.gov/) cervical squamous cell carcinoma dataset is used as reference cohort (`--dataset CESC `).
+This is the **most frequent and preferred case**, in which the [WGS](#wgs)-based findings will be used as a primary source for expression profiles prioritisation. The genome-based results can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. The **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. The results in the **`Fusion genes`** section will be ordered based on the evidence from genome-based data. The [TCGA](https://tcga-data.nci.nih.gov/) cervical squamous cell carcinoma dataset is used as reference cohort (`--dataset CESC `) in this example.
 
 The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to be organised following the folder structure described in [Input data:WGS](#wgs) section.
 
@@ -249,18 +249,18 @@ The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to
 Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
 ```
 
->The interactive HTML report named `test_sample_WTS.cesc.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
 
-#### 3. Add clinical information
+#### 3. WTS WGS and clinical data
 
-For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Patient Transcriptome Summary* report. This can be added by specifying location of a relevant excel spreadsheet (see example [test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx)) using the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`, along with `START` and `STOP` dates of corresponding treatments. The [TCGA](https://tcga-data.nci.nih.gov/) pancreatic adenocarcinoma dataset is used as reference cohort (`--dataset PAAD `).
+For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Patient Transcriptome Summary* report. This can be added by specifying location of a relevant excel spreadsheet (see example [test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx)) using the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`, along with `START` and `STOP` dates of corresponding treatments. The [TCGA](https://tcga-data.nci.nih.gov/) pancreatic adenocarcinoma dataset is used as reference cohort (`--dataset PAAD `) in this example.
 
 
 ```
 Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
 ```
 
->The interactive HTML report named `test_sample_WTS.paad.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
 
 
 ### Output
