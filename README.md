@@ -207,7 +207,7 @@ Below are command line use examples for generating *Patient Transcriptome Summar
 2. **[genome-based results](#2-add-genome-based-results)**
 3. [clinical information](#3-add-clinical-information)
 
-**Note**:
+###### Note
 
 * make sure that the created *conda* environment (see [Installation](#installation) section) is  activated
 

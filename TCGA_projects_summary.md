@@ -5,21 +5,26 @@ The table below summarises [TCGA](https://portal.gdc.cancer.gov/) expression dat
 
 The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section).
 
+###### Note
+
+To readuce the data processing time and the size of the final html-based ***Patient Transcriptome Summary*** **report** the following datasets were restricted to inlcude expression data from 300 patients: `BRCA`, `THCA`, `HNSC`, 
+`LGG`, `KIRC`, `LUSC`, `LUAD`, `PRAD`, `SKCM`, `STAD` and `LIHC`.
+
 ## Primary datasets
 
 No | Project | Name | Tissue code\* | Samples no.\**
 ------------ | ------------ | ------------ | ------------ | ------------
-1 | `BRCA`  | Breast Invasive Carcinoma | 1 | **1171** (verify)
-2 | `THCA`  | Thyroid Carcinoma | 1 | **546** (verify)
-3 | `HNSC`  | Head and Neck Squamous Cell Carcinoma | 1 | **524** (verify)
-4 | `LGG`   | Brain Lower Grade Glioma | 1 | **518** (verify)
-5 | `KIRC`  | Kidney Renal Clear Cell Carcinoma | 1 | **505** (verify)
-6 | `LUSC`  | Lung Squamous Cell Carcinoma | 1 | **487** (verify)
-7 | `LUAD`  | Lung Adenocarcinoma | 1 | **444** (verify)
-8 | `PRAD`  | Prostate Adenocarcinoma | 1 | **433** (verify)
-9 | `SKCM`  | Skin Cutaneous Melanoma | 1 | **429** (verify)
-10 | `STAD`  | Stomach Adenocarcinoma | 1 | **403** (verify)
-11 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **400** (verify)
+1 | `BRCA`  | Breast Invasive Carcinoma | 1 | **300**
+2 | `THCA`  | Thyroid Carcinoma | 1 | **300** (verify)
+3 | `HNSC`  | Head and Neck Squamous Cell Carcinoma | 1 | **300** (verify)
+4 | `LGG`   | Brain Lower Grade Glioma | 1 | **300** (verify)
+5 | `KIRC`  | Kidney Renal Clear Cell Carcinoma | 1 | **300** (verify)
+6 | `LUSC`  | Lung Squamous Cell Carcinoma | 1 | **300** (verify)
+7 | `LUAD`  | Lung Adenocarcinoma | 1 | **300** (verify)
+8 | `PRAD`  | Prostate Adenocarcinoma | 1 | **300** (verify)
+9 | `SKCM`  | Skin Cutaneous Melanoma | 1 | **300** (verify)
+10 | `STAD`  | Stomach Adenocarcinoma | 1 | **300** (verify)
+11 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **300** (verify)
 12 | `COAD`  | Colon Adenocarcinoma | 1 | **289** (verify)
 13 | `KIRP` | Kidney Renal Papillary Cell Carcinoma | 1 | **283** (verify)
 14 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **254** (verify)
