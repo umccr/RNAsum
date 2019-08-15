@@ -16,9 +16,5 @@ COPY rmd_files /rmd_files
 #set working directory
 WORKDIR /rmd_files
 
-#copy wrapper scripts
-COPY envm/wts-report-wrapper.sh /rmd_files/wts-report-wrapper.sh
+#change permissions
 RUN chmod +x /rmd_files/*
-
-#set-up cmd for easier access
-CMD ["/bin/bash", "wts-report-wrapper.sh"]
