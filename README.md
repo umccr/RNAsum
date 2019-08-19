@@ -186,7 +186,6 @@ Argument | Description | Required
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
 --top_genes | The number of top ranked genes to be presented (default is `10`) | No
 --dataset_name_incl | Include dataset in the report name. Available options are: `TRUE` and `FALSE` (default) | No
---plots_mode | Plotting mode. Available options: `interactive` (all possible plots will be interactive; default) and `semi-interactive` (only plots in `Input data`, `CN altered genes`, `Immune markers` and `HRD genes` sections will be interactive) or `static` (all plots will be static) | No
 --save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` and `FALSE` (default) | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (default) and `FALSE` | No
 --grch_version | Human reference genome version used for genes annotation. Available options: `37` (default) and `38` | No

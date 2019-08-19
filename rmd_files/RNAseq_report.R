@@ -36,7 +36,6 @@
 #   subject_id (optional):    Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   top_genes:    The number of top ranked genes to be presented (default is "10")
 #   dataset_name_incl:  Include dataset in the report name. Available options are: "TRUE" and "FALSE" (default)
-#   plots_mode:    Plotting mode. Available options are: "interactive" (default), "semi-interactive" and "static" 
 #   save_tables:   Save interactive summary tables as HTML. Available options are: "TRUE" and "FALSE" (default)
 #   hide_code_btn : Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (default) and "FALSE"
 #   grch_version :  Human reference genome version used for genes annotation (default is "37")
@@ -106,8 +105,6 @@ option_list = list(
               help="The number of top ranked genes to be presented"),
   make_option(c("-w", "--dataset_name_incl"), action="store", default=NA, type='character',
               help="Include dataset in the report name"),
-  make_option(c("-p", "--plots_mode"), action="store", default=NA, type='character',
-              help="Interactive (default), semi-interactive or static mode for plots"),
   make_option(c("-u", "--save_tables"), action="store", default=NA, type='character',
               help="Save interactive summary tables as HTML"),
   make_option(c("-d", "--hide_code_btn"), action="store", default=NA, type='character',
@@ -196,10 +193,6 @@ if ( is.na(opt$dataset_name_incl)  ) {
   dataset_name_incl <- paste0(".", opt$dataset)
 }
 
-if ( is.na(opt$plots_mode)  ) {
-  opt$plots_mode <- "interactive"
-}
-
 if ( is.na(opt$save_tables)  ) {
   opt$save_tables <- FALSE
 }
@@ -269,17 +262,6 @@ if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL",
   q()
 }
 
-##### Embed interactive (default) plots, unless semi-interactive or static mode is specified
-if ( is.na(opt$plots_mode) ) {
-  opt$plots_mode<- "static"
-  
-} else if ( opt$plots_mode != "interactive" && opt$plots_mode != "semi-interactive" && opt$plots_mode != "static" ) {
-  
-  cat("\nThe plots mode \"", opt$plots_mode, "\" is invalid! Please select either \"interactive\", \"semi-interactive\" or \"static\" mode.\n\n")
-  q()
-}
-
-
 ##### Make sure that either CPM or TPM transformation is selected
 if ( opt$transform != "CPM" && opt$transform != "TPM" ) {
   
@@ -310,7 +292,7 @@ if ( !file.exists(opt$report_dir) ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, dataset_name_incl = dataset_name_incl, plots_mode = tolower(opt$plots_mode), save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), pcgr_splice_vars = as.logical(opt$pcgr_splice_vars), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), top_genes = as.numeric(opt$top_genes), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, dataset_name_incl = dataset_name_incl, save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), pcgr_splice_vars = as.logical(opt$pcgr_splice_vars), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), top_genes = as.numeric(opt$top_genes), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
 
 ##### Remove the assocaited MD file and the redundant folder with plots that are imbedded in the HTML report
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.md"), recursive = TRUE)
