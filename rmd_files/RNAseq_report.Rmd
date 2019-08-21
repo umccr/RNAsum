@@ -74,7 +74,8 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 # 8. ref_dataset.list[[dataset]][["data_to_report"]] = Fully combined and processed data to be used for reporting
 # 9. ref_dataset.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
 # 10. ref_dataset.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
-# 11. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
+# 11. ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] = combined expression, mutation and copy-number data
+# 12. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data limited to cancer genes that meet user-deinfed CN values threshold
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
 # 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from UMCCR Cancer Gene list and OncoKB portal (http://oncokb.org/#/cancerGenes) 
@@ -941,25 +942,29 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   
   ##### Generate scatterplot with per-gene expression values (y-axis) (difference between Patient's and [comp_cancer] data), CN values (x-axis) and mutation status info (colours)
   if ( alt_data ) {
-    p <- plot_ly(data, x = ~CN, y = ~Expr, color = ~Alteration, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    p <- plot_ly(type='scatter', mode = "markers", width = 800, height = 500, showlegend = FALSE) %>%
       
-      add_annotations( text="Alteration", xref="paper", yref="paper",
-                      x=1.02, xanchor="left",
-                      y=1, yanchor="top",
-                      legendtitle=TRUE, showarrow=FALSE ) %>%
+      add_markers(data = data, y = ~Expr, x = ~CN, 
+                name = ~Gene,
+                text = paste0("Gene: ", data$Gene,  "\nAlterations: ", data$Alterations),
+                mode = 'markers',
+                marker = list(size=10, symbol="circle"),
+                color = ~Gene,
+                showlegend = TRUE,
+                legendtitle=TRUE, 
+                inherit = FALSE) %>%
       
       add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=genes2annot,
                       x=~CN, xanchor="left",
                       y=~Expr, yanchor="top",
-                      font = list(color = "Grey",
-                                size = 10),
+                      font = list(color = "Grey", size = 10),
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      layout( xaxis = list(title = "CN values"), yaxis = list(title = y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
+      layout( xaxis = list(title = "CN value"), yaxis = list(title = y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
   
   ##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
   } else {
-    p <- plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    p <- plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, color = ~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 500) %>%
       
       add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
                       x=~CN, xanchor="left",
@@ -968,7 +973,7 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
                       size = 10),
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      layout( xaxis = list(title = "CN values"), yaxis = list(title =  y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
+      layout( xaxis = list(title = "CN value"), yaxis = list(title =  y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
   }
   
   ##### Create directory for the plots
@@ -976,7 +981,10 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   if ( !file.exists(mutCNexprPlotDir) ) {
     dir.create(mutCNexprPlotDir, recursive=TRUE)
   }
-
+  
+  ##### Save interactive plot as html file
+  saveWidgetFix(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
+    
   return( p )
   
   ##### Clean the space and return output
@@ -2672,31 +2680,29 @@ rm(data, data.df, gene_info)
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
 ##### Save the entire expression data with cancer genes annotaiton as a data table html file
 ##### Generate expression summary table for mutated genes
-if ( params$save_tables ) {
-  targets <- ref_dataset.list[[dataset]][["sample_annot"]]
-  data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_dataset.list[[dataset]][["gene_annot"]])) ], 2, as.numeric)
-  rownames(data) <- ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL
+targets <- ref_dataset.list[[dataset]][["sample_annot"]]
+data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_dataset.list[[dataset]][["gene_annot"]])) ], 2, as.numeric)
+rownames(data) <- ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL
   
-  ##### Z-scores
-  genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+##### Z-scores
+genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
   
-  ##### Percentiles
-  genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+##### Percentiles
+genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
   
-  ##### Create directory for saving tables
-  exprTableDir <- paste(params$report_dir, "results/exprTables", sep = "/")
+##### Create directory for saving tables
+exprTableDir <- paste(params$report_dir, "results/exprTables", sep = "/")
     
-  if ( !file.exists(exprTableDir) ) {
-    dir.create(exprTableDir, recursive=TRUE)
-  }
+if ( !file.exists(exprTableDir) ) {
+  dir.create(exprTableDir, recursive=TRUE)
+}
 
-  ##### Save the expression tables as html file
-  saveWidgetFix(widget=genes.expr.z[[1]], file=paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained=TRUE)
-  saveWidgetFix(widget=genes.expr.perc[[1]], file=paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+##### Save the expression tables as html file
+saveWidgetFix(widget=genes.expr.z[[1]], file=paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+saveWidgetFix(widget=genes.expr.perc[[1]], file=paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 
 ##### Clean the space
 rm(data, targets, genes.expr.z, genes.expr.perc)
-}
 ```
 
 ```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
@@ -2741,25 +2747,9 @@ cn_data.all <- cn_data
 
 ##### Get the percentiles from from the CN values
 cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
-  
-if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
-  cn_bottom <- round(cn_data.all.percent[2], digits = 0)
-  cn_top <- round(cn_data.all.percent[20], digits = 0)
-  
-  cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_bottom | cn_data$MeanCopyNumber > cn_top, ]
-  
-} else {
-  cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_bottom | cn_data$MeanCopyNumber > cn_top, ]
-  
-  cn_bottom <- params$cn_loss
-  cn_top <- params$cn_gain
-}
 
 ##### Keep only genes with available expression data
 cn_data <- cn_data[ cn_data$Gene %in% names(expr_data.z), ]
-
-##### Limit the data to include only cancer genes
-cn_data <- cn_data[ cn_data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
 
 ##### Add mutation data if available
 if ( !is.null(ref_genes.list[["pcgr"]]) ) {
@@ -2771,7 +2761,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   ##### Prepare mutation data to include multiple mutations per gene
   ##### Initiate variable for the gene mutation status for each gene
   gene.mut <- as.matrix(rep("None", length(expr_data.z)))
-  colnames(gene.mut) <- "Alteration"
+  colnames(gene.mut) <- "Alterations"
   rownames(gene.mut) <- names(expr_data.z)
 
   for ( i in 1:nrow(gene.mut) ) {
@@ -2780,9 +2770,9 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
     
       ##### Deal with multiple mutations per gene
       if ( length(mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE) > 1 ) {
-        gene.mut[ rownames(gene.mut)[i],"Alteration" ] <- "Mutation: multiple hits"
+        gene.mut[ rownames(gene.mut)[i],"Alterations" ] <- "Mutation: multiple hits"
       } else {
-        gene.mut[ rownames(gene.mut)[i],"Alteration" ] <- paste0("Mutation: ", mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE)
+        gene.mut[ rownames(gene.mut)[i],"Alterations" ] <- paste0("Mutation: ", mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE)
       }
     }
   }
@@ -2823,8 +2813,8 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   expr_data.perc.sub <- expr_data.perc.sub[ genes.intersect  ]
   
   ##### Prepare data frame
-  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub, gene.mut.sub)
-  colnames(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Perc_diff", "Alteration")
+  cn_data.sub <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub, gene.mut.sub)
+  colnames(cn_data.sub) <- c("Gene", "CN", "Z_score_diff", "Perc_diff", "Alterations")
   
 } else {
   ##### Skip the step for processing mutation info and deal with expression and copy-number data
@@ -2842,8 +2832,27 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   expr_data.perc.sub <- expr_data.perc.sub[ genes.intersect  ]
   
   ##### Prepare data frame
-  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub)
-  colnames(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Perc_diff")
+  cn_data.sub <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub)
+  colnames(cn_data.sub) <- c("Gene", "CN", "Z_score_diff", "Perc_diff")
+}
+
+ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
+
+##### Limit the data to include only cancer genes
+cn_data.sub <- cn_data.sub[ cn_data.sub$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
+
+##### Keep genes meeting the user-defined CN values thresholds
+if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
+  cn_bottom <- round(cn_data.all.percent[2], digits = 0)
+  cn_top <- round(cn_data.all.percent[20], digits = 0)
+  
+  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN < cn_bottom | cn_data.sub$CN > cn_top, ]
+  
+} else {
+  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN < cn_bottom | cn_data.sub$CN > cn_top, ]
+  
+  cn_bottom <- params$cn_loss
+  cn_top <- params$cn_gain
 }
 
 ##### Clean the space
@@ -4006,6 +4015,7 @@ mRNA expression levels of genes located within detected structural variants (SVs
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
+
 ### - Summary table {.tabset}
 
 Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
@@ -4017,10 +4027,7 @@ Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affec
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
-##### Consider only SVs with known genes
-genes <- unique(manta_sv$Gene)
-
-##### Consider only genes in MANTA output for which the expression levels were measured
+##### Consider only SVs with known genes and those in MANTA output for which the expression levels were measured
 genes <- unique(manta_sv$Gene)
 genes <- genes[ genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ]
 
@@ -4145,56 +4152,102 @@ Section overlaying the mRNA expression data for **[Cancer genes]** with per-gene
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
-### - Expression vs CN {.tabset}
+### - Genomic view
 
-Scatterplot comparing the per-gene difference in **mRNA expression** between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+`r length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])` genes with available CN data are presented in the genomic context. **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span>.
 
-#### Z-scores
-
-```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
-##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
+```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.4, fig.height = 4, eval = runPurpleChunk}
+##### Generate genomic view plot with per-gene CN values (y-axis) along chromosomal coordinates (x-axis)
+suppressMessages(library(manhattanly))
 suppressMessages(library(plotly))
 
-data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
+data <- ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]
+data.sub <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
 
 if ( runPcgrChunk ) {
-  data$Alteration <- as.character(data$Alteration)
+  data$Alterations <- as.character(data$Alterations)
+  data.sub$Alterations <- as.character(data.sub$Alterations)
 }
-
-cn_genes <- data$Gene
 
 ##### Add fusion genes
 if ( runFusionChunk ) {
   
   ##### Change the alteration type to "fusion" for fusion genes
-  data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneA.name  ] <- paste0( data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneA.name  ], "; Fusion")
-  data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneB.name  ] <- paste0( data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneB.name  ], "; Fusion")
-  }
+  data$Alterations[ data$Gene %in% pizzly.fusions.cut$geneA.name  ] <- paste0( data$Alterations[ data$Gene %in% pizzly.fusions.cut$geneA.name  ], "; Fusion")
+  data.sub$Alterations[ data.sub$Gene %in% pizzly.fusions.cut$geneA.name  ] <- paste0( data.sub$Alterations[ data.sub$Gene %in% pizzly.fusions.cut$geneA.name  ], "; Fusion")
+  data$Alterations[ data$Gene %in% pizzly.fusions.cut$geneB.name  ] <- paste0( data$Alterations[ data$Gene %in% pizzly.fusions.cut$geneB.name  ], "; Fusion")
+  data.sub$Alterations[ data.sub$Gene %in% pizzly.fusions.cut$geneB.name  ] <- paste0( data.sub$Alterations[ data.sub$Gene %in% pizzly.fusions.cut$geneB.name  ], "; Fusion")
+}
             
 ##### Add genes involved in SVs (if data available)
 if ( runSVsChunk ) {
   
   ##### Change the alteration type to "fusion" for fusion genes
-  data$Alteration[ data$Gene %in% unique(manta_sv$Gene)  ] <- paste0( data$Alteration[ data$Gene %in% unique(manta_sv$Gene)  ], "; SV")
+  data$Alterations[ data$Gene %in% unique(manta_sv$Gene)  ] <- paste0( data$Alterations[ data$Gene %in% unique(manta_sv$Gene)  ], "; SV")
+  ##### Change the alteration type to "fusion" for fusion genes
+  data.sub$Alterations[ data.sub$Gene %in% unique(manta_sv$Gene)  ] <- paste0( data.sub$Alterations[ data.sub$Gene %in% unique(manta_sv$Gene)  ], "; SV")
 }
 
 ##### Remove altaration status "None" for gene which are not mutated but are involved in fusions or SVs
-data$Alteration <- gsub( "None; ", "", data$Alteration)
+data$Alterations <- gsub( "None", "CN", data$Alterations)
+data.sub$Alterations <- gsub( "None", "CN", data.sub$Alterations)
 
-if ( runPcgrChunk && length(cn_genes) > 0 ) {
-  data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = paste0(params$report_dir, "/results/"))
+##### Prepare dataframe for manhattanly
+##### Keep only genes for which both genes have gene symbol (and genomics location) available
+data <- data[ data$Gene %in% ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL, ]
+names(data)[match("CN", names(data))] <- "P"
+
+##### Merge genes genomic coordinates info with their annotation and expression data
+data.annot <- merge(data, ref_dataset.list[[dataset]][["gene_annot"]], by.x = "Gene", by.y = "SYMBOL", all.x = FALSE)
+data.annot$SEQNAME <- as.numeric(data.annot$SEQNAME)
+data.annot$GENESEQSTART <- as.numeric(data.annot$GENESEQSTART)
+data.annot <- data.annot[ !is.na(data.annot$SEQNAME), ]
+
+if ( nrow(data.annot) > 0 ) {
   
-} else if ( length(cn_genes) > 0) {
-  data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = paste0(params$report_dir, "/results/"))
+  ##### Get plot results first to extract x-axis coordinated to annotate genes of interest
+  manhattanr.res <- manhattanr(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", logp = FALSE)
   
+  ##### Restrict the results to the genes of interest
+  manhattanr.res$data <- manhattanr.res$data[ manhattanr.res$data$Gene %in% data.sub$Gene, ]
+  
+  p <- manhattanly(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", col = "#969696", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", suggestiveline = cn_top, genomewideline  = cn_bottom, suggestiveline_color = "gray", genomewideline_color = "gray", ylab = "CN value", showgrid = TRUE, title = "", logp = FALSE, width = 800, height = 400) %>%
+    
+    add_markers(y = manhattanr.res$data$P, x = manhattanr.res$data$pos, 
+                name = manhattanr.res$data$Gene,
+                text = paste0("Gene: ", manhattanr.res$data$Gene, "\nZ_score_diff: ", manhattanr.res$data$Z_score_diff, "\nPerc_diff: ", manhattanr.res$data$Perc_diff, "\nAlterations: ", manhattanr.res$data$Alterations),
+                mode = 'markers',
+                marker = list(size=10, symbol="circle"),
+                color = manhattanr.res$data$Gene,
+                showlegend = TRUE,
+                legendtitle=TRUE, 
+                inherit = FALSE) %>%
+    
+    add_annotations( data = manhattanr.res$data, text=~Gene,
+                      x=~pos, xanchor="left",
+                      y=~P, yanchor="top",
+                      font = list(color = "Grey", size = 10),
+                      legendtitle=TRUE,
+                      showarrow=FALSE )
+  
+  ##### Create directory for the plots
+  PlotDir <- paste(params$report_dir, "results/cn_genomic_view", sep = "/")
+  if ( !file.exists(PlotDir) ) {
+    dir.create(PlotDir, recursive=TRUE)
+  }
+  
+  ##### Save interactive plot as html file
+  saveWidgetFix(p, file = paste(PlotDir, "cn_genomic_view.html", sep = "/"))
+    
 } else {
-  cn_genes <- NULL
   cat("None of the genes of interest are affected by changes in CN.")
+  p <- NULL
 }
 
+p
+
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:manhattanly", unload=FALSE)
 detach("package:plotly", unload=FALSE)
 ```
 
@@ -4217,18 +4270,24 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### Percentiles
+### - Expression vs CN {.tabset}
 
-```{r mut_cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
+Scatterplot comparing the per-gene difference in **mRNA expression** between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+
+#### Z-scores
+
+```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
+cn_genes <- data.sub$Gene
 
 if ( runPcgrChunk && length(cn_genes) > 0 ) {
-  mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = paste0(params$report_dir, "/results/"))
+  data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
+  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = paste0(params$report_dir, "/results/"))
   
 } else if ( length(cn_genes) > 0) {
-  data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = paste0(params$report_dir, "/results/"))
+  data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
+  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = paste0(params$report_dir, "/results/"))
   
 } else {
   cn_genes <- NULL
@@ -4241,29 +4300,33 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-<details>
-<summary>CN data distribution</summary>
+#### Percentiles
 
-`r if ( runPurpleChunk ) { c(" ") } else { c("CN information for this sample is NOT AVAILABLE.") }`
-
-```{r cn_data_distribution_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9, eval = runPurpleChunk }
-##### Generate a histogram illustrating CN data distribution
+```{r mut_cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
+##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
-cn_dist_plot
 
+if ( runPcgrChunk && length(cn_genes) > 0 ) {
+  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = paste0(params$report_dir, "/results/"))
+  
+} else if ( length(cn_genes) > 0) {
+  data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
+  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = paste0(params$report_dir, "/results/"))
+  
+} else {
+  cn_genes <- NULL
+  cat("None of the genes of interest are affected by changes in CN.")
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
-
-##### Clean the space
-rm(cn_dist_plot)
 ```
-
-</details>
 
 ***
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN < cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN > cn_top, ][,1])` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
