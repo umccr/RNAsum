@@ -36,7 +36,7 @@
 #   subject_id (optional):    Subject ID required to match sample with clinical information (specified in flag --clinical_info)
 #   top_genes:    The number of top ranked genes to be presented (default is "10")
 #   dataset_name_incl:  Include dataset in the report name. Available options are: "TRUE" and "FALSE" (default)
-#   save_tables:   Save interactive summary tables as HTML. Available options are: "TRUE" and "FALSE" (default)
+#   save_tables:   Save interactive summary tables as HTML. Available options are: "TRUE" (default) and "FALSE"
 #   hide_code_btn : Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (default) and "FALSE"
 #   grch_version :  Human reference genome version used for genes annotation (default is "37")
 #
@@ -194,7 +194,7 @@ if ( is.na(opt$dataset_name_incl)  ) {
 }
 
 if ( is.na(opt$save_tables)  ) {
-  opt$save_tables <- FALSE
+  opt$save_tables <- TRUE
 }
 
 if ( is.na(opt$hide_code_btn)  ) {
