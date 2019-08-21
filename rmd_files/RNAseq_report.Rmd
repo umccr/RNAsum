@@ -1629,24 +1629,24 @@ sv_prioritize <- function(sv_file) {
       dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
       tidyr::unnest(annotation = strsplit(annotation, ',')) %>%  # Unpack multiple annotations per region
       tidyr::separate(annotation,
-                      c('event', 'effect', 'genes', 'transcript', 'detail', 'tier'),
+                      c('Event', 'Effect', 'Genes', 'Transcript', 'Detail', 'Tier'),
                       sep = '\\|', convert = TRUE) %>%  # Unpack annotation columns
       dplyr::mutate(start = format(start, big.mark = ',', trim = T),
                     end = format(end, big.mark = ',', trim = T)) %>% 
       dplyr::mutate(location = str_c(chrom, ':', start, sep = ''),
                     location = ifelse(is.na(end), location, str_c(location))) %>% 
-      dplyr::arrange(tier, effect, desc(AF), genes) %>% 
-      dplyr::mutate(Gene = subset_genes(genes, c(1, 2)),
-                    Gene = ifelse((str_split(genes, '&') %>% map_int(length)) > 2,
+      dplyr::arrange(Tier, Effect, desc(AF), Genes) %>% 
+      dplyr::mutate(Gene = subset_genes(Genes, c(1, 2)),
+                    Gene = ifelse((str_split(Genes, '&') %>% map_int(length)) > 2,
                                   str_c(Gene, '...', sep = ', '),
                                   Gene),
-                    `Other affected genes` = subset_genes(genes, -c(1,2)) %>% str_replace_all('&', ', '),
-                    Gene = ifelse(str_detect(effect, "gene_fusion"),
+                    `Other affected genes` = subset_genes(Genes, -c(1,2)) %>% str_replace_all('&', ', '),
+                    Gene = ifelse(str_detect(Effect, "gene_fusion"),
                                   Gene,
                                   Gene %>% str_replace_all('&', ', '))
                     ) %>% 
-      separate(effect, c("Effect", "Other effects"), sep = '&') %>% 
-      dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = detail, Location = location, AF, `CN chg` = CN_change, SR, PR, CN, Ploidy, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF1, `AF at breakpoint 2` = AF2, `CN at breakpoint 1` = CN1, `CN at breakpoint 2` = CN2, `CN change at breakpoint 1` = CN_change1, `CN change at breakpoint 2` = CN_change2, `AF before adjustment, bp 1` = BPI_AF1, `AF before adjustment, bp 2` = BPI_AF2
+      separate(Effect, c("Effect", "Other effects"), sep = '&') %>% 
+      dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = Detail, Location = location, AF, `CN chg` = CN_change, SR, PR, CN, Ploidy, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = Transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF1, `AF at breakpoint 2` = AF2, `CN at breakpoint 1` = CN1, `CN at breakpoint 2` = CN2, `CN change at breakpoint 1` = CN_change1, `CN change at breakpoint 2` = CN_change2, `AF before adjustment, bp 1` = BPI_AF1, `AF before adjustment, bp 2` = BPI_AF2
       ) %>%
       dplyr::distinct()
       # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%
@@ -4015,7 +4015,6 @@ mRNA expression levels of genes located within detected structural variants (SVs
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-
 ### - Summary table {.tabset}
 
 Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
@@ -4154,9 +4153,9 @@ CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } 
 
 ### - Genomic view
 
-`r length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])` genes with available CN data are presented in the genomic context. **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span>.
+`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data are presented in the genomic context. **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span>.
 
-```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.4, fig.height = 4, eval = runPurpleChunk}
+```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
 ##### Generate genomic view plot with per-gene CN values (y-axis) along chromosomal coordinates (x-axis)
 suppressMessages(library(manhattanly))
 suppressMessages(library(plotly))
@@ -4164,6 +4163,7 @@ suppressMessages(library(plotly))
 data <- ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]
 data.sub <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
 
+##### Add SNVs
 if ( runPcgrChunk ) {
   data$Alterations <- as.character(data$Alterations)
   data.sub$Alterations <- as.character(data.sub$Alterations)
