@@ -169,7 +169,7 @@ Argument | Description | Required
 ------------ | ------------ | ------------
 --sample_name | The name of the sample to be analysed and reported | **Yes**
 --dataset | Tissue from which the sample is derived. Available options are [TCGA](https://tcga-data.nci.nih.gov/) project IDs listed in [TCGA projects summary table](./TCGA_projects_summary.md) `Project` column | **Yes**
---count_file | Location and name of the *[kallisto](https://pachterlab.github.io/kallisto/about)* read count file from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* (see [example](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)) | **Yes**
+--bcbio_rnaseq | Location of the results folder from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* | **Yes**
 --report_dir | Desired location for the report | **Yes**
 --transform | Transformation method for converting read counts. Available options are: `CPM` (default) and `TPM` | No
 --norm | Normalisation method. Available options are: `TMM` (default), `TMMwzp`, `RLE`, `upperquartile` or `none` for *CPM-transformed* data, and `quantile` (default) or `none` for *TPM-transformed* data | No
@@ -231,7 +231,7 @@ In this scenario, only [WTS](#wts) data will be used and only expression levels 
 The input files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
@@ -245,7 +245,7 @@ The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
@@ -256,7 +256,7 @@ For samples derived from subjects, for which clinical information is available, 
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.

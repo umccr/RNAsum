@@ -17,7 +17,7 @@ params:
   sample_name: 'test_sample_WTS'
   dataset: 'PAAD-NET'
   dataset_name_incl: ''
-  count_file: '../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv'
+  bcbio_rnaseq: '../data/test_data/final/test_sample_WTS'
   report_dir: '../data/test_data/final/test_sample_WTS/RNAseq_report'
   ref_data_dir: '../data'
   transform: 'CPM'
@@ -1768,8 +1768,7 @@ caner_genes_annot.list <- vector("list", length(caner_genes_annot))
 names(caner_genes_annot.list) <- caner_genes_annot
 
 ##### Get patient data dir and sample file name
-dataDir <- unlist(strsplit(params$count_file, split='/', fixed=TRUE))
-dataDir <- paste(dataDir[-c(length(dataDir), length(dataDir)-1)], collapse ="/")
+dataDir <- params$bcbio_rnaseq
 
 ##### Getting sample name from the params - which now SHOULD be pre-defined
 sampleName <- params$sample_name
@@ -1779,7 +1778,7 @@ tx2ensembl <- read.csv(file.path(paste(params$ref_data_dir, params$annot_file, s
 colnames(tx2ensembl) <- c("tx_name", "gene_id")
 
 ##### Look at countsFromAbundance parameter to change the method to generate the counts
-txi.kallisto <- tximport(params$count_file, type = "kallisto", tx2gene = tx2ensembl)
+txi.kallisto <- tximport(paste0(dataDir, "/kallisto/abundance.tsv"), type = "kallisto", tx2gene = tx2ensembl)
 
 ##### Extract salmon counts to prepare dataframe
 kallisto.counts <- as.data.frame(txi.kallisto$counts) %>%
@@ -4147,7 +4146,7 @@ rm(list = ls(pattern='^output*'))
 
 ## CN altered genes
 
-Section overlaying the mRNA expression data for **[Cancer genes]** with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}) and mutation status, if available.
+Section overlaying the mRNA expression data for **[Cancer genes]** with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), as well as SNVs/indels and SVs data, if available.
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 

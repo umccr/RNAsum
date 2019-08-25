@@ -14,11 +14,11 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir (pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir (pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
 #
 #   sample_name:  Desired sample name to be presented in the report
 #   dataset:      Dataset to be used as external reference cohort
-#   count_file:   Location and name of the read count file from bcbio RNA-seq pipeline
+#   bcbio_rnaseq: Location of the results folder from bcbio RNA-seq pipeline
 #   report_dir:   Desired location for the report
 #   ref_data_dir: Location of the reference and annotation files
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (default) and "TPM"
@@ -69,8 +69,8 @@ option_list = list(
               help="Desired sample name to be presented in the report"),
   make_option(c("-o", "--dataset"), action="store", default=NA, type='character',
               help="Dataset to be used as external reference cohort"),
-  make_option(c("-c", "--count_file"), action="store", default=NA, type='character',
-              help="Location and name of the read count file from bcbio RNA-seq pipeline"),
+  make_option(c("-c", "--bcbio_rnaseq"), action="store", default=NA, type='character',
+              help="Location of the results folder from bcbio RNA-seq pipeline"),
   make_option(c("-r", "--report_dir"), action="store", default=NA, type='character',
               help="Desired location for the report"),
   make_option(c("-v", "--ref_data_dir"), action="store", default=NA, type='character',
@@ -116,10 +116,10 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 ##### Read in argument from command line and check if all were provide by the user
-if ( is.na(opt$sample_name) || is.na(opt$dataset) || is.na(opt$count_file) || is.na(opt$report_dir) ) {
+if ( is.na(opt$sample_name) || is.na(opt$dataset) || is.na(opt$bcbio_rnaseq) || is.na(opt$report_dir) ) {
 
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\n")
   q()
 }
 
@@ -292,7 +292,7 @@ if ( !file.exists(opt$report_dir) ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), count_file = opt$count_file, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, dataset_name_incl = dataset_name_incl, save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), pcgr_splice_vars = as.logical(opt$pcgr_splice_vars), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), top_genes = as.numeric(opt$top_genes), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), bcbio_rnaseq = opt$bcbio_rnaseq, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, dataset_name_incl = dataset_name_incl, save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), pcgr_splice_vars = as.logical(opt$pcgr_splice_vars), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), top_genes = as.numeric(opt$top_genes), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
 
 ##### Remove the assocaited MD file and the redundant folder with plots that are imbedded in the HTML report
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.md"), recursive = TRUE)
