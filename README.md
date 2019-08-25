@@ -264,6 +264,20 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_
 
 ### Output
 
+The pipeline generates [results](#results) folder and the html-based ***Patient Transcriptome Summary*** **[report](#report)** within user-defined `output` folder:
+
+```
+|
+|____<output>
+  |____<SampleName>.<output>.html
+  |____results
+    |____exprTables
+    |____glanceExprPlots
+    |____...
+```
+
+#### Report
+
 The generated html-based ***Patient Transcriptome Summary*** **report** includes searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report consist of several sections, including:
 
 * [Input data](report_structure.md#input-data)
@@ -284,3 +298,6 @@ The generated html-based ***Patient Transcriptome Summary*** **report** includes
 
 Detailed description of the **[report structure](report_structure.md)**, including **[results prioritisation](report_structure.md)** and **[visualisation](report_structure.md)** is available in [report_structure.md](report_structure.md).
  
+#### Results
+
+The `results` folder contains intermediate files, including plots and tables that are presented in the [report](#report).
