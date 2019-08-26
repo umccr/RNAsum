@@ -74,29 +74,29 @@ option_list = list(
               help="Location of the results folder from bcbio RNA-seq pipeline"),
   make_option(c("-r", "--report_dir"), action="store", default=NA, type='character',
               help="Desired location for the report"),
-  make_option(c("-v", "--ref_data_dir"), action="store", default=NA, type='character',
+  make_option(c("-v", "--ref_data_dir"), action="store", default="../data", type='character',
               help="Location of the reference and annotation files"),
-  make_option(c("-t", "--transform"), action="store", default=NA, type='character',
+  make_option(c("-t", "--transform"), action="store", default="CPM", type='character',
               help="Transformation method to be used when converting read counts"),
   make_option(c("-n", "--norm"), action="store", default=NA, type='character',
               help="Normalisation method"),
-  make_option(c("-k", "--batch_rm"), action="store", default=NA, type='character',
+  make_option(c("-k", "--batch_rm"), action="store", default=TRUE, type='character',
               help="Remove batch-associated effects between datasets"),
-  make_option(c("-f", "--filter"), action="store", default=NA, type='character',
+  make_option(c("-f", "--filter"), action="store", default=TRUE, type='character',
               help="Filtering out low expressed genes"),
-  make_option(c("-l", "--log"), action="store", default=NA, type='character',
+  make_option(c("-l", "--log"), action="store", default=TRUE, type='character',
               help="Log (base 2) transform data before normalisation"),
-  make_option(c("-z", "--scaling"), action="store", default=NA, type='character',
+  make_option(c("-z", "--scaling"), action="store", default="gene-wise", type='character',
               help="Scaling for z-score transformation (gene-wise or group-wise"),
-  make_option(c("-g", "--umccrise"), action="store", default=NA, type='character',
+  make_option(c("-g", "--umccrise"), action="store", default=NULL, type='character',
               help="Location of the corresponding WGS-related data"),
-  make_option(c("-j", "--pcgr_tier"), action="store", default=NA, type='character',
+  make_option(c("-j", "--pcgr_tier"), action="store", default=4, type='character',
               help="Tier threshold for reporting variants reported in PCGR"),
-  make_option(c("-y", "--pcgr_splice_vars"), action="store", default=NA, type='character',
+  make_option(c("-y", "--pcgr_splice_vars"), action="store", default=TRUE, type='character',
               help="Include non-coding splice region variants reported in PCGR"),
-  make_option(c("-a", "--cn_loss"), action="store", default=NA, type='character',
+  make_option(c("-a", "--cn_loss"), action="store", default=5, type='character',
               help="CN threshold value to classify genes within lost regions"),
-  make_option(c("-b", "--cn_gain"), action="store", default=NA, type='character',
+  make_option(c("-b", "--cn_gain"), action="store", default=95, type='character',
               help="CN threshold value to classify genes within gained regions"),
   make_option(c("-m", "--clinical_info"), action="store", default=NA, type='character',
               help="Location of xslx file with clinical information"),
@@ -106,13 +106,13 @@ option_list = list(
               help="Type of investigated sample"),
   make_option(c("-pr", "--project"), action="store", default=NA, type='character',
               help="Project name"),
-  make_option(c("-x", "--top_genes"), action="store", default=NA, type='character',
+  make_option(c("-x", "--top_genes"), action="store", default=10, type='character',
               help="The number of top ranked genes to be presented"),
   make_option(c("-w", "--dataset_name_incl"), action="store", default=NA, type='character',
               help="Include dataset in the report name"),
-  make_option(c("-u", "--save_tables"), action="store", default=NA, type='character',
+  make_option(c("-u", "--save_tables"), action="store", default=TRUE, type='character',
               help="Save interactive summary tables as HTML"),
-  make_option(c("-d", "--hide_code_btn"), action="store", default=NA, type='character',
+  make_option(c("-d", "--hide_code_btn"), action="store", default=TRUE, type='character',
               help="Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report"),
   make_option(c("-e", "--grch_version"), action="store", default=NA, type='character',
               help="human reference genome version used for genes annotation")
@@ -136,14 +136,6 @@ if ( !is.na(opt$clinical_info) && is.na(opt$subject_id)  ) {
 }
 
 ##### Set default parameters
-if ( is.na(opt$ref_data_dir)  ) {
-  opt$ref_data_dir <- "../data"
-}
-
-if ( is.na(opt$transform)  ) {
-  opt$transform <- "CPM"
-}
-
 if ( is.na(opt$norm)  ) {
   
   if ( opt$transform == "CPM"  ) {
@@ -154,60 +146,12 @@ if ( is.na(opt$norm)  ) {
   }
 }
 
-if ( is.na(opt$batch_rm)  ) {
-  opt$batch_rm <- TRUE
-}
-
-if ( is.na(opt$filter)  ) {
-  opt$filter <- TRUE
-}
-
-if ( is.na(opt$log)  ) {
-  opt$log <- TRUE
-}
-
-if ( is.na(opt$scaling)  ) {
-  opt$scaling <- "gene-wise"
-}
-
-if ( is.na(opt$umccrise)  ) {
-  opt$umccrise <- NULL
-}
-
-if ( is.na(opt$pcgr_tier)  ) {
-  opt$pcgr_tier <- 4
-}
-
-if ( is.na(opt$pcgr_splice_vars)  ) {
-  opt$pcgr_splice_vars <- TRUE
-}
-
-if ( is.na(opt$cn_loss)  ) {
-  opt$cn_loss <- 5
-}
-
-if ( is.na(opt$cn_gain)  ) {
-  opt$cn_gain <- 95
-}
-
-if ( is.na(opt$top_genes)  ) {
-  opt$top_genes <- 10
-}
-
 if ( is.na(opt$dataset_name_incl)  ) {
   dataset_name_incl <- ""
 } else if ( isFALSE(as.logical(opt$dataset_name_incl))  ) {
   dataset_name_incl <- ""
 } else {
   dataset_name_incl <- paste0(".", opt$dataset)
-}
-
-if ( is.na(opt$save_tables)  ) {
-  opt$save_tables <- TRUE
-}
-
-if ( is.na(opt$hide_code_btn)  ) {
-  opt$hide_code_btn <- TRUE
 }
 
 if ( is.na(opt$grch_version)  ) {
