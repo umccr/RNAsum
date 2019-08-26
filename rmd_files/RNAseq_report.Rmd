@@ -1775,9 +1775,6 @@ names(caner_genes_annot.list) <- caner_genes_annot
 ##### Get patient data dir and sample file name
 dataDir <- params$bcbio_rnaseq
 
-##### Getting sample name from the params - which now SHOULD be pre-defined
-sampleName <- params$sample_name
-
 ##### Read-in the annotation file for tximport
 tx2ensembl <- read.csv(file.path(paste(params$ref_data_dir, params$annot_file, sep = "/")), header = FALSE)
 colnames(tx2ensembl) <- c("tx_name", "gene_id")
@@ -1836,8 +1833,8 @@ ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$ge
 ##### Read in gene fusion data for investigate sample
 ##### Read in the pizzly fusion calls
 ##### Check if pizzly output file exists
-pizzly_file <- paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/")
-pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(sampleName, "-flat-filtered.tsv"), sep = "/")
+pizzly_file <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat.tsv"), sep = "/")
+pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat-filtered.tsv"), sep = "/")
 runFusionChunk <- TRUE
 
 if ( file.exists(pizzly_file) ) {
@@ -2591,8 +2588,8 @@ suppressMessages(library(plotly))
 ##### Loop through combined datasets and perform PCA
 for ( dataset in names(ref_dataset.list) ) {
   target <- ref_dataset.list[[dataset]][["sample_annot"]]
-  target$Dataset <- gsub(sampleName, "Patient", target$Dataset)
-  target$Target <- gsub(sampleName, "Patient", target$Target)
+  target$Dataset <- gsub(params$sample_name, "Patient", target$Dataset)
+  target$Target <- gsub(params$sample_name, "Patient", target$Target)
   
   if ( params$batch_rm ) {
     ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = paste0(params$report_dir, "/results/"))
