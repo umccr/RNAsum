@@ -137,9 +137,9 @@ The following *[umccrise](https://github.com/umccr/umccrise)* output files are a
 
 Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
-List of detected and annotated single-nucleotide variants (**SNVs**) and indels | [PCGR](https://github.com/sigven/pcgr) | [test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv) | No
-List of genes involved in **CN** altered regions | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) | [test_sample_WGS.purple.gene.cnv](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv) | No
-List of genes involved in **SV** regions | [Manta](https://github.com/Illumina/manta) | [test_sample_WGS-sv-prioritize-manta-pass.tsv](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv) | No
+List of detected and annotated single-nucleotide variants (**SNVs**) and indels | [PCGR](https://github.com/sigven/pcgr) | [test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv](./data/test_data/umccrised/test_subject__test_sample_WGS/pcgr/test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv) | No
+List of genes involved in **CN** altered regions | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) | [test_subject__test_sample_WGS.purple.gene.cnv](./data/test_data/umccrised/test_subject__test_sample_WGS/purple/test_subject__test_sample_WGS.purple.gene.cnv) | No
+List of genes involved in **SV** regions | [Manta](https://github.com/Illumina/manta) | [test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv](./data/test_data/umccrised/test_subject__test_sample_WGS/structural/test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv) | No
 
 <br />
 
@@ -177,7 +177,7 @@ Argument | Description | Required
 --filter | Filtering out low expressed genes. Available options are: `TRUE` (default) and `FALSE` | No
 --log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (default) and `FALSE` | No
 --scaling | Apply [`gene-wise`](img/Z-score_transformation_gene_wise.png) (default) or [`group-wise`](img/Z-score_transformation_group_wise.png) data scaling | No
---umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr) (see [example](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)), [Manta](https://github.com/Illumina/manta) (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv)) and [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) (see [example](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv)) output files) from genome-based data | No
+--umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/pcgr/test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)), [Manta](https://github.com/Illumina/manta) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/structural/test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv)) and [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/purple/test_subject__test_sample_WGS.purple.gene.cnv)) output files) from genome-based data | No
 --pcgr_tier | [Tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) threshold for reporting variants reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available, default is `4`) | No
 --pcgr_splice_vars | Include non-coding `splice_region_variant`s reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available). Available options are: `TRUE` (default) and `FALSE` | No
 --cn_loss | CN threshold value to classify genes within lost regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `5th percentile` of all CN values) | No
@@ -245,7 +245,7 @@ The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
@@ -256,7 +256,7 @@ For samples derived from subjects, for which clinical information is available, 
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test_subject
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.

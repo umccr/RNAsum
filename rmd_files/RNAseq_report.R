@@ -16,7 +16,6 @@
 #
 #	  Command line use example: Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir (pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
 #
-#   sample_name:  Desired sample name to be presented in the report
 #   dataset:      Dataset to be used as external reference cohort
 #   bcbio_rnaseq: Location of the results folder from bcbio RNA-seq pipeline
 #   report_dir:   Desired location for the report
@@ -163,6 +162,10 @@ if ( is.na(opt$log)  ) {
 
 if ( is.na(opt$scaling)  ) {
   opt$scaling <- "gene-wise"
+}
+
+if ( is.na(opt$umccrise)  ) {
+  opt$umccrise <- NULL
 }
 
 if ( is.na(opt$pcgr_tier)  ) {

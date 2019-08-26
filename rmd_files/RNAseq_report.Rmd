@@ -26,9 +26,9 @@ params:
   batch_rm: TRUE
   log: TRUE
   scaling: 'gene-wise'
-  umccrise: '../data/test_data/umccrised/test_sample_WGS'
+  umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
-  subject_id: 'test.subject'
+  subject_id: 'test_subject'
   top_genes: 10
   save_tables: FALSE
   hide_code_btn: TRUE
@@ -1744,6 +1744,11 @@ if (tolower(params$scaling) == "gene-wise"){
 }
 ```
 
+```{r myqsl_populate, message=FALSE, warning=FALSE}
+##### Initiate MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Tissue, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\",")
+```
+
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
 ##### Define the reference datasets based on user-defined input
@@ -1858,19 +1863,23 @@ if ( file.exists(kallisto_quant_file) ) {
 
 ##### Read in mutation data for investigate sample
 ##### Get the genomic output data from umccrise
-umccrise <- unlist(strsplit(params$umccrise, split='/', fixed=TRUE))
-umccrise <- umccrise[length(umccrise)]
-
-##### Check if PCGR (mutation) output file exists
-runPcgrChunk <- TRUE
-
-if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
+if ( !is.null(params$umccrise) ) {
+  umccrise <- unlist(strsplit(params$umccrise, split='/', fixed=TRUE))
+  umccrise <- umccrise[length(umccrise)]
   
-  pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
-
-} else if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
+  ##### Check if PCGR (mutation) output file exists
+  runPcgrChunk <- TRUE
   
-  pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+  if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
+    
+    pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
+  
+  } else if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
+    
+    pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+  } else {
+    runPcgrChunk <- FALSE
+  }
 } else {
   runPcgrChunk <- FALSE
 }
@@ -1886,6 +1895,11 @@ if ( runPcgrChunk ) {
   ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
   
   ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
+  
+  ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
+  subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
+  mysql_populate <- paste0(mysql_populate, params$sample_name, "\"\n")
+  
 } else {
   ref_genes.list[["pcgr"]] <- NULL
 }
