@@ -29,6 +29,8 @@ params:
   umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   subject_id: 'test_subject'
+  sample_type: 
+  project: 
   top_genes: 10
   save_tables: FALSE
   hide_code_btn: TRUE
@@ -1746,7 +1748,7 @@ if (tolower(params$scaling) == "gene-wise"){
 
 ```{r myqsl_populate, message=FALSE, warning=FALSE}
 ##### Initiate MySQL commend to populate RNA-seq portal database
-mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Tissue, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\",")
+mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000,\"RNA_seq\"")
 ```
 
 ```{r load_ref_data, message=FALSE, warning=FALSE}
@@ -1895,10 +1897,11 @@ if ( runPcgrChunk ) {
   
   ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
   subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
-  mysql_populate <- paste0(mysql_populate, params$sample_name, "\"\n")
+  mysql_populate <- paste0(mysql_populate, ",\"", subjectID, "\",\"", params$sample_name, "\"" )
   
 } else {
   ref_genes.list[["pcgr"]] <- NULL
+  mysql_populate <- paste0(mysql_populate, ",\"\",\"", params$sample_name, "\"")
 }
 
 ##### Check if purple (CN) output file exists
