@@ -17,7 +17,7 @@ params:
   sample_name: 'test_sample_WTS'
   dataset: 'PAAD-NET'
   dataset_name_incl: ''
-  count_file: '../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv'
+  bcbio_rnaseq: '../data/test_data/final/test_sample_WTS'
   report_dir: '../data/test_data/final/test_sample_WTS/RNAseq_report'
   ref_data_dir: '../data'
   transform: 'CPM'
@@ -26,11 +26,12 @@ params:
   batch_rm: TRUE
   log: TRUE
   scaling: 'gene-wise'
-  umccrise: '../data/test_data/umccrised/test_sample_WGS'
+  umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
-  subject_id: 'test.subject'
+  subject_id: 'test_subject'
+  sample_type: 
+  project: 
   top_genes: 10
-  plots_mode: 'interactive'
   save_tables: FALSE
   hide_code_btn: TRUE
   pcgr_tier: 4
@@ -75,7 +76,8 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 # 8. ref_dataset.list[[dataset]][["data_to_report"]] = Fully combined and processed data to be used for reporting
 # 9. ref_dataset.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
 # 10. ref_dataset.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
-# 11. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data
+# 11. ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] = combined expression, mutation and copy-number data
+# 12. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data limited to cancer genes that meet user-deinfed CN values threshold
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
 # 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from UMCCR Cancer Gene list and OncoKB portal (http://oncokb.org/#/cancerGenes) 
@@ -226,7 +228,7 @@ getColours <- function(elements) {
   if ( length(unique(elements)) == 3 ) {
     elements.colours <- c("powderblue", "red", "gray50")
   } else if ( length(unique(elements)) == 4 ) {
-    elements.colours <- c("powderblue", "red", "forestgreen", "gray50")
+    elements.colours <- c("powderblue", "forestgreen", "red", "gray50")
   } else {
     elements.colours <- rainbow(length(elements))
   }
@@ -265,7 +267,7 @@ allow_thumbnails <- function(x, options) {
 }
 
 ##### Perform PCA. This function outputs a list with dataframe and samples colouring info ready for plotting
-pca <- function(data, targets, title = "", plot_mode = "static", report_dir ) {
+pca <- function(data, targets, title = "", report_dir, suffix = "" ) {
 
   ##### Keep only genes with variance > 0 across all samples
   rsd <- apply(data,1,sd)
@@ -292,7 +294,7 @@ pca <- function(data, targets, title = "", plot_mode = "static", report_dir ) {
   names(pca.list) <- c("pca.df", "importance_pca", "targets", "datasets")
   
   ##### Change the datasets levels order
-  data.subset_pca.df$Dataset <- factor(data.subset_pca.df$Dataset, levels = unique(data.subset_pca.df$Dataset))
+  data.subset_pca.df$Target <- factor(data.subset_pca.df$Target, levels = unique(data.subset_pca.df$Target))
   
   ##### Generate PCA 2-D plot
   pca_plot <- plot_ly(data.subset_pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(targets$Target, rownames(data.subset_pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7), width = 800, height = 400) %>%
@@ -308,39 +310,17 @@ colnames(data.subset_scree.df) <- c("PC", "Variances")
   scree_plot <- plot_ly(data.subset_scree.df, x = ~PC, y = ~Variances, type = 'bar', width = 800, height = 400) %>%
     layout(title = title, xaxis = list(title = ""), margin = list(l=50, r=50, b=100, t=30, pad=4), autosize = F)
   
-  ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
-  if ( plot_mode == "static" ) {
-
-      PlotsDir <- paste(report_dir, "InputDataPlots", sep = "/")
-      if ( !file.exists(PlotsDir) ) {
-      
-        dir.create(PlotsDir, recursive=TRUE)
-      }
-        
-      ##### Add access token, required by orca function, to the shell environment
-      Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+  ##### Create directory for the plots
+  PCAplotDir <- paste(report_dir, "InputDataPlots", sep = "/")
+  if ( !file.exists(PCAplotDir) ) {
+    dir.create(PCAplotDir, recursive=TRUE)
+  }
   
-      ##### Change directory to folder with PCA plots
-      setwd(PlotsDir)
- 
-      ##### Save the static image into a file
-      orca(pca_plot, format = "png", file = "pca_plot.png", width = 800, height = 600)
+  ##### Save interactive plot as html file
+  saveWidgetFix(pca_plot, file = paste0(PCAplotDir, "/pca_plot", suffix, ".html"))
+  saveWidgetFix(scree_plot, file = paste0(PCAplotDir, "/scree_plot", suffix, ".html"))
   
-      ##### Present the static plot in the report
-      pca_plot <- include_graphics(paste(PlotsDir, "pca_plot.png", sep = "/"), dpi = 144)
-      
-      ##### Save the static image into a file
-      orca(scree_plot, format = "png", file = "scree_plot.png", width = 1200, height = 400)
-  
-      ##### Present the static plot in the report
-      scree_plot <- include_graphics(paste(PlotsDir, "scree_plot.png", sep = "/"), dpi = 144)
-    
-      return( list(pca.list, pca_plot, scree_plot) )
-      
-    } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
-
-      return( list(pca.list, pca_plot, scree_plot) )
-    }
+  return( list(pca.list, pca_plot, scree_plot) )
   
   ##### Clean the space
   rm(data, targets, rsd, data.subset, data.subset_pca, importance_pca, data.subset_pca.df, targets.colour, datasets.colour, pca.list, data.subset_scree.df, PlotsDir)
@@ -548,7 +528,7 @@ exprGroupStats_groupWise <- function(data, targets, target) {
 }
 
 ##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
-cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, addBoxPlot = FALSE, plot_mode = "static", scaling = "gene-wise", report_dir) {
+cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, addBoxPlot = FALSE, scaling = "gene-wise", report_dir) {
   
   ##### Remove the internal reference cohort data if the patient samples origins from other tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
   if ( comp_cancer != int_cancer ) {
@@ -747,56 +727,10 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
           yaxis2 = list( title =""), xaxis2 = list(title = paste0(gene, " mRNA expression (Z-score)")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = FALSE,
          showlegend=TRUE, showlegend2=FALSE)
     
-    ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
-    if ( plot_mode == "static" || plot_mode == "semi-interactive" ) {
-      
-      ##### Create directory for CDF plots
-      PlotsDir <- paste(report_dir, "CDF_plots", sep = "/")
-      if ( !file.exists(PlotsDir) ) {
-
-        dir.create(PlotsDir, recursive=TRUE)
-      }
-  
-      ##### Add access token, required by orca function, to the shell environment
-      Sys.setenv('MAPBOX_TOKEN' = 'secret token')
-  
-      ##### Change directory to folder with CDF plots
-      setwd(PlotsDir)
- 
-      ##### Save the static image into a file
-      orca(p1_2, format = "png", file = paste0(gene, "_cdf_box_plot.png"), width = 800, height = 600)
-  
-      ##### Present the static plot in the report
-      include_graphics(paste(PlotsDir, paste0(gene, "_cdf_box_plot.png"), sep = "/"), dpi = 72)
-  
-    } else if ( plot_mode == "interactive" ) {
-      return( p1_2 )
-    }
+    return( p1_2 )
+    
   } else {
-    if ( plot_mode == "static" || plot_mode == "semi-interactive" ) {
-
-      ##### Create directory for CDF plots
-      PlotsDir <- paste(report_dir, "CDF_plots", sep = "/")
-      if ( !file.exists(PlotsDir) ) {
-
-        dir.create(PlotsDir, recursive=TRUE)
-      }
-  
-      ##### Add access token, required by orca function, to the shell environment
-      Sys.setenv('MAPBOX_TOKEN' = 'secret token')
-  
-      ##### Change directory to folder with CDF plots
-      setwd(PlotsDir)
-  
-      ##### Save the static image into a file
-      orca(p1, format = "png", file = paste0(gene, "_cdf_plot.png"), width = 800, height = 200)
-  
-      ##### Present the static plot in the report
-      include_graphics(paste(PlotsDir, paste0(gene, "_cdf_plot.png"), sep = "/"), dpi = 72)
-  
-    } else if ( plot_mode == "interactive" ) {
-      return( p1 )
-    }
+    return( p1 )
   }
   ##### Clean the space
   rm(gene, targets, data, sampleName, targets.list, group.z, group.z.gene, gene.data, gene.stats, data.z, gene.expr.df, group.colours)
@@ -809,7 +743,7 @@ density2freq <- function(density) {
 }
 
 ##### Generate density and expression distribution plots for selected gene, highlighting samples of interest
-densityPlot <- function(gene, data, main_title, x_title, sampleName, distributions = NULL, plot_mode = "static", scaling = "gene-wise", report_dir) {
+densityPlot <- function(gene, data, main_title, x_title, sampleName, distributions = NULL, scaling = "gene-wise", report_dir) {
   
   if ( scaling == "gene-wise" ) {
     data.z <- t(scale(t(data)))
@@ -907,26 +841,8 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
 
     dir.create(PlotsDir, recursive=TRUE)
   }
-    
-  ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
-  if ( plot_mode == "static" ) {
   
-    ##### Add access token, required by orca function, to the shell environment
-    Sys.setenv('MAPBOX_TOKEN' = 'secret token')
-  
-    ##### Change directory to folder with plots
-    setwd(PlotsDir)
- 
-    ##### Save the static image into a file
-    orca(p, format = "png", file = paste0(gene, "_expr_distr_plot.png"), width = 1200, height = 600)
-  
-    ##### Present the static plot in the report
-    include_graphics(paste(PlotsDir, paste0(gene, "_expr_distr_plot.png"), sep = "/"), dpi = 72)
-  
-  ##### Save interactive plot as html file
-  } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
-    return( p )
-  }
+  return( p )
   
   ##### Clean the space
   rm(gene, expr.sorted)
@@ -934,7 +850,7 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
 }
 
 ##### Generate boxplot presenting expression profiles for selected set of genes
-glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, plot_mode = "static", hexcode, type = "z", sort = "diff", scaling = "gene-wise", report_dir) {
+glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, hexcode, type = "z", sort = "diff", scaling = "gene-wise", report_dir) {
   
   if ( comp_cancer != int_cancer ) {
     targets <- targets[ targets$Target %!in% int_cancer, ]
@@ -1011,34 +927,14 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     dir.create(PlotsDir, recursive=TRUE)
   }
     
-  ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. To this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). In case of issues/errors (such as orca utility is required to use orca() function), it might be needed to restart Rstudio from the commandline using "open -na Rstudio" and for 'Argument list too long' try "devtools::install_github('ropensci/plotly')"
-  if ( plot_mode == "static" ) {
-  
-    ##### Add access token, required by orca function, to the shell environment
-    Sys.setenv('MAPBOX_TOKEN' = 'secret token')
-  
-    ##### Change directory to folder with plots
-    setwd(PlotsDir)
- 
-    ##### Save the static image into a file
-    orca(p, format = "png", file = paste0(hexcode, "_glance_expr_plot.", type, ".png"), width = 1200, height = 600)
-  
-    ##### Present the static plot in the report
-    include_graphics(paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".png"), sep = "/"), dpi = 72)
-  
-  ##### Save interactive plot as html file
-  } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
-    saveWidgetFix(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
-    
-    return( p )
-  }
-  
+  return( p )
+
   ##### Clean the space and return output
   rm(targets, data, sampleName, data.z, y_title, genes, comp_cancer.medians, comp_cancer.medians.diff, gene.expr.df, group.colours)
 }
 
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
-mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer, type = "z", plot_mode = "static", report_dir) {
+mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer, type = "z", report_dir) {
   
   ##### Extract info for genes to be annotated on the plot
   genes2annot <- data[ data$CN > cn_top | data$CN < cn_bottom ,]$Gene
@@ -1058,25 +954,29 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   
   ##### Generate scatterplot with per-gene expression values (y-axis) (difference between Patient's and [comp_cancer] data), CN values (x-axis) and mutation status info (colours)
   if ( alt_data ) {
-    p <- plot_ly(data, x = ~CN, y = ~Expr, color = ~Alteration, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    p <- plot_ly(type='scatter', mode = "markers", width = 800, height = 500, showlegend = FALSE) %>%
       
-      add_annotations( text="Alteration", xref="paper", yref="paper",
-                      x=1.02, xanchor="left",
-                      y=1, yanchor="top",
-                      legendtitle=TRUE, showarrow=FALSE ) %>%
+      add_markers(data = data, y = ~Expr, x = ~CN, 
+                name = ~Gene,
+                text = paste0("Gene: ", data$Gene,  "\nAlterations: ", data$Alterations),
+                mode = 'markers',
+                marker = list(size=10, symbol="circle"),
+                color = ~Gene,
+                showlegend = TRUE,
+                legendtitle=TRUE, 
+                inherit = FALSE) %>%
       
       add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=genes2annot,
                       x=~CN, xanchor="left",
                       y=~Expr, yanchor="top",
-                      font = list(color = "Grey",
-                                size = 10),
+                      font = list(color = "Grey", size = 10),
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      layout( xaxis = list(title = "CN values"), yaxis = list(title = y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
+      layout( xaxis = list(title = "CN value"), yaxis = list(title = y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
   
   ##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
   } else {
-    p <- plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    p <- plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, color = ~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 500) %>%
       
       add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
                       x=~CN, xanchor="left",
@@ -1085,7 +985,7 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
                       size = 10),
                       legendtitle=TRUE, showarrow=FALSE ) %>%
       
-      layout( xaxis = list(title = "CN values"), yaxis = list(title =  y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=FALSE)
+      layout( xaxis = list(title = "CN value"), yaxis = list(title =  y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
   }
   
   ##### Create directory for the plots
@@ -1093,28 +993,11 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   if ( !file.exists(mutCNexprPlotDir) ) {
     dir.create(mutCNexprPlotDir, recursive=TRUE)
   }
-    
-  ##### Embed static rather interactive plots into the html report if requested by user. This will reduce the report size. TO this end the orca() function in plotly is used. Of note, this requires orca (https://github.com/plotly/orca) installation (conda option worked well for me, https://github.com/plotly/orca#method-1-conda), but the orca needs to be in the PATH, see https://github.com/plotly/orca/pull/122). 
-  if ( plot_mode == "static" ) {
-    
-    ##### Add access token, required by orca function, to the shell environment
-    Sys.setenv('MAPBOX_TOKEN' = 'secret token')
-
-    ##### Change directory to folder with CDF plots
-    setwd(mutCNexprPlotDir)
-
-    ##### Save the static image into a file
-    orca(p, format = "png", file = "mut_cn_expr_plot.png", width = 800, height = 600)
-
-    ##### Present the static plot in the report
-    include_graphics(paste(mutCNexprPlotDir, "mut_cn_expr_plot.png", sep = "/"), dpi = 72)
   
-  } else if ( plot_mode == "interactive" || plot_mode == "semi-interactive" ) {
-    ##### Save interactive plot as html file
-    saveWidgetFix(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
+  ##### Save interactive plot as html file
+  saveWidgetFix(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
     
-    return( p )
-  }
+  return( p )
   
   ##### Clean the space and return output
   rm(data, alt_data, genes2annot, y_title)
@@ -1758,24 +1641,24 @@ sv_prioritize <- function(sv_file) {
       dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
       tidyr::unnest(annotation = strsplit(annotation, ',')) %>%  # Unpack multiple annotations per region
       tidyr::separate(annotation,
-                      c('event', 'effect', 'genes', 'transcript', 'detail', 'tier'),
+                      c('Event', 'Effect', 'Genes', 'Transcript', 'Detail', 'Tier'),
                       sep = '\\|', convert = TRUE) %>%  # Unpack annotation columns
       dplyr::mutate(start = format(start, big.mark = ',', trim = T),
                     end = format(end, big.mark = ',', trim = T)) %>% 
       dplyr::mutate(location = str_c(chrom, ':', start, sep = ''),
                     location = ifelse(is.na(end), location, str_c(location))) %>% 
-      dplyr::arrange(tier, effect, desc(AF), genes) %>% 
-      dplyr::mutate(Gene = subset_genes(genes, c(1, 2)),
-                    Gene = ifelse((str_split(genes, '&') %>% map_int(length)) > 2,
+      dplyr::arrange(Tier, Effect, desc(AF), Genes) %>% 
+      dplyr::mutate(Gene = subset_genes(Genes, c(1, 2)),
+                    Gene = ifelse((str_split(Genes, '&') %>% map_int(length)) > 2,
                                   str_c(Gene, '...', sep = ', '),
                                   Gene),
-                    `Other affected genes` = subset_genes(genes, -c(1,2)) %>% str_replace_all('&', ', '),
-                    Gene = ifelse(str_detect(effect, "gene_fusion"),
+                    `Other affected genes` = subset_genes(Genes, -c(1,2)) %>% str_replace_all('&', ', '),
+                    Gene = ifelse(str_detect(Effect, "gene_fusion"),
                                   Gene,
                                   Gene %>% str_replace_all('&', ', '))
                     ) %>% 
-      separate(effect, c("Effect", "Other effects"), sep = '&') %>% 
-      dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = detail, Location = location, AF, `CN chg` = CN_change, SR, PR, CN, Ploidy, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF1, `AF at breakpoint 2` = AF2, `CN at breakpoint 1` = CN1, `CN at breakpoint 2` = CN2, `CN change at breakpoint 1` = CN_change1, `CN change at breakpoint 2` = CN_change2, `AF before adjustment, bp 1` = BPI_AF1, `AF before adjustment, bp 2` = BPI_AF2
+      separate(Effect, c("Effect", "Other effects"), sep = '&') %>% 
+      dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = Detail, Location = location, AF, `CN chg` = CN_change, SR, PR, CN, Ploidy, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = Transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF1, `AF at breakpoint 2` = AF2, `CN at breakpoint 1` = CN1, `CN at breakpoint 2` = CN2, `CN change at breakpoint 1` = CN_change1, `CN change at breakpoint 2` = CN_change2, `AF before adjustment, bp 1` = BPI_AF1, `AF before adjustment, bp 2` = BPI_AF2
       ) %>%
       dplyr::distinct()
       # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%
@@ -1873,6 +1756,12 @@ if (tolower(params$scaling) == "gene-wise"){
 }
 ```
 
+```{r myqsl_populate, message=FALSE, warning=FALSE}
+##### Initiate MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
+mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
+```
+
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
 ##### Define the reference datasets based on user-defined input
@@ -1897,18 +1786,14 @@ caner_genes_annot.list <- vector("list", length(caner_genes_annot))
 names(caner_genes_annot.list) <- caner_genes_annot
 
 ##### Get patient data dir and sample file name
-dataDir <- unlist(strsplit(params$count_file, split='/', fixed=TRUE))
-dataDir <- paste(dataDir[-c(length(dataDir), length(dataDir)-1)], collapse ="/")
-
-##### Getting sample name from the params - which now SHOULD be pre-defined
-sampleName <- params$sample_name
+dataDir <- params$bcbio_rnaseq
 
 ##### Read-in the annotation file for tximport
 tx2ensembl <- read.csv(file.path(paste(params$ref_data_dir, params$annot_file, sep = "/")), header = FALSE)
 colnames(tx2ensembl) <- c("tx_name", "gene_id")
 
 ##### Look at countsFromAbundance parameter to change the method to generate the counts
-txi.kallisto <- tximport(params$count_file, type = "kallisto", tx2gene = tx2ensembl)
+txi.kallisto <- tximport(paste0(dataDir, "/kallisto/abundance.tsv"), type = "kallisto", tx2gene = tx2ensembl)
 
 ##### Extract salmon counts to prepare dataframe
 kallisto.counts <- as.data.frame(txi.kallisto$counts) %>%
@@ -1916,12 +1801,12 @@ kallisto.counts <- as.data.frame(txi.kallisto$counts) %>%
   dplyr::rename(count = V1)
 
 ##### Create directory for results
-if ( !file.exists(params$report_dir) ) {
-  dir.create(params$report_dir, recursive=TRUE)
+if ( !file.exists(paste0(params$report_dir, "/results/")) ) {
+  dir.create(paste0(params$report_dir, "/results/"), recursive=TRUE)
 }
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_dataset.list[[dataset]] <- combineDatasets(sample_name=params$sample_name, sample_counts=kallisto.counts, ref_data=ref_dataset, report_dir = params$report_dir, dataset = dataset, dataset_name_incl = params$dataset_name_incl)
+ref_dataset.list[[dataset]] <- combineDatasets(sample_name=params$sample_name, sample_counts=kallisto.counts, ref_data=ref_dataset, report_dir = paste0(params$report_dir, "/results/"), dataset = dataset, dataset_name_incl = params$dataset_name_incl)
 names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Define internal, external and addition cancer group names based on the targets definition
@@ -1961,8 +1846,8 @@ ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$ge
 ##### Read in gene fusion data for investigate sample
 ##### Read in the pizzly fusion calls
 ##### Check if pizzly output file exists
-pizzly_file <- paste(dataDir, "pizzly", paste0(sampleName, "-flat.tsv"), sep = "/")
-pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(sampleName, "-flat-filtered.tsv"), sep = "/")
+pizzly_file <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat.tsv"), sep = "/")
+pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat-filtered.tsv"), sep = "/")
 runFusionChunk <- TRUE
 
 if ( file.exists(pizzly_file) ) {
@@ -1988,19 +1873,23 @@ if ( file.exists(kallisto_quant_file) ) {
 
 ##### Read in mutation data for investigate sample
 ##### Get the genomic output data from umccrise
-umccrise <- unlist(strsplit(params$umccrise, split='/', fixed=TRUE))
-umccrise <- umccrise[length(umccrise)]
-
-##### Check if PCGR (mutation) output file exists
-runPcgrChunk <- TRUE
-
-if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
+if ( !is.null(params$umccrise) ) {
+  umccrise <- unlist(strsplit(params$umccrise, split='/', fixed=TRUE))
+  umccrise <- umccrise[length(umccrise)]
   
-  pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
-
-} else if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
+  ##### Check if PCGR (mutation) output file exists
+  runPcgrChunk <- TRUE
   
-  pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+  if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
+    
+    pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
+  
+  } else if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
+    
+    pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+  } else {
+    runPcgrChunk <- FALSE
+  }
 } else {
   runPcgrChunk <- FALSE
 }
@@ -2016,8 +1905,18 @@ if ( runPcgrChunk ) {
   ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
   
   ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
+  
+  ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
+  subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
+  mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \"Expression profiles"  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\"Expression profiles"  )
+  
 } else {
   ref_genes.list[["pcgr"]] <- NULL
+  
+  ##### Update MySQL commend to populate RNA-seq portal database
+  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \"Expression profiles"  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\"Expression profiles"  )
 }
 
 ##### Check if purple (CN) output file exists
@@ -2122,7 +2021,7 @@ if ( length(sampleID.col) > 0 ) {
     names(treamtent.df) <- c("Treatment", "Drug", "Type", "Start",  "End")
     
     ##### Create directory for timeline plot
-    PlotsDir <- paste(params$report_dir, "clinical_info", sep = "/")
+    PlotsDir <- paste(params$report_dir, "results/clinical_info", sep = "/")
     if ( !file.exists(PlotsDir) ) {
       dir.create(PlotsDir, recursive=TRUE)
     }
@@ -2448,7 +2347,7 @@ rm(target, target_mod, genes_mod, keep)
 
 ```{r data_transformation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
 ##### Create directory for input data plots
-PlotsDir <- paste(params$report_dir, "InputDataPlots", sep = "/")
+PlotsDir <- paste(params$report_dir, "results/InputDataPlots", sep = "/")
 if ( !file.exists(PlotsDir) ) {
   dir.create(PlotsDir, recursive=TRUE)
 }
@@ -2493,12 +2392,15 @@ if ( params$filter ) {
     add_trace(x = c(filter.threshold, filter.threshold), y= c(0, max(data.df$Counts)), mode = "lines", color = I("red"), name = "Filtering threshold") %>%
     
     layout(title = "", xaxis = list(title = paste0(params$transform, "s")), yaxis = list(title = "Counts"), showlegend=TRUE)
+  
+  ##### Save interactive plot as html file
+  saveWidgetFix(counts_vs_transformed, file = paste(PlotsDir, "counts_vs_transformed.html", sep = "/"))
 
   ##### Detach plotly package. Otherwise it clashes with other graphics devices
   detach("package:plotly", unload=FALSE)
   
   if ( !is.null(add_cancer_group) ) {
-    legend <- c(ext_cancer_group, int_cancer_group, add_cancer_group, "Patient")
+    legend <- c(ext_cancer_group, add_cancer_group, int_cancer_group, "Patient")
   } else {
     legend <- c(ext_cancer_group, int_cancer_group, "Patient")
   }
@@ -2707,18 +2609,18 @@ suppressMessages(library(plotly))
 ##### Loop through combined datasets and perform PCA
 for ( dataset in names(ref_dataset.list) ) {
   target <- ref_dataset.list[[dataset]][["sample_annot"]]
-  target$Dataset <- gsub(sampleName, "Patient", target$Dataset)
-  target$Target <- gsub(sampleName, "Patient", target$Target)
+  target$Dataset <- gsub(params$sample_name, "Patient", target$Dataset)
+  target$Target <- gsub(params$sample_name, "Patient", target$Target)
   
   if ( params$batch_rm ) {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], target = target, title = "Before batch-effects correction", plot_mode = params$plots_mode, report_dir = params$report_dir)
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = paste0(params$report_dir, "/results/"), suffix = "_before_batch_rm")
     
-    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], target = target, title = "After batch-effects correction",  plot_mode = params$plots_mode, report_dir = params$report_dir)
+    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], targets = target, title = "After batch-effects correction", report_dir = paste0(params$report_dir, "/results/"), suffix = "_after_batch_rm")
     
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["batch_effect_corrected"]]
     
   } else {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], target = target, plot_mode = params$plots_mode, report_dir = params$report_dir)
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, report_dir = paste0(params$report_dir, "/results/"))
     
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["combined_data_processed"]]
   }
@@ -2797,9 +2699,9 @@ for ( dataset in names(ref_dataset.list) ) {
   ref_dataset.list[[dataset]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
   
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(params$report_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(rownames(ref_dataset.list[[dataset]][["data_to_report"]])), file = paste0(params$report_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(rownames(ref_dataset.list[[dataset]][["data_to_report"]])), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 
 ##### Clean the space
@@ -2809,31 +2711,29 @@ rm(data, data.df, gene_info)
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
 ##### Save the entire expression data with cancer genes annotaiton as a data table html file
 ##### Generate expression summary table for mutated genes
-if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactive" ) {
-  targets <- ref_dataset.list[[dataset]][["sample_annot"]]
-  data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_dataset.list[[dataset]][["gene_annot"]])) ], 2, as.numeric)
-  rownames(data) <- ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL
+targets <- ref_dataset.list[[dataset]][["sample_annot"]]
+data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_dataset.list[[dataset]][["gene_annot"]])) ], 2, as.numeric)
+rownames(data) <- ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL
   
-  ##### Z-scores
-  genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+##### Z-scores
+genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
   
-  ##### Percentiles
-  genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+##### Percentiles
+genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
   
-  ##### Create directory for saving tables
-  exprTableDir <- paste(params$report_dir, "exprTables", sep = "/")
+##### Create directory for saving tables
+exprTableDir <- paste(params$report_dir, "results/exprTables", sep = "/")
     
-  if ( !file.exists(exprTableDir) ) {
-    dir.create(exprTableDir, recursive=TRUE)
-  }
+if ( !file.exists(exprTableDir) ) {
+  dir.create(exprTableDir, recursive=TRUE)
+}
 
-  ##### Save the expression tables as html file
-  saveWidgetFix(widget=genes.expr.z[[1]], file=paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained=TRUE)
-  saveWidgetFix(widget=genes.expr.perc[[1]], file=paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+##### Save the expression tables as html file
+saveWidgetFix(widget=genes.expr.z[[1]], file=paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+saveWidgetFix(widget=genes.expr.perc[[1]], file=paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 
 ##### Clean the space
 rm(data, targets, genes.expr.z, genes.expr.perc)
-}
 ```
 
 ```{r mut_cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
@@ -2878,25 +2778,9 @@ cn_data.all <- cn_data
 
 ##### Get the percentiles from from the CN values
 cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
-  
-if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
-  cn_bottom <- round(cn_data.all.percent[2], digits = 0)
-  cn_top <- round(cn_data.all.percent[20], digits = 0)
-  
-  cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_bottom | cn_data$MeanCopyNumber > cn_top, ]
-  
-} else {
-  cn_data <- cn_data[ cn_data$MeanCopyNumber < cn_bottom | cn_data$MeanCopyNumber > cn_top, ]
-  
-  cn_bottom <- params$cn_loss
-  cn_top <- params$cn_gain
-}
 
 ##### Keep only genes with available expression data
 cn_data <- cn_data[ cn_data$Gene %in% names(expr_data.z), ]
-
-##### Limit the data to include only cancer genes
-cn_data <- cn_data[ cn_data$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
 
 ##### Add mutation data if available
 if ( !is.null(ref_genes.list[["pcgr"]]) ) {
@@ -2908,7 +2792,7 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   ##### Prepare mutation data to include multiple mutations per gene
   ##### Initiate variable for the gene mutation status for each gene
   gene.mut <- as.matrix(rep("None", length(expr_data.z)))
-  colnames(gene.mut) <- "Alteration"
+  colnames(gene.mut) <- "Alterations"
   rownames(gene.mut) <- names(expr_data.z)
 
   for ( i in 1:nrow(gene.mut) ) {
@@ -2917,9 +2801,9 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
     
       ##### Deal with multiple mutations per gene
       if ( length(mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE) > 1 ) {
-        gene.mut[ rownames(gene.mut)[i],"Alteration" ] <- "Mutation: multiple hits"
+        gene.mut[ rownames(gene.mut)[i],"Alterations" ] <- "Mutation: multiple hits"
       } else {
-        gene.mut[ rownames(gene.mut)[i],"Alteration" ] <- paste0("Mutation: ", mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE)
+        gene.mut[ rownames(gene.mut)[i],"Alterations" ] <- paste0("Mutation: ", mut_data[ mut_data$SYMBOL %in% rownames(gene.mut)[i],  ]$CONSEQUENCE)
       }
     }
   }
@@ -2960,8 +2844,8 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   expr_data.perc.sub <- expr_data.perc.sub[ genes.intersect  ]
   
   ##### Prepare data frame
-  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub, gene.mut.sub)
-  colnames(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Perc_diff", "Alteration")
+  cn_data.sub <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub, gene.mut.sub)
+  colnames(cn_data.sub) <- c("Gene", "CN", "Z_score_diff", "Perc_diff", "Alterations")
   
 } else {
   ##### Skip the step for processing mutation info and deal with expression and copy-number data
@@ -2979,8 +2863,27 @@ if ( !is.null(ref_genes.list[["pcgr"]]) ) {
   expr_data.perc.sub <- expr_data.perc.sub[ genes.intersect  ]
   
   ##### Prepare data frame
-  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub)
-  colnames(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) <- c("Gene", "CN", "Z_score_diff", "Perc_diff")
+  cn_data.sub <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.z.sub, expr_data.perc.sub)
+  colnames(cn_data.sub) <- c("Gene", "CN", "Z_score_diff", "Perc_diff")
+}
+
+ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
+
+##### Limit the data to include only cancer genes
+cn_data.sub <- cn_data.sub[ cn_data.sub$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
+
+##### Keep genes meeting the user-defined CN values thresholds
+if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
+  cn_bottom <- round(cn_data.all.percent[2], digits = 0)
+  cn_top <- round(cn_data.all.percent[20], digits = 0)
+  
+  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN < cn_bottom | cn_data.sub$CN > cn_top, ]
+  
+} else {
+  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN < cn_bottom | cn_data.sub$CN > cn_top, ]
+  
+  cn_bottom <- params$cn_loss
+  cn_top <- params$cn_gain
 }
 
 ##### Clean the space
@@ -3324,9 +3227,7 @@ if ( runPurpleChunk ) {
 }
 
 ##### ...immune markers section: include only genes with available annotation
-if ( runPurpleChunk ) {
-  ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$SYMBOL)
-}
+ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$SYMBOL)
 ```
 
 ```{r goi_sunburst, comment = NA, message=FALSE, warning=FALSE}
@@ -3360,7 +3261,7 @@ for ( alt in names(alt_genes.all.list) ) {
         ) )
 }
   
-sunburst.all_plot <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
+sunburst_plot_all <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
 
 ##### Now include only Identify genes that appear in more then two lists
 alt_genes.list <- alt_genes.all.list
@@ -3395,6 +3296,16 @@ if ( nrow(sunburst.df) > 0 ) {
 } else {
   sunburst_plot <- NULL
 }
+
+##### Create directory for the plots
+summaryPlotsDir <- paste(params$report_dir, "results/summaryPlots", sep = "/")
+if ( !file.exists(summaryPlotsDir) ) {
+  dir.create(summaryPlotsDir, recursive=TRUE)
+}
+  
+##### Save interactive plot as html file
+saveWidgetFix(sunburst_plot_all, file = paste(summaryPlotsDir, "sunburst_plot_all.html", sep = "/"))
+saveWidgetFix(sunburst_plot, file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3558,6 +3469,10 @@ NOTE: for confidentiality reasons, the timeline (*x-axis*) projecting patient's 
 ```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15), eval = runClinicalChunk }
 ##### Present the treatment timeline plot
 treatment_timeline
+
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Treatment timeline")
+mysql_populate_update <- paste0(mysql_populate_update, ",Treatment timeline")
 ```
 
 </details>
@@ -3574,6 +3489,10 @@ treatment_timeline
 ##### Present per-alteration findings summary sunburst plot for all altered genes
 if ( !is.null(sunburst_plot) ) {
   sunburst_plot
+  
+  ##### Update MySQL commend to populate RNA-seq portal database
+  mysql_populate <- paste0(mysql_populate, ",Findings summary")
+  mysql_populate_update <- paste0(mysql_populate_update, ",Findings summary")
 } else {
   cat("No genes are listed in more then one section. Expand the \"All altered genes\" to view the summary plot for all altered genes.")
 }
@@ -3584,11 +3503,11 @@ if ( !is.null(sunburst_plot) ) {
 
 ```{r findings_summary_all_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections 
-sunburst.all_plot
+sunburst_plot_all
 ```
 
 ```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
-rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, sunburst_plot, sunburst.all_plot, data.annot)
+rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, sunburst_plot, sunburst_plot_all, data.annot)
 ```
 
 </details>
@@ -3626,6 +3545,10 @@ Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r 
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk, results = "asis"}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Mutated genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",Mutated genes")
+
 ##### Generate expression summary table for mutated genes (based on PCGR report)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -3651,7 +3574,7 @@ mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sa
 mut_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=mut_genes.expr.z[[1]], file=paste(exprTableDir, "mut_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -3677,7 +3600,7 @@ mut_genes.expr.perc
 
 ##### Save the expression table as html file
 ##### Create directory for tables
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=mut_genes.expr.perc, file=paste(exprTableDir, "mut_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 
@@ -3710,9 +3633,9 @@ genes <- mut_genes.expr.z[[2]]$SYMBOL
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
   }
 }
 
@@ -3746,19 +3669,38 @@ rm(list = ls(pattern='^output*'))
 <details>
 <summary>Fusion genes prioritisation</summary>
 
-Fusion genes detected in transcriptome data are prioritised based on criteria ranked in the following order:
+Fusion genes detected in transcriptome data are prioritised in the following order:
 
 1. Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants] results are available)
 
-2. Listed as **reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} database
+2. **Reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} database
 
 3. Involvement of highly **abundant transcript(s)**  (see abundant transcripts definition below)
 
-4. The number of **split counts**
+4. Decreasing number of **split counts**
 
-5. The number of **pair counts**
+5. Decreasing number of **pair counts**
 
 6. Involvement of **cancer gene(s)** (see [Cancer genes] section)
+
+</details>
+
+<details>
+<summary>Fusion genes filtering</summary>
+
+Fusion genes detected in transcriptome data are reported if **at least one** of the following criteria is met:
+
+1. Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants] results are available)
+
+2. **Reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} database
+
+3. Involvement of highly **abundant transcript(s)**  (see abundant transcripts definition below)
+
+4. Involvement of **cancer gene(s)** (see [Cancer genes] section)
+
+5. **Split counts** > 1
+
+6. **Pair counts** > 1 and **split counts** > 1
 
 </details>
 
@@ -3787,6 +3729,14 @@ NOTE: Only fusion events including genes with available genomics coordinates in 
 ```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Create a nice table output (with dataTable)
 if ( runFusionChunk ) {
+  
+  ##### Update MySQL commend to populate RNA-seq portal database
+  mysql_populate <- paste0(mysql_populate, ",Fusion genes")
+  mysql_populate_update <- paste0(mysql_populate_update, ",Fusion genes")
+  
+  ##### Filter out fusions that are with < 2 split reads and < 2 pair reads and are not supported by genomic data, are nor reported, don't involve abundant transcripts and don't involve cancer genes
+  pizzly.fusions.cut <- pizzly.fusions.cut %>% dplyr::filter(splitcount > 1 | paircount > 1 & geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_abundant != "-" | fusions_cancer != "-")
+  
   pizzly.fusions.table <- pizzly.fusions.cut
   pizzly.fusions.table$geneA.name <- as.vector(pizzly.fusions.table$geneA.name)
   pizzly.fusions.table$geneB.name <- as.vector(pizzly.fusions.table$geneB.name)
@@ -3830,10 +3780,10 @@ if ( runFusionChunk ) {
 }
 
 ##### Save the table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   
   ##### Create directory for tables
-  fusionsTableDir <- paste(params$report_dir, "fusionsTables", sep = "/")
+  fusionsTableDir <- paste(params$report_dir, "results/fusionsTables", sep = "/")
   if ( !file.exists(fusionsTableDir) ) {
           dir.create(fusionsTableDir, recursive=TRUE)
   }
@@ -3892,7 +3842,7 @@ if ( runSVsChunk ) {
 ##### Save the BezierPlot as png
 if ( runSVsChunk ) {
   if ( nrow(fusion_annot_top) > 0 ) {
-    fusionsPlotDir <- paste(params$report_dir, "fusionsPlot", sep = "/")
+    fusionsPlotDir <- paste(params$report_dir, "results/fusionsPlot", sep = "/")
     
     if ( !file.exists(fusionsPlotDir) ) {
           dir.create(fusionsPlotDir, recursive=TRUE)
@@ -3941,7 +3891,7 @@ rm(fusion_annot_top.clean)
 
 ```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Save the table as html file
-if ( c(runSVsChunk && nrow(fusion_annot_top) > 0 && (params$plots_mode == "interactive" || params$plots_mode == "semi-interactive")) && params$save_tables ) {
+if ( runSVsChunk && nrow(fusion_annot_top) > 0 && params$save_tables ) {
   saveWidgetFix(widget=pizzly.fusions.genomicView, file=paste(fusionsTableDir, "pizzly.fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
 }
 
@@ -4021,14 +3971,14 @@ for( i in 1:genes_no ) {
     
     ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
     ##### Gene A
-    output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
     
     ##### Gene B
-    output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
     
     ##### Generate expression summary tables
     genes <- c(geneA, geneB)
@@ -4127,7 +4077,7 @@ for( i in 1:genes_no ) {
 }
 
 ##### Write list of fusion events for which Clinker plot is available into a file
-write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+write.table(prepare2write(clinker_fusions), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.clinker_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -4152,14 +4102,15 @@ Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affec
 #### Z-scores
 
 ```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Structural variants")
+mysql_populate_update <- paste0(mysql_populate_update, ",Structural variants")
+
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
-##### Consider only SVs with known genes
-genes <- unique(manta_sv$Gene)
-
-##### Consider only genes in MANTA output for which the expression levels were measured
+##### Consider only SVs with known genes and those in MANTA output for which the expression levels were measured
 genes <- unique(manta_sv$Gene)
 genes <- genes[ genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ]
 
@@ -4181,7 +4132,7 @@ sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv, ta
 sv_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=sv_genes.expr.z[[1]], file=paste(exprTableDir, "sv_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -4209,7 +4160,7 @@ sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv,
 sv_genes.expr.perc
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=sv_genes.expr.perc, file=paste(exprTableDir, "sv_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 
@@ -4247,9 +4198,9 @@ genes <- unique(sv_genes.expr.z[[2]]$SYMBOL)
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
   }
 }
 
@@ -4280,56 +4231,111 @@ rm(list = ls(pattern='^output*'))
 
 ## CN altered genes
 
-Section overlaying the mRNA expression data for **[Cancer genes]** with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}) and mutation status, if available.
+Section overlaying the mRNA expression data for **[Cancer genes]** with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}), as well as SNVs/indels and SVs data, if available.
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
-### - Expression vs CN {.tabset}
+### - Genomic view
 
-Scatterplot comparing the per-gene difference in **mRNA expression** between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data are presented in the genomic context. **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span>.
 
-#### Z-scores
+```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",CN altered genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",CN altered genes")
 
-```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
-##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
+##### Generate genomic view plot with per-gene CN values (y-axis) along chromosomal coordinates (x-axis)
+suppressMessages(library(manhattanly))
 suppressMessages(library(plotly))
 
-data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-data$Alteration <- as.character(data$Alteration)
-cn_genes <- data$Gene
+data <- ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]
+data.sub <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
+
+##### Add SNVs
+if ( runPcgrChunk ) {
+  data$Alterations <- as.character(data$Alterations)
+  data.sub$Alterations <- as.character(data.sub$Alterations)
+}
 
 ##### Add fusion genes
 if ( runFusionChunk ) {
   
   ##### Change the alteration type to "fusion" for fusion genes
-  data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneA.name  ] <- paste0( data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneA.name  ], "; Fusion")
-  data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneB.name  ] <- paste0( data$Alteration[ data$Gene %in% pizzly.fusions.cut$geneB.name  ], "; Fusion")
-  }
+  data$Alterations[ data$Gene %in% pizzly.fusions.cut$geneA.name  ] <- paste0( data$Alterations[ data$Gene %in% pizzly.fusions.cut$geneA.name  ], "; Fusion")
+  data.sub$Alterations[ data.sub$Gene %in% pizzly.fusions.cut$geneA.name  ] <- paste0( data.sub$Alterations[ data.sub$Gene %in% pizzly.fusions.cut$geneA.name  ], "; Fusion")
+  data$Alterations[ data$Gene %in% pizzly.fusions.cut$geneB.name  ] <- paste0( data$Alterations[ data$Gene %in% pizzly.fusions.cut$geneB.name  ], "; Fusion")
+  data.sub$Alterations[ data.sub$Gene %in% pizzly.fusions.cut$geneB.name  ] <- paste0( data.sub$Alterations[ data.sub$Gene %in% pizzly.fusions.cut$geneB.name  ], "; Fusion")
+}
             
 ##### Add genes involved in SVs (if data available)
 if ( runSVsChunk ) {
   
   ##### Change the alteration type to "fusion" for fusion genes
-  data$Alteration[ data$Gene %in% unique(manta_sv$Gene)  ] <- paste0( data$Alteration[ data$Gene %in% unique(manta_sv$Gene)  ], "; SV")
+  data$Alterations[ data$Gene %in% unique(manta_sv$Gene)  ] <- paste0( data$Alterations[ data$Gene %in% unique(manta_sv$Gene)  ], "; SV")
+  ##### Change the alteration type to "fusion" for fusion genes
+  data.sub$Alterations[ data.sub$Gene %in% unique(manta_sv$Gene)  ] <- paste0( data.sub$Alterations[ data.sub$Gene %in% unique(manta_sv$Gene)  ], "; SV")
 }
 
 ##### Remove altaration status "None" for gene which are not mutated but are involved in fusions or SVs
-data$Alteration <- gsub( "None; ", "", data$Alteration)
+data$Alterations <- gsub( "None", "CN", data$Alterations)
+data.sub$Alterations <- gsub( "None", "CN", data.sub$Alterations)
 
-if ( runPcgrChunk && length(cn_genes) > 0 ) {
-  data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", plot_mode = params$plots_mode, report_dir = params$report_dir)
+##### Prepare dataframe for manhattanly
+##### Keep only genes for which both genes have gene symbol (and genomics location) available
+data <- data[ data$Gene %in% ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL, ]
+names(data)[match("CN", names(data))] <- "P"
+
+##### Merge genes genomic coordinates info with their annotation and expression data
+data.annot <- merge(data, ref_dataset.list[[dataset]][["gene_annot"]], by.x = "Gene", by.y = "SYMBOL", all.x = FALSE)
+data.annot$SEQNAME <- as.numeric(data.annot$SEQNAME)
+data.annot$GENESEQSTART <- as.numeric(data.annot$GENESEQSTART)
+data.annot <- data.annot[ !is.na(data.annot$SEQNAME), ]
+
+if ( nrow(data.annot) > 0 ) {
   
-} else if ( length(cn_genes) > 0) {
-  data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", plot_mode = params$plots_mode, report_dir = params$report_dir)
+  ##### Get plot results first to extract x-axis coordinated to annotate genes of interest
+  manhattanr.res <- manhattanr(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", logp = FALSE)
   
+  ##### Restrict the results to the genes of interest
+  manhattanr.res$data <- manhattanr.res$data[ manhattanr.res$data$Gene %in% data.sub$Gene, ]
+  
+  p <- manhattanly(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", col = "#969696", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", suggestiveline = cn_top, genomewideline  = cn_bottom, suggestiveline_color = "gray", genomewideline_color = "gray", ylab = "CN value", showgrid = TRUE, title = "", logp = FALSE, width = 800, height = 400) %>%
+    
+    add_markers(y = manhattanr.res$data$P, x = manhattanr.res$data$pos, 
+                name = manhattanr.res$data$Gene,
+                text = paste0("Gene: ", manhattanr.res$data$Gene, "\nZ_score_diff: ", manhattanr.res$data$Z_score_diff, "\nPerc_diff: ", manhattanr.res$data$Perc_diff, "\nAlterations: ", manhattanr.res$data$Alterations),
+                mode = 'markers',
+                marker = list(size=10, symbol="circle"),
+                color = manhattanr.res$data$Gene,
+                showlegend = TRUE,
+                legendtitle=TRUE, 
+                inherit = FALSE) %>%
+    
+    add_annotations( data = manhattanr.res$data, text=~Gene,
+                      x=~pos, xanchor="left",
+                      y=~P, yanchor="top",
+                      font = list(color = "Grey", size = 10),
+                      legendtitle=TRUE,
+                      showarrow=FALSE )
+  
+  ##### Create directory for the plots
+  PlotDir <- paste(params$report_dir, "results/cn_genomic_view", sep = "/")
+  if ( !file.exists(PlotDir) ) {
+    dir.create(PlotDir, recursive=TRUE)
+  }
+  
+  ##### Save interactive plot as html file
+  saveWidgetFix(p, file = paste(PlotDir, "cn_genomic_view.html", sep = "/"))
+    
 } else {
-  cn_genes <- NULL
   cat("None of the genes of interest are affected by changes in CN.")
+  p <- NULL
 }
 
+p
+
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:manhattanly", unload=FALSE)
 detach("package:plotly", unload=FALSE)
 ```
 
@@ -4343,30 +4349,8 @@ detach("package:plotly", unload=FALSE)
 ```{r cn_data_distribution_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9, eval = runPurpleChunk }
 ##### Generate a histogram illustrating CN data distribution
 suppressMessages(library(plotly))
+cn_dist_plot
 
-if ( params$plots_mode == "static" ) {
-  PlotsDir <- paste(params$report_dir, "CNdataPlots", sep = "/")
-  if ( !file.exists(PlotsDir) ) {
-    dir.create(PlotsDir, recursive=TRUE)
-  }
-        
-  ##### Add access token, required by orca function, to the shell environment
-  Sys.setenv('MAPBOX_TOKEN' = 'secret token')
-  
-  ##### Change directory to folder with CDF plots
-  setwd(PlotsDir)
- 
-  ##### Save the static image into a file
-  orca(cn_dist_plot, format = "png", file = "cn_data_dist_plot.png", width = 1200, height = 600)
-  
-  ##### Present the static plot in the report
-  include_graphics(paste(PlotsDir, "cn_data_dist_plot.png", sep = "/"), dpi = 144)
-    
-} else if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactive" ) {
-  cn_dist_plot
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
 ```
 
@@ -4374,18 +4358,24 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-#### Percentiles
+### - Expression vs CN {.tabset}
 
-```{r mut_cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
+Scatterplot comparing the per-gene difference in **mRNA expression** between patient's sample and cancer individuals (*y-axis*), **CN values** (*x-axis*, from [PURPLE](https://anaconda.org/bioconda/hmftools-purple){target="_blank"}). If the mutation status information is available then the genes's colours correspond to the variant(s) consequence (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+
+#### Z-scores
+
+```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
+cn_genes <- data.sub$Gene
 
 if ( runPcgrChunk && length(cn_genes) > 0 ) {
-  mutCNexprPlot(data = data, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", plot_mode = params$plots_mode, report_dir = params$report_dir)
+  data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
+  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = paste0(params$report_dir, "/results/"))
   
 } else if ( length(cn_genes) > 0) {
-  data <- data[ data$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", plot_mode = params$plots_mode, report_dir = params$report_dir)
+  data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
+  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = paste0(params$report_dir, "/results/"))
   
 } else {
   cn_genes <- NULL
@@ -4398,51 +4388,33 @@ detach("package:plotly", unload=FALSE)
 
 ***
 
-<details>
-<summary>CN data distribution</summary>
+#### Percentiles
 
-`r if ( runPurpleChunk ) { c(" ") } else { c("CN information for this sample is NOT AVAILABLE.") }`
-
-```{r cn_data_distribution_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9, eval = runPurpleChunk }
-##### Generate a histogram illustrating CN data distribution
+```{r mut_cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
+##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
 
-if ( params$plots_mode == "static" ) {
-  PlotsDir <- paste(params$report_dir, "CNdataPlots", sep = "/")
-  if ( !file.exists(PlotsDir) ) {
-    dir.create(PlotsDir, recursive=TRUE)
-  }
-        
-  ##### Add access token, required by orca function, to the shell environment
-  Sys.setenv('MAPBOX_TOKEN' = 'secret token')
+if ( runPcgrChunk && length(cn_genes) > 0 ) {
+  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = paste0(params$report_dir, "/results/"))
   
-  ##### Change directory to folder with CDF plots
-  setwd(PlotsDir)
- 
-  ##### Save the static image into a file
-  orca(cn_dist_plot, format = "png", file = "cn_data_dist_plot.png", width = 1200, height = 600)
+} else if ( length(cn_genes) > 0) {
+  data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
+  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = paste0(params$report_dir, "/results/"))
   
-  ##### Present the static plot in the report
-  include_graphics(paste(PlotsDir, "cn_data_dist_plot.png", sep = "/"), dpi = 144)
-    
-} else if ( params$plots_mode == "interactive" || params$plots_mode == "semi-interactive" ) {
-  cn_dist_plot
+} else {
+  cn_genes <- NULL
+  cat("None of the genes of interest are affected by changes in CN.")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
-
-##### Clean the space
-rm(cn_dist_plot)
 ```
-
-</details>
 
 ***
 
 ### - Summary table {.tabset}
 
-Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1])` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(cn_genes) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN < cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN > cn_top, ][,1])` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
@@ -4483,7 +4455,7 @@ if ( runPcgrChunk && runPurpleChunk ) {
 mut_cn_expr_genes.expr.gains.z[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=mut_cn_expr_genes.expr.gains.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -4515,7 +4487,7 @@ if ( runPcgrChunk && runPurpleChunk ) {
 mut_cn_expr_genes.expr.gains.perc[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=mut_cn_expr_genes.expr.gains.perc[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.gains.perc.html", sep = "/"), selfcontained=TRUE)
 }
 
@@ -4579,7 +4551,7 @@ if ( runPcgrChunk && runPurpleChunk ) {
 mut_cn_expr_genes.expr.losses.z[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=mut_cn_expr_genes.expr.losses.z[[1]], file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -4611,7 +4583,7 @@ if ( runPcgrChunk && runPurpleChunk ) {
 mut_cn_expr_genes.expr.losses.perc
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=mut_cn_expr_genes.expr.losses.perc, file=paste(exprTableDir, "mut_cn_expr_genes.expr.losses.perc.html", sep = "/"), selfcontained=TRUE)
 }
 
@@ -4646,9 +4618,9 @@ genes <- mut_cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_gains_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir ) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
   }
 }
 
@@ -4662,11 +4634,9 @@ for( i in 1:genes_gains_no ){
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("\n</details>\n")
-    cat("\n***\n")
   } else {
     cat("\n#### ", genes[i], "\n")
     cat("\nExpression data is not available for that gene.\n")
-    cat("\n***\n")
   }
 }
 
@@ -4676,6 +4646,8 @@ detach("package:plotly", unload=FALSE)
 ##### Clean the space
 rm(list = ls(pattern='^output*'))
 ```
+
+***
 
 #### Losses {.tabset}
 
@@ -4689,9 +4661,9 @@ genes <- mut_cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 ##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
 for( i in 1:genes_losses_no ) {
   if ( genes[i] %in% rownames(data) ) {
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir)
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), plot_mode = params$plots_mode, scaling = scaling, report_dir = params$report_dir )
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
   }
 }
 
@@ -4705,11 +4677,9 @@ for( i in 1:genes_losses_no ){
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("\n</details>\n")
-    cat("\n***\n")
   } else {
     cat("\n#### ", genes[i], "\n")
     cat("\nExpression data is not available for that gene.\n")
-    cat("\n***\n")
   }
 }
 
@@ -4719,6 +4689,8 @@ detach("package:plotly", unload=FALSE)
 ##### Clean the space
 rm(list = ls(pattern='^output*'))
 ```
+
+***
 
 ## Immune markers
 
@@ -4731,6 +4703,10 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` i
 #### Z-scores
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Immune markers")
+mysql_populate_update <- paste0(mysql_populate_update, ",Immune markers")
+
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -4747,7 +4723,7 @@ immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets,
 immune_genes.expr.z
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=immune_genes.expr.z, file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -4773,7 +4749,7 @@ immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targe
 immune_genes.expr.perc
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=immune_genes.expr.perc, file=paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 
@@ -4803,7 +4779,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = params$report_dir)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
@@ -4830,7 +4806,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = params$report_dir)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
@@ -4861,6 +4837,10 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd 
 #### Z-scores
 
 ```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",HRD genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",HRD genes")
+
 ##### Generate expression summary table for hrd genes from Richqrd
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -4877,7 +4857,7 @@ hrd_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sa
 hrd_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=hrd_genes.expr.z[[1]], file=paste(exprTableDir, "hrd_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -4903,7 +4883,7 @@ hrd_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets,
 hrd_genes.expr.perc
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=hrd_genes.expr.perc, file=paste(exprTableDir, "hrd_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 
@@ -4933,7 +4913,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = params$report_dir)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
@@ -4960,7 +4940,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = params$report_dir)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
@@ -4991,6 +4971,10 @@ Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expressio
 #### Z-scores
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Cancer genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",Cancer genes")
+
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -5007,7 +4991,7 @@ cancer_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets,
 cancer_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=cancer_genes.expr.z[[1]], file=paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -5032,7 +5016,7 @@ cancer_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targe
 cancer_genes.expr.perc
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=cancer_genes.expr.perc, file=paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
 }
 
@@ -5064,7 +5048,7 @@ suppressMessages(library(plotly))
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = params$report_dir)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
@@ -5093,7 +5077,7 @@ suppressMessages(library(plotly))
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, plot_mode = params$plots_mode, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = params$report_dir)
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
@@ -5132,10 +5116,10 @@ drugsTable.mut_genes <- civicDrugTable(genes, civic_var_summaries = caner_genes_
 drugsTable.mut_genes[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   
   ##### Create directory for tables
-  drugsTableDir <- paste(params$report_dir, "drugsTables", sep = "/")
+  drugsTableDir <- paste(params$report_dir, "results/drugsTables", sep = "/")
   if ( !file.exists(drugsTableDir) ) {
           dir.create(drugsTableDir, recursive=TRUE)
   }
@@ -5193,7 +5177,7 @@ drugsTable.fusion_genes <- civicDrugTable(genes = unique(c(genesA, genesB)), civ
 drugsTable.fusion_genes[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=drugsTable.fusion_genes[[1]], file=paste(drugsTableDir, "drugsTable.fusion_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -5226,7 +5210,7 @@ drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_
 drugsTable.sv_genes[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=drugsTable.sv_genes[[1]], file=paste(drugsTableDir, "drugsTable.sv_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -5261,7 +5245,7 @@ drugsTable.CN_altered_genes_gains <- civicDrugTable(genes, civic_var_summaries  
 drugsTable.CN_altered_genes_gains[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=drugsTable.CN_altered_genes_gains[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_gains.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -5290,7 +5274,7 @@ drugsTable.CN_altered_genes_losses <- civicDrugTable(genes, civic_var_summaries 
 drugsTable.CN_altered_genes_losses[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=drugsTable.CN_altered_genes_losses[[1]], file=paste(drugsTableDir, "drugsTable.CN_altered_genes_losses.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -5321,7 +5305,7 @@ drugsTable.hrd_genes <- civicDrugTable(genes, civic_var_summaries = caner_genes_
 drugsTable.hrd_genes[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=drugsTable.hrd_genes[[1]], file=paste(drugsTableDir, "drugsTable.hrd_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -5344,6 +5328,10 @@ cat(drugsTable_legend)
 **50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients were screened for suitable drugs (see [Cancer genes] section).
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Drug matching")
+mysql_populate_update <- paste0(mysql_populate_update, ",Drug matching")
+
 ##### Generate table with drugs targeting dysregulated cancer genes
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
@@ -5352,7 +5340,7 @@ drugsTable.cancer_genes <- civicDrugTable(genes, civic_var_summaries  = caner_ge
 drugsTable.cancer_genes[[1]]
 
 ##### Save the expression table as html file
-if ( c(params$plots_mode == "interactive" || params$plots_mode == "semi-interactive") && params$save_tables ) {
+if ( params$save_tables ) {
   saveWidgetFix(widget=drugsTable.cancer_genes[[1]], file=paste(drugsTableDir, "drugsTable.cancer_genes.html", sep = "/"), selfcontained=TRUE)
 }
 ```
@@ -5369,6 +5357,14 @@ cat(drugsTable_legend)
 </details>
 
 ***
+
+```{r myqsl_populate_finalise, message=FALSE, warning=FALSE}
+##### Finalise and write into a file the MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, "\", \"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
+mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
+mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")
+writeLines(mysql_populate, con = paste0(params$report_dir, "/results/", params$sample_name, ".RNAseq_report.sql"))
+```
 
 ## Addendum
 

@@ -137,9 +137,9 @@ The following *[umccrise](https://github.com/umccr/umccrise)* output files are a
 
 Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
-List of detected and annotated single-nucleotide variants (**SNVs**) and indels | [PCGR](https://github.com/sigven/pcgr) | [test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv) | No
-List of genes involved in **CN** altered regions | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) | [test_sample_WGS.purple.gene.cnv](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv) | No
-List of genes involved in **SV** regions | [Manta](https://github.com/Illumina/manta) | [test_sample_WGS-sv-prioritize-manta-pass.tsv](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv) | No
+List of detected and annotated single-nucleotide variants (**SNVs**) and indels | [PCGR](https://github.com/sigven/pcgr) | [test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv](./data/test_data/umccrised/test_subject__test_sample_WGS/pcgr/test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv) | No
+List of genes involved in **CN** altered regions | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) | [test_subject__test_sample_WGS.purple.gene.cnv](./data/test_data/umccrised/test_subject__test_sample_WGS/purple/test_subject__test_sample_WGS.purple.gene.cnv) | No
+List of genes involved in **SV** regions | [Manta](https://github.com/Illumina/manta) | [test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv](./data/test_data/umccrised/test_subject__test_sample_WGS/structural/test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv) | No
 
 <br />
 
@@ -169,7 +169,7 @@ Argument | Description | Required
 ------------ | ------------ | ------------
 --sample_name | The name of the sample to be analysed and reported | **Yes**
 --dataset | Tissue from which the sample is derived. Available options are [TCGA](https://tcga-data.nci.nih.gov/) project IDs listed in [TCGA projects summary table](./TCGA_projects_summary.md) `Project` column | **Yes**
---count_file | Location and name of the *[kallisto](https://pachterlab.github.io/kallisto/about)* read count file from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* (see [example](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)) | **Yes**
+--bcbio_rnaseq | Location of the results folder from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* | **Yes**
 --report_dir | Desired location for the report | **Yes**
 --transform | Transformation method for converting read counts. Available options are: `CPM` (default) and `TPM` | No
 --norm | Normalisation method. Available options are: `TMM` (default), `TMMwzp`, `RLE`, `upperquartile` or `none` for *CPM-transformed* data, and `quantile` (default) or `none` for *TPM-transformed* data | No
@@ -177,7 +177,7 @@ Argument | Description | Required
 --filter | Filtering out low expressed genes. Available options are: `TRUE` (default) and `FALSE` | No
 --log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (default) and `FALSE` | No
 --scaling | Apply [`gene-wise`](img/Z-score_transformation_gene_wise.png) (default) or [`group-wise`](img/Z-score_transformation_group_wise.png) data scaling | No
---umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr) (see [example](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)), [Manta](https://github.com/Illumina/manta) (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv)) and [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) (see [example](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv)) output files) from genome-based data | No
+--umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/pcgr/test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)), [Manta](https://github.com/Illumina/manta) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/structural/test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv)) and [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/purple/test_subject__test_sample_WGS.purple.gene.cnv)) output files) from genome-based data | No
 --pcgr_tier | [Tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) threshold for reporting variants reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available, default is `4`) | No
 --pcgr_splice_vars | Include non-coding `splice_region_variant`s reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available). Available options are: `TRUE` (default) and `FALSE` | No
 --cn_loss | CN threshold value to classify genes within lost regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `5th percentile` of all CN values) | No
@@ -186,15 +186,14 @@ Argument | Description | Required
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
 --top_genes | The number of top ranked genes to be presented (default is `10`) | No
 --dataset_name_incl | Include dataset in the report name. Available options are: `TRUE` and `FALSE` (default) | No
---plots_mode | Plotting mode. Available options: `interactive` (all possible plots will be interactive; default) and `semi-interactive` (only plots in `Input data`, `CN altered genes`, `Immune markers` and `HRD genes` sections will be interactive) or `static` (all plots will be static) | No
---save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` and `FALSE` (default) | No
+--save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` (default) and `FALSE` | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (default) and `FALSE` | No
 --grch_version | Human reference genome version used for genes annotation. Available options: `37` (default) and `38` | No
 
 <br />
 
 **Packages**: *[edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)*, *[limma](https://bioconductor.org/packages/release/bioc/html/limma.html)*, *[preprocesscore](http://bioconductor.org/packages/release/bioc/html/preprocessCore.html)*, *[tximport](https://bioconductor.org/packages/release/bioc/html/tximport.html)*, *[rhdf5](https://bioconductor.org/packages/release/bioc/html/rhdf5.html)*, *[rapportools](https://cran.r-project.org/web/packages/rapportools/index.html)*, 
-*[optparse](https://cran.r-project.org/web/packages/optparse/index.html)*, *[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)*, *[readr](https://cran.r-project.org/web/packages/readr/index.html)*, *[tidyverse](https://www.tidyverse.org/)*, *[dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)*, *[tidyr](https://cran.r-project.org/web/packages/tidyr/index.html)*, *[rlang](https://cran.r-project.org/web/packages/rlang/index.html)*, *[DT](https://cran.r-project.org/web/packages/DT/index.html)*, *[matrixStats](https://cran.rstudio.com/web/packages/matrixStats/index.html)*, *[tibble](https://cran.r-project.org/web/packages/tibble/index.html)*, *[knitr](https://cran.r-project.org/web/packages/knitr/index.html)*, *[plotly](https://plot.ly/r/)*, *[scales](https://cran.r-project.org/web/packages/scales/index.html)*, *[ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)*, *[ggforce](https://cran.r-project.org/web/packages/ggforce/index.html)*, *[pdftools](https://cran.r-project.org/web/packages/pdftools/index.html)*, *[png](https://cran.r-project.org/web/packages/png/index.html)*, *[lares](https://www.rdocumentation.org/packages/lares/versions/4.4)*, *[htmltools](https://cran.r-project.org/web/packages/htmltools/index.html)*, *[htmlwidgets](https://cran.r-project.org/web/packages/htmlwidgets/index.html)*, *[devtools](https://cran.r-project.org/web/packages/devtools/index.html)*, *[EnsDb.Hsapiens.v75](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v75.html)* (*[EnsDb.Hsapiens.v86](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v86.html)*)\*, *[BSgenome.Hsapiens.UCSC.hg19](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg19.html)* (*[BSgenome.Hsapiens.UCSC.hg38](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg38.html)*)\*
+*[optparse](https://cran.r-project.org/web/packages/optparse/index.html)*, *[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)*, *[readr](https://cran.r-project.org/web/packages/readr/index.html)*, *[tidyverse](https://www.tidyverse.org/)*, *[dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)*, *[tidyr](https://cran.r-project.org/web/packages/tidyr/index.html)*, *[rlang](https://cran.r-project.org/web/packages/rlang/index.html)*, *[DT](https://cran.r-project.org/web/packages/DT/index.html)*, *[matrixStats](https://cran.rstudio.com/web/packages/matrixStats/index.html)*, *[tibble](https://cran.r-project.org/web/packages/tibble/index.html)*, *[knitr](https://cran.r-project.org/web/packages/knitr/index.html)*, *[plotly](https://plot.ly/r/)*, *[scales](https://cran.r-project.org/web/packages/scales/index.html)*, *[ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)*, *[ggforce](https://cran.r-project.org/web/packages/ggforce/index.html)*, *[pdftools](https://cran.r-project.org/web/packages/pdftools/index.html)*, *[png](https://cran.r-project.org/web/packages/png/index.html)*, *[manhattanly](https://www.rdocumentation.org/packages/manhattanly/versions/0.2.0)*, *[lares](https://www.rdocumentation.org/packages/lares/versions/4.4)*, *[htmltools](https://cran.r-project.org/web/packages/htmltools/index.html)*, *[htmlwidgets](https://cran.r-project.org/web/packages/htmlwidgets/index.html)*, *[devtools](https://cran.r-project.org/web/packages/devtools/index.html)*, *[EnsDb.Hsapiens.v75](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v75.html)* (*[EnsDb.Hsapiens.v86](http://bioconductor.org/packages/release/data/annotation/html/EnsDb.Hsapiens.v86.html)*)\*, *[BSgenome.Hsapiens.UCSC.hg19](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg19.html)* (*[BSgenome.Hsapiens.UCSC.hg38](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Hsapiens.UCSC.hg38.html)*)\*
 
 \*  Human reference genome ***[GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)*** (*Ensembl* based annotation version ***75***) is used for genes annotation as default. Alternatively, human reference genome [GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39) (*Ensembl* based annotation version *86*) is used when argument `grch_version` is set to `38`.
 
@@ -232,7 +231,7 @@ In this scenario, only [WTS](#wts) data will be used and only expression levels 
 The input files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
@@ -246,7 +245,7 @@ The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
@@ -257,13 +256,27 @@ For samples derived from subjects, for which clinical information is available, 
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --count_file $(pwd)/../data/test_data/final/test_sample_WTS/kallisto/abundance.tsv  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test_subject
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
 
 
 ### Output
+
+The pipeline generates [results](#results) folder and the html-based ***Patient Transcriptome Summary*** **[report](#report)** within user-defined `output` folder:
+
+```
+|
+|____<output>
+  |____<SampleName>.<output>.html
+  |____results
+    |____exprTables
+    |____glanceExprPlots
+    |____...
+```
+
+#### Report
 
 The generated html-based ***Patient Transcriptome Summary*** **report** includes searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report consist of several sections, including:
 
@@ -285,3 +298,6 @@ The generated html-based ***Patient Transcriptome Summary*** **report** includes
 
 Detailed description of the **[report structure](report_structure.md)**, including **[results prioritisation](report_structure.md)** and **[visualisation](report_structure.md)** is available in [report_structure.md](report_structure.md).
  
+#### Results
+
+The `results` folder contains intermediate files, including plots and tables that are presented in the [report](#report).
