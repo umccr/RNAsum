@@ -2592,7 +2592,7 @@ rm(targets.colour, den, y)
 ```
 
 ```{r batch_effect_correction, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm}
-##### The strategy for correcting data for batch effects is to consider the investigated sample and internal reference cohort as one group (batch) (regardless of the investigated patient tissiu origin), and TCGA data (of any cancer type) as another batch. The objective is to remove as much as possible data variation due to technical factors.
+##### The strategy for correcting data for batch effects is to consider the investigated sample and internal reference cohort as one group (batch) (regardless of the investigated patient tissue origin), and TCGA data (of any cancer type) as another batch. The objective is to remove as much as possible data variation due to technical factors.
 batches <- as.character(ref_dataset.list[[dataset]][["sample_annot"]]$Dataset)
 
 ##### Change the sample dataset name to internal reference cohort
@@ -3386,7 +3386,7 @@ Out of the `r nrow(ref_dataset.list[[dataset]][["combined_data"]])` input genes:
 * `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` are either not expressed or their expression level is too low to be detected
 * `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["data_to_report"]]) - nrow(data.annot) } else { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
-NOTE: the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [CN altered genes] and [Immune markers] sections.
+NOTE: the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Structural variants], [CN altered genes], [Immune markers], [HRD genes] and [Cancer genes] sections.
 
 **Data transformation and filtering**
 
@@ -3425,11 +3425,13 @@ if ( params$norm != "none" ) {
 
 **Exploratory data analysis**
 
+`r if ( params$batch_rm ) { paste0("The expression data produced by different studies are confounded by non-biological experimental variances that prevent direct comparison of samples from different studies. In order to minimise the variance caused by confounding factors [limma removeBatchEffect](http://web.mit.edu/~r/current/arch/i386_linux26/lib/R/library/limma/html/removeBatchEffect.html){target=\"_blank\"} method was used to adjust expression measurements for potential batch effects. In brief, the strategy is to consider the investigated sample and the ", paste(ref_int_cancer, int_cancer_group, sep=" "), " samples as one batch (regardless of the investigated sample tissue origin) and ", paste(ref_ext_cancer, ext_cancer_group, sep=" "), " samples (of any cancer type) as another batch. The objective is to remove as much data variation due to technical factors as possible.") }`
+
 Principal component analysis (PCA) was performed to reduce the dimensionality of data to visually assess similarities and differences between samples. This exploratory analysis facilitates identification of the key factors affecting the variability in the expression data.
 
 * **PCA plot**
 
-Scatter plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.
+Scatter plots of the first 2 principal components (PCs) constituting the primary source of variation in the data before and after batch effects correction.
 
 ```{r pca_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[2]]
@@ -3441,7 +3443,7 @@ ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 
 * **Scree plot**
 
-Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. 
+Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis) before and after batch effects correction. The PCs are ordered by decreasing order of contribution to total variance. 
 
 ```{r scree_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[3]]
@@ -3464,7 +3466,7 @@ ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
 
 Treatment regimen information for this patient is **`r if ( runClinicalChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
-NOTE: for confidentiality reasons, the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to start from 1st January 2000, but the treatments lengths are preserved.
+NOTE: for confidentiality reasons, the start of the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set 1st January 2000, but the treatments lengths are preserved.
 
 ```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15), eval = runClinicalChunk }
 ##### Present the treatment timeline plot
