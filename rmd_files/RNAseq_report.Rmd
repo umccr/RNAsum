@@ -1748,7 +1748,8 @@ if (tolower(params$scaling) == "gene-wise"){
 
 ```{r myqsl_populate, message=FALSE, warning=FALSE}
 ##### Initiate MySQL commend to populate RNA-seq portal database
-mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000,\"RNA_seq\"")
+mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
+mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
 ```
 
 ```{r load_ref_data, message=FALSE, warning=FALSE}
@@ -1897,11 +1898,15 @@ if ( runPcgrChunk ) {
   
   ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
   subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
-  mysql_populate <- paste0(mysql_populate, ",\"", subjectID, "\",\"", params$sample_name, "\"" )
+  mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \"Expression profiles"  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\"Expression profiles"  )
   
 } else {
   ref_genes.list[["pcgr"]] <- NULL
-  mysql_populate <- paste0(mysql_populate, ",\"\",\"", params$sample_name, "\"")
+  
+  ##### Update MySQL commend to populate RNA-seq portal database
+  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \"Expression profiles"  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\"Expression profiles"  )
 }
 
 ##### Check if purple (CN) output file exists
@@ -3441,6 +3446,10 @@ NOTE: for confidentiality reasons, the timeline (*x-axis*) projecting patient's 
 ```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15), eval = runClinicalChunk }
 ##### Present the treatment timeline plot
 treatment_timeline
+
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Treatment timeline")
+mysql_populate_update <- paste0(mysql_populate_update, ",Treatment timeline")
 ```
 
 </details>
@@ -3457,6 +3466,10 @@ treatment_timeline
 ##### Present per-alteration findings summary sunburst plot for all altered genes
 if ( !is.null(sunburst_plot) ) {
   sunburst_plot
+  
+  ##### Update MySQL commend to populate RNA-seq portal database
+  mysql_populate <- paste0(mysql_populate, ",Findings summary")
+  mysql_populate_update <- paste0(mysql_populate_update, ",Findings summary")
 } else {
   cat("No genes are listed in more then one section. Expand the \"All altered genes\" to view the summary plot for all altered genes.")
 }
@@ -3509,6 +3522,10 @@ Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r 
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk, results = "asis"}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Mutated genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",Mutated genes")
+
 ##### Generate expression summary table for mutated genes (based on PCGR report)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -3629,19 +3646,38 @@ rm(list = ls(pattern='^output*'))
 <details>
 <summary>Fusion genes prioritisation</summary>
 
-Fusion genes detected in transcriptome data are prioritised based on criteria ranked in the following order:
+Fusion genes detected in transcriptome data are prioritised in the following order:
 
 1. Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants] results are available)
 
-2. Listed as **reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} database
+2. **Reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} database
 
 3. Involvement of highly **abundant transcript(s)**  (see abundant transcripts definition below)
 
-4. The number of **split counts**
+4. Decreasing number of **split counts**
 
-5. The number of **pair counts**
+5. Decreasing number of **pair counts**
 
 6. Involvement of **cancer gene(s)** (see [Cancer genes] section)
+
+</details>
+
+<details>
+<summary>Fusion genes filtering</summary>
+
+Fusion genes detected in transcriptome data are reported if **at least one** of the following criteria is met:
+
+1. Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants] results are available)
+
+2. **Reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} database
+
+3. Involvement of highly **abundant transcript(s)**  (see abundant transcripts definition below)
+
+4. Involvement of **cancer gene(s)** (see [Cancer genes] section)
+
+5. **Split counts** > 1
+
+6. **Pair counts** > 1 and **split counts** > 1
 
 </details>
 
@@ -3670,6 +3706,14 @@ NOTE: Only fusion events including genes with available genomics coordinates in 
 ```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Create a nice table output (with dataTable)
 if ( runFusionChunk ) {
+  
+  ##### Update MySQL commend to populate RNA-seq portal database
+  mysql_populate <- paste0(mysql_populate, ",Fusion genes")
+  mysql_populate_update <- paste0(mysql_populate_update, ",Fusion genes")
+  
+  ##### Filter out fusions that are with < 2 split reads and < 2 pair reads and are not supported by genomic data, are nor reported, don't involve abundant transcripts and don't involve cancer genes
+  pizzly.fusions.cut <- pizzly.fusions.cut %>% dplyr::filter(splitcount > 1 | paircount > 1 & geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_abundant != "-" | fusions_cancer != "-")
+  
   pizzly.fusions.table <- pizzly.fusions.cut
   pizzly.fusions.table$geneA.name <- as.vector(pizzly.fusions.table$geneA.name)
   pizzly.fusions.table$geneB.name <- as.vector(pizzly.fusions.table$geneB.name)
@@ -4035,6 +4079,10 @@ Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affec
 #### Z-scores
 
 ```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Structural variants")
+mysql_populate_update <- paste0(mysql_populate_update, ",Structural variants")
+
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -4169,6 +4217,10 @@ CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } 
 `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data are presented in the genomic context. **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span>.
 
 ```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",CN altered genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",CN altered genes")
+
 ##### Generate genomic view plot with per-gene CN values (y-axis) along chromosomal coordinates (x-axis)
 suppressMessages(library(manhattanly))
 suppressMessages(library(plotly))
@@ -4628,6 +4680,10 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` i
 #### Z-scores
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Immune markers")
+mysql_populate_update <- paste0(mysql_populate_update, ",Immune markers")
+
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -4758,6 +4814,10 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd 
 #### Z-scores
 
 ```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",HRD genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",HRD genes")
+
 ##### Generate expression summary table for hrd genes from Richqrd
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -4888,6 +4948,10 @@ Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expressio
 #### Z-scores
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Cancer genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",Cancer genes")
+
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -5241,6 +5305,10 @@ cat(drugsTable_legend)
 **50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients were screened for suitable drugs (see [Cancer genes] section).
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, ",Drug matching")
+mysql_populate_update <- paste0(mysql_populate_update, ",Drug matching")
+
 ##### Generate table with drugs targeting dysregulated cancer genes
 genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
@@ -5266,6 +5334,14 @@ cat(drugsTable_legend)
 </details>
 
 ***
+
+```{r myqsl_populate_finalise, message=FALSE, warning=FALSE}
+##### Finalise and write into a file the MySQL commend to populate RNA-seq portal database
+mysql_populate <- paste0(mysql_populate, "\", \"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
+mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
+mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")
+writeLines(mysql_populate, con = paste0(params$report_dir, "/results/", params$sample_name, ".RNAseq_report.sql"))
+```
 
 ## Addendum
 
