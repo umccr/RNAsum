@@ -267,7 +267,7 @@ allow_thumbnails <- function(x, options) {
 }
 
 ##### Perform PCA. This function outputs a list with dataframe and samples colouring info ready for plotting
-pca <- function(data, targets, title = "", report_dir ) {
+pca <- function(data, targets, title = "", report_dir, suffix = "" ) {
 
   ##### Keep only genes with variance > 0 across all samples
   rsd <- apply(data,1,sd)
@@ -309,6 +309,16 @@ colnames(data.subset_scree.df) <- c("PC", "Variances")
   
   scree_plot <- plot_ly(data.subset_scree.df, x = ~PC, y = ~Variances, type = 'bar', width = 800, height = 400) %>%
     layout(title = title, xaxis = list(title = ""), margin = list(l=50, r=50, b=100, t=30, pad=4), autosize = F)
+  
+  ##### Create directory for the plots
+  PCAplotDir <- paste(report_dir, "InputDataPlots", sep = "/")
+  if ( !file.exists(PCAplotDir) ) {
+    dir.create(PCAplotDir, recursive=TRUE)
+  }
+  
+  ##### Save interactive plot as html file
+  saveWidgetFix(pca_plot, file = paste0(PCAplotDir, "/pca_plot", suffix, ".html"))
+  saveWidgetFix(scree_plot, file = paste0(PCAplotDir, "/scree_plot", suffix, ".html"))
   
   return( list(pca.list, pca_plot, scree_plot) )
   
@@ -2600,9 +2610,9 @@ for ( dataset in names(ref_dataset.list) ) {
   target$Target <- gsub(params$sample_name, "Patient", target$Target)
   
   if ( params$batch_rm ) {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = paste0(params$report_dir, "/results/"))
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = paste0(params$report_dir, "/results/"), suffix = "_before_batch_rm")
     
-    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], targets = target, title = "After batch-effects correction", report_dir = paste0(params$report_dir, "/results/"))
+    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], targets = target, title = "After batch-effects correction", report_dir = paste0(params$report_dir, "/results/"), suffix = "_after_batch_rm")
     
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["batch_effect_corrected"]]
     
