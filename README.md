@@ -221,7 +221,7 @@ cd rmd_files
 ```
 
 * example data is provided in [data/test_data](./data/test_data) folder
-* Usually the data processing and report generation would take less than **15 minutes** using **8GB RAM** memory and **1 CPU**
+* Usually the data processing and report generation would take less than **20 minutes** using **16GB RAM** memory and **1 CPU**
 
 
 #### 1. WTS data only
