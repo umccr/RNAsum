@@ -80,23 +80,23 @@ option_list = list(
               help="Transformation method to be used when converting read counts"),
   make_option(c("-no", "--norm"), action="store", default=NA, type='character',
               help="Normalisation method"),
-  make_option(c("-br", "--batch_rm"), action="store", default=TRUE, type='character',
+  make_option(c("-br", "--batch_rm"), action="store", default=TRUE, type='logical',
               help="Remove batch-associated effects between datasets"),
-  make_option(c("-fi", "--filter"), action="store", default=TRUE, type='character',
+  make_option(c("-fi", "--filter"), action="store", default=TRUE, type='logical',
               help="Filtering out low expressed genes"),
-  make_option(c("-lo", "--log"), action="store", default=TRUE, type='character',
+  make_option(c("-lo", "--log"), action="store", default=TRUE, type='logical',
               help="Log (base 2) transform data before normalisation"),
   make_option(c("-sc", "--scaling"), action="store", default="gene-wise", type='character',
               help="Scaling for z-score transformation (gene-wise or group-wise"),
   make_option(c("-um", "--umccrise"), action="store", default=NULL, type='character',
               help="Location of the corresponding WGS-related data"),
-  make_option(c("-pt", "--pcgr_tier"), action="store", default=4, type='character',
+  make_option(c("-pt", "--pcgr_tier"), action="store", default=4, type='integer',
               help="Tier threshold for reporting variants reported in PCGR"),
-  make_option(c("-ps", "--pcgr_splice_vars"), action="store", default=TRUE, type='character',
+  make_option(c("-ps", "--pcgr_splice_vars"), action="store", default=TRUE, type='logical',
               help="Include non-coding splice region variants reported in PCGR"),
-  make_option(c("-cl", "--cn_loss"), action="store", default=5, type='character',
+  make_option(c("-cl", "--cn_loss"), action="store", default=5, type='integer',
               help="CN threshold value to classify genes within lost regions"),
-  make_option(c("-cg", "--cn_gain"), action="store", default=95, type='character',
+  make_option(c("-cg", "--cn_gain"), action="store", default=95, type='integer',
               help="CN threshold value to classify genes within gained regions"),
   make_option(c("-ci", "--clinical_info"), action="store", default=NA, type='character',
               help="Location of xslx file with clinical information"),
@@ -106,15 +106,15 @@ option_list = list(
               help="Type of investigated sample"),
   make_option(c("-pr", "--project"), action="store", default=NA, type='character',
               help="Project name"),
-  make_option(c("-tg", "--top_genes"), action="store", default=10, type='character',
+  make_option(c("-tg", "--top_genes"), action="store", default=10, type='integer',
               help="The number of top ranked genes to be presented"),
   make_option(c("-dn", "--dataset_name_incl"), action="store", default=NA, type='character',
               help="Include dataset in the report name"),
-  make_option(c("-sa", "--save_tables"), action="store", default=TRUE, type='character',
+  make_option(c("-sa", "--save_tables"), action="store", default=TRUE, type='logical',
               help="Save interactive summary tables as HTML"),
-  make_option(c("-hc", "--hide_code_btn"), action="store", default=TRUE, type='character',
+  make_option(c("-hc", "--hide_code_btn"), action="store", default=TRUE, type='logical',
               help="Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report"),
-  make_option(c("-gv", "--grch_version"), action="store", default=NA, type='character',
+  make_option(c("-gv", "--grch_version"), action="store", default=NA, type='integer',
               help="human reference genome version used for genes annotation")
 )
 
@@ -245,7 +245,7 @@ if ( !file.exists(opt$report_dir) ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), bcbio_rnaseq = opt$bcbio_rnaseq, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = as.logical(opt$batch_rm), filter = as.logical(opt$filter), log = as.logical(opt$log), scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, sample_type = opt$sample_type, project = opt$project, dataset_name_incl = dataset_name_incl, save_tables = as.logical(opt$save_tables), pcgr_tier = as.numeric(opt$pcgr_tier), pcgr_splice_vars = as.logical(opt$pcgr_splice_vars), cn_loss = as.numeric(opt$cn_loss), cn_gain = as.numeric(opt$cn_gain), top_genes = as.numeric(opt$top_genes), hide_code_btn = as.logical(opt$hide_code_btn), grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), bcbio_rnaseq = opt$bcbio_rnaseq, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = opt$batch_rm, filter = opt$filter, log = opt$log, scaling = opt$scaling, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, sample_type = opt$sample_type, project = opt$project, dataset_name_incl = dataset_name_incl, save_tables = opt$save_tables, pcgr_tier = opt$pcgr_tier, pcgr_splice_vars = opt$pcgr_splice_vars, cn_loss = opt$cn_loss, cn_gain = opt$cn_gain, top_genes = opt$top_genes, hide_code_btn = opt$hide_code_btn, grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
 
 ##### Remove the assocaited MD file and the redundant folder with plots that are imbedded in the HTML report
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.md"), recursive = TRUE)
