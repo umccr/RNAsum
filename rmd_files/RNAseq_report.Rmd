@@ -1757,7 +1757,7 @@ if (tolower(params$scaling) == "gene-wise"){
 ```
 
 ```{r myqsl_populate, message=FALSE, warning=FALSE}
-##### Initiate MySQL commend to populate RNA-seq portal database
+##### Initiate MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
 ```
@@ -1908,15 +1908,15 @@ if ( runPcgrChunk ) {
   
   ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
   subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
-  mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \"Expression profiles"  )
-  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\"Expression profiles"  )
+  mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \""  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\""  )
   
 } else {
   ref_genes.list[["pcgr"]] <- NULL
   
-  ##### Update MySQL commend to populate RNA-seq portal database
-  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \"Expression profiles"  )
-  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\"Expression profiles"  )
+  ##### Update MySQL commend to populate RNA-seq data portal
+  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \""  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\""  )
 }
 
 ##### Check if purple (CN) output file exists
@@ -1972,6 +1972,7 @@ rm(txi.kallisto, kallisto.counts, tx2ensembl)
 ##### Prapare data for the treatment timeline plot
 ##### Search for row with clinical info for investigated patient
 sampleID.col <- grep(params$subject_id, ref_dataset.list[[dataset]][["clinical_info"]])
+runClinicalChunk <- FALSE
 
 if ( length(sampleID.col) > 0 ) {
   
@@ -2044,8 +2045,6 @@ if ( length(sampleID.col) > 0 ) {
     system("rm -rf clinical_info", ignore.stdout = TRUE, ignore.stderr = TRUE)
     
     runClinicalChunk <- TRUE
-  } else {
-    runClinicalChunk <- FALSE
   }
 
 ##### Clean the space
@@ -2592,7 +2591,7 @@ rm(targets.colour, den, y)
 ```
 
 ```{r batch_effect_correction, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm}
-##### The strategy for correcting data for batch effects is to consider the investigated sample and internal reference cohort as one group (batch) (regardless of the investigated patient tissiu origin), and TCGA data (of any cancer type) as another batch. The objective is to remove as much as possible data variation due to technical factors.
+##### The strategy for correcting data for batch effects is to consider the investigated sample and internal reference cohort as one group (batch) (regardless of the investigated patient tissue origin), and TCGA data (of any cancer type) as another batch. The objective is to remove as much as possible data variation due to technical factors.
 batches <- as.character(ref_dataset.list[[dataset]][["sample_annot"]]$Dataset)
 
 ##### Change the sample dataset name to internal reference cohort
@@ -3386,7 +3385,7 @@ Out of the `r nrow(ref_dataset.list[[dataset]][["combined_data"]])` input genes:
 * `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` are either not expressed or their expression level is too low to be detected
 * `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["data_to_report"]]) - nrow(data.annot) } else { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
-NOTE: the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Cancer genes], [Structural variants], [CN altered genes] and [Immune markers] sections.
+NOTE: the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Structural variants], [CN altered genes], [Immune markers], [HRD genes] and [Cancer genes] sections.
 
 **Data transformation and filtering**
 
@@ -3425,11 +3424,13 @@ if ( params$norm != "none" ) {
 
 **Exploratory data analysis**
 
+`r if ( params$batch_rm ) { paste0("The expression data produced by different studies are confounded by non-biological experimental variances that prevent direct comparison of samples from different studies. In order to minimise the variance caused by confounding factors [limma removeBatchEffect](http://web.mit.edu/~r/current/arch/i386_linux26/lib/R/library/limma/html/removeBatchEffect.html){target=\"_blank\"} method was used to adjust expression measurements for potential batch effects. In brief, the strategy is to consider the investigated sample and the ", paste(ref_int_cancer, int_cancer_group, sep=" "), " samples as one batch (regardless of the investigated sample tissue origin) and ", paste(ref_ext_cancer, ext_cancer_group, sep=" "), " samples (of any cancer type) as another batch. The objective is to remove as much data variation due to technical factors as possible.") }`
+
 Principal component analysis (PCA) was performed to reduce the dimensionality of data to visually assess similarities and differences between samples. This exploratory analysis facilitates identification of the key factors affecting the variability in the expression data.
 
 * **PCA plot**
 
-Scatter plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.
+Scatter plots of the first 2 principal components (PCs) constituting the primary source of variation in the data before and after batch effects correction.
 
 ```{r pca_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[2]]
@@ -3441,7 +3442,7 @@ ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 
 * **Scree plot**
 
-Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. 
+Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis) before and after batch effects correction. The PCs are ordered by decreasing order of contribution to total variance. 
 
 ```{r scree_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[3]]
@@ -3464,15 +3465,11 @@ ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
 
 Treatment regimen information for this patient is **`r if ( runClinicalChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
-NOTE: for confidentiality reasons, the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to start from 1st January 2000, but the treatments lengths are preserved.
+NOTE: for confidentiality reasons, the start of the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to 1st January 2000, but the treatments lengths are preserved.
 
 ```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15), eval = runClinicalChunk }
 ##### Present the treatment timeline plot
 treatment_timeline
-
-##### Update MySQL commend to populate RNA-seq portal database
-mysql_populate <- paste0(mysql_populate, ",Treatment timeline")
-mysql_populate_update <- paste0(mysql_populate_update, ",Treatment timeline")
 ```
 
 </details>
@@ -3490,9 +3487,9 @@ mysql_populate_update <- paste0(mysql_populate_update, ",Treatment timeline")
 if ( !is.null(sunburst_plot) ) {
   sunburst_plot
   
-  ##### Update MySQL commend to populate RNA-seq portal database
-  mysql_populate <- paste0(mysql_populate, ",Findings summary")
-  mysql_populate_update <- paste0(mysql_populate_update, ",Findings summary")
+  ##### Update MySQL commend to populate RNA-seq data portal
+  mysql_populate <- paste0(mysql_populate, "Findings summary,")
+  mysql_populate_update <- paste0(mysql_populate_update, "Findings summary,")
 } else {
   cat("No genes are listed in more then one section. Expand the \"All altered genes\" to view the summary plot for all altered genes.")
 }
@@ -3545,9 +3542,9 @@ Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r 
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk, results = "asis"}
-##### Update MySQL commend to populate RNA-seq portal database
-mysql_populate <- paste0(mysql_populate, ",Mutated genes")
-mysql_populate_update <- paste0(mysql_populate_update, ",Mutated genes")
+##### Update MySQL commend to populate RNA-seq data portal
+mysql_populate <- paste0(mysql_populate, "Mutated genes")
+mysql_populate_update <- paste0(mysql_populate_update, "Mutated genes")
 
 ##### Generate expression summary table for mutated genes (based on PCGR report)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
@@ -3730,7 +3727,7 @@ NOTE: Only fusion events including genes with available genomics coordinates in 
 ##### Create a nice table output (with dataTable)
 if ( runFusionChunk ) {
   
-  ##### Update MySQL commend to populate RNA-seq portal database
+  ##### Update MySQL commend to populate RNA-seq data portal
   mysql_populate <- paste0(mysql_populate, ",Fusion genes")
   mysql_populate_update <- paste0(mysql_populate_update, ",Fusion genes")
   
@@ -4102,7 +4099,7 @@ Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affec
 #### Z-scores
 
 ```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-##### Update MySQL commend to populate RNA-seq portal database
+##### Update MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0(mysql_populate, ",Structural variants")
 mysql_populate_update <- paste0(mysql_populate_update, ",Structural variants")
 
@@ -4240,7 +4237,7 @@ CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } 
 `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data are presented in the genomic context. **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span>.
 
 ```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
-##### Update MySQL commend to populate RNA-seq portal database
+##### Update MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0(mysql_populate, ",CN altered genes")
 mysql_populate_update <- paste0(mysql_populate_update, ",CN altered genes")
 
@@ -4703,7 +4700,7 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` i
 #### Z-scores
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
-##### Update MySQL commend to populate RNA-seq portal database
+##### Update MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0(mysql_populate, ",Immune markers")
 mysql_populate_update <- paste0(mysql_populate_update, ",Immune markers")
 
@@ -4837,7 +4834,7 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd 
 #### Z-scores
 
 ```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
-##### Update MySQL commend to populate RNA-seq portal database
+##### Update MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0(mysql_populate, ",HRD genes")
 mysql_populate_update <- paste0(mysql_populate_update, ",HRD genes")
 
@@ -4971,9 +4968,9 @@ Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expressio
 #### Z-scores
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
-##### Update MySQL commend to populate RNA-seq portal database
-mysql_populate <- paste0(mysql_populate, ",Cancer genes")
-mysql_populate_update <- paste0(mysql_populate_update, ",Cancer genes")
+##### Update MySQL commend to populate RNA-seq data portal
+mysql_populate <- paste0(mysql_populate, ",Cancer genes,All genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",Cancer genes,All genes")
 
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
@@ -5328,7 +5325,7 @@ cat(drugsTable_legend)
 **50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients were screened for suitable drugs (see [Cancer genes] section).
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
-##### Update MySQL commend to populate RNA-seq portal database
+##### Update MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0(mysql_populate, ",Drug matching")
 mysql_populate_update <- paste0(mysql_populate_update, ",Drug matching")
 
@@ -5359,7 +5356,12 @@ cat(drugsTable_legend)
 ***
 
 ```{r myqsl_populate_finalise, message=FALSE, warning=FALSE}
-##### Finalise and write into a file the MySQL commend to populate RNA-seq portal database
+##### Finalise and write into a file the MySQL commend to populate RNA-seq data portal
+if (runClinicalChunk ) {
+  mysql_populate <- paste0(mysql_populate, ",Treatment timeline")
+  mysql_populate_update <- paste0(mysql_populate_update, ",Treatment timeline")
+}
+
 mysql_populate <- paste0(mysql_populate, "\", \"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
 mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
 mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")
