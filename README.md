@@ -265,7 +265,7 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_
 
 ### Output
 
-The pipeline generates [results](#results) folder and the html-based ***Patient Transcriptome Summary*** **[report](#report)** within user-defined `output` folder:
+The pipeline generates html-based ***Patient Transcriptome Summary*** **[report](#report)** and [results](#results) folder within user-defined `output` folder:
 
 ```
 |
