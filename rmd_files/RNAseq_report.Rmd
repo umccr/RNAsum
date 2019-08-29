@@ -3259,8 +3259,9 @@ for ( alt in names(alt_genes.all.list) ) {
         values = as.numeric(alt_genes.all.list[[ alt ]])
         ) )
 }
-  
-sunburst_plot_all <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
+
+sunburst_plot <- NULL
+sunburst_plot[[1]] <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
 
 ##### Now include only Identify genes that appear in more then two lists
 alt_genes.list <- alt_genes.all.list
@@ -3291,9 +3292,9 @@ for ( alt in names(alt_genes.list) ) {
 }
 
 if ( nrow(sunburst.df) > 0 ) {
-  sunburst_plot <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
+  sunburst_plot[[2]] <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
 } else {
-  sunburst_plot <- NULL
+  sunburst_plot[[2]] <- NULL
 }
 
 ##### Create directory for the plots
@@ -3303,8 +3304,11 @@ if ( !file.exists(summaryPlotsDir) ) {
 }
   
 ##### Save interactive plot as html file
-saveWidgetFix(sunburst_plot_all, file = paste(summaryPlotsDir, "sunburst_plot_all.html", sep = "/"))
-saveWidgetFix(sunburst_plot, file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
+saveWidgetFix(sunburst_plot[[1]], file = paste(summaryPlotsDir, "sunburst_plot_all.html", sep = "/"))
+
+if ( !is.null(sunburst_plot) ) {
+  saveWidgetFix(sunburst_plot[[2]], file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
+}
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3484,10 +3488,10 @@ treatment_timeline
 
 ```{r findings_summary_plot, comment = NA, message=TRUE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for all altered genes
-if ( !is.null(sunburst_plot) ) {
-  sunburst_plot
-  
-  ##### Update MySQL commend to populate RNA-seq data portal
+sunburst_plot[[2]]
+
+##### Update MySQL commend to populate RNA-seq data portal
+if ( !is.null(sunburst_plot[[2]]) ) {
   mysql_populate <- paste0(mysql_populate, "Findings summary,")
   mysql_populate_update <- paste0(mysql_populate_update, "Findings summary,")
 } else {
@@ -3500,14 +3504,14 @@ if ( !is.null(sunburst_plot) ) {
 
 ```{r findings_summary_all_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections 
-sunburst_plot_all
-```
-
-```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
-rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, sunburst_plot, sunburst_plot_all, data.annot)
+sunburst_plot[[1]]
 ```
 
 </details>
+
+```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
+rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, sunburst_plot, data.annot)
+```
 
 ***
 
