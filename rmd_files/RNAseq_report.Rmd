@@ -3484,7 +3484,7 @@ treatment_timeline
 
 ### Per-alteration plot
 
-**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
+**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
 
 ```{r findings_summary_plot, comment = NA, message=TRUE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for all altered genes
@@ -3517,18 +3517,27 @@ rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_f
 
 ### Per-gene table
 
-Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
+Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
-DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+findings.summary <- DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = colnames(summary_table.df), `font-size` = '12px', 'text-align' = 'center' ) %>%
       ##### Colour cells according to evidence level and trust rating
       DT::formatStyle(columns = colnames(summary_table.df)[c(2:ncol(summary_table.df)-2)], 
                       backgroundColor = DT::styleEqual(c("-", "Yes"), c("transparent", "black")), color = DT::styleEqual(c("-", "Yes"), c("black", "white")))
 
+findings.summary
+
+##### Create directory for tables
+summaryTableDir <- paste(params$report_dir, "results/summaryTables", sep = "/")
+if ( !file.exists(summaryTableDir) ) {
+    dir.create(summaryTableDir, recursive=TRUE)
+}
+
+saveWidgetFix(widget=findings.summary, file=paste(summaryTableDir, "findings.summary.html", sep = "/"), selfcontained=TRUE)
 ##### Clean the space
-rm(summary_table.df)
+rm(summary_table.df, findings.summary)
 ```
 
 ***
