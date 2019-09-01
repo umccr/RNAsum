@@ -29,8 +29,8 @@ params:
   umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   subject_id: 'test_subject'
-  sample_type: 
-  project: 
+  sample_type: "-"
+  project: "-"
   top_genes: 10
   save_tables: FALSE
   hide_code_btn: TRUE
@@ -834,14 +834,6 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
            yaxis = list (title = 'Weight', range = c(den.y[1],den.y[length(den.y)]), side = "right"),
            legend = list(x = -100, y = 0.5))
   
-  ##### Create directory for "at glance" plots
-  PlotsDir <- paste(report_dir, "exprDistrPlots", sep = "/")
-    
-  if ( !file.exists(PlotsDir) ) {
-
-    dir.create(PlotsDir, recursive=TRUE)
-  }
-  
   return( p )
   
   ##### Clean the space
@@ -923,10 +915,12 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   PlotsDir <- paste(report_dir, "glanceExprPlots", sep = "/")
     
   if ( !file.exists(PlotsDir) ) {
-
     dir.create(PlotsDir, recursive=TRUE)
   }
-    
+  
+  ##### Save interactive plot as html file
+  saveWidgetFix(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
+  
   return( p )
 
   ##### Clean the space and return output
@@ -1756,7 +1750,7 @@ if (tolower(params$scaling) == "gene-wise"){
 }
 ```
 
-```{r myqsl_populate, message=FALSE, warning=FALSE}
+```{r mysql_populate, message=FALSE, warning=FALSE}
 ##### Initiate MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
@@ -3259,8 +3253,9 @@ for ( alt in names(alt_genes.all.list) ) {
         values = as.numeric(alt_genes.all.list[[ alt ]])
         ) )
 }
-  
-sunburst_plot_all <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
+
+sunburst_plot <- NULL
+sunburst_plot[[1]] <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
 
 ##### Now include only Identify genes that appear in more then two lists
 alt_genes.list <- alt_genes.all.list
@@ -3291,9 +3286,9 @@ for ( alt in names(alt_genes.list) ) {
 }
 
 if ( nrow(sunburst.df) > 0 ) {
-  sunburst_plot <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
+  sunburst_plot[[2]] <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
 } else {
-  sunburst_plot <- NULL
+  sunburst_plot[[2]] <- NULL
 }
 
 ##### Create directory for the plots
@@ -3303,8 +3298,11 @@ if ( !file.exists(summaryPlotsDir) ) {
 }
   
 ##### Save interactive plot as html file
-saveWidgetFix(sunburst_plot_all, file = paste(summaryPlotsDir, "sunburst_plot_all.html", sep = "/"))
-saveWidgetFix(sunburst_plot, file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
+saveWidgetFix(sunburst_plot[[1]], file = paste(summaryPlotsDir, "sunburst_plot_all.html", sep = "/"))
+
+if ( !is.null(sunburst_plot) ) {
+  saveWidgetFix(sunburst_plot[[2]], file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
+}
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
 detach("package:plotly", unload=FALSE)
@@ -3480,14 +3478,14 @@ treatment_timeline
 
 ### Per-alteration plot
 
-**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
+**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
 
 ```{r findings_summary_plot, comment = NA, message=TRUE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for all altered genes
-if ( !is.null(sunburst_plot) ) {
-  sunburst_plot
-  
-  ##### Update MySQL commend to populate RNA-seq data portal
+sunburst_plot[[2]]
+
+##### Update MySQL commend to populate RNA-seq data portal
+if ( !is.null(sunburst_plot[[2]]) ) {
   mysql_populate <- paste0(mysql_populate, "Findings summary,")
   mysql_populate_update <- paste0(mysql_populate_update, "Findings summary,")
 } else {
@@ -3500,31 +3498,40 @@ if ( !is.null(sunburst_plot) ) {
 
 ```{r findings_summary_all_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections 
-sunburst_plot_all
-```
-
-```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
-rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, sunburst_plot, sunburst_plot_all, data.annot)
+sunburst_plot[[1]]
 ```
 
 </details>
+
+```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
+rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, sunburst_plot, data.annot)
+```
 
 ***
 
 ### Per-gene table
 
-Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { cat("[Mutated genes], ") }` `r if ( runFusionChunk ) { cat("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { cat("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
+Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
-DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+findings.summary <- DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = colnames(summary_table.df), `font-size` = '12px', 'text-align' = 'center' ) %>%
       ##### Colour cells according to evidence level and trust rating
       DT::formatStyle(columns = colnames(summary_table.df)[c(2:ncol(summary_table.df)-2)], 
                       backgroundColor = DT::styleEqual(c("-", "Yes"), c("transparent", "black")), color = DT::styleEqual(c("-", "Yes"), c("black", "white")))
 
+findings.summary
+
+##### Create directory for tables
+summaryTableDir <- paste(params$report_dir, "results/summaryTables", sep = "/")
+if ( !file.exists(summaryTableDir) ) {
+    dir.create(summaryTableDir, recursive=TRUE)
+}
+
+saveWidgetFix(widget=findings.summary, file=paste(summaryTableDir, "findings.summary.html", sep = "/"), selfcontained=TRUE)
 ##### Clean the space
-rm(summary_table.df)
+rm(summary_table.df, findings.summary)
 ```
 
 ***
@@ -5058,7 +5065,7 @@ detach("package:plotly", unload=FALSE)
 <summary>Plot legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column.
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** comparison.
 
 </font>
 </details>
@@ -5355,7 +5362,7 @@ cat(drugsTable_legend)
 
 ***
 
-```{r myqsl_populate_finalise, message=FALSE, warning=FALSE}
+```{r mysql_populate_finalise, message=FALSE, warning=FALSE}
 ##### Finalise and write into a file the MySQL commend to populate RNA-seq data portal
 if (runClinicalChunk ) {
   mysql_populate <- paste0(mysql_populate, ",Treatment timeline")
