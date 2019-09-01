@@ -29,8 +29,8 @@ params:
   umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   subject_id: 'test_subject'
-  sample_type: 
-  project: 
+  sample_type: "-"
+  project: "-"
   top_genes: 10
   save_tables: FALSE
   hide_code_btn: TRUE
@@ -834,14 +834,6 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
            yaxis = list (title = 'Weight', range = c(den.y[1],den.y[length(den.y)]), side = "right"),
            legend = list(x = -100, y = 0.5))
   
-  ##### Create directory for "at glance" plots
-  PlotsDir <- paste(report_dir, "exprDistrPlots", sep = "/")
-    
-  if ( !file.exists(PlotsDir) ) {
-
-    dir.create(PlotsDir, recursive=TRUE)
-  }
-  
   return( p )
   
   ##### Clean the space
@@ -923,10 +915,12 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   PlotsDir <- paste(report_dir, "glanceExprPlots", sep = "/")
     
   if ( !file.exists(PlotsDir) ) {
-
     dir.create(PlotsDir, recursive=TRUE)
   }
-    
+  
+  ##### Save interactive plot as html file
+  saveWidgetFix(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
+  
   return( p )
 
   ##### Clean the space and return output
@@ -1756,7 +1750,7 @@ if (tolower(params$scaling) == "gene-wise"){
 }
 ```
 
-```{r myqsl_populate, message=FALSE, warning=FALSE}
+```{r mysql_populate, message=FALSE, warning=FALSE}
 ##### Initiate MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
@@ -5071,7 +5065,7 @@ detach("package:plotly", unload=FALSE)
 <summary>Plot legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column.
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** comparison.
 
 </font>
 </details>
@@ -5368,7 +5362,7 @@ cat(drugsTable_legend)
 
 ***
 
-```{r myqsl_populate_finalise, message=FALSE, warning=FALSE}
+```{r mysql_populate_finalise, message=FALSE, warning=FALSE}
 ##### Finalise and write into a file the MySQL commend to populate RNA-seq data portal
 if (runClinicalChunk ) {
   mysql_populate <- paste0(mysql_populate, ",Treatment timeline")
