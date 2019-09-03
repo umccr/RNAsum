@@ -4801,11 +4801,141 @@ rm(list = ls(pattern='^output*'))
 
 Section presenting expression levels of immune markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-### - Immunogram genes {.tabset}
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+
+### - Summary table {.tabset}
+
+#### Z-scores
+
+```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+targets <- ref_dataset.list[[dataset]][["sample_annot"]]
+data <- ref_dataset.list[[dataset]][["data_to_report"]]
+genes <- unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
+
+##### Deal with no genes or when more than 10 genes are of interest
+if ( length(genes) == 0 ) {
+  genes <- NULL
+}
+
+immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+
+##### Present the expression summary table
+immune_genes.expr.z
+
+##### Save the expression table as html file
+if ( params$save_tables ) {
+  saveWidgetFix(widget=immune_genes.expr.z, file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
+}
+
+##### Clean the space
+rm(immune_genes.expr.z)
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column.
+
+</font>
+</details>
+
+***
+
+#### - Percentiles
+
+```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+
+##### Present the expression summary table
+immune_genes.expr.perc
+
+##### Save the expression table as html file
+if ( params$save_tables ) {
+  saveWidgetFix(widget=immune_genes.expr.perc, file=paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
+
+##### Clean the space
+rm(immune_genes.expr.perc)
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
+
+</font>
+</details>
+
+***
+
+### - Expression overview {.tabset}
+
+Overview of immune markers expression profiles in patient's sample and in samples from cancer patients.
+
+#### Z-scores
+
+```{r glance_expr_plot_immune_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+
+##### Generate overview boxplot
+if ( !is.null(genes) ) {
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+} else {
+  cat("\nNo expression data is available for immune markers!\n")
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+<details>
+<summary>Plot legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered  **alphabetically**.
+
+</font>
+</details>
+
+***
+
+#### Percentiles
+
+```{r glance_expr_plot_immune_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+suppressMessages(library(plotly))
+
+##### Generate overview boxplot
+if ( !is.null(genes) ) {
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+} else {
+  cat("\nNo expression data is available for immune markers!\n")
+}
+
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
+<details>
+<summary>Plot legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered  **alphabetically**.
+
+</font>
+</details>
+
+***
+
+
+### - Immunogram {.tabset}
 
 Visualisation of general and local cancer immunity status using **cancer immunogram**, a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target="_blank"}, for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target="_blank"} (CIC).
 
-#### Immunogram plot
+#### Plot
 
 ```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8}
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -4823,7 +4953,7 @@ legend("topright", legend=c("Patient", "PAAD (TCGA)","PAAD-NET (TCGA)", "PAAD (U
 
 ***
 
-#### Summary table {.tabset}
+#### Table {.tabset}
 
 ##### Z-scores
 
@@ -4883,137 +5013,6 @@ rm(immunogram.expr.perc)
 <font size="2">
 
 The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immunogram gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-### - Other immune markers
-
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
-
-#### Summary table {.tabset}
-
-##### Z-scores
-
-```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
-targets <- ref_dataset.list[[dataset]][["sample_annot"]]
-data <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
-
-##### Deal with no genes or when more than 10 genes are of interest
-if ( length(genes) == 0 ) {
-  genes <- NULL
-}
-
-immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
-
-##### Present the expression summary table
-immune_genes.expr.z
-
-##### Save the expression table as html file
-if ( params$save_tables ) {
-  saveWidgetFix(widget=immune_genes.expr.z, file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
-}
-
-##### Clean the space
-rm(immune_genes.expr.z)
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column.
-
-</font>
-</details>
-
-***
-
-##### Percentiles
-
-```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
-immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
-
-##### Present the expression summary table
-immune_genes.expr.perc
-
-##### Save the expression table as html file
-if ( params$save_tables ) {
-  saveWidgetFix(widget=immune_genes.expr.perc, file=paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained=TRUE)
-}
-
-##### Clean the space
-rm(immune_genes.expr.perc)
-```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
-
-#### Expression overview {.tabset}
-
-Overview of immune markers expression profiles in patient's sample and in samples from cancer patients.
-
-##### Z-scores
-
-```{r glance_expr_plot_immune_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
-##### Generate overview boxplot
-if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
-} else {
-  cat("\nNo expression data is available for immune markers!\n")
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-<details>
-<summary>Plot legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered  **alphabetically**.
-
-</font>
-</details>
-
-***
-
-##### Percentiles
-
-```{r glance_expr_plot_immune_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
-##### Generate overview boxplot
-if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
-} else {
-  cat("\nNo expression data is available for immune markers!\n")
-}
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload=FALSE)
-```
-
-<details>
-<summary>Plot legend</summary>
-<font size="2">
-
-The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE</span> boxes represent the `r int_cancer_group` and `r ext_cancer_group` reference cancer cohorts, respectively, and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered  **alphabetically**.
 
 </font>
 </details>
