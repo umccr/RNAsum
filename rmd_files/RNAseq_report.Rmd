@@ -43,7 +43,8 @@ params:
   ucsc_genome_assembly: 19
   annot_file: 'genes/tx2gene.ensembl.v95.csv'
   genes_cancer: 'genes/umccr_cancer_genes.20190122.tsv'
-  genes_immune: 'genes/Genes_immune.txt'
+  genes_immunogram: 'genes/Genes_immunogram.txt'
+  genes_immune_markers: 'genes/Genes_immune_markers.txt'
   genes_hrd: 'genes/Genes_HRD.txt'
   oncokb_genes: 'OncoKB/CancerGenesList.txt'
   oncokb_clin_vars: 'OncoKB/allActionableVariants.txt'
@@ -82,7 +83,7 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
 # 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from UMCCR Cancer Gene list and OncoKB portal (http://oncokb.org/#/cancerGenes) 
 # 2. ref_genes.list[["genes_oncokb"]] = list of cancer genes derived from OncoKB portal (http://oncokb.org/#/cancerGenes) alone (although genes present on the UMCCR panel are also flagged)
-# 3. ref_genes.list[["genes_immune"]] = list of immune reponse markers provided in OmniSeq report (https://www.omniseq.com/)
+# 3. ref_genes.list[["genes_immune"]] = list of immune reponse markers provided in the "An Immunogram for the Cancer-Immunity Cycle" paper by Karasaki at al (2017) (https://www.ncbi.nlm.nih.gov/pubmed/28088513) and OmniSeq report (https://www.omniseq.com/) 
 # 4. ref_genes.list[["genes_hrd"]] = list of hrd (homologous recombination deficiency) genes
 # 5. ref_genes.list[["pcgr"]] = list and PCGR annotation of mutated genes in given patient based on PCGR report
 # 6. ref_genes.list[["purple"]] = list and PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results
@@ -1703,6 +1704,69 @@ saveWidgetFix <- function ( widget, file, ...) {
   setwd(outDir);
   htmlwidgets::saveWidget(widget,file=file,...)
 }
+
+##### Define function for generating spider web plots to present immunogram genes (code from http://www.statisticstoproveanything.com/2013/11/spider-web-plots-in-r.html)
+# data - data.frame or matrix
+# data.row - row of data to plot (if NULL uses row 1)
+# y.cols - columns of interest (if NULL it selects all numeric columns)
+# main - title of plot (if NULL then rowname of data)
+# add - whether the plot should be added to an existing plot
+# col - color of the data line
+# lty - lty of the data line
+
+webplot = function(data, data.row = NULL, y.cols = NULL, main = NULL, add = F, 
+    col = "red", lty = 1, scale = T) {
+    if (!is.matrix(data) & !is.data.frame(data)) 
+        stop("Requires matrix or data.frame")
+    if (is.null(y.cols)) 
+        y.cols = colnames(data)[sapply(data, is.numeric)]
+    if (sum(!sapply(data[, y.cols], is.numeric)) > 0) {
+        out = paste0("\"", colnames(data)[!sapply(data, is.numeric)], "\"", 
+            collapse = ", ")
+        stop(paste0("All y.cols must be numeric\n", out, " are not numeric"))
+    }
+    if (is.null(data.row)) 
+        data.row = 1
+    if (is.character(data.row)) 
+        if (data.row %in% rownames(data)) {
+            data.row = which(rownames(data) == data.row)
+        } else {
+            stop("Invalid value for data.row:\nMust be a valid rownames(data) or row-index value")
+        }
+    if (is.null(main)) 
+        main = rownames(data)[data.row]
+    if (scale == T) {
+        data = scale(data[, y.cols])
+        data = apply(data, 2, function(x) x/max(abs(x)))
+    }
+    data = as.data.frame(data)
+    n.y = length(y.cols)
+    min.rad = 360/n.y
+    polar.vals = (90 + seq(0, 360, length.out = n.y + 1)) * pi/180
+
+    # 
+    if (add == F) {
+        plot(0, xlim = c(-2.2, 2.2), ylim = c(-2.2, 2.2), type = "n", axes = F, 
+            xlab = "", ylab = "")
+        title(main)
+        lapply(polar.vals, function(x) lines(c(0, 2 * cos(x)), c(0, 2 * sin(x))))
+        lapply(1:n.y, function(x) text(2.15 * cos(polar.vals[x]), 2.15 * sin(polar.vals[x]), 
+            y.cols[x], cex = 0.8))
+
+        lapply(seq(0.5, 2, 0.5), function(x) lines(x * cos(seq(0, 2 * pi, length.out = 100)), 
+            x * sin(seq(0, 2 * pi, length.out = 100)), lwd = 0.5, lty = 2, col = "gray60"))
+        lines(cos(seq(0, 2 * pi, length.out = 100)), sin(seq(0, 2 * pi, length.out = 100)), 
+            lwd = 1.2, col = "gray50")
+    }
+
+    r = 1 + data[data.row, y.cols]
+    xs = r * cos(polar.vals)
+    ys = r * sin(polar.vals)
+    xs = c(xs, xs[1])
+    ys = c(ys, ys[1])
+
+    lines(xs, ys, col = col, lwd = 2, lty = lty)
+}
 ```
 
 ```{r plot_thumbnail, comment=NA, message=FALSE, warning=FALSE}
@@ -1834,7 +1898,8 @@ if ( file.exists(clinical_info_file) ) {
 ##### Read in selected genes list
 ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 ref_genes.list[["genes_oncokb"]] <- read.table(paste(params$ref_data_dir, params$oncokb_genes, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
-ref_genes.list[["genes_immune"]] <- read.table(paste(params$ref_data_dir, params$genes_immune, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
+ref_genes.list[["genes_immune"]]$immunogram <- read.table(paste(params$ref_data_dir, params$genes_immunogram, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
+ref_genes.list[["genes_immune"]]$immune_markers <- read.table(paste(params$ref_data_dir, params$genes_immune_markers, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$genes_hrd, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 
 ##### Read in gene fusion data for investigate sample
@@ -2155,8 +2220,9 @@ if ( runPurpleChunk ) {
   ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MeanCopyNumber < cn_bottom | ref_genes.list[["summary"]]$CN$MeanCopyNumber > cn_top, ]$Gene)
 }
 
-# Immune reponse markers provided in OmniSeq report (https://www.omniseq.com/)
-ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$SYMBOL)
+# Immune reponse markers
+ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL)
+ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["summary"]]$Immune, ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
 
 # HRD (homologous recombination deficiency) genes
 ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
@@ -2652,18 +2718,28 @@ for ( dataset in names(ref_dataset.list) ) {
   ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc)
   gene_info = gene_info[!duplicated(gene_info$SYMBOL),]
   
-  ##### Add info about immune response markers
-  gene_info <- merge(gene_info, ref_genes.list[["genes_immune"]], by = "SYMBOL", all.x = TRUE)
+  ##### Add info about immune response markers (immunogram)
+  gene_info.immunogram <- merge(gene_info, ref_genes.list[["genes_immune"]]$immunogram, by = "SYMBOL", all.x = TRUE)
+  gene_info.immunogram <- gene_info.immunogram[!duplicated(gene_info.immunogram[,"ENSEMBL"]),]
   
   ##### Keep only immune response markers for which there is available annotation
-  ref_genes.list[["genes_immune"]] <- ref_genes.list[["genes_immune"]][ ref_genes.list[["genes_immune"]]$SYMBOL %in% gene_info$SYMBOL, ]
+  ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$immunogram[ ref_genes.list[["genes_immune"]]$immunogram$SYMBOL %in% gene_info.immunogram$SYMBOL, ]
+  
+  ##### Add info about immune response markers (immune markers)
+  gene_info.immune_markers <- merge(gene_info, ref_genes.list[["genes_immune"]]$immune_markers, by = "SYMBOL", all.x = TRUE)
+  
+  ##### Keep only immune response markers for which there is available annotation
+  ref_genes.list[["genes_immune"]]$immune_markers <- ref_genes.list[["genes_immune"]]$immune_markers[ ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% gene_info.immune_markers$SYMBOL, ]
+  
+  ##### Merge genes annotations for immunogram genes and immune markers
+  gene_info <- merge( gene_info.immunogram, gene_info.immune_markers[ , c("ENSEMBL", "Immune_Cycle_Role") ], by = "ENSEMBL")
   
   ##### Merge genes genomic coordinates info with their annotation and expression data
   data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = FALSE)
   rownames(data.annot) <- data.annot$ENSEMBL
   
   ##### Get data matrix with gene symbols
-  ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "CIC", "Immune_Cycle_Role")]
 }
 
 ##### Clean the space
@@ -3190,6 +3266,29 @@ if ( runFusionChunk ) {
 rm(manta_pizzly.fusions)
 ```
 
+```{r immunogram_table_prep, comment = NA, message=FALSE, warning=FALSE}
+##### Extract data for Immunogram genes
+data <- ref_dataset.list[[dataset]][["data_to_report"]]
+data <- data[ rownames(data) %in% ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ]
+
+##### Create lists with caulcuation results for each individual Cancer-Immunity Cycle (CIC) step
+CIC.list <- vector("list", length(unique(ref_genes.list[["genes_immune"]]$immunogram$CIC)))
+names(CIC.list) <- unique(ref_genes.list[["genes_immune"]]$immunogram$CIC)
+  
+##### Calculate average expression for each Cancer-Immunity Cycle (CIC) step
+for ( cic_step in unique(ref_genes.list[["genes_immune"]]$immunogram$CIC) ) {
+  
+  genes <- ref_genes.list[["genes_immune"]]$immunogram$SYMBOL[ ref_genes.list[["genes_immune"]]$immunogram$CIC %in% cic_step ]
+  data.sub <- data[ rownames(data) %in% genes, ]
+  CIC.list[[cic_step]] <- colMeans(data.sub)
+}
+
+##### Conver the list into dataframe
+ref_genes.list[["genes_immune"]]$immunogram.df <- t(data.frame(matrix(unlist(CIC.list), nrow=length(CIC.list), byrow=T),stringsAsFactors=FALSE))
+colnames(ref_genes.list[["genes_immune"]]$immunogram.df) <- names(CIC.list)
+rownames(ref_genes.list[["genes_immune"]]$immunogram.df) <- colnames(data.sub)
+```
+
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Summarise the reference cohorts samples
 target <- ref_dataset.list[[dataset]][["sample_annot"]]
@@ -3220,7 +3319,7 @@ if ( runPurpleChunk ) {
 }
 
 ##### ...immune markers section: include only genes with available annotation
-ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$SYMBOL)
+ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
 ```
 
 ```{r goi_sunburst, comment = NA, message=FALSE, warning=FALSE}
@@ -4638,9 +4737,11 @@ for( i in 1:genes_gains_no ){
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("\n</details>\n")
+    cat("\n***\n")
   } else {
     cat("\n#### ", genes[i], "\n")
     cat("\nExpression data is not available for that gene.\n")
+    cat("\n***\n")
   }
 }
 
@@ -4681,9 +4782,11 @@ for( i in 1:genes_losses_no ){
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("\n</details>\n")
+    cat("\n***\n")
   } else {
     cat("\n#### ", genes[i], "\n")
     cat("\nExpression data is not available for that gene.\n")
+    cat("\n***\n")
   }
 }
 
@@ -4694,27 +4797,111 @@ detach("package:plotly", unload=FALSE)
 rm(list = ls(pattern='^output*'))
 ```
 
-***
-
 ## Immune markers
 
 Section presenting expression levels of immune markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["summary"]]$Immune %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["summary"]]$Immune %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+### - Immunogram genes {.tabset}
 
-### - Summary table {.tabset}
+Visualisation of general and local cancer immunity status using **cancer immunogram**, a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target="_blank"}, for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target="_blank"} (CIC).
 
-#### Z-scores
+#### Immunogram plot
 
-```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
+```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8}
 ##### Update MySQL commend to populate RNA-seq data portal
 mysql_populate <- paste0(mysql_populate, ",Immune markers")
 mysql_populate_update <- paste0(mysql_populate_update, ",Immune markers")
 
+data <- ref_dataset.list[[dataset]][["data_to_report"]]
+
+webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = ncol(data), main = "", add = FALSE, col = "black")
+webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 5, main = "", add = TRUE, col = "powderblue", lty = 5)
+webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 156, main = "", add = TRUE, col = "forestgreen", lty = 5)
+webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 194, main = "", add = TRUE, col = "red", lty = 5)
+legend("topright", legend=c("Patient", "PAAD (TCGA)","PAAD-NET (TCGA)", "PAAD (UMCCR)"), fill=c("black", "powderblue", "forestgreen", "red"), bty="n", bg = "transparent", cex = 0.8)
+```
+
+***
+
+#### Summary table {.tabset}
+
+##### Z-scores
+
+```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- unique(unlist(ref_genes.list[["genes_immune"]]$SYMBOL))
+genes <- unique(unlist(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL))
+
+##### Deal with no genes or when more than 10 genes are of interest
+if ( length(genes) == 0 ) {
+  genes <- NULL
+}
+
+immunogram.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+
+##### Present the expression summary table
+immunogram.expr.z
+
+##### Save the expression table as html file
+if ( params$save_tables ) {
+  saveWidgetFix(widget=immunogram.expr.z, file=paste(exprTableDir, "immunogram.expr.z.html", sep = "/"), selfcontained=TRUE)
+}
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each immunogram gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column.
+
+</font>
+</details>
+
+***
+
+##### Percentiles
+
+```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+immunogram.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+
+##### Present the expression summary table
+immunogram.expr.perc
+
+##### Save the expression table as html file
+if ( params$save_tables ) {
+  saveWidgetFix(widget=immunogram.expr.perc, file=paste(exprTableDir, "immunogram.expr.perc.html", sep = "/"), selfcontained=TRUE)
+}
+
+##### Clean the space
+rm(immunogram.expr.perc)
+```
+
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immunogram gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
+
+</font>
+</details>
+
+***
+
+### - Other immune markers
+
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+
+#### Summary table {.tabset}
+
+##### Z-scores
+
+```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Generate expression summary table for cancer genes from OncoKB and PMCC
+targets <- ref_dataset.list[[dataset]][["sample_annot"]]
+data <- ref_dataset.list[[dataset]][["data_to_report"]]
+genes <- unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
 
 ##### Deal with no genes or when more than 10 genes are of interest
 if ( length(genes) == 0 ) {
@@ -4730,6 +4917,9 @@ immune_genes.expr.z
 if ( params$save_tables ) {
   saveWidgetFix(widget=immune_genes.expr.z, file=paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained=TRUE)
 }
+
+##### Clean the space
+rm(immune_genes.expr.z)
 ```
 
 <details>
@@ -4743,7 +4933,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-#### Percentiles
+##### Percentiles
 
 ```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
@@ -4772,11 +4962,11 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ***
 
-### - Expression overview {.tabset}
+#### Expression overview {.tabset}
 
 Overview of immune markers expression profiles in patient's sample and in samples from cancer patients.
 
-#### Z-scores
+##### Z-scores
 
 ```{r glance_expr_plot_immune_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
@@ -4803,7 +4993,7 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 ***
 
-#### Percentiles
+##### Percentiles
 
 ```{r glance_expr_plot_immune_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
 suppressMessages(library(plotly))
@@ -5103,7 +5293,7 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 ## Drug matching {.tabset}
 
-List of drugs targeting variants in detected [Mutated genes], dysregulated [Cancer genes], [Fusion genes], [Structural variants]-affected genes and [CN altered genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
+List of drugs targeting variants in detected [Mutated genes], [Fusion genes], [Structural variants]-affected genes, [CN altered genes], [HRD genes] and dysregulated [Cancer genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
 
 ```{r drugs_table_dir, comment = NA, message=FALSE, warning=FALSE}
 ##### Create directory for tables
@@ -5366,8 +5556,8 @@ cat(drugsTable_legend)
 ```{r mysql_populate_finalise, message=FALSE, warning=FALSE}
 ##### Finalise and write into a file the MySQL commend to populate RNA-seq data portal
 if (runClinicalChunk ) {
-  mysql_populate <- paste0(mysql_populate, ",Treatment timeline")
-  mysql_populate_update <- paste0(mysql_populate_update, ",Treatment timeline")
+  mysql_populate <- paste0(mysql_populate, ",Clinical information")
+  mysql_populate_update <- paste0(mysql_populate_update, ",Clinical information")
 }
 
 mysql_populate <- paste0(mysql_populate, "\", \"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
