@@ -4809,6 +4809,10 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_marke
 #### Z-scores
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
+##### Update MySQL commend to populate RNA-seq data portal
+mysql_populate <- paste0(mysql_populate, ",Immune markers")
+mysql_populate_update <- paste0(mysql_populate_update, ",Immune markers")
+
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -4931,25 +4935,27 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 ***
 
-
 ### - Immunogram {.tabset}
 
-Visualisation of general and local cancer immunity status using **cancer immunogram**, a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target="_blank"}, for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target="_blank"} (CIC).
+Visualisation of general and local cancer immunity status using **cancer immunogram** for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target="_blank"} (CIC), a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target="_blank"}.
 
 #### Plot
 
-```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8}
-##### Update MySQL commend to populate RNA-seq data portal
-mysql_populate <- paste0(mysql_populate, ",Immune markers")
-mysql_populate_update <- paste0(mysql_populate_update, ",Immune markers")
+```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 7}
+##### Generate spider web plot to present the patient cancer immunity status. For more info about immunogram see the following papers
+# https://www.sciencedirect.com/science/article/pii/S1556086417300084
+# https://www.sciencedirect.com/science/article/pii/S1556086417302125
+# https://www.europeanurology.com/article/S0302-2838(18)30685-7/fulltext?rss=yes
+##### NOTE: currently, the mean expression (Z-score) values of genes from each of the 7 CIC steps are presented rather than the normalized enrichment scores (NES) from GSEA analysis performed for each geneset (CIC step)
 
-data <- ref_dataset.list[[dataset]][["data_to_report"]]
-
+##### Preset cancer immunity status for the patient using web-plot
 webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = ncol(data), main = "", add = FALSE, col = "black")
-webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 5, main = "", add = TRUE, col = "powderblue", lty = 5)
-webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 156, main = "", add = TRUE, col = "forestgreen", lty = 5)
-webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 194, main = "", add = TRUE, col = "red", lty = 5)
-legend("topright", legend=c("Patient", "PAAD (TCGA)","PAAD-NET (TCGA)", "PAAD (UMCCR)"), fill=c("black", "powderblue", "forestgreen", "red"), bty="n", bg = "transparent", cex = 0.8)
+
+##### Now add data for samples with specific immunogram patterns, e.g. T-cell–rich, T-cell–poor, T-cell–intermediate...
+#webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 5, main = "", add = TRUE, col = "powderblue", lty = 5)
+#webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 156, main = "", add = TRUE, col = "forestgreen", lty = 5)
+#webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 194, main = "", add = TRUE, col = "red", lty = 5)
+#legend("topright", legend=c("Patient", "T-cell–rich","T-cell–poor", "T-cell–intermediate"), fill=c("black", "powderblue", "forestgreen", "red"), bty="n", bg = "transparent", cex = 0.8)
 ```
 
 ***
