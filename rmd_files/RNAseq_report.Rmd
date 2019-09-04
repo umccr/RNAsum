@@ -33,7 +33,7 @@ params:
   sample_type: "-"
   project: "-"
   top_genes: 10
-  save_tables: FALSE
+  save_tables: TRUE
   hide_code_btn: TRUE
   pcgr_tier: 4
   pcgr_splice_vars: TRUE
@@ -1745,7 +1745,6 @@ webplot = function(data, data.row = NULL, y.cols = NULL, main = NULL, add = F,
     min.rad = 360/n.y
     polar.vals = (90 + seq(0, 360, length.out = n.y + 1)) * pi/180
 
-    # 
     if (add == F) {
         plot(0, xlim = c(-2.2, 2.2), ylim = c(-2.2, 2.2), type = "n", axes = F, 
             xlab = "", ylab = "")
@@ -1765,7 +1764,6 @@ webplot = function(data, data.row = NULL, y.cols = NULL, main = NULL, add = F,
     ys = r * sin(polar.vals)
     xs = c(xs, xs[1])
     ys = c(ys, ys[1])
-
     lines(xs, ys, col = col, lwd = 2, lty = lty)
 }
 ```
@@ -2796,8 +2794,7 @@ rm(data, data.df, gene_info)
 ##### Save the entire expression data with cancer genes annotaiton as a data table html file
 ##### Generate expression summary table for mutated genes
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
-data <- apply(data.annot[ , names(data.annot) %!in% c(names(ref_dataset.list[[dataset]][["gene_annot"]])) ], 2, as.numeric)
-rownames(data) <- ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL
+data <- ref_dataset.list[[dataset]][["data_to_report"]]
   
 ##### Z-scores
 genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
@@ -4955,10 +4952,10 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 ```{r immunogram_section, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
 cat("\n### - Immunogram {.tabset} \n")
-cat("<br />")
 cat("\nVisualisation of general and local cancer immunity status using **cancer immunogram** for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target=\"_blank\"} (CIC), a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target=\"_blank\"}.\n")
 cat("<br />")
 cat("\n#### Plot \n")
+cat("<br />")
 ```
 
 ```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 7, eval = params$immunogram}
