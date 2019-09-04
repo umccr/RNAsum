@@ -1899,9 +1899,12 @@ if ( file.exists(clinical_info_file) ) {
 ##### Read in selected genes list
 ref_genes.list[["genes_cancer"]] <- read.table(paste(params$ref_data_dir, params$genes_cancer, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 ref_genes.list[["genes_oncokb"]] <- read.table(paste(params$ref_data_dir, params$oncokb_genes, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", comment.char = "")
-ref_genes.list[["genes_immune"]]$immunogram <- read.table(paste(params$ref_data_dir, params$genes_immunogram, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 ref_genes.list[["genes_immune"]]$immune_markers <- read.table(paste(params$ref_data_dir, params$genes_immune_markers, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$genes_hrd, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
+
+if ( params$immunogram ) {
+  ref_genes.list[["genes_immune"]]$immunogram <- read.table(paste(params$ref_data_dir, params$genes_immunogram, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
+}
 
 ##### Read in gene fusion data for investigate sample
 ##### Read in the pizzly fusion calls
@@ -2222,8 +2225,11 @@ if ( runPurpleChunk ) {
 }
 
 # Immune reponse markers
-ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL)
-ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["summary"]]$Immune, ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
+ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)
+
+if ( params$immunogram ) {
+  ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["summary"]]$Immune, ref_genes.list[["genes_immune"]]$immunogram$SYMBOL))
+}
 
 # HRD (homologous recombination deficiency) genes
 ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
@@ -2719,28 +2725,36 @@ for ( dataset in names(ref_dataset.list) ) {
   ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc)
   gene_info = gene_info[!duplicated(gene_info$SYMBOL),]
   
-  ##### Add info about immune response markers (immunogram)
-  gene_info.immunogram <- merge(gene_info, ref_genes.list[["genes_immune"]]$immunogram, by = "SYMBOL", all.x = TRUE)
-  gene_info.immunogram <- gene_info.immunogram[!duplicated(gene_info.immunogram[,"ENSEMBL"]),]
-  
-  ##### Keep only immune response markers for which there is available annotation
-  ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$immunogram[ ref_genes.list[["genes_immune"]]$immunogram$SYMBOL %in% gene_info.immunogram$SYMBOL, ]
-  
-  ##### Add info about immune response markers (immune markers)
+  ##### Add info about immune response markers
   gene_info.immune_markers <- merge(gene_info, ref_genes.list[["genes_immune"]]$immune_markers, by = "SYMBOL", all.x = TRUE)
   
   ##### Keep only immune response markers for which there is available annotation
   ref_genes.list[["genes_immune"]]$immune_markers <- ref_genes.list[["genes_immune"]]$immune_markers[ ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% gene_info.immune_markers$SYMBOL, ]
   
-  ##### Merge genes annotations for immunogram genes and immune markers
-  gene_info <- merge( gene_info.immunogram, gene_info.immune_markers[ , c("ENSEMBL", "Immune_Cycle_Role") ], by = "ENSEMBL")
+  ##### Add info about immunogram genes
+  if ( params$immunogram ) {
+    gene_info.immunogram <- merge(gene_info, ref_genes.list[["genes_immune"]]$immunogram, by = "SYMBOL", all.x = TRUE)
+    gene_info.immunogram <- gene_info.immunogram[!duplicated(gene_info.immunogram[,"ENSEMBL"]),]
+    
+    ##### Keep only immunogram genes for which there is available annotation
+    ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$immunogram[ ref_genes.list[["genes_immune"]]$immunogram$SYMBOL %in% gene_info.immunogram$SYMBOL, ]
+    
+    ##### Merge genes annotations for immunogram genes and immune markers
+    gene_info <- merge( gene_info.immunogram, gene_info.immune_markers[ , c("ENSEMBL", "Immune_Cycle_Role") ], by = "ENSEMBL")
+  } else {
+    gene_info <- gene_info.immune_markers
+  }
   
   ##### Merge genes genomic coordinates info with their annotation and expression data
   data.annot <- merge(gene_info, data.df, by = "ENSEMBL", all.x = FALSE)
   rownames(data.annot) <- data.annot$ENSEMBL
   
   ##### Get data matrix with gene symbols
-  ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "CIC", "Immune_Cycle_Role")]
+  if ( params$immunogram ) {
+    ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "CIC", "Immune_Cycle_Role")]
+  } else {
+    ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  }
 }
 
 ##### Clean the space
@@ -3267,7 +3281,7 @@ if ( runFusionChunk ) {
 rm(manta_pizzly.fusions)
 ```
 
-```{r immunogram_table_prep, comment = NA, message=FALSE, warning=FALSE}
+```{r immunogram_table_prep, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Extract data for Immunogram genes
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 data <- data[ rownames(data) %in% ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ]
@@ -3320,7 +3334,11 @@ if ( runPurpleChunk ) {
 }
 
 ##### ...immune markers section: include only genes with available annotation
-ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
+if ( params$immunogram ) {
+  ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
+} else {
+  ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)
+}
 ```
 
 ```{r goi_sunburst, comment = NA, message=FALSE, warning=FALSE}
@@ -4870,7 +4888,7 @@ rm(immune_genes.expr.perc)
 <summary>Table legend</summary>
 <font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
+The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immune marker. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column.
 
 </font>
 </details>
@@ -4935,13 +4953,15 @@ The <span style="color:#ff0000">RED</span> and <span style="color:#0000ff">BLUE<
 
 ***
 
-### - Immunogram {.tabset}
+```{r immunogram_section, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+cat("\n### - Immunogram {.tabset} \n")
+cat("<br />")
+cat("\nVisualisation of general and local cancer immunity status using **cancer immunogram** for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target=\"_blank\"} (CIC), a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target=\"_blank\"}.\n")
+cat("<br />")
+cat("\n#### Plot \n")
+```
 
-Visualisation of general and local cancer immunity status using **cancer immunogram** for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target="_blank"} (CIC), a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target="_blank"}.
-
-#### Plot
-
-```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 7}
+```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 7, eval = params$immunogram}
 ##### Generate spider web plot to present the patient cancer immunity status. For more info about immunogram see the following papers
 # https://www.sciencedirect.com/science/article/pii/S1556086417300084
 # https://www.sciencedirect.com/science/article/pii/S1556086417302125
@@ -4958,13 +4978,16 @@ webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row 
 #legend("topright", legend=c("Patient", "T-cell–rich","T-cell–poor", "T-cell–intermediate"), fill=c("black", "powderblue", "forestgreen", "red"), bty="n", bg = "transparent", cex = 0.8)
 ```
 
-***
+```{r immunogram_section_table, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+cat("\n***\n")
+cat("<br />")
+cat("\n#### Table {.tabset} \n")
+cat("<br />")
+cat("\n##### Z-scores \n")
+cat("<br />")
+```
 
-#### Table {.tabset}
-
-##### Z-scores
-
-```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE}
+```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
@@ -4986,20 +5009,22 @@ if ( params$save_tables ) {
 }
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
+```{r immunogram_section_table_legend, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+cat("\n<details>\n")
+cat("\n<summary>Table legend</summary>\n")
+cat("\n<font size=\"2\">\n")
+cat("<br />")
+cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style=\"color:#808080\">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each immunogram gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column.\n")
+cat("\n</font>\n")
+cat("\n</details>\n")
+cat("\n***\n")
+```
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each immunogram gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column.
+```{r immunogram_section_table_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+cat("\n##### Percentiles\n")
+```
 
-</font>
-</details>
-
-***
-
-##### Percentiles
-
-```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE}
+```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Generate expression summary table for cancer genes from OncoKB and PMCC
 immunogram.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 
@@ -5015,16 +5040,17 @@ if ( params$save_tables ) {
 rm(immunogram.expr.perc)
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
 
-The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style="color:#808080">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immunogram gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
-
-</font>
-</details>
-
-***
+```{r immunogram_section_table_legend_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+cat("\n<details>\n")
+cat("\n<summary>Table legend</summary>\n")
+cat("\n<font size=\"2\">\n")
+cat("<br />")
+cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The <span style=\"color:#808080\">BLANK</span> cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each immunogram gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column..\n")
+cat("\n</font>\n")
+cat("\n</details>\n")
+cat("\n***\n")
+```
 
 ## HRD genes
 

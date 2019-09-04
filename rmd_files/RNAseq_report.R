@@ -26,7 +26,7 @@
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (default) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (default) and "FALSE"
 #   scaling:      Apply "gene-wise" (default) or "group-wise" data scaling
-#   immunogram:   Include immunogram in the report. Available options are: "TRUE" and "FALSE" (default)
+#   immunogram:   Include immunogram in the report. Available options are: "TRUE" and "FALSE" (default for now, as this feature is not finilised yet)
 #   umccrise (optional):  Location of the corresponding umccrise output from genomic-related data (including PCGR, PURPLE and Manta output files)
 #   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "4")
 #   pcgr_splice_vars (optional): Include non-coding splice region variants reported in PCGR. Available options are: "TRUE" (default) and "FALSE" 
@@ -91,7 +91,7 @@ option_list = list(
               help="Scaling for z-score transformation (gene-wise or group-wise"),
   make_option(c("-im", "--immunogram"), action="store", default=FALSE, type='logical',
               help="Include immunogram in the report"),
-    make_option(c("-um", "--umccrise"), action="store", default=NULL, type='character',
+  make_option(c("-um", "--umccrise"), action="store", default=NULL, type='character',
               help="Location of the corresponding WGS-related data"),
   make_option(c("-pt", "--pcgr_tier"), action="store", default=4, type='integer',
               help="Tier threshold for reporting variants reported in PCGR"),
