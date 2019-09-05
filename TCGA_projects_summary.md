@@ -27,8 +27,8 @@ No | Project | Name | Tissue code\* | Samples no.\**
 11 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **300** (verify)
 12 | `KIRP` | Kidney Renal Papillary Cell Carcinoma | 1 | **283** (verify)
 13 | `COAD`  | Colon Adenocarcinoma | 1 | **257**
-14 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **254** (verify)
-15 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
+14 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
+15 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **220**
 16 | `SARC` | Sarcoma | 1 | **214**
 17 | `PCPG`  | Pheochromocytoma and Paraganglioma | 1 | **186** (verify)
 18 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **184** (verify)
