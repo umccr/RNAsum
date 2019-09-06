@@ -950,7 +950,7 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   
   ##### Generate scatterplot with per-gene expression values (y-axis) (difference between Patient's and [comp_cancer] data), CN values (x-axis) and mutation status info (colours)
   if ( alt_data ) {
-    p <- plot_ly(type='scatter', mode = "markers", width = 800, height = 500, showlegend = FALSE) %>%
+    p <- plot_ly(type='scatter', mode = "markers", width = 800, height = 600, showlegend = FALSE) %>%
       
       add_markers(data = data, y = ~Expr, x = ~CN, 
                 name = ~Gene,
@@ -972,7 +972,7 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   
   ##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
   } else {
-    p <- plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, color = ~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 500) %>%
+    p <- plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, color = ~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
       
       add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
                       x=~CN, xanchor="left",
@@ -985,13 +985,13 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   }
   
   ##### Create directory for the plots
-  mutCNexprPlotDir <- paste(report_dir, "mut_cn_expr_plot", sep = "/")
+  mutCNexprPlotDir <- paste(report_dir, "cn_expr_plot", sep = "/")
   if ( !file.exists(mutCNexprPlotDir) ) {
     dir.create(mutCNexprPlotDir, recursive=TRUE)
   }
   
   ##### Save interactive plot as html file
-  saveWidgetFix(p, file = paste(mutCNexprPlotDir, "mut_cn_expr_plot.html", sep = "/"))
+  saveWidgetFix(p, file = paste(mutCNexprPlotDir, "cn_expr_plot.html", sep = "/"))
     
   return( p )
   
@@ -1815,7 +1815,7 @@ if (tolower(params$scaling) == "gene-wise"){
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
 ##### Initiate MySQL commend to populate RNA-seq data portal
-mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, URL, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
+mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Type, Project, Report, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
 ```
 
@@ -1969,15 +1969,15 @@ if ( runPcgrChunk ) {
   
   ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
   subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
-  mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \""  )
-  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\""  )
+  mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
   
 } else {
   ref_genes.list[["pcgr"]] <- NULL
   
   ##### Update MySQL commend to populate RNA-seq data portal
-  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"\"",", \"", params$sample_name, "\", \""  )
-  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", URL=\"\"",", PMID=\"", params$sample_name, "\", Analysis=\""  )
+  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
 }
 
 ##### Check if purple (CN) output file exists
@@ -3926,6 +3926,10 @@ Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusio
 
 **Abundant transcript(s)**: gene fusion events involving highly abundant transcript(s)
 
+**Split count**: the number of supporting split reads
+
+**Pair count**: the number of supporting pair reads
+
 **Cancer gene(s)**: gene fusion events involving [Cancer genes]
 
 **Fusion gene (A/B)**: gene(s) known to be involved in tumorigenesis across cancer types based on [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [CGI](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} databases
@@ -4210,7 +4214,7 @@ rm(list = ls(pattern='^output*'))
 
 ## Structural variants
 
-mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta){target="_blank"} structural variant caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
+mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta){target="_blank"} SV caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
 
 SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
@@ -4262,7 +4266,7 @@ if ( params$save_tables ) {
 
 The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. TSG - tumour suppressor gene
 
-**Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"} script; **1 = high** and **3 = low priority**
+**Tier**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36){target="_blank"} script; **1 = high** and **4 = low priority**
 
 </font>
 </details>
@@ -4293,7 +4297,7 @@ rm(sv_genes.expr.perc)
 
 The <span style="color:#ff0000">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style="color:#0000ff">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target="_blank"} database, are also indicated. Genes are ordered by **increasing SV score** and then by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) columns. TSG - tumour suppressor gene
 
-**Score**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36) script; *1 = high* and *3 = low priority*
+**Tier**: SV priority score based on AstraZeneca [simple_sv_annotation.py](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36) script; *1 = high* and *4 = low priority*
 
 </font>
 </details>
@@ -4470,6 +4474,14 @@ detach("package:plotly", unload=FALSE)
 suppressMessages(library(plotly))
 cn_dist_plot
 
+##### Create directory for the plots
+PlotDir <- paste(params$report_dir, "results/cn_dist_plot", sep = "/")
+if ( !file.exists(PlotDir) ) {
+  dir.create(PlotDir, recursive=TRUE)
+}
+
+##### Save interactive plot as html file
+saveWidgetFix(cn_dist_plot, file = paste(PlotDir, "cn_dist_plot.html", sep = "/"))
 detach("package:plotly", unload=FALSE)
 ```
 
@@ -4483,7 +4495,7 @@ Scatterplot comparing the per-gene difference in **mRNA expression** of [Cancer 
 
 #### Z-scores
 
-```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
+```{r mut_cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
 cn_genes <- data.sub$Gene
@@ -4509,7 +4521,7 @@ detach("package:plotly", unload=FALSE)
 
 #### Percentiles
 
-```{r mut_cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
+```{r mut_cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
 suppressMessages(library(plotly))
 
@@ -4533,7 +4545,7 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the ` if (runPurpleChunk) { r length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN < cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN > cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r if (runPurpleChunk) { r length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN < cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN > cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
