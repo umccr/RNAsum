@@ -299,17 +299,17 @@ pca <- function(data, targets, title = "", report_dir, suffix = "" ) {
   data.subset_pca.df$Target <- factor(data.subset_pca.df$Target, levels = unique(data.subset_pca.df$Target))
   
   ##### Generate PCA 2-D plot
-  pca_plot <- plot_ly(data.subset_pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(targets$Target, rownames(data.subset_pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7), width = 800, height = 400) %>%
+  pca_plot <- plot_ly(data.subset_pca.df, x = ~PC1, y = ~PC2, color = ~Target, text=paste(targets$Target, rownames(data.subset_pca.df), sep=": "), colors = targets.colour[[1]], type='scatter', mode = "markers", marker = list(size=10, opacity = 0.7), width = 800, height = 500) %>%
   layout(title = title, xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=30, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
-  ##### Generate scree plot
+  ##### Generate Scree-plot
   data.subset_scree.df <- data.frame(paste0("PC ", c(1:length(data.subset_pca$sdev))), data.subset_pca$sdev)
 colnames(data.subset_scree.df) <- c("PC", "Variances")
 
   ##### The default order will be alphabetized unless specified as below
   data.subset_scree.df$PC <- factor(data.subset_scree.df$PC, levels = data.subset_scree.df[["PC"]])
   
-  scree_plot <- plot_ly(data.subset_scree.df, x = ~PC, y = ~Variances, type = 'bar', width = 800, height = 400) %>%
+  scree_plot <- plot_ly(data.subset_scree.df, x = ~PC, y = ~Variances, type = 'bar', width = 800, height = 350) %>%
     layout(title = title, xaxis = list(title = ""), margin = list(l=50, r=50, b=100, t=30, pad=4), autosize = F)
   
   ##### Create directory for the plots
@@ -2497,7 +2497,7 @@ if ( params$filter ) {
   data_transformation_filtered <- recordPlot()
   
   ##### Save the plot as png file
-  png(paste0(PlotsDir, "/filtering.png"), width=970, height=600, pointsize = 18)
+  png(paste0(PlotsDir, "/filtering.png"), width=900, height=400, pointsize = 14)
   par(mfrow=c(1,2))
   
   ##### Before filtering
@@ -2536,7 +2536,7 @@ if ( params$filter ) {
   legend("topright", legend=legend, fill=targets.colour[[1]], bty="n", bg = "transparent")
   
   ##### Save the plot as png file
-  png(paste0(PlotsDir, "/filtering.png"), width=970, height=600, pointsize = 18)
+  png(paste0(PlotsDir, "/filtering.png"), width=900, height=400, pointsize = 14)
   plot(density(y[["comb"]]$transformed[,1]), lwd=2, xlim=c(den.x[1],den.x[length(den.x)]), ylim=c(den.y[1],den.y[length(den.y)]), las=2, main="", xlab="", col=targets.colour[[2]][1])
   title(main="Transformed data (unfiltered)", xlab=params$transform)
   abline(v=0, lty=3)
@@ -2637,7 +2637,7 @@ legend("topright", legend=legend, fill=targets.colour[[1]], horiz=TRUE, bg = "tr
 data_normalised <- recordPlot()
 
 ##### Save the plot as png file
-png(paste0(PlotsDir, "/normalisation.png"), width=970, height=970, pointsize = 18)
+png(paste0(PlotsDir, "/normalisation.png"), width=900, height=700, pointsize = 14)
 par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
   
 ##### Unnormalised data
@@ -3543,7 +3543,7 @@ Principal component analysis (PCA) was performed to reduce the dimensionality of
 
 * **PCA plot**
 
-Scatter plots of the first 2 principal components (PCs) constituting the primary source of variation in the data before and after batch effects correction.
+`r if ( params$batch_rm ) { paste0("Scatter-plots of the first 2 principal components (PCs) constituting the primary source of variation in the data before and after batch effects correction.") } else { paste0("Scatter-plot of the first 2 principal components (PCs) constituting the primary source of variation in the data.") }`
 
 ```{r pca_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[2]]
@@ -3553,9 +3553,9 @@ ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[2]]
 ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[2]]
 ```
 
-* **Scree plot**
+* **Scree-plot**
 
-Scree plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis) before and after batch effects correction. The PCs are ordered by decreasing order of contribution to total variance. 
+`r if ( params$batch_rm ) { paste0("Scree-plots presenting the fraction of total variance (y-axis) attributed to each PC (x-axis) before and after batch effects correction. The PCs are ordered by decreasing order of contribution to total variance.") } else { paste0("Scree-plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. ") }`
 
 ```{r scree_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[3]]
@@ -3763,10 +3763,20 @@ for( i in 1:genes_no ){
   if ( genes[i] %in% rownames(data) ) {
     cat("\n#### ", genes[i], "\n")
     cat(renderTags(output_cdf[[i]])$html)
+    cat("\n<details>\n")
+    cat("\n<summary>Plot legend</summary>\n")
+    cat("<font size=\"2\">\n")
+    cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value).\n\n"))
+    cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and expression levels observed across samples from other reference cancer cohort(s).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
     cat("<br />")
     cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n***\n")
   } else {
@@ -4160,6 +4170,9 @@ for( i in 1:genes_no ) {
     cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density_A[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n</font>\n")
     cat("\n</details>\n")
   } else {
     cat(paste0("\nExpression data is not available for ", geneA, ".\n"))
@@ -4171,6 +4184,9 @@ for( i in 1:genes_no ) {
     cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density_B[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n</font>\n")
     cat("\n</details>\n")
   } else {
     cat(paste0("\nExpression data is not available for ", geneA, ".\n"))
@@ -4331,11 +4347,21 @@ for( i in 1:genes_no ) {
 for( i in 1:genes_no ){
   if ( genes[i] %in% rownames(data) ) {
     cat("\n#### ", genes[i], "\n")
-    cat(renderTags(output_cdf[[i]])$html)    
+    cat(renderTags(output_cdf[[i]])$html)
+    cat("\n<details>\n")
+    cat("\n<summary>Plot legend</summary>\n")
+    cat("<font size=\"2\">\n")
+    cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value).\n\n"))
+    cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and expression levels observed across samples from other reference cancer cohort(s).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
     cat("<br />")
     cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n***\n")
   } else {
@@ -4760,10 +4786,20 @@ for( i in 1:genes_gains_no ){
   if ( genes[i] %in% rownames(data) ) {
     cat("\n##### ", genes[i], "\n")
     cat(renderTags(output_cdf[[i]])$html)
+    cat("\n<details>\n")
+    cat("\n<summary>Plot legend</summary>\n")
+    cat("<font size=\"2\">\n")
+    cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value).\n\n"))
+    cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and expression levels observed across samples from other reference cancer cohort(s).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
     cat("<br />")
     cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n***\n")
   } else {
@@ -4805,10 +4841,20 @@ for( i in 1:genes_losses_no ){
   if ( genes[i] %in% rownames(data) ) {
     cat("\n##### ", genes[i], "\n")
     cat(renderTags(output_cdf[[i]])$html)
+    cat("\n<details>\n")
+    cat("\n<summary>Plot legend</summary>\n")
+    cat("<font size=\"2\">\n")
+    cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value).\n\n"))
+    cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and expression levels observed across samples from other reference cancer cohort(s).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
     cat("<br />")
     cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n***\n")
   } else {
