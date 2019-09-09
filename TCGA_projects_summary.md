@@ -40,7 +40,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 24 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
 25 | `THYM`  | Thymoma | 1 | **120** (verify)
 26 | `READ`  | Rectum Adenocarcinoma | 1 | **87**
-27 | `UVM`   | Uveal Melanoma | 1 | **80** (verify)
+27 | `UVM`   | Uveal Melanoma | 1 | **80**
 28 | `ACC`   | Adrenocortical Carcinoma | 1 | **78**
 29 | `MESO`  | Mesothelioma | 1 | **77**
 30 | `KICH`  | Kidney Chromophobe | 1 | **59**
