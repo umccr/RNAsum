@@ -22,23 +22,23 @@ No | Project | Name | Tissue code\* | Samples no.\**
 6 | `LUSC`  | Lung Squamous Cell Carcinoma | 1 | **300**
 7 | `LUAD`  | Lung Adenocarcinoma | 1 | **300**
 8 | `PRAD`  | Prostate Adenocarcinoma | 1 | **300**
-9 | `SKCM`  | Skin Cutaneous Melanoma | 1 | **300** (verify)
-10 | `STAD`  | Stomach Adenocarcinoma | 1 | **300** (verify)
-11 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **300** (verify)
-12 | `COAD`  | Colon Adenocarcinoma | 1 | **257**
-13 | `KIRP`  | Kidney Renal Papillary Cell Carcinoma | 1 | **252**
-14 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
-15 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **220**
-16 | `SARC`  | Sarcoma | 1 | **214**
-17 | `PCPG`  | Pheochromocytoma and Paraganglioma | 1 | **177**
-18 | `CESC`  | Cervical Squamous Cell Carcinoma and Endocervical Adenocarcinoma | 1 | **171**
-19 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **168**
-20 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
-21 | `TGCT`  | Testicular Germ Cell Tumours | 1 | **149**
-22 | `LAML`  | Acute Myeloid Leukaemia | 3 | **145**
-23 | `ESCA`  | Esophageal Carcinoma | 1 | **142**
-24 | `GBM`   | Glioblastoma Multiforme | 1 | **141**
-25 | `THYM`  | Thymoma | 1 | **118**
+9 | `STAD`  | Stomach Adenocarcinoma | 1 | **300** (verify)
+10 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **300** (verify)
+11 | `COAD`  | Colon Adenocarcinoma | 1 | **257**
+12 | `KIRP`  | Kidney Renal Papillary Cell Carcinoma | 1 | **252**
+13 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
+14 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **220**
+15 | `SARC`  | Sarcoma | 1 | **214**
+16 | `PCPG`  | Pheochromocytoma and Paraganglioma | 1 | **177**
+17 | `CESC`  | Cervical Squamous Cell Carcinoma and Endocervical Adenocarcinoma | 1 | **171**
+18 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **168**
+19 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
+20 | `TGCT`  | Testicular Germ Cell Tumours | 1 | **149**
+21 | `LAML`  | Acute Myeloid Leukaemia | 3 | **145**
+22 | `ESCA`  | Esophageal Carcinoma | 1 | **142**
+23 | `GBM`   | Glioblastoma Multiforme | 1 | **141**
+24 | `THYM`  | Thymoma | 1 | **118**
+25 | `SKCM`  | Skin Cutaneous Melanoma | 1 | **100**
 26 | `READ`  | Rectum Adenocarcinoma | 1 | **87**
 27 | `UVM`   | Uveal Melanoma | 1 | **80**
 28 | `ACC`   | Adrenocortical Carcinoma | 1 | **78**
