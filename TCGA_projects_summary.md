@@ -25,8 +25,8 @@ No | Project | Name | Tissue code\* | Samples no.\**
 9 | `SKCM`  | Skin Cutaneous Melanoma | 1 | **300** (verify)
 10 | `STAD`  | Stomach Adenocarcinoma | 1 | **300** (verify)
 11 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **300** (verify)
-12 | `KIRP`  | Kidney Renal Papillary Cell Carcinoma | 1 | **283** (verify)
-13 | `COAD`  | Colon Adenocarcinoma | 1 | **257**
+12 | `COAD`  | Colon Adenocarcinoma | 1 | **257**
+13 | `KIRP`  | Kidney Renal Papillary Cell Carcinoma | 1 | **252**
 14 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
 15 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **220**
 16 | `SARC`  | Sarcoma | 1 | **214**
