@@ -34,9 +34,9 @@ No | Project | Name | Tissue code\* | Samples no.\**
 18 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **184** (verify)
 19 | `LAML`  | Acute Myeloid Leukaemia | 3 | **173** (verify)
 20 | `CESC`  | Cervical Squamous Cell Carcinoma and Endocervical Adenocarcinoma | 1 | **171**
-21 | `ESCA`  | Esophageal Carcinoma | 1 | **170** (verify)
-22 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
-23 | `TGCT`  | Testicular Germ Cell Tumours | 1 | **149**
+21 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
+22 | `TGCT`  | Testicular Germ Cell Tumours | 1 | **149**
+23 | `ESCA`  | Esophageal Carcinoma | 1 | **142**
 24 | `GBM`   | Glioblastoma Multiforme | 1 | **141**
 25 | `THYM`  | Thymoma | 1 | **118**
 26 | `READ`  | Rectum Adenocarcinoma | 1 | **87**
