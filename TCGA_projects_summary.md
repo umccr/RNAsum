@@ -23,7 +23,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 7 | `LUAD`  | Lung Adenocarcinoma | 1 | **300**
 8 | `PRAD`  | Prostate Adenocarcinoma | 1 | **300**
 9 | `STAD`  | Stomach Adenocarcinoma | 1 | **300**
-10 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **300** (verify)
+10 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **300**
 11 | `COAD`  | Colon Adenocarcinoma | 1 | **257**
 12 | `KIRP`  | Kidney Renal Papillary Cell Carcinoma | 1 | **252**
 13 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
