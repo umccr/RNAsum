@@ -42,7 +42,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 26 | `READ` | Rectum Adenocarcinoma | 1 | **87**
 27 | `KICH`  | Kidney Chromophobe | 1 | **83** (verify)
 28 | `UVM`   | Uveal Melanoma | 1 | **80** (verify)
-29 | `MESO` | Mesothelioma | 1 | **78** (verify)
+29 | `MESO` | Mesothelioma | 1 | **77**
 30 | `ACC`   | Adrenocortical Carcinoma | 1 | **78** (verify)
 31 | `UCS`   | Uterine Carcinosarcoma | 1 | **57** (verify)
 32 | `DLBC`  | Lymphoid Neoplasm Diffuse Large B-cell Lymphoma | 1 | **47**
