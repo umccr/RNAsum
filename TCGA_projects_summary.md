@@ -31,9 +31,9 @@ No | Project | Name | Tissue code\* | Samples no.\**
 15 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **220**
 16 | `SARC`  | Sarcoma | 1 | **214**
 17 | `PCPG`  | Pheochromocytoma and Paraganglioma | 1 | **186** (verify)
-18 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **184** (verify)
-19 | `LAML`  | Acute Myeloid Leukaemia | 3 | **173** (verify)
-20 | `CESC`  | Cervical Squamous Cell Carcinoma and Endocervical Adenocarcinoma | 1 | **171**
+18 | `LAML`  | Acute Myeloid Leukaemia | 3 | **173** (verify)
+19 | `CESC`  | Cervical Squamous Cell Carcinoma and Endocervical Adenocarcinoma | 1 | **171**
+20 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **168**
 21 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
 22 | `TGCT`  | Testicular Germ Cell Tumours | 1 | **149**
 23 | `ESCA`  | Esophageal Carcinoma | 1 | **142**
