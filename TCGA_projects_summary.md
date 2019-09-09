@@ -46,7 +46,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 30 | `ACC`   | Adrenocortical Carcinoma | 1 | **78** (verify)
 31 | `UCS`   | Uterine Carcinosarcoma | 1 | **57** (verify)
 32 | `DLBC`  | Lymphoid Neoplasm Diffuse Large B-cell Lymphoma | 1 | **47**
-33 | `CHOL`  | Cholangiocarcinoma | 1 | **43** (verify)
+33 | `CHOL`  | Cholangiocarcinoma | 1 | **34**
 <br />
 
 ## Extended datasets
