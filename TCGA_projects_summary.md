@@ -25,11 +25,11 @@ No | Project | Name | Tissue code\* | Samples no.\**
 9 | `SKCM`  | Skin Cutaneous Melanoma | 1 | **300** (verify)
 10 | `STAD`  | Stomach Adenocarcinoma | 1 | **300** (verify)
 11 | `LIHC`  | Liver Hepatocellular Carcinoma | 1 | **300** (verify)
-12 | `KIRP` | Kidney Renal Papillary Cell Carcinoma | 1 | **283** (verify)
+12 | `KIRP`  | Kidney Renal Papillary Cell Carcinoma | 1 | **283** (verify)
 13 | `COAD`  | Colon Adenocarcinoma | 1 | **257**
 14 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
 15 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **220**
-16 | `SARC` | Sarcoma | 1 | **214**
+16 | `SARC`  | Sarcoma | 1 | **214**
 17 | `PCPG`  | Pheochromocytoma and Paraganglioma | 1 | **186** (verify)
 18 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **184** (verify)
 19 | `LAML`  | Acute Myeloid Leukaemia | 3 | **173** (verify)
@@ -39,11 +39,11 @@ No | Project | Name | Tissue code\* | Samples no.\**
 23 | `TGCT`  | Testicular Germ Cell Tumours | 1 | **155** (verify)
 24 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
 25 | `THYM`  | Thymoma | 1 | **120** (verify)
-26 | `READ` | Rectum Adenocarcinoma | 1 | **87**
+26 | `READ`  | Rectum Adenocarcinoma | 1 | **87**
 27 | `KICH`  | Kidney Chromophobe | 1 | **83** (verify)
 28 | `UVM`   | Uveal Melanoma | 1 | **80** (verify)
-29 | `MESO` | Mesothelioma | 1 | **77**
-30 | `ACC`   | Adrenocortical Carcinoma | 1 | **78** (verify)
+29 | `ACC`   | Adrenocortical Carcinoma | 1 | **78**
+30 | `MESO`  | Mesothelioma | 1 | **77**
 31 | `UCS`   | Uterine Carcinosarcoma | 1 | **57** (verify)
 32 | `DLBC`  | Lymphoid Neoplasm Diffuse Large B-cell Lymphoma | 1 | **47**
 33 | `CHOL`  | Cholangiocarcinoma | 1 | **34**
