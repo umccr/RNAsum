@@ -38,7 +38,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 22 | `GBM`   | Glioblastoma Multiforme | 1 | **155** (verify)
 23 | `TGCT`  | Testicular Germ Cell Tumours | 1 | **155** (verify)
 24 | `PAAD`  | Pancreatic Adenocarcinoma | 1 | **150**
-25 | `THYM`  | Thymoma | 1 | **120** (verify)
+25 | `THYM`  | Thymoma | 1 | **118**
 26 | `READ`  | Rectum Adenocarcinoma | 1 | **87**
 27 | `UVM`   | Uveal Melanoma | 1 | **80**
 28 | `ACC`   | Adrenocortical Carcinoma | 1 | **78**
