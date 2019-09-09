@@ -30,7 +30,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 14 | `BLCA`  | Bladder Urothelial Carcinoma | 1 | **246**
 15 | `OV`    | Ovarian Serous Cystadenocarcinoma | 1 | **220**
 16 | `SARC`  | Sarcoma | 1 | **214**
-17 | `PCPG`  | Pheochromocytoma and Paraganglioma | 1 | **186** (verify)
+17 | `PCPG`  | Pheochromocytoma and Paraganglioma | 1 | **177**
 18 | `LAML`  | Acute Myeloid Leukaemia | 3 | **173** (verify)
 19 | `CESC`  | Cervical Squamous Cell Carcinoma and Endocervical Adenocarcinoma | 1 | **171**
 20 | `UCEC`  | Uterine Corpus Endometrial Carcinoma | 1 | **168**
