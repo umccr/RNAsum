@@ -15,7 +15,7 @@ To readuce the data processing time and the size of the final html-based ***Pati
 No | Project | Name | Tissue code\* | Samples no.\**
 ------------ | ------------ | ------------ | ------------ | ------------
 1 | `BRCA`  | Breast Invasive Carcinoma | 1 | **300**
-2 | `THCA`  | Thyroid Carcinoma | 1 | **300** (verify)
+2 | `THCA`  | Thyroid Carcinoma | 1 | **300**
 3 | `HNSC`  | Head and Neck Squamous Cell Carcinoma | 1 | **300** (verify)
 4 | `LGG`   | Brain Lower Grade Glioma | 1 | **300** (verify)
 5 | `KIRC`  | Kidney Renal Clear Cell Carcinoma | 1 | **300** (verify)
