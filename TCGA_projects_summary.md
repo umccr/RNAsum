@@ -17,7 +17,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 1 | `BRCA`  | Breast Invasive Carcinoma | 1 | **300**
 2 | `THCA`  | Thyroid Carcinoma | 1 | **300**
 3 | `HNSC`  | Head and Neck Squamous Cell Carcinoma | 1 | **300** (verify)
-4 | `LGG`   | Brain Lower Grade Glioma | 1 | **300** (verify)
+4 | `LGG`   | Brain Lower Grade Glioma | 1 | **300**
 5 | `KIRC`  | Kidney Renal Clear Cell Carcinoma | 1 | **300** (verify)
 6 | `LUSC`  | Lung Squamous Cell Carcinoma | 1 | **300** (verify)
 7 | `LUAD`  | Lung Adenocarcinoma | 1 | **300**
