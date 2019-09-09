@@ -44,7 +44,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 28 | `ACC`   | Adrenocortical Carcinoma | 1 | **78**
 29 | `MESO`  | Mesothelioma | 1 | **77**
 30 | `KICH`  | Kidney Chromophobe | 1 | **59**
-31 | `UCS`   | Uterine Carcinosarcoma | 1 | **57** (verify)
+31 | `UCS`   | Uterine Carcinosarcoma | 1 | **56**
 32 | `DLBC`  | Lymphoid Neoplasm Diffuse Large B-cell Lymphoma | 1 | **47**
 33 | `CHOL`  | Cholangiocarcinoma | 1 | **34**
 <br />
