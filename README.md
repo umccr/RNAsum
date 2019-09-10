@@ -184,6 +184,8 @@ Argument | Description | Required
 --cn_gain | CN threshold value to classify genes within gained regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `95th percentile` of all CN values) | No
 --clinical_info | Location of *xslx* file with clinical information (see [example](./data/test_data/test_clinical_data.xlsx) ) | No
 --subject_id | Subject ID required to match sample with clinical information (if available) | No
+--sample_type | Type of investigated sample (e.g. fresh frozen tissue, organoid; for annotation purposes only) | No
+--project | Project name (for annotation purposes only) | No
 --top_genes | The number of top ranked genes to be presented (default is `10`) | No
 --dataset_name_incl | Include dataset in the report name. Available options are: `TRUE` and `FALSE` (default) | No
 --save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` (default) and `FALSE` | No
