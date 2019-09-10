@@ -1,14 +1,14 @@
 # TCGA projects summary
 
 
-The table below summarises [TCGA](https://portal.gdc.cancer.gov/) expression data available for **[33 cancer types](#primary-datasets)**. Additionally, for *Bladder Urothelial Carcinoma* and *Pancreatic Adenocarcinoma* cohorts extended sets, including neuroendocrine tumours (NETs), intraductal papillary mucinous neoplasm (IPMNs) and acinar cell carcinoma (ACC) samples, are available (see [Extended datasets](#extended-datasets) table).
+The table below summarises [TCGA](https://portal.gdc.cancer.gov/) expression data available for **[33 cancer types](#primary-datasets)**. Additionally, for *Bladder Urothelial Carcinoma*, *Pancreatic Adenocarcinoma* and *Lung Adenocarcinoma* cohorts extended sets, including neuroendocrine tumours (NETs), intraductal papillary mucinous neoplasm (IPMNs), acinar cell carcinoma (ACC) samples and large-cell neuroendocrine carcinoma (LCNEC), are available (see [Extended datasets](#extended-datasets) table).
 
 The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section).
 
 ###### Note
 
 To readuce the data processing time and the size of the final html-based ***Patient Transcriptome Summary*** **report** the following datasets were restricted to inlcude expression data from 300 patients: `BRCA`, `THCA`, `HNSC`, 
-`LGG`, `KIRC`, `LUSC`, `LUAD`, `PRAD`, `SKCM`, `STAD` and `LIHC`.
+`LGG`, `KIRC`, `LUSC`, `LUAD`, `PRAD`, `STAD` and `LIHC`.
 
 ## Primary datasets
 
@@ -53,10 +53,11 @@ No | Project | Name | Tissue code\* | Samples no.\**
 
 No | Project | Name | Tissue code\* | Samples no.\**
 ------------ | ------------ | ------------ | ------------ | ------------
-1 | `BLCA-NET`  | Bladder Urothelial Carcinoma dataset including neuroendocrine tumours (NETs, n=2) | 1 | **248**
-2 | `PAAD-IPMN`  | Pancreatic Adenocarcinoma dataset including intraductal papillary mucinous neoplasm (IPMNs, n=2) | 1 | **152**
-3 | `PAAD-NET`  | Pancreatic Adenocarcinoma dataset including neuroendocrine tumours (NETs, n=8) | 1 | **158**
-4 | `PAAD-ACC`  | Pancreatic Adenocarcinoma dataset including acinar cell carcinoma (ACCs, n=1) | 1 | **151**
+1 | `LUAD-LCNEC`  | Lung Adenocarcinoma dataset including large-cell neuroendocrine carcinoma (LCNEC, n=14) | 1 | **314**
+2 | `BLCA-NET`  | Bladder Urothelial Carcinoma dataset including neuroendocrine tumours (NETs, n=2) | 1 | **248**
+3 | `PAAD-IPMN`  | Pancreatic Adenocarcinoma dataset including intraductal papillary mucinous neoplasm (IPMNs, n=2) | 1 | **152**
+4 | `PAAD-NET`  | Pancreatic Adenocarcinoma dataset including neuroendocrine tumours (NETs, n=8) | 1 | **158**
+5 | `PAAD-ACC`  | Pancreatic Adenocarcinoma dataset including acinar cell carcinoma (ACCs, n=1) | 1 | **151**
 <br />
 
 \* Tissue codes:
