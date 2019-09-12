@@ -48,7 +48,7 @@ The pipeline consist of four main components illustrated and breifly described b
 
 <br/>
 
-1. Process the patient sample WTS from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and  **[gene fusions](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)**, and add expression data from [reference cohorts](#reference-data) to get an idea about expression levels of genes of interest in other cancer [patient cohorts](#reference-data). The [gene fusion](./fusions) candidates are re-quantified and the read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
+1. Process the patient sample WTS from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and **[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)**, and add expression data from [reference cohorts](#reference-data) to get an idea about expression levels of genes of interest in other cancer [patient cohorts](#reference-data). The [gene fusion](./fusions) candidates are re-quantified and the read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
 
 2. Feed in **genome-based findings** from whole-genome sequencing (WGS) data to focus on genes of interest and provide additional evidence for dysregulation of mutated genes, or genes located within detected structural variants (SVs) or copy-number (CN) altered regions. The RNA-seq report pipeline is designed to be compatible with WGS patient report based on [umccrise](https://github.com/umccr/umccrise) pipeline output.
 
@@ -95,16 +95,15 @@ The pipeline accepts [WTS](#wts) data processed by *[bcbio-nextgen](https://gith
 
 ### WTS 
 
-The only required WTS input data are **read counts** provided in quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) (see example *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* file and its [description](https://pachterlab.github.io/kallisto/starting#results)). The per-transcript abundances are reported in *estimated counts* (`est_counts`) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`tpm`), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** detected by [pizzly](https://github.com/pmelsted/pizzly) can be provided (see example *[flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)*). 
+The only required WTS input data are **read counts** provided in quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) (see example *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* file and its [description](https://pachterlab.github.io/kallisto/starting#results)). The per-transcript abundances are reported in *estimated counts* (`est_counts`) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`tpm`), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** detected by [arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly) can be provided (see example *[fusions.tsv](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* and *[test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)*). 
 
 Table below lists all input data accepted in the pipeline:
 
 Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
 Quantified **abundances** of transcripts | [kallisto](https://pachterlab.github.io/kallisto/about) | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv) | **Yes**
-**Re-quantified abundances** of transcripts, including fusion transcripts identified by [pizzly](https://github.com/pmelsted/pizzly) | [kallisto](https://pachterlab.github.io/kallisto/about) | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/quant_pizzly_post/abundance.tsv) | No
-List of detected **fusion genes** | [pizzly](https://github.com/pmelsted/pizzly) | [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
-Plots of detected **fusion genes** using [pizzly](https://github.com/pmelsted/pizzly) | [clinker](https://github.com/Oshlack/Clinker) | [EIF4A2_PTMA.pdf](./data/test_data/final/test_sample_WTS/clinker/EIF4A2_PTMA.pdf) | No
+List of detected **fusion genes** | [arriba](https://arriba.readthedocs.io/en/latest/) </br> [pizzly](https://github.com/pmelsted/pizzly) | [fusions.tsv](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv) </br> [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
+Plots of detected **fusion genes** using [arriba](https://arriba.readthedocs.io/en/latest/) | [arriba](https://arriba.readthedocs.io/en/latest/) | [fusions.pdf](./data/test_data/final/test_sample_WTS/arriba/fusions.pdf) | No
 
 <br />
 
@@ -116,19 +115,16 @@ These files are expected to be organised following the folder structure below
   |____<SampleName>
     |____kallisto
     | |____abundance.tsv
-    | |____quant_pizzly_post
-    |   |____abundance.tsv
     |____pizzly
     | |____<SampleName>-flat.tsv
-    |____clinker
-      |____<GeneA_GeneB>.pdf
-      |____...
-      |____<GeneY_GeneZ>.pdf
+    |____arriba
+      |____fusions.pdf
+      |____fusions.tsv
 ```
 
 ###### Note
 
-Detected [fusion genes](./fusions) are expected to be listed in the [flat table](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) generated with [pizzly](https://github.com/pmelsted/pizzly). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
+[Fusion genes](./fusions) detected by [pizzly](https://github.com/pmelsted/pizzly) are expected to be listed in the [flat table](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
 
 
 ### WGS
