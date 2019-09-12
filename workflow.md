@@ -1,6 +1,6 @@
 ## RNA-seq report data processing workflow
 
-The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)* data **[processing](#1-data-processing)**, (**2**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**3**) results **[annotation](#3-results-annotation)** and (**4**) presentation in the *Patient Transcriptome Summary* **[report](#4-report-generation)**. 
+The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* data **[processing](#1-data-processing)**, (**2**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**3**) results **[annotation](#3-results-annotation)** and (**4**) presentation in the *Patient Transcriptome Summary* **[report](#4-report-generation)**. 
 
 <img src="img/RNAseq_report_workflow.png" width="100%"> 
 
@@ -18,7 +18,6 @@ The description of the main workflow components involved in (**1**) *[read count
     	* [Combination](#combination)
     	* [Batch-effects correction (optional)](#batch-effects-correction-optional)
     	* [Data scaling](#data-scaling)
-    * [Fusion genes re-quantification](#fusion-genes-re-quantification)
 * [2. Integration with WGS-based results](#2-integration-with-wgs-based-results)
 	* [Somatic SNVs and small indels](#somatic-snvs-and-small-indels)
 	* [Structural variants](#structural-variants)
@@ -141,11 +140,6 @@ The group-wise centering apporach is presented in [Figure 3](./img/centering_gro
 
 \* used only for pancreatic cancer patients
 
-### Fusion genes re-quantification
-
-* **Add fusion** transcripts detected by [pizzly](https://github.com/pmelsted/pizzly) to the reference transcriptome sequences
-* **Re-quantify** abundances of transcripts, including fusion transcripts detected by [pizzly](https://github.com/pmelsted/pizzly) using [kallisto](https://pachterlab.github.io/kallisto/about).
-* Use the re-quantified fusion transcripts (see example [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/quant_pizzly_post/abundance.tsv) file) for presenting expression levels of candidate fusion genes
 
 ## 2. Integration with WGS-based results
 
@@ -162,7 +156,7 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 * Check if **[Manta](https://github.com/Illumina/manta)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv)) is available
 * **Extract** expression level **information** and genome-based findings for genes located within detected SVs
 * **Ordered genes** by increasing **[SV score](https://github.com/vladsaveliev/simple_sv_annotation)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
-* **Compare** [gene fusions](./fusions) detected in [WTS](./README.md#wts) data ([pizzly](https://github.com/pmelsted/pizzly)) and [WGS](./README.md#wgs) data ([Manta](https://github.com/Illumina/manta))
+* **Compare** [gene fusions](./fusions) detected in [WTS](./README.md#wts) data ([arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly)) and [WGS](./README.md#wgs) data ([Manta](https://github.com/Illumina/manta))
 * **Priritise** [WGS](./README.md#wgs)-supported [gene fusions](./fusions)
 
 ### Somatic CNVs
@@ -198,7 +192,7 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 		* Vogelstein
 
 * Used for extracting expression levels of cancer genes (presented in the `Cancer genes` report section)
-* Used to prioritise candidate [fusion genes](#fusion-genes-re-quantification)
+* Used to prioritise candidate [fusion genes](./fusions)
 
 ### OncoKB
 
@@ -217,11 +211,11 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### CGI
 
-* The [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) database is used to flag genes known to be involved in gene fusions and to prioritise candidate [fusion genes](#fusion-genes-re-quantification-re-quantification)
+* The [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) database is used to flag genes known to be involved in gene fusions and to prioritise candidate [fusion genes](./fusions)
  
 ### FusionGDB
 
-* [FusionGDB](https://ccsm.uth.edu/FusionGDB/) database is used to flag genes known to be involved in gene fusions and to prioritise candidate [fusion genes](#fusion-genes-re-quantification-re-quantification)
+* [FusionGDB](https://ccsm.uth.edu/FusionGDB/) database is used to flag genes known to be involved in gene fusions and to prioritise candidate [gene fusions](./fusions)
 
 ### 4. Report generation
 
