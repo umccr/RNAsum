@@ -1950,71 +1950,70 @@ if ( !is.null(params$umccrise) ) {
   runPcgrChunk <- TRUE
   
   if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
-    
     pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
-  
   } else if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
-    
     pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
   } else {
     runPcgrChunk <- FALSE
   }
+  
+  ##### Check if purple (CN) output file exists
+  purple_file <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.gene.cnv"), sep = "/")
+  runPurpleChunk <- TRUE
+  
+  if ( file.exists(purple_file) ) {
+    ref_genes.list[["purple"]] <- read.table(purple_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+  } else {
+    ref_genes.list[["purple"]] <- NULL
+    runPurpleChunk <- FALSE
+  }
+  
+  if ( runPcgrChunk ) {
+    ref_genes.list[["pcgr"]] <- read.table(pcgr_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
+    
+    ##### Simplify the variants types
+    ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_variant", "", ref_genes.list[["pcgr"]]$CONSEQUENCE)
+    ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_", " ", ref_genes.list[["pcgr"]]$CONSEQUENCE)
+    
+    ##### Simplify tiers' annotations and AFs
+    ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
+    ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
+    
+    ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
+    subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
+    mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
+    mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
+    
+  } else {
+    ref_genes.list[["pcgr"]] <- NULL
+    
+    ##### Update MySQL commend to populate RNA-seq data portal
+    mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
+    mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
+  }
+  
+  ##### Check if manta (structural variants (SVs)) file exists
+  sv_file_1 <- paste(params$umccrise, "structural", paste0(umccrise, "-sv-prioritize-manta-pass.tsv"), sep = "/")
+  sv_file_2 <- paste(params$umccrise, "structural", paste0(umccrise, "-manta.tsv"), sep = "/")
+  runSVsChunk <- TRUE
+  
+  if ( file.exists(sv_file_1) ) {
+    ref_genes.list[["manta"]] <- sv_prioritize_short(sv_file_1)
+  } else if ( file.exists(sv_file_2) ) {
+    ref_genes.list[["manta"]] <- sv_prioritize(sv_file_2)
+    ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][, c("Tier", "Event", "Gene", "Effect", "Detail", "Location", "AF", "CN chg", "SR", "PR", "CN", "Ploidy", "Transcript", "Other effects")]
+    
+    ##### Omit SVs without assigned gene
+    ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][ ref_genes.list[["manta"]]$Gene != "",  ]
+    
+  } else {
+    ref_genes.list[["manta"]] <- NULL
+    runSVsChunk <- FALSE
+  }
+
 } else {
   runPcgrChunk <- FALSE
-}
-
-if ( runPcgrChunk ) {
-  ref_genes.list[["pcgr"]] <- read.table(pcgr_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
-  
-  ##### Simplify the variants types
-  ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_variant", "", ref_genes.list[["pcgr"]]$CONSEQUENCE)
-  ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_", " ", ref_genes.list[["pcgr"]]$CONSEQUENCE)
-  
-  ##### Simplify tiers' annotations and AFs
-  ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
-  
-  ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
-  
-  ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
-  subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
-  mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
-  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
-  
-} else {
-  ref_genes.list[["pcgr"]] <- NULL
-  
-  ##### Update MySQL commend to populate RNA-seq data portal
-  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_type , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
-  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Type=\"", params$sample_type , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
-}
-
-##### Check if purple (CN) output file exists
-purple_file <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.gene.cnv"), sep = "/")
-runPurpleChunk <- TRUE
-
-if ( file.exists(purple_file) ) {
-  ref_genes.list[["purple"]] <- read.table(purple_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE)
-} else {
-  ref_genes.list[["purple"]] <- NULL
   runPurpleChunk <- FALSE
-}
-
-##### Check if manta (structural variants (SVs)) file exists
-sv_file_1 <- paste(params$umccrise, "structural", paste0(umccrise, "-sv-prioritize-manta-pass.tsv"), sep = "/")
-sv_file_2 <- paste(params$umccrise, "structural", paste0(umccrise, "-manta.tsv"), sep = "/")
-runSVsChunk <- TRUE
-
-if ( file.exists(sv_file_1) ) {
-  ref_genes.list[["manta"]] <- sv_prioritize_short(sv_file_1)
-} else if ( file.exists(sv_file_2) ) {
-  ref_genes.list[["manta"]] <- sv_prioritize(sv_file_2)
-  ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][, c("Tier", "Event", "Gene", "Effect", "Detail", "Location", "AF", "CN chg", "SR", "PR", "CN", "Ploidy", "Transcript", "Other effects")]
-  
-  ##### Omit SVs without assigned gene
-  ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][ ref_genes.list[["manta"]]$Gene != "",  ]
-  
-} else {
-  ref_genes.list[["manta"]] <- NULL
   runSVsChunk <- FALSE
 }
 
@@ -3317,11 +3316,6 @@ rm(fusion_annot1, fusion_annot2, fusions.annot, fusion_genes_annot)
 
 ```{r pizzly_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Compare PIZZY and MANTA called gene fusion events
-##### Add column to flag fusions supported by WGS data (from MANTA), if available
-fusions$geneA_dna_support <- "-"
-fusions$geneB_dna_support <- "-"
-
-##### Deal with MANTA results
 ##### Add row for gene fusion events so that there is one row per gene
 manta_sv <- ref_genes.list[["manta"]]
 manta_sv$"Fusion genes" <- manta_sv$Gene
