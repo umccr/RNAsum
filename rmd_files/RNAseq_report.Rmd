@@ -1967,18 +1967,8 @@ if ( !is.null(params$umccrise) ) {
     ##### Simplify tiers' annotations and AFs
     ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
     ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
-    
-    ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
-    subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
-    mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
-    mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
-    
   } else {
     ref_genes.list[["pcgr"]] <- NULL
-    
-    ##### Update MySQL commend to populate RNA-seq data portal
-    mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
-    mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
   }
   
   ##### Check if purple (CN) output file exists
@@ -2010,11 +2000,20 @@ if ( !is.null(params$umccrise) ) {
     ref_genes.list[["manta"]] <- NULL
     runSVsChunk <- FALSE
   }
-
+  
+  ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
+  subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
+    mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
+  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
+  
 } else {
   runPcgrChunk <- FALSE
   runPurpleChunk <- FALSE
   runSVsChunk <- FALSE
+  
+  ##### Update MySQL commend to populate RNA-seq data portal
+  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
+    mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
 }
 
 ##### Read in OncoKB (http://oncokb.org) annotations
@@ -3510,8 +3509,8 @@ if ( !is.na(sunburst_plot[[2]]) ) {
   saveWidgetFix(sunburst_plot[[2]], file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
 } else {
   sunburst_plot[[2]] <- as.data.frame(c("No genes are listed in more then one section. Expand the \"All altered genes\" to view the summary plot for all altered genes."))
-  #rownames(sunburst_plot[[2]]) <- ""
-  #colnames(sunburst_plot[[2]]) <- ""
+  rownames(sunburst_plot[[2]]) <- ""
+  colnames(sunburst_plot[[2]]) <- ""
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3696,8 +3695,8 @@ sunburst_plot[[2]]
 
 ##### Update MySQL commend to populate RNA-seq data portal
 if ( !is.na(sunburst_plot[[2]]) ) {
-  mysql_populate <- paste0(mysql_populate, "Findings summary,")
-  mysql_populate_update <- paste0(mysql_populate_update, "Findings summary,")
+  mysql_populate <- paste0(mysql_populate, "Findings summary")
+  mysql_populate_update <- paste0(mysql_populate_update, "Findings summary")
 }
 ```
 
@@ -3758,8 +3757,8 @@ Out of the `r length(unique(ref_genes.list[["pcgr"]]$SYMBOL))` mutated genes `r 
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk, results = "asis"}
 ##### Update MySQL commend to populate RNA-seq data portal
-mysql_populate <- paste0(mysql_populate, "Mutated genes")
-mysql_populate_update <- paste0(mysql_populate_update, "Mutated genes")
+mysql_populate <- paste0(mysql_populate, ",Mutated genes")
+mysql_populate_update <- paste0(mysql_populate_update, ",Mutated genes")
 
 ##### Generate expression summary table for mutated genes (based on PCGR report)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
@@ -4163,7 +4162,7 @@ for( i in 1:genes_no ) {
   geneA <- as.vector(fusions$geneA[i])
   geneB <- as.vector(fusions$geneB[i])
 
-  if ( geneA %in% rownames(data) && geneB %in% rownames(data) ) {
+  if ( geneA %in% rownames(data) ) {
     
     ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
     ##### Gene A
@@ -4171,20 +4170,23 @@ for( i in 1:genes_no ) {
     
     output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
     
-    ##### Gene B
+  }
+  
+  ##### Gene B
+  if ( geneB %in% rownames(data) ) {
     output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
     output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
-    
-    ##### Generate expression summary tables
-    genes <- c(geneA, geneB)
-    
-    ##### Z-scores
-    output_table_Z[[i]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
-    
-    ##### Percentiles
-    output_table_perc[[i]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
   }
+    
+  ##### Generate expression summary tables
+  genes <- c(geneA, geneB)
+    
+  ##### Z-scores
+  output_table_Z[[i]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+    
+  ##### Percentiles
+  output_table_perc[[i]] <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
