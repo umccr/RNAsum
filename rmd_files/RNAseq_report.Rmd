@@ -3140,6 +3140,10 @@ fusions <- fusions[order(factor(fusions$confidence, levels=c("high", "medium", "
 ##### Keep only key columns and add info about Arriba detected fusions and 
 fusions <- fusions[ colnames(fusions) %in% c("geneA", "geneB", "breakpointA", "breakpointB", "siteA", "siteB", "type", "split_readsA", "split_readsB", "discordant_mates", "confidence", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
 
+##### Add column to flag fusions supported by WGS data (from MANTA), if available
+fusions$geneA_dna_support <- "-"
+fusions$geneB_dna_support <- "-"
+
 if ( runPizzlyChunk ) {
   fusions$Arriba <- c(rep("Yes", nrow(fusions)))
 }
@@ -3268,7 +3272,7 @@ if ( runArribaChunk ) {
       pizzly.fusions[ i, ] <-  rep("-", ncol(pizzly.fusions))
     } 
     else {
-      fusions <- rbind(fusions, data.frame(geneA=pizzly.fusions$geneA[i],geneB=pizzly.fusions$geneB[i], breakpointA="-", breakpointB="-", siteA="-", siteB="-", type="-", split_readsA=pizzly.fusions$split_readsA[i], split_readsB="-", discordant_mates=pizzly.fusions$discordant_mates[i], confidence="-", FGID=pizzly.fusions$FGID[i], reported_fusion=pizzly.fusions$reported_fusion[i], reported_fusion_geneA=pizzly.fusions$reported_fusion_geneA[i], reported_fusion_geneB=pizzly.fusions$reported_fusion_geneB[i], effector_gene=pizzly.fusions$effector_gene[i], fusions_cancer=pizzly.fusions$fusions_cancer[i], Arriba="-", Pizzly="Yes" ))
+      fusions <- rbind(fusions, data.frame(geneA=pizzly.fusions$geneA[i],geneB=pizzly.fusions$geneB[i], breakpointA="-", breakpointB="-", siteA="-", siteB="-", type="-", split_readsA=pizzly.fusions$split_readsA[i], split_readsB="-", discordant_mates=pizzly.fusions$discordant_mates[i], confidence="-", FGID=pizzly.fusions$FGID[i], reported_fusion=pizzly.fusions$reported_fusion[i], reported_fusion_geneA=pizzly.fusions$reported_fusion_geneA[i], reported_fusion_geneB=pizzly.fusions$reported_fusion_geneB[i], effector_gene=pizzly.fusions$effector_gene[i], fusions_cancer=pizzly.fusions$fusions_cancer[i], geneA_dna_support="-", geneB_dna_support="-", Arriba="-", Pizzly="Yes" ))
     }
   }
 ##### Otherwise add empty columns expected from Aribba results
@@ -3281,6 +3285,8 @@ if ( runArribaChunk ) {
   fusions$type <-  c(rep("-", nrow(fusions)))
   fusions$split_readsB <-  c(rep("-", nrow(fusions)))
   fusions$confidence <-  c(rep("-", nrow(fusions)))
+  fusions$geneA_dna_support <- c(rep("-", nrow(fusions)))
+  fusions$geneB_dna_support <- c(rep("-", nrow(fusions)))
   fusions$Arriba <-  c(rep("-", nrow(fusions)))
 }
 
@@ -3319,10 +3325,6 @@ rm(fusion_annot1, fusion_annot2, fusions.annot, fusion_genes_annot)
 ##### Add row for gene fusion events so that there is one row per gene
 manta_sv <- ref_genes.list[["manta"]]
 manta_sv$"Fusion genes" <- manta_sv$Gene
-
-##### Add column to flag fusions supported by WGS data (from MANTA), if available
-fusions$geneA_dna_support <- "-"
-fusions$geneB_dna_support <- "-"
 
 i <- 1
 while ( i <= nrow(manta_sv) ) {
@@ -3492,7 +3494,7 @@ for ( alt in names(alt_genes.list) ) {
 if ( nrow(sunburst.df) > 0 ) {
   sunburst_plot[[2]] <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = 'sunburst', width = 600, height = 600)
 } else {
-  sunburst_plot[[2]] <- NA
+  sunburst_plot[[2]] <- c("No genes are listed in more then one section. Expand the \"All altered genes\" to view the summary plot for all altered genes.")
 }
 
 ##### Create directory for the plots
@@ -3692,8 +3694,6 @@ sunburst_plot[[2]]
 if ( !is.na(sunburst_plot[[2]]) ) {
   mysql_populate <- paste0(mysql_populate, "Findings summary,")
   mysql_populate_update <- paste0(mysql_populate_update, "Findings summary,")
-} else {
-  cat("No genes are listed in more then one section. Expand the \"All altered genes\" to view the summary plot for all altered genes.")
 }
 ```
 
@@ -4926,6 +4926,8 @@ detach("package:plotly", unload=FALSE)
 ##### Clean the space
 rm(list = ls(pattern='^output*'))
 ```
+
+***
 
 ## Immune markers
 
