@@ -1013,7 +1013,7 @@ arriba_plots <- function(arriba_file, arriba_results, results_dir) {
   
   ##### Export pdf images to png
   for ( i in 1:nrow(arriba_results) ) {
-    arriba_plots.png <- paste0(results_dir, "/", make.names(paste(paste0(arriba_results$X.gene1[i], "_",  arriba_results$breakpoint1[i]), paste0(arriba_results$gene2[i], "_", arriba_results$breakpoint2[i]), sep = "__" )), ".png")
+    arriba_plots.png <- gsub(":", ".", paste0(results_dir, "/", paste0(paste(arriba_results$X.gene1[i], arriba_results$gene2[i], sep = "__"), "_", arriba_results$breakpoint1[i], "-", arriba_results$breakpoint2[i]), ".png"))
     fusion <- pdf_render_page(arriba_plots.pdf, page = i, dpi = 300, numeric = TRUE, opw = "", upw = "")
     writePNG(fusion, arriba_plots.png)
   }
@@ -1915,7 +1915,9 @@ if ( file.exists(arriba_file) ) {
   arriba_plots(arriba_file = arriba_file, arriba_results = ref_genes.list[["arriba"]], results_dir = paste(params$report_dir, "results", "arriba", sep = "/"))
   
   ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-  write.table(prepare2write(make.names(paste(paste0(ref_genes.list[["arriba"]]$X.gene1, "_",  ref_genes.list[["arriba"]]$breakpoint1), paste0(ref_genes.list[["arriba"]]$gene2, "_", ref_genes.list[["arriba"]]$breakpoint2), sep = "__" ))), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+  fusion <- gsub(":", ".", c("", paste0(paste(ref_genes.list[["arriba"]]$X.gene1, ref_genes.list[["arriba"]]$gene2, sep = "__"), "_", ref_genes.list[["arriba"]]$breakpoint1, "-", ref_genes.list[["arriba"]]$breakpoint2)))
+  
+  write.table(prepare2write(fusion), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
 
   runArribaChunk <- TRUE
   runFusionChunk <- TRUE
@@ -2797,7 +2799,7 @@ for ( dataset in names(ref_dataset.list) ) {
   
   ##### Save the combined expression matrix, genes list and associated targets into txt files
   write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(rownames(ref_dataset.list[[dataset]][["data_to_report"]])), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
   write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 
