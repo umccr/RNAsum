@@ -1,7 +1,11 @@
 # TCGA projects summary
 
 
-The table below summarises [TCGA](https://portal.gdc.cancer.gov/) expression data available for **[33 cancer types](#primary-datasets)**. Additionally, for *Bladder Urothelial Carcinoma*, *Pancreatic Adenocarcinoma* and *Lung Adenocarcinoma* cohorts extended sets, including neuroendocrine tumours (NETs), intraductal papillary mucinous neoplasm (IPMNs), acinar cell carcinoma (ACC) samples and large-cell neuroendocrine carcinoma (LCNEC), are available (see [Extended datasets](#extended-datasets) table).
+The table below summarises [TCGA](https://portal.gdc.cancer.gov/) expression data available for **[33 cancer types](#primary-datasets)**. 
+
+Additionally, for *Bladder Urothelial Carcinoma*, *Pancreatic Adenocarcinoma* and *Lung Adenocarcinoma* cohorts extended sets are available (see [Extended datasets](#extended-datasets) table), including neuroendocrine tumours (NETs), intraductal papillary mucinous neoplasm (IPMNs), acinar cell carcinoma (ACC) samples and large-cell neuroendocrine carcinoma (LCNEC).
+
+Finally, 10 samples from each of the [33 datasets](#primary-datasets) were combined to create [Pan-Cancer dataset](#pan-cancer-dataset).
 
 The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section).
 
@@ -58,6 +62,13 @@ No | Project | Name | Tissue code\* | Samples no.\**
 3 | `PAAD-IPMN`  | Pancreatic Adenocarcinoma dataset including intraductal papillary mucinous neoplasm (IPMNs, n=2) | 1 | **152**
 4 | `PAAD-NET`  | Pancreatic Adenocarcinoma dataset including neuroendocrine tumours (NETs, n=8) | 1 | **158**
 5 | `PAAD-ACC`  | Pancreatic Adenocarcinoma dataset including acinar cell carcinoma (ACCs, n=1) | 1 | **151**
+<br />
+
+## Pan-Cancer dataset
+
+No | Project | Name | Tissue code\* | Samples no.\**
+------------ | ------------ | ------------ | ------------ | ------------
+1 | `PAN-CAN`  | Samples from all [33 cancer types](#primary-datasets), 10 samples from each  | 1 and 3 (`LAML` samples only) | **330**
 <br />
 
 \* Tissue codes:
