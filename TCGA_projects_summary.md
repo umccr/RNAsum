@@ -68,7 +68,7 @@ No | Project | Name | Tissue code\* | Samples no.\**
 
 No | Project | Name | Tissue code\* | Samples no.\**
 ------------ | ------------ | ------------ | ------------ | ------------
-1 | `PAN-CAN`  | Samples from all [33 cancer types](#primary-datasets), 10 samples from each  | 1 and 3 (`LAML` samples only) | **330**
+1 | `PANCAN`  | Samples from all [33 cancer types](#primary-datasets), 10 samples from each  | 1 and 3 (`LAML` samples only) | **330**
 <br />
 
 \* Tissue codes:

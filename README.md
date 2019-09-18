@@ -67,7 +67,7 @@ The reference expression data is availbale for **33 cancer types** and were deri
 
 In order to explore expression changes in queried sample we have built a high-quality pancreatic cancer reference cohort. 
 
-Depending on the tissue from which the patient's sample was taken, one of **33 cancer datasets** from [TCGA](https://tcga-data.nci.nih.gov/) can be used as a reference cohort for comparing expression changes in genes of interest in investigated sample. The available cancer types are listed in **[TCGA projects summary table](./TCGA_projects_summary.md)**. These datasets have been processed using methods described in [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data) repository. The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section). 
+Depending on the tissue from which the patient's sample was taken, one of **33 cancer datasets** from [TCGA](https://tcga-data.nci.nih.gov/) can be used as a reference cohort for comparing expression changes in genes of interest in investigated sample. Additionally, 10 samples from each of the 33 datasets were combined to create **[Pan-Cancer dataset](./TCGA_projects_summary.md#pan-cancer-dataset)**, and for some cohorts **[extended sets](./TCGA_projects_summary.md#extended-datasets)** are also available. All available datasets are listed in **[TCGA projects summary table](./TCGA_projects_summary.md)**. These datasets have been processed using methods described in [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data) repository. The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section). 
 
 ###### Note
 
@@ -166,7 +166,7 @@ Argument | Description | Required
 --sample_name | The name of the sample to be analysed and reported | **Yes**
 --bcbio_rnaseq | Location of the results folder from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* | **Yes**
 --report_dir | Desired location for the report | **Yes**
---dataset | Dataset to be used as external reference cohort. Available options are [TCGA](https://tcga-data.nci.nih.gov/) project IDs listed in [TCGA projects summary table](./TCGA_projects_summary.md) `Project` column (default is `PAN-CAN`) | No
+--dataset | Dataset to be used as external reference cohort. Available options are [TCGA](https://tcga-data.nci.nih.gov/) project IDs listed in [TCGA projects summary table](./TCGA_projects_summary.md) `Project` column (default is `PANCAN`) | No
 --transform | Transformation method for converting read counts. Available options are: `CPM` (default) and `TPM` | No
 --norm | Normalisation method. Available options are: `TMM` (default), `TMMwzp`, `RLE`, `upperquartile` or `none` for *CPM-transformed* data, and `quantile` (default) or `none` for *TPM-transformed* data | No
 --batch_rm | Remove batch-associated effects between datasets. Available options are: `TRUE` (default) and `FALSE`  | No

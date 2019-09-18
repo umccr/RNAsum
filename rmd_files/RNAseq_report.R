@@ -16,7 +16,7 @@
 #
 #	  Command line use example: Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir (pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
 #
-#   dataset:      Dataset to be used as external reference cohort (default is "PAN-CAN")
+#   dataset:      Dataset to be used as external reference cohort (default is "PANCAN")
 #   bcbio_rnaseq: Location of the results folder from bcbio RNA-seq pipeline
 #   report_dir:   Desired location for the report
 #   ref_data_dir: Location of the reference and annotation files
@@ -69,7 +69,7 @@ suppressMessages(library(optparse))
 option_list = list(
   make_option(c("-sn", "--sample_name"), action="store", default=NA, type='character',
               help="Desired sample name to be presented in the report"),
-  make_option(c("-ds", "--dataset"), action="store", default="PAN-CAN", type='character',
+  make_option(c("-ds", "--dataset"), action="store", default="PANCAN", type='character',
               help="Dataset to be used as external reference cohort"),
   make_option(c("-bc", "--bcbio_rnaseq"), action="store", default=NA, type='character',
               help="Location of the results folder from bcbio RNA-seq pipeline"),
@@ -175,7 +175,7 @@ if ( is.na(opt$grch_version)  ) {
 }
 
 ##### Check if specified dataset type is valid
-if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC", "LUAD-LCNEC", "PAN-CAN")) ) {
+if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC", "LUAD-LCNEC", "PANCAN")) ) {
   
   cat("\nInvalid dataset! Please use one of the following:\n\n")
   cat("[ ACC ] - this will compare the patient's data in the context of samples from TCGA Adrenocortical Carcinoma cohort\n\n")
@@ -216,7 +216,7 @@ if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL",
   cat("[ PAAD-NET ] - this will compare the patient's data in the context of samples from TCGA Pancreatic Adenocarcinoma cohort (including neuroendocrine tumour (NET) samples) and UMCCR internal pancreatic ductal adenocarcinoma cohort\n")
   cat("[ PAAD-ACC ] - this will compare the patient's data in the context of samples from TCGA Pancreatic Adenocarcinoma cohort (including acinar cell carcinoma (ACC) samples) and UMCCR internal pancreatic ductal adenocarcinoma cohort\n")
   cat("[ LUAD-LCNEC ] - this will compare the patient's data in the context of samples from TCGA Lung Adenocarcinoma cohort (including favor large-cell neuroendocrine carcinoma (LCNEC) samples)\n")
-  cat("[ PAN-CAN ] - this will compare the patient's data in the context of samples from all TCGA cohorts\n")
+  cat("[ PANCAN ] - this will compare the patient's data in the context of samples from all TCGA cohorts\n")
   q()
 }
 
