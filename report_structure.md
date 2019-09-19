@@ -25,31 +25,35 @@ The **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** se
 
 ### Input data
 
-Summary of the input data, including 
+Summary of the input data
 
 ### Clinical information
 
-Treatment regimen information for this patient is AVAILABLE.
+Treatment regimen information for patient for which clinical information is available.
 
 NOTE: for confidentiality reasons, the timeline (x-axis) projecting patient’s treatment regimens (y-axis) is set to start from 1st January 2000, but the treatments lengths are preserved.
 
 ### Findings summary
 
+Plot and table summarising altered genes listed across various report sections
+
 ### Mutated genes
+
+mRNA expression levels of mutated genes (containing single nucleotide variants (SNVs) or insertions/deletions (indels)) measured in patient's sample and their average mRNA expression in samples from cancer patients (from [TCGA](https://portal.gdc.cancer.gov/)). This section is available only for samples with available *[umccrise](https://github.com/umccr/umccrise) results*
 
 ### Fusion genes
 
-If WGS results from **[umccrise](https://github.com/umccr/umccrise)** are available then fusion genes in the **`Fusion genes`** report section are ordered based on the evidence from genome-based data. For more information about gene fusions and methods for their detectecion and visualisation can be found [here](./fusions/README.md).
+Prioritised fusion genes based on [Arriba](https://arriba.readthedocs.io/en/latest/) results and annotated with [FusionGDB](https://ccsm.uth.edu/FusionGDB) database. If WGS results from **[umccrise](https://github.com/umccr/umccrise)** are available then fusion genes in the **`Fusion genes`** report section are ordered based on the evidence from genome-based data. For more information about gene fusions and methods for their detectecion and visualisation can be found [here](./fusions/README.md).
 
 #### Prioritisation
 
 Fusion genes detected in transcriptome data are prioritised based on criteria ranked in the following order:
 
 1. Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants](#structural-variants) results are available)
-2. Listed as reported fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB/) database
-3. Involvement of highly **abundant transcript(s)** (see [abundant transcripts definition](#abundant-transcripts) section)
-4. Decreasing number of split counts
-5. Decreasing number of pair counts
+2. **Detected in transcriptome data** by [Arriba](https://arriba.readthedocs.io/en/latest/) tool
+3. **Reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB/) database
+4. Decreasing number of **split reads**
+5. Decreasing number of **pair reads**
 6. Involvement of **cancer gene(s)** (see [Cancer genes](#cancer-genes) section)
 
 #### Filtering
@@ -58,21 +62,13 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 
 1. Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants](#structural-variants) results are available)
 2. **Reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB) database
-3. Involvement of highly **abundant transcript(s)**  (see [abundant transcripts definition](#abundant-transcripts) section)
-4. Involvement of **cancer gene(s)** (see [Cancer genes](#cancer-genes) section)
-5. **Split counts** > 1
-6. **Pair counts** > 1 and **split counts** > 1
-
-#### Abundant transcripts
-
-The following steps were performed to define abundant transcripts involved in detected fusion events:
-
-1. Run [kallisto](https://github.com/pachterlab/kallisto) to quantify the fusion transcripts reported by [pizzly](https://github.com/pmelsted/pizzly) and select those which are supported by decent number of [Transcripts Per Kilobase Million](http://www.arrayserver.com/wiki/index.php?title=TPM) (TPM)
-2. Create a new index based on the transcriptome and the fusion transcripts identified by [pizzly](https://github.com/pmelsted/pizzly)
-3. Run [kallisto](https://github.com/pachterlab/kallisto) in normal quantification mode on the expanded index to quantify both normal transcripts and fusions
-4. Select fusion genes involving transcripts with [TPM](http://www.arrayserver.com/wiki/index.php?title=TPM) values above 90th percentile of all [TPM](http://www.arrayserver.com/wiki/index.php?title=TPM) values (as reported by previous step)
+3. Involvement of **cancer gene(s)** (see [Cancer genes](#cancer-genes) section)
+4. **Split reads** > 1
+5. **Pair reads** > 1 and **split reads** > 1
 
 ### Structural variants
+
+Similar to *Mutated genes* analysis but limited to genes located within structural variants (SVs) detected by [MANTA](https://github.com/Illumina/manta) using genomic data. This section is available only for samples with available *[MANTA](https://github.com/Illumina/manta) results*
 
 ### CN altered genes
 
@@ -80,11 +76,19 @@ Section overlaying the mRNA expression data for [cancer genes](#cancer-genes) wi
 
 ### Immune markers
 
+Similar to *Mutated genes* analysis but limited to genes considered to be immune markers
+
 ### HRD genes
+
+Similar to *Mutated genes* analysis but limited to genes considered to be homologous recombination deficiency (HRD) genes
 
 ### Cancer genes
 
+Similar to analysis above, but limited to *UMCCR cancer genes*
+
 ### Drug matching
+
+List of drugs targeting variants in detected *mutated genes*, *fusion genes*, *structural variants-affected genes*, *CN altered genes*, *HRD genes* and dysregulated *cancer genes*, which can be considered in the treatment decision making process
 
 ### Addendum
 
