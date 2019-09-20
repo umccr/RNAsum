@@ -27,16 +27,18 @@ RNA-seq report workflow is designed to post-process, summarise and visualise an 
 
 ## Installation
 
-Run the [environment.yaml](envm/environment.yaml) file to create *conda* environment and install required packages. The `-p` flag should point to the *miniconda* installation path. For instance, to create `rnaseq-report` environment using *miniconda* installed in `/miniconda` directory run the following command:
+Run the following to create a directory "rnaseq-report" and install into it
 
 ```
-conda env create -p /miniconda/envs/rnaseq-report --file envm/environment.yaml
+mkdir rnaseq-report
+cd rnaseq-report
+source <(curl -s https://github.com/umccr/RNAseq-Analysis-Report/blob/master/install.sh)
 ```
 
-Activate created `rnaseq-report` *conda* environment before running the pipeline
+It will generate `load_rnaseq-report.sh` script that can be sourced to load the load_rnaseq-report.sh environment:
 
 ```
-conda activate rnaseq-report
+source load_rnaseq-report.sh
 ```
 
 
