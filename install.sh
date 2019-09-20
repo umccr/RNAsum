@@ -7,7 +7,7 @@ git clone https://github.com/umccr/RNAseq-Analysis-Report
 unset PYTHONPATH
 unset CONDA_PREFIX
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-bash miniconda.sh -b -p ./miniconda && rm miniconda.sh
+bash miniconda.sh -b -p ./miniconda && conda config --set report_errors false && rm miniconda.sh
 export PATH=$(pwd)/miniconda/bin:$PATH
 conda update conda
 
