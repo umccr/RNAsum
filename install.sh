@@ -15,7 +15,6 @@ conda update conda
 ENV_NAME=rnaseq-report
 conda env create -p $(pwd)/miniconda/envs/${ENV_NAME} --file RNAseq-Analysis-Report/envm/environment.yaml
 export PATH=$(pwd)/miniconda/envs/${ENV_NAME}/bin:$PATH
-pip install -e rnaseq-report
 
 ### Create the loader script
 ENV_NAME=rnaseq-report
