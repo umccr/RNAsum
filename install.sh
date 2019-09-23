@@ -13,7 +13,7 @@ conda update conda
 
 ### Install environments
 ENV_NAME=rnaseq-report
-conda env create -p $(pwd)/miniconda/envs/${ENV_NAME} --file RNAseq-Analysis-Report/envs/environment.yml
+conda env create -p $(pwd)/miniconda/envs/${ENV_NAME} --file RNAseq-Analysis-Report/envm/environment.yml
 export PATH=$(pwd)/miniconda/envs/${ENV_NAME}/bin:$PATH
 pip install -e rnaseq-report
 
