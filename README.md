@@ -35,7 +35,7 @@ cd rnaseq-report
 source <(curl -s https://raw.githubusercontent.com/umccr/RNAseq-Analysis-Report/master/install.sh)
 ```
 
-It will generate `load_rnaseq-report.sh` script that can be sourced to load the load_rnaseq-report.sh environment:
+It will generate `load_rnaseq-report.sh` script that can be sourced to load the `rnaseq-report` environment:
 
 ```
 source load_rnaseq-report.sh
