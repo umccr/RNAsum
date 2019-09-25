@@ -82,7 +82,7 @@ RNA-seq report for patient sample **`r params$sample_name`**.
 # 12. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data limited to cancer genes that meet user-deinfed CN values threshold
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
-# 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from UMCCR Cancer Gene list and OncoKB portal (http://oncokb.org/#/cancerGenes) 
+# 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and OncoKB portal (http://oncokb.org/#/cancerGenes) 
 # 2. ref_genes.list[["genes_oncokb"]] = list of cancer genes derived from OncoKB portal (http://oncokb.org/#/cancerGenes) alone (although genes present on the UMCCR panel are also flagged)
 # 3. ref_genes.list[["genes_immune"]] = list of immune reponse markers provided in the "An Immunogram for the Cancer-Immunity Cycle" paper by Karasaki at al (2017) (https://www.ncbi.nlm.nih.gov/pubmed/28088513) and OmniSeq report (https://www.omniseq.com/) 
 # 4. ref_genes.list[["genes_hrd"]] = list of hrd (homologous recombination deficiency) genes
@@ -2123,7 +2123,7 @@ rm(clinical_info, cv_timeline.png)
 ```
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
-##### Combine UMCCR cancer gene list with OncoKB cancer genes
+##### Combine UMCCR cancer gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) with OncoKB cancer genes
 genes_cancer <- ref_genes.list[["genes_oncokb"]]
 genes_cancer$UMCCR <- rep("No", nrow(genes_cancer))
 genes_cancer$Oncogene <- rep("-", nrow(genes_cancer))
@@ -2131,7 +2131,7 @@ genes_cancer$TSG <- rep("-", nrow(genes_cancer))
 genes_cancer$Fusion <- rep("-", nrow(genes_cancer))
 genes_cancer$Germline <- rep("-", nrow(genes_cancer))
 
-##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
+##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 ref_genes.list[["genes_cancer"]]$germ <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$germ)
 ref_genes.list[["genes_cancer"]]$germ <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$germ)
 ref_genes.list[["genes_cancer"]]$fusion <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$fusion)
@@ -2249,7 +2249,7 @@ if ( params$immunogram ) {
 # HRD (homologous recombination deficiency) genes
 ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
 
-# Cancer genes derived from UMCCR Cancer Gene list and from OncoKB portal (http://oncokb.org/#/cancerGenes)
+# Cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and from OncoKB portal (http://oncokb.org/#/cancerGenes)
 ref_genes.list[["summary"]]$Cancer <- unique(ref_genes.list[["genes_cancer"]]$symbol)
 
 ##### Record all genes of interest
@@ -4312,7 +4312,7 @@ Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } ` genes affec
 mysql_populate <- paste0(mysql_populate, ",Structural variants")
 mysql_populate_update <- paste0(mysql_populate_update, ",Structural variants")
 
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
+##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
@@ -4359,7 +4359,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Percentiles
 
 ```{r sv_genes_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
+##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
@@ -4952,7 +4952,7 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_marke
 mysql_populate <- paste0(mysql_populate, ",Immune markers")
 mysql_populate_update <- paste0(mysql_populate_update, ",Immune markers")
 
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
+##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 genes <- unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
@@ -4990,7 +4990,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### - Percentiles
 
 ```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
+##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
@@ -5107,7 +5107,7 @@ cat("\n##### Z-scores \n")
 ```
 
 ```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
+##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 genes <- unique(unlist(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL))
@@ -5143,7 +5143,7 @@ cat("\n##### Percentiles \n")
 ```
 
 ```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
+##### Generate expression summary table for cancer genes from OncoKB and UMCCr (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 immunogram.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
@@ -5305,7 +5305,7 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ## Cancer genes
 
-mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources *UMCCR cancer genes*, *[OncoKB](http://oncokb.org/#/about){target="_blank"}* (cancer genes listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data){target="_blank"}), *[MSK-IMPACT](https://www.mskcc.org/msk-impact){target="_blank"}*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf){target="_blank"}*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx){target="_blank"}*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme){target="_blank"}*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full){target="_blank"}* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census){target="_blank"}* (CGC).
+mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources *[UMCCR cancer genes](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv){target="_blank"}*, *[OncoKB](http://oncokb.org/#/about){target="_blank"}* (cancer genes listed [here](http://oncokb.org/#/cancerGenes){target="_blank"} and available [here](https://github.com/oncokb/oncokb-public/tree/master/data){target="_blank"}), *[MSK-IMPACT](https://www.mskcc.org/msk-impact){target="_blank"}*, *[MSK-HEME](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf){target="_blank"}*, *[Foundation One](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx){target="_blank"}*, *[Foundation One Heme](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme){target="_blank"}*, *[Vogelstein](http://science.sciencemag.org/content/339/6127/1546.full){target="_blank"}* and *[Sanger Cancer Gene Census](https://www.sanger.ac.uk/science/data/cancer-gene-census){target="_blank"}* (CGC).
 
 ### - Summary table {.tabset}
 
@@ -5318,7 +5318,7 @@ Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expressio
 mysql_populate <- paste0(mysql_populate, ",Cancer genes,All genes")
 mysql_populate_update <- paste0(mysql_populate_update, ",Cancer genes,All genes")
 
-##### Generate expression summary table for cancer genes from OncoKB and PMCC
+##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 genes <- rownames(ref_genes.list[["genes_cancer"]])
