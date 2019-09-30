@@ -1492,6 +1492,9 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
 ##### Generate bezier curves-like plot representing gene fusion events
 fusionsBezierPlot <- function(fusion_annot, genes_annot) {
   
+  ##### Keep only fusions for which both genes are annotated and have genomic coordinates available
+  fusion_annot <- fusion_annot[ fusion_annot$SYMBOL %in% genes_annot$SYMBOL, ]
+  
   ##### Get the genes chromosomes...
   chr1 <- paste0("chr", fusion_annot$SEQNAME)
   chr2 <- paste0("chr", fusion_annot$SEQNAME.1)
@@ -4043,34 +4046,34 @@ Fusion events are ordered by the following columns:
 Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
 ```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
-##### Keep only reported fusionsor those with or cancer gene(s) involved
+##### Keep only reported fusions or those with or cancer gene(s) involved
 if ( runSVsChunk ) {
   fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
-  
-  ##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
-  if ( nrow(fusion_annot_top) > 0 ) {
-    BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]])
-    BezierPlot
+} else {
+  fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" , ]
+}
+
+##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
+if ( nrow(fusion_annot_top) > 0 ) {
+  BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]])
+  BezierPlot
     
-  } else {
-    cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
-  }
+} else {
+  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
 }
 ```
 
 ```{r genomic_view_plot_fusions_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
 ##### Save the BezierPlot as png
-if ( runSVsChunk ) {
-  if ( nrow(fusion_annot_top) > 0 ) {
-    fusionsPlotDir <- paste(params$report_dir, "results/fusionsPlot", sep = "/")
+if ( exists("BezierPlot") ) {
+  fusionsPlotDir <- paste(params$report_dir, "results/fusionsPlot", sep = "/")
     
-    if ( !file.exists(fusionsPlotDir) ) {
-          dir.create(fusionsPlotDir, recursive=TRUE)
-    }
-    
-    png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
-    BezierPlot
+  if ( !file.exists(fusionsPlotDir) ) {
+    dir.create(fusionsPlotDir, recursive=TRUE)
   }
+    
+  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
+  BezierPlot
 }
 
 ##### Clean the space
