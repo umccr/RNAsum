@@ -137,7 +137,7 @@ if ( is.na(opt$sample_name) || is.na(opt$bcbio_rnaseq) || is.na(opt$report_dir) 
 ##### Make sure that sample ID is availabe if clincal data is provided
 if ( !is.na(opt$clinical_info) && is.na(opt$clinical_id)  ) {
   
-  cat("\ID required to match sample with the subject clinical information is missing! Please provide the ID used in the clinical data by using \"--clinical_id\" argument.\n\n")
+  cat("ID required to match sample with the subject clinical information is missing! Please provide the ID used in the clinical data by using \"--clinical_id\" argument.\n\n")
   q()
 }
 
