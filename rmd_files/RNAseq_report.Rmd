@@ -30,6 +30,7 @@ params:
   umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   clinical_id: 'test_subject'
+  subject_id: ''
   sample_source: "-"
   project: "-"
   top_genes: 10
@@ -1842,6 +1843,9 @@ names(caner_genes_annot.list) <- caner_genes_annot
 ##### Get patient data dir and sample file name
 dataDir <- params$bcbio_rnaseq
 
+##### Get the subject ID
+subjectID <- params$subject_id
+
 ##### Read-in the annotation file for tximport
 tx2ensembl <- read.csv(file.path(paste(params$ref_data_dir, params$annot_file, sep = "/")), header = FALSE)
 colnames(tx2ensembl) <- c("tx_name", "gene_id")
@@ -2003,7 +2007,7 @@ if ( !is.null(params$umccrise) ) {
     runSVsChunk <- FALSE
   }
   
-  ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command
+  ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command. This will overwrite argument passed to "--clinical_id" flag
   subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
     mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
   mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )

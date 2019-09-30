@@ -181,7 +181,8 @@ Argument | Description | Required
 --cn_loss | CN threshold value to classify genes within lost regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `5th percentile` of all CN values) | No
 --cn_gain | CN threshold value to classify genes within gained regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `95th percentile` of all CN values) | No
 --clinical_info | Location of *xslx* file with clinical information (see [example](./data/test_data/test_clinical_data.xlsx) ) | No
---subject_id | Subject ID required to match sample with clinical information (if available) | No
+--clinical_id | ID required to match sample with the subject clinical information (if available) | No
+--subject_id | Subject ID. Note, if `umccrise` output is specified (flag `--umccrise`) then Subject ID is extracted from there and used to overwrite this argument | No
 --sample_source | Source of investigated sample (e.g. fresh frozen tissue, organoid; for annotation purposes only) | No
 --project | Project name (for annotation purposes only) | No
 --top_genes | The number of top ranked genes to be presented (default is `10`) | No
@@ -257,7 +258,7 @@ For samples derived from subjects, for which clinical information is available, 
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test_subject
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
