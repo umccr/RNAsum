@@ -14,7 +14,7 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir (pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --subject_id test.subject
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir (pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --clinical_id test.subject
 #
 #   dataset:      Dataset to be used as external reference cohort (default is "PANCAN")
 #   bcbio_rnaseq: Location of the results folder from bcbio RNA-seq pipeline
@@ -33,7 +33,7 @@
 #   cn_loss (optional):  CN threshold value to classify genes within lost regions (default is "5th percentile" of all CN values)
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "95th percentile" of all CN values)
 #   clinical_info (optional): Location of xslx file with clinical information
-#   subject_id (optional):    Subject ID required to match sample with clinical information (specified in flag --clinical_info)
+#   clinical_id (optional):   ID required to match sample with the subject clinical information (specified in flag --clinical_info)
 #   sample_source (optional):   Source of investigated sample (e.g. fresh frozen tissue, organoid). This information is for annotation purposes only
 #   project (optional):   Project name. This information is for annotation purposes only
 #   top_genes:    The number of top ranked genes to be presented (default is "10")
@@ -103,8 +103,8 @@ option_list = list(
               help="CN threshold value to classify genes within gained regions"),
   make_option("--clinical_info", action="store", default=NA, type='character',
               help="Location of xslx file with clinical information"),
-  make_option("--subject_id", action="store", default=NA, type='character',
-              help="Subject ID"),
+  make_option("--clinical_id", action="store", default=NA, type='character',
+              help="ID required to match sample with the subject clinical information"),
   make_option("--sample_source", action="store", default="-", type='character',
               help="Type of investigated sample"),
   make_option("--project", action="store", default="-", type='character',
@@ -132,9 +132,9 @@ if ( is.na(opt$sample_name) || is.na(opt$bcbio_rnaseq) || is.na(opt$report_dir) 
 }
 
 ##### Make sure that sample ID is availabe if clincal data is provided
-if ( !is.na(opt$clinical_info) && is.na(opt$subject_id)  ) {
+if ( !is.na(opt$clinical_info) && is.na(opt$clinical_id)  ) {
   
-  cat("\nSubject ID is missing! Please provide subject ID used in the clinical data by using \"--subject_id\" argument.\n\n")
+  cat("\ID required to match sample with the subject clinical information is missing! Please provide the ID used in the clinical data by using \"--clinical_id\" argument.\n\n")
   q()
 }
 
@@ -250,7 +250,7 @@ if ( !file.exists(opt$report_dir) ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), bcbio_rnaseq = opt$bcbio_rnaseq, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = opt$batch_rm, filter = opt$filter, log = opt$log, scaling = opt$scaling, immunogram = opt$immunogram, umccrise = opt$umccrise, clinical_info = opt$clinical_info, subject_id = opt$subject_id, sample_source = opt$sample_source, project = opt$project, dataset_name_incl = dataset_name_incl, save_tables = opt$save_tables, pcgr_tier = opt$pcgr_tier, pcgr_splice_vars = opt$pcgr_splice_vars, cn_loss = opt$cn_loss, cn_gain = opt$cn_gain, top_genes = opt$top_genes, hide_code_btn = opt$hide_code_btn, grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), bcbio_rnaseq = opt$bcbio_rnaseq, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = opt$batch_rm, filter = opt$filter, log = opt$log, scaling = opt$scaling, immunogram = opt$immunogram, umccrise = opt$umccrise, clinical_info = opt$clinical_info, clinical_id = opt$clinical_id, sample_source = opt$sample_source, project = opt$project, dataset_name_incl = dataset_name_incl, save_tables = opt$save_tables, pcgr_tier = opt$pcgr_tier, pcgr_splice_vars = opt$pcgr_splice_vars, cn_loss = opt$cn_loss, cn_gain = opt$cn_gain, top_genes = opt$top_genes, hide_code_btn = opt$hide_code_btn, grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
 
 ##### Remove the assocaited MD file and the redundant folder with plots that are imbedded in the HTML report
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.md"), recursive = TRUE)
