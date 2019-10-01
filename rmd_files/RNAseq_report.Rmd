@@ -1847,7 +1847,11 @@ names(caner_genes_annot.list) <- caner_genes_annot
 dataDir <- params$bcbio_rnaseq
 
 ##### Get the subject ID
-subjectID <- params$subject_id
+if ( !is.na(params$subject_id) ) {
+  subjectID <- params$subject_id
+} else if ( !is.na(params$clinical_id) ) {
+  subjectID <- params$clinical_id
+}
 
 ##### Read-in the annotation file for tximport
 tx2ensembl <- read.csv(file.path(paste(params$ref_data_dir, params$annot_file, sep = "/")), header = FALSE)
@@ -2051,6 +2055,8 @@ if ( !is.na(params$clinical_id) ) {
   sampleID.col <- grep(params$clinical_id, ref_dataset.list[[dataset]][["clinical_info"]])
 } else if ( !is.na(params$subject_id) ) {
   sampleID.col <- grep(params$subject_id, ref_dataset.list[[dataset]][["clinical_info"]])
+} else if ( !is.na(subjectID) ) {
+  sampleID.col <- grep(subjectID, ref_dataset.list[[dataset]][["clinical_info"]])
 }
 
 runClinicalChunk <- FALSE
