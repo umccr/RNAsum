@@ -1851,6 +1851,8 @@ if ( !is.na(params$subject_id) ) {
   subjectID <- params$subject_id
 } else if ( !is.na(params$clinical_id) ) {
   subjectID <- params$clinical_id
+} else {
+  subjectID <- ""
 }
 
 ##### Read-in the annotation file for tximport
@@ -2016,19 +2018,17 @@ if ( !is.null(params$umccrise) ) {
   
   ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command. This will overwrite argument passed to "--clinical_id" flag
   subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
-    mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
-  mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
   
 } else {
   runPcgrChunk <- FALSE
   runPurpleChunk <- FALSE
   runSVsChunk <- FALSE
-  
-  ##### Update MySQL commend to populate RNA-seq data portal
-  mysql_populate <- paste0(mysql_populate, ", \"\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
-    mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
 }
 
+##### Update MySQL commend to populate RNA-seq data portal
+mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
+mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
+    
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_clin_vars, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 caner_genes_annot.list[["oncokb_all_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_all_vars, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
