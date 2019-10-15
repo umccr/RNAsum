@@ -2,4 +2,4 @@
 set -euxo pipefail
 
 echo "Run WTS-report"
-Rscript /rmd_files/RNAseq_report.R --sample_name MDX190102_RNA010943 --dataset paad  --bcbio_rnaseq /work/WTS_data/MDX190102_RNA010943 --report_dir /work/output --umccrise /work/umccrise/PM3056445__MDX190101_DNA052297-T/ --ref_data_dir /work/WTS_ref_data/
+Rscript /rmd_files/RNAseq_report.R --sample_name test_sample_WTS  --bcbio_rnaseq /work/data/test_data/final/test_sample_WTS --report_dir /work/output --umccrise /work/data/test_data/umccrised/test_subject__test_sample_WGS --ref_data_dir /work/data
