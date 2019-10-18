@@ -745,7 +745,7 @@ density2freq <- function(density) {
 }
 
 ##### Generate density and expression distribution plots for selected gene, highlighting samples of interest
-densityPlot <- function(gene, data, main_title, x_title, sampleName, distributions = NULL, scaling = "gene-wise", report_dir) {
+densityPlot <- function(gene, data, main_title, x_title, sampleName, distributions = NULL, scaling = "gene-wise") {
   
   if ( scaling == "gene-wise" ) {
     data.z <- t(scale(t(data)))
@@ -834,12 +834,43 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
      layout(title = main_title,
            xaxis = list(title = x_title, range = c(den.x[1],den.x[length(den.x)])),
            yaxis = list (title = 'Weight', range = c(den.y[1],den.y[length(den.y)]), side = "right"),
-           legend = list(x = -100, y = 0.5))
+           legend = list(orientation = 'h', y = 1.3))
   
   return( p )
   
   ##### Clean the space
   rm(gene, expr.sorted)
+  rm(list = ls(pattern='^data*'))
+}
+
+##### Generate box-plot for selected genes, highlighting samples of interest
+barPlot <- function(gene, data, targets, y_title = "Counts", sampleName,  ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = NULL ) {
+
+  ##### Used data for user-defined genes
+  data <- data[ gene, ,drop=FALSE]
+  
+  ##### Prepare data frame
+  targets$Target[ targets$Target==sampleName ] <- "Patient"
+  data.df <- data.frame(targets$Target, colnames(data), as.numeric(data))
+  colnames(data.df) <- c("Group","Sample", "Data")
+  
+  ##### Reorder groups and add colours
+  if ( !is.null(add_cancer) ) {
+    data.df$Group <- factor(data.df$Group, levels=c( add_cancer, ext_cancer, int_cancer, "Patient"))
+    group.colours <- c("forestgreen", "cornflowerblue", "red", "black")
+  } else {
+    data.df$Group <- factor(data.df$Group, levels=c(ext_cancer, int_cancer, "Patient"))
+    group.colours <- c("cornflowerblue", "red", "black")
+  }
+  
+  ##### The default order will be alphabetized unless specified as below
+  data.df$Sample <- factor(data.df$Sample, levels = data.df[["Sample"]])
+  p <- plot_ly(data.df, x = ~Sample, y = ~Data, color = ~Group, type = 'bar', colors = group.colours, width = 750, height = 200) %>%
+    layout(title = "", xaxis = list( title = "", showticklabels = FALSE), yaxis = list(title = y_title), autosize = F, legend = list(orientation = 'h', y = 1.2), showlegend=TRUE)
+  
+  return( p )
+  
+  ##### Clean the space
   rm(list = ls(pattern='^data*'))
 }
 
@@ -3865,15 +3896,25 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
+output_counts <- list()
 output_density <- list()
 genes <- mut_genes.expr.z[[2]]$SYMBOL
 
-##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
 for( i in 1:genes_no ) {
   if ( genes[i] %in% rownames(data) ) {
+    
+    ##### CDF plot
     output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
+    ##### Bar-plot of read counts
+    ##### First map the gene symbol to Ensmebl ID (used in the counts data)
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  genes[i] ]
+    
+    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    
+    ##### Density plot - expression distribution
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
   }
 }
 
@@ -3890,11 +3931,19 @@ for( i in 1:genes_no ){
     cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n<details>\n")
+    cat("\n<summary>Read counts</summary>\n")
+    cat(renderTags(output_counts[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density[[i]])$html)
     cat("<font size=\"2\">\n")
     cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
     cat("\n</font>\n")
+    cat("\n</details>\n")
     cat("\n</details>\n")
     cat("\n***\n")
   } else {
@@ -4164,6 +4213,8 @@ genes <- as.character(fusions$geneA)
 ##### Create lists to store
 output_cdf_A <- list()
 output_cdf_B <- list()
+output_counts_A <- list()
+output_counts_B <- list()
 output_density_A <- list()
 output_density_B <- list()
 output_table_Z <- list()
@@ -4186,22 +4237,38 @@ for( i in 1:genes_no ) {
   
   geneA <- as.vector(fusions$geneA[i])
   geneB <- as.vector(fusions$geneB[i])
-
+  
+  ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
   if ( geneA %in% rownames(data) ) {
     
-    ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level the genes of interest in the context of the overall mRNA expression distribution
-    ##### Gene A
+    ##### CDF plot
     output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
+    ##### Bar-plot of read counts
+    ##### First map the gene symbol to Ensmebl ID (used in the counts data)
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  geneA ]
+    
+    output_counts_A[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    
+    ##### Density plot - expression distribution
+    output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
     
   }
   
   ##### Gene B
   if ( geneB %in% rownames(data) && geneB != geneA) {
+    
+    ##### CDF plot
     output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
+    ##### Bar-plot of read counts
+    ##### First map the gene symbol to Ensmebl ID (used in the counts data)
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  geneB ]
+    
+    output_counts_B[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    
+    ##### Density plot - expression distribution
+    output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
   }
     
   ##### Generate expression summary tables
@@ -4253,6 +4320,13 @@ for( i in 1:genes_no ) {
     cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n<details>\n")
+    cat("\n<summary>Read counts</summary>\n")
+    cat(renderTags(output_counts_A[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Bar-plot illustrating read counts for *", geneA, "* across all samples. The *", geneA, "* read count in patient's sample is indicated by *black bar*.\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
     cat("\n<summary>Expression distribution patterns</summary>\n")
     cat(renderTags(output_density_A[[i]])$html)
     cat("<font size=\"2\">\n")
@@ -4272,6 +4346,13 @@ for( i in 1:genes_no ) {
     cat("\n<summary>Plot legend</summary>\n")
     cat("<font size=\"2\">\n")
     cat(paste0("Cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", geneB, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
+    cat("\n<summary>Read counts</summary>\n")
+    cat(renderTags(output_counts_B[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Bar-plot illustrating read counts for *", geneB, "* across all samples. The *", geneB, "* read count in patient's sample is indicated by *black bar*.\n"))
     cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n<details>\n")
@@ -4423,15 +4504,25 @@ Expression profiles for 10 SVs-affected genes with the highest priority (low [ti
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
+output_counts <- list()
 output_density <- list()
 genes <- unique(sv_genes.expr.z[[2]]$SYMBOL)
 
-##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
 for( i in 1:genes_no ) {
   if ( genes[i] %in% rownames(data) ) {
+    
+    ##### CDF plot
     output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
+    ##### Bar-plot of read counts
+    ##### First map the gene symbol to Ensmebl ID (used in the counts data)
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  genes[i] ]
+    
+    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    
+    ##### Density plot - expression distribution
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
   }
 }
 
@@ -4445,6 +4536,13 @@ for( i in 1:genes_no ){
     cat("<font size=\"2\">\n")
     cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
     cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
+    cat("\n<summary>Read counts</summary>\n")
+    cat(renderTags(output_counts[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
     cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n<details>\n")
@@ -4860,15 +4958,25 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
+output_counts <- list()
 output_density <- list()
 genes <- cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
-##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
 for( i in 1:genes_gains_no ) {
   if ( genes[i] %in% rownames(data) ) {
+    
+    ##### CDF plot
     output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/")) 
+    ##### Bar-plot of read counts
+    ##### First map the gene symbol to Ensmebl ID (used in the counts data)
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  genes[i] ]
+    
+    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    
+    ##### Density plot - expression distribution
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
   }
 }
 
@@ -4882,6 +4990,13 @@ for( i in 1:genes_gains_no ){
     cat("<font size=\"2\">\n")
     cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
     cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
+    cat("\n<summary>Read counts</summary>\n")
+    cat(renderTags(output_counts[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
     cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n<details>\n")
@@ -4914,15 +5029,25 @@ rm(list = ls(pattern='^output*'))
 suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
+output_counts <- list()
 output_density <- list()
 genes <- cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
-##### For each gene generate CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
 for( i in 1:genes_losses_no ) {
   if ( genes[i] %in% rownames(data) ) {
+    
+    ##### CDF plot
     output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    ##### Bar-plot of read counts
+    ##### First map the gene symbol to Ensmebl ID (used in the counts data)
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  genes[i] ]
+    
+    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    
+    ##### Density plot - expression distribution
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
   }
 }
 
@@ -4936,6 +5061,13 @@ for( i in 1:genes_losses_no ){
     cat("<font size=\"2\">\n")
     cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
     cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
+    cat("\n<summary>Read counts</summary>\n")
+    cat(renderTags(output_counts[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
     cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n<details>\n")
