@@ -258,3 +258,8 @@ rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_n
 ##### Remove the assocaited MD file and the redundant folder with plots that are imbedded in the HTML report
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.md"), recursive = TRUE)
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report_files"), recursive = TRUE)
+
+##### Clear workspace
+rm(list=ls())
+##### Close any open graphics devices
+graphics.off()
