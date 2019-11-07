@@ -1644,7 +1644,7 @@ sv_prioritize_short <- function(sv_file) {
 ##### Code from UMCCRISE to prioritise SV events (version for "-manta.tsv" files https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd
 sv_prioritize <- function(sv_file) {
   
-  col_types <- "ccciiccccciiccccdl"
+  col_types <- "ccciiccccciiccccdc"
   sv_all = NULL
 
   if (length(readLines(con = sv_file, n = 2)) > 1) {
@@ -3513,11 +3513,16 @@ sunburst.all.df <- data.frame(ids = names(alt_genes.all.list),
 )
   
 for ( alt in names(alt_genes.all.list) ) {
-  sunburst.all.df <- rbind( sunburst.all.df , data.frame(ids = paste( alt, names(alt_genes.all.list[[ alt ]]), sep = " - "), 
-        labels = paste0("\t\t", names(alt_genes.all.list[[ alt ]]), "\t\t"),
-        parents = rep( alt , length(alt_genes.all.list[[ alt ]])),
-        values = as.numeric(alt_genes.all.list[[ alt ]])
-        ) )
+  
+  ##### Add only alteration type which has at least one alteration detected
+  if ( length(alt_genes.all[ names(alt_genes.all) %in% names(alt_genes.all.list[[ alt ]]) ])  > 0 ) {
+      
+    sunburst.all.df <- rbind( sunburst.all.df , data.frame(ids = paste( alt, names(alt_genes.all.list[[ alt ]]), sep = " - "), 
+          labels = paste0("\t\t", names(alt_genes.all.list[[ alt ]]), "\t\t"),
+          parents = rep( alt , length(alt_genes.all.list[[ alt ]])),
+          values = as.numeric(alt_genes.all.list[[ alt ]])
+          ) )
+  }
 }
 
 sunburst_plot <- NULL
@@ -3528,9 +3533,10 @@ alt_genes.list <- alt_genes.all.list
 alt_genes <- alt_genes.all[ alt_genes.all > 1 ]
 
 for ( alt in names(alt_genes.list) ) {
+
+  ##### Add only alteration type which has at least one alteration detected
   if ( length(alt_genes[ names(alt_genes) %in% names(alt_genes.list[[ alt ]]) ])  > 0 ) {
     alt_genes.list[[ alt ]] <- alt_genes[ names(alt_genes) %in% names(alt_genes.list[[ alt ]]) ]
-  
   } else {
     alt_genes.list[[ alt ]] <- NULL
   }
