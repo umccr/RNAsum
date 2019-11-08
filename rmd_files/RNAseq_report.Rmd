@@ -3838,6 +3838,7 @@ genes <- ref_genes.list[["summary"]]$Mutated
 if ( length(genes) == 0 ) {
   genes <- NULL
   limit_genes <- FALSE
+  genes_no <- 0
 } else if ( length(genes) > params$top_genes ) {
   limit_genes <- TRUE
   genes_no <- params$top_genes
@@ -3911,7 +3912,7 @@ genes <- mut_genes.expr.z[[2]]$SYMBOL
 
 ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
 for( i in 1:genes_no ) {
-  if ( genes[i] %in% rownames(data) ) {
+  if ( genes_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
     output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
@@ -3928,38 +3929,43 @@ for( i in 1:genes_no ) {
 }
 
 ##### Now once the plots are ready show them in separate tabs
-for( i in 1:genes_no ){
-  if ( genes[i] %in% rownames(data) ) {
-    cat("\n#### ", genes[i], "\n")
-    cat(renderTags(output_cdf[[i]])$html)
-    cat("\n<details>\n")
-    cat("\n<summary>Plot legend</summary>\n")
-    cat("<font size=\"2\">\n")
-    cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
-    cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Read counts</summary>\n")
-    cat(renderTags(output_counts[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Expression distribution patterns</summary>\n")
-    cat(renderTags(output_density[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n</details>\n")
-    cat("\n***\n")
-  } else {
-    cat("\n#### ", genes[i], "\n")
-    cat("\nExpression data is not available for that gene.\n")
-    cat("\n***\n")
+if ( genes_no != 0 ) {
+  for( i in 1:genes_no ){
+    if ( genes[i] %in% rownames(data) ) {
+      cat("\n#### ", genes[i], "\n")
+      cat(renderTags(output_cdf[[i]])$html)
+      cat("\n<details>\n")
+      cat("\n<summary>Plot legend</summary>\n")
+      cat("<font size=\"2\">\n")
+      cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
+      cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Read counts</summary>\n")
+      cat(renderTags(output_counts[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Expression distribution patterns</summary>\n")
+      cat(renderTags(output_density[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n</details>\n")
+      cat("\n***\n")
+    } else {
+      cat("\n#### ", genes[i], "\n")
+      cat("\nExpression data is not available for that gene.\n")
+      cat("\n***\n")
+    }
   }
+} else {
+  cat("\nNo alterations were reported.\n")
+   cat("\n***\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4234,6 +4240,7 @@ output_table_perc <- list()
 ##### Deal with no genes or when more than 10 genes are of interest
 if ( length(genes) == 0 ) {
   genes <- NULL
+  genes_no <- 0
 } else if ( length(genes) > params$top_genes ) {
   genes_no <- params$top_genes
 } else {
@@ -4245,51 +4252,51 @@ genes <- c(genes, as.character(fusions$geneB))
 
 ##### Collect info and plots for each of the top fusions
 for( i in 1:genes_no ) {
-  
-  geneA <- as.vector(fusions$geneA[i])
-  geneB <- as.vector(fusions$geneB[i])
-  
-  ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
-  if ( geneA %in% rownames(data) ) {
+  if ( genes_no > 0 ) {
+    geneA <- as.vector(fusions$geneA[i])
+    geneB <- as.vector(fusions$geneB[i])
     
-    ##### CDF plot
-    output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
+    if ( geneA %in% rownames(data) ) {
+      
+      ##### CDF plot
+      output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+      
+      ##### Bar-plot of read counts
+      ##### First map the gene symbol to Ensmebl ID (used in the counts data)
+      genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  geneA ]
+      
+      output_counts_A[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+      
+      ##### Density plot - expression distribution
+      output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
+    }
     
-    ##### Bar-plot of read counts
-    ##### First map the gene symbol to Ensmebl ID (used in the counts data)
-    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  geneA ]
-    
-    output_counts_A[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
-    
-    ##### Density plot - expression distribution
-    output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
-    
+    ##### Gene B
+    if ( geneB %in% rownames(data) && geneB != geneA) {
+      
+      ##### CDF plot
+      output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+      
+      ##### Bar-plot of read counts
+      ##### First map the gene symbol to Ensmebl ID (used in the counts data)
+      genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  geneB ]
+      
+      output_counts_B[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+      
+      ##### Density plot - expression distribution
+      output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
+    }
+      
+    ##### Generate expression summary tables
+    genes <- c(geneA, geneB)
+      
+    ##### Z-scores
+    output_table_Z[[i]] <- exprTable( genes = unique(genes), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+      
+    ##### Percentiles
+    output_table_perc[[i]] <- exprTable( genes = unique(genes), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
   }
-  
-  ##### Gene B
-  if ( geneB %in% rownames(data) && geneB != geneA) {
-    
-    ##### CDF plot
-    output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
-    
-    ##### Bar-plot of read counts
-    ##### First map the gene symbol to Ensmebl ID (used in the counts data)
-    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  geneB ]
-    
-    output_counts_B[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
-    
-    ##### Density plot - expression distribution
-    output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
-  }
-    
-  ##### Generate expression summary tables
-  genes <- c(geneA, geneB)
-    
-  ##### Z-scores
-  output_table_Z[[i]] <- exprTable( genes = unique(genes), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
-    
-  ##### Percentiles
-  output_table_perc[[i]] <- exprTable( genes = unique(genes), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4298,108 +4305,113 @@ detach("package:plotly", unload=FALSE)
 
 ```{r top_hits_fusions_display, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk, results="asis"}
 ##### Now once the plots are ready show them in separate tabs
-for( i in 1:genes_no ) {
-  geneA <- as.vector(fusions$geneA[i])
-  geneB <- as.vector(fusions$geneB[i])
-  
-  breakpointA <- as.vector(fusions$breakpointA[i])
-  breakpointB <- as.vector(fusions$breakpointB[i])
-  
-  cat("\n#### ", paste(fusions$geneA[i], fusions$geneB[i], sep="-"), "\n")
-  
-  ##### Check if Arriba fusion plot exists. Skip this section if it doesn't
-  if ( file.exists(gsub(":", ".", paste0(params$report_dir, "/results/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png"))) ) {
-    cat("\n##### Fusion genes visualisation\n")
-
-    ##### Present Arriba plots it in the report
-    cat(paste0("![](", gsub(":", ".", paste0(params$report_dir, "/results/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png)"))), "\n")
-    cat("\n***\n")
-  }
-  
-  cat("\n##### Fusion genes expression\n")
-  cat("\nmRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.\n")
+if ( genes_no > 0 ) {
+  for( i in 1:genes_no ) {
+    geneA <- as.vector(fusions$geneA[i])
+    geneB <- as.vector(fusions$geneB[i])
     
-  ##### Display CDF plots for each fusion gene pair
-  suppressMessages(library(plotly))
+    breakpointA <- as.vector(fusions$breakpointA[i])
+    breakpointB <- as.vector(fusions$breakpointB[i])
     
-  if ( geneA %in% rownames(data) ) {
-    cat(renderTags(output_cdf_A[[i]])$html)
-    cat("\n<details>\n")
-    cat("\n<summary>Plot legend</summary>\n")
-    cat("<font size=\"2\">\n")
-    cat(paste0("Cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", geneA, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Read counts</summary>\n")
-    cat(renderTags(output_counts_A[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Bar-plot illustrating read counts for *", geneA, "* across all samples. The *", geneA, "* read count in patient's sample is indicated by *black bar*.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Expression distribution patterns</summary>\n")
-    cat(renderTags(output_density_A[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", geneA, "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", geneA, "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
+    cat("\n#### ", paste(fusions$geneA[i], fusions$geneB[i], sep="-"), "\n")
+    
+    ##### Check if Arriba fusion plot exists. Skip this section if it doesn't
+    if ( file.exists(gsub(":", ".", paste0(params$report_dir, "/results/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png"))) ) {
+      cat("\n##### Fusion genes visualisation\n")
+  
+      ##### Present Arriba plots it in the report
+      cat(paste0("![](", gsub(":", ".", paste0(params$report_dir, "/results/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png)"))), "\n")
+      cat("\n***\n")
+    }
+    
+    cat("\n##### Fusion genes expression\n")
+    cat("\nmRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.\n")
+      
+    ##### Display CDF plots for each fusion gene pair
+    suppressMessages(library(plotly))
+      
+    if ( geneA %in% rownames(data) ) {
+      cat(renderTags(output_cdf_A[[i]])$html)
+      cat("\n<details>\n")
+      cat("\n<summary>Plot legend</summary>\n")
+      cat("<font size=\"2\">\n")
+      cat(paste0("Cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", geneA, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Read counts</summary>\n")
+      cat(renderTags(output_counts_A[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Bar-plot illustrating read counts for *", geneA, "* across all samples. The *", geneA, "* read count in patient's sample is indicated by *black bar*.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Expression distribution patterns</summary>\n")
+      cat(renderTags(output_density_A[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", geneA, "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", geneA, "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("<br />")
+    } else {
+      cat(paste0("\nExpression data is not available for ", geneA, ".\n"))
+    }
+    
+    if ( geneB == geneA ) {
+      cat(paste0("\n"))
+    } else if ( geneB %in% rownames(data)  ) {
+      cat(renderTags(output_cdf_B[[i]])$html)
+      cat("\n<details>\n")
+      cat("\n<summary>Plot legend</summary>\n")
+      cat("<font size=\"2\">\n")
+      cat(paste0("Cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", geneB, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Read counts</summary>\n")
+      cat(renderTags(output_counts_B[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Bar-plot illustrating read counts for *", geneB, "* across all samples. The *", geneB, "* read count in patient's sample is indicated by *black bar*.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Expression distribution patterns</summary>\n")
+      cat(renderTags(output_density_B[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", geneB, "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", geneB, "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n***\n")
+    } else {
+      cat(paste0("\nExpression data is not available for ", geneB, ".\n"))
+    }
+      
+    cat("\n##### Summary table {.tabset}\n")
+    cat("\n###### Z-scores\n")
+    cat(renderTags(output_table_Z[[i]])$html)
     cat("<br />")
-  } else {
-    cat(paste0("\nExpression data is not available for ", geneA, ".\n"))
-  }
-  
-  if ( geneB == geneA ) {
-    cat(paste0("\n"))
-  } else if ( geneB %in% rownames(data)  ) {
-    cat(renderTags(output_cdf_B[[i]])$html)
     cat("\n<details>\n")
-    cat("\n<summary>Plot legend</summary>\n")
-    cat("<font size=\"2\">\n")
-    cat(paste0("Cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", geneB, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Read counts</summary>\n")
-    cat(renderTags(output_counts_B[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Bar-plot illustrating read counts for *", geneB, "* across all samples. The *", geneB, "* read count in patient's sample is indicated by *black bar*.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Expression distribution patterns</summary>\n")
-    cat(renderTags(output_density_B[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", geneB, "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", geneB, "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n<summary>Table legend</summary>\n")
+    cat("\n<font size=\"2\">\n")
+    cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ",  comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n"))
     cat("\n</font>\n")
     cat("\n</details>\n")
     cat("\n***\n")
-  } else {
-    cat(paste0("\nExpression data is not available for ", geneB, ".\n"))
+      
+    cat("\n###### Percentiles\n")
+    cat(renderTags(output_table_perc[[i]])$html)
+    cat("<br />")
+    cat("\n<details>\n")
+    cat("\n<summary>Table legend</summary>\n")
+    cat("\n<font size=\"2\">\n")
+    cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n")
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n***\n")
   }
-    
-  cat("\n##### Summary table {.tabset}\n")
-  cat("\n###### Z-scores\n")
-  cat(renderTags(output_table_Z[[i]])$html)
-  cat("<br />")
-  cat("\n<details>\n")
-  cat("\n<summary>Table legend</summary>\n")
-  cat("\n<font size=\"2\">\n")
-  cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ",  comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n"))
-  cat("\n</font>\n")
-  cat("\n</details>\n")
-  cat("\n***\n")
-    
-  cat("\n###### Percentiles\n")
-  cat(renderTags(output_table_perc[[i]])$html)
-  cat("<br />")
-  cat("\n<details>\n")
-  cat("\n<summary>Table legend</summary>\n")
-  cat("\n<font size=\"2\">\n")
-  cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n")
-  cat("\n</font>\n")
-  cat("\n</details>\n")
-  cat("\n***\n")
+} else {
+  cat("\nNo alterations were reported.\n")
+   cat("\n***\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4441,6 +4453,7 @@ genes <- genes[ genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBO
 if ( length(genes) == 0 ) {
   genes <- NULL
   limit_genes <- FALSE
+  genes_no <- 0
 } else if ( length(genes) > params$top_genes ) {
   limit_genes <- TRUE
   genes_no <- params$top_genes
@@ -4521,7 +4534,7 @@ genes <- unique(sv_genes.expr.z[[2]]$SYMBOL)
 
 ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
 for( i in 1:genes_no ) {
-  if ( genes[i] %in% rownames(data) ) {
+  if ( genes_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
     output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
@@ -4538,37 +4551,42 @@ for( i in 1:genes_no ) {
 }
 
 ##### Now once the plots are ready show them in separate tabs
-for( i in 1:genes_no ){
-  if ( genes[i] %in% rownames(data) ) {
-    cat("\n#### ", genes[i], "\n")
-    cat(renderTags(output_cdf[[i]])$html)
-    cat("\n<details>\n")
-    cat("\n<summary>Plot legend</summary>\n")
-    cat("<font size=\"2\">\n")
-    cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
-    cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Read counts</summary>\n")
-    cat(renderTags(output_counts[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Expression distribution patterns</summary>\n")
-    cat(renderTags(output_density[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n***\n")
-  } else {
-    cat("\n#### ", genes[i], "\n")
-    cat("\nExpression data is not available for that gene.\n")
-    cat("\n***\n")
+if ( genes_no != 0 ) {
+  for( i in 1:genes_no ){
+    if ( genes[i] %in% rownames(data) ) {
+      cat("\n#### ", genes[i], "\n")
+      cat(renderTags(output_cdf[[i]])$html)
+      cat("\n<details>\n")
+      cat("\n<summary>Plot legend</summary>\n")
+      cat("<font size=\"2\">\n")
+      cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
+      cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Read counts</summary>\n")
+      cat(renderTags(output_counts[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Expression distribution patterns</summary>\n")
+      cat(renderTags(output_density[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n***\n")
+    } else {
+      cat("\n#### ", genes[i], "\n")
+      cat("\nExpression data is not available for that gene.\n")
+      cat("\n***\n")
+    }
   }
+} else {
+  cat("\nNo alterations were reported.\n")
+   cat("\n***\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -4977,7 +4995,7 @@ genes <- cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
 ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
 for( i in 1:genes_gains_no ) {
-  if ( genes[i] %in% rownames(data) ) {
+  if ( genes_gains_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
     output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
@@ -4994,37 +5012,42 @@ for( i in 1:genes_gains_no ) {
 }
 
 ##### Now once the plots are ready show them in separate tabs
-for( i in 1:genes_gains_no ){
-  if ( genes[i] %in% rownames(data) ) {
-    cat("\n##### ", genes[i], "\n")
-    cat(renderTags(output_cdf[[i]])$html)
-    cat("\n<details>\n")
-    cat("\n<summary>Plot legend</summary>\n")
-    cat("<font size=\"2\">\n")
-    cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
-    cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Read counts</summary>\n")
-    cat(renderTags(output_counts[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Expression distribution patterns</summary>\n")
-    cat(renderTags(output_density[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n***\n")
-  } else {
-    cat("\n#### ", genes[i], "\n")
-    cat("\nExpression data is not available for that gene.\n")
-    cat("\n***\n")
+if ( genes_gains_no != 0 ) {
+  for( i in 1:genes_gains_no ){
+    if ( genes[i] %in% rownames(data) ) {
+      cat("\n##### ", genes[i], "\n")
+      cat(renderTags(output_cdf[[i]])$html)
+      cat("\n<details>\n")
+      cat("\n<summary>Plot legend</summary>\n")
+      cat("<font size=\"2\">\n")
+      cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
+      cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Read counts</summary>\n")
+      cat(renderTags(output_counts[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Expression distribution patterns</summary>\n")
+      cat(renderTags(output_density[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n***\n")
+    } else {
+      cat("\n#### ", genes[i], "\n")
+      cat("\nExpression data is not available for that gene.\n")
+      cat("\n***\n")
+    }
   }
+} else {
+  cat("\nNo alterations were reported.\n")
+   cat("\n***\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -5048,7 +5071,7 @@ genes <- cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
 ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample 
 for( i in 1:genes_losses_no ) {
-  if ( genes[i] %in% rownames(data) ) {
+  if ( genes_losses_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
     output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
@@ -5065,37 +5088,42 @@ for( i in 1:genes_losses_no ) {
 }
 
 ##### Now once the plots are ready show them in separate tabs
-for( i in 1:genes_losses_no ){
-  if ( genes[i] %in% rownames(data) ) {
-    cat("\n##### ", genes[i], "\n")
-    cat(renderTags(output_cdf[[i]])$html)
-    cat("\n<details>\n")
-    cat("\n<summary>Plot legend</summary>\n")
-    cat("<font size=\"2\">\n")
-    cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
-    cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Read counts</summary>\n")
-    cat(renderTags(output_counts[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n<details>\n")
-    cat("\n<summary>Expression distribution patterns</summary>\n")
-    cat(renderTags(output_density[[i]])$html)
-    cat("<font size=\"2\">\n")
-    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-    cat("\n***\n")
-  } else {
-    cat("\n#### ", genes[i], "\n")
-    cat("\nExpression data is not available for that gene.\n")
-    cat("\n***\n")
+if ( genes_losses_no != 0 ) {
+  for( i in 1:genes_losses_no ){
+    if ( genes[i] %in% rownames(data) ) {
+      cat("\n##### ", genes[i], "\n")
+      cat(renderTags(output_cdf[[i]])$html)
+      cat("\n<details>\n")
+      cat("\n<summary>Plot legend</summary>\n")
+      cat("<font size=\"2\">\n")
+      cat(paste0("**Top panel**: cumulative distribution function (CDF) plot illustrating the proportion (*y-axis*) of values less than or equal to expression levels (Z-scores, *x-axis*) of *", genes[i], "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n\n"))
+      cat(paste0("**Bottom panel**: box-plot presenting expression level (Z-score) of *", genes[i], "* in patient's sample (*black dot*) and its expression levels observed across samples from other reference cancer cohort(s).\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Read counts</summary>\n")
+      cat(renderTags(output_counts[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Bar-plot illustrating read counts for *", genes[i], "* across all samples. The *", genes[i], "* read count in patient's sample is indicated by *black bar*.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n<details>\n")
+      cat("\n<summary>Expression distribution patterns</summary>\n")
+      cat(renderTags(output_density[[i]])$html)
+      cat("<font size=\"2\">\n")
+      cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", genes[i], "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", genes[i], "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+      cat("\n</font>\n")
+      cat("\n</details>\n")
+      cat("\n***\n")
+    } else {
+      cat("\n#### ", genes[i], "\n")
+      cat("\nExpression data is not available for that gene.\n")
+      cat("\n***\n")
+    }
   }
+} else {
+  cat("\nNo alterations were reported.\n")
+   cat("\n***\n")
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
