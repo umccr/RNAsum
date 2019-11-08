@@ -2295,6 +2295,12 @@ if ( runPurpleChunk ) {
     cn_top <- params$cn_gain
   }
   
+  ##### If the difference is 0 then increase/decrease threshold by 1
+  if  ( abs(cn_top-cn_bottom) == 0 ) {
+    cn_top <- cn_top + 1
+    cn_bottom <- cn_bottom - 1
+  }
+  
   ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MeanCopyNumber < cn_bottom | ref_genes.list[["summary"]]$CN$MeanCopyNumber > cn_top, ]$Gene)
 }
 
@@ -3030,18 +3036,7 @@ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
 cn_data.sub <- cn_data.sub[ cn_data.sub$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
 
 ##### Keep genes meeting the user-defined CN values thresholds
-if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
-  cn_bottom <- round(cn_data.all.percent[2], digits = 0)
-  cn_top <- round(cn_data.all.percent[20], digits = 0)
-  
-  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN < cn_bottom | cn_data.sub$CN > cn_top, ]
-  
-} else {
-  ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN < cn_bottom | cn_data.sub$CN > cn_top, ]
-  
-  cn_bottom <- params$cn_loss
-  cn_top <- params$cn_gain
-}
+ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN < cn_bottom | cn_data.sub$CN > cn_top, ]
 
 ##### Clean the space
 rm(cn_data, cn_data.sub, expr_data, gene.mut, mut_data, targets, expr_data.z, expr_data.perc, expr_data.z.sub, expr_data.perc.sub, expr_genes, gene.mut.sub, genes.intersect)
@@ -3502,9 +3497,15 @@ alt_genes.all.list$Cancer <- NULL
 alt_genes.all <- sort(table(unlist(alt_genes.all.list)), decreasing = TRUE)
 
 for ( alt in names(alt_genes.all.list) ) {
-  alt_genes.all.list[[ alt ]] <- alt_genes.all[ names(alt_genes.all) %in% alt_genes.all.list[[ alt ]] ]
+
+  ##### Add only alteration type which has at least one alteration detected
+  if ( length(alt_genes.all[ names(alt_genes.all) %in% alt_genes.all.list[[ alt ]] ])  > 0 ) {
+    alt_genes.all.list[[ alt ]] <- alt_genes.all[ names(alt_genes.all) %in% alt_genes.all.list[[ alt ]] ]
+  } else {
+    alt_genes.all.list[[ alt ]] <- NULL
+  }
 }
-  
+
 sunburst.all.df <- data.frame(ids = names(alt_genes.all.list),
   labels = names(alt_genes.all.list),
   parents = rep("", length(alt_genes.all.list)),
