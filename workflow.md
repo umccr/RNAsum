@@ -1,4 +1,4 @@
-## RNA-seq report data processing workflow
+## RNAsum data processing workflow
 
 The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* data **[processing](#1-data-processing)**, (**2**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**3**) results **[annotation](#3-results-annotation)** and (**4**) presentation in the *Patient Transcriptome Summary* **[report](#4-report-generation)**. 
 

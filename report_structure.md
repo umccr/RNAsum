@@ -1,4 +1,4 @@
-## RNA-seq report sections
+## RNAsum sections
 
 <!-- vim-markdown-toc GFM -->
 * [Input data](#input-data)
@@ -19,13 +19,17 @@
 
 <!-- vim-markdown-toc -->
 
-
+<br/> 
 
 The **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. Genes will be ordered by increasing *variants* `TIER`, *SV* `score` and `CN` *value*, resepctively, and then by decreasing absolute values in the `Patient` vs selected `dataset` column. Moreover, gene fusions detected in WTS data and reported in **`Fusion genes`** section will be first ordered based on the evidence from genome-based data (`DNA support (gene A/B)` columns).
+
+***
 
 ### Input data
 
 Summary of the input data
+
+***
 
 ### Clinical information
 
@@ -33,13 +37,19 @@ Treatment regimen information for patient for which clinical information is avai
 
 NOTE: for confidentiality reasons, the timeline (x-axis) projecting patient’s treatment regimens (y-axis) is set to start from 1st January 2000, but the treatments lengths are preserved.
 
+***
+
 ### Findings summary
 
 Plot and table summarising altered genes listed across various report sections
 
+***
+
 ### Mutated genes
 
 mRNA expression levels of mutated genes (containing single nucleotide variants (SNVs) or insertions/deletions (indels)) measured in patient's sample and their average mRNA expression in samples from cancer patients (from [TCGA](https://portal.gdc.cancer.gov/)). This section is available only for samples with available *[umccrise](https://github.com/umccr/umccrise) results*
+
+***
 
 ### Fusion genes
 
@@ -66,30 +76,51 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 4. **Split reads** > 1
 5. **Pair reads** > 1 and **split reads** > 1
 
+***
+
 ### Structural variants
 
 Similar to *Mutated genes* analysis but limited to genes located within structural variants (SVs) detected by [MANTA](https://github.com/Illumina/manta) using genomic data. This section is available only for samples with available *[MANTA](https://github.com/Illumina/manta) results*
+
+***
 
 ### CN altered genes
 
 Section overlaying the mRNA expression data for [cancer genes](#cancer-genes) with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple)) and mutation status, if available.
 
+***
+
 ### Immune markers
 
 Similar to *Mutated genes* analysis but limited to genes considered to be immune markers
+
+***
 
 ### HRD genes
 
 Similar to *Mutated genes* analysis but limited to genes considered to be homologous recombination deficiency (HRD) genes
 
+***
+
 ### Cancer genes
 
 Similar to analysis above, but limited to *UMCCR cancer genes*
+
+***
 
 ### Drug matching
 
 List of drugs targeting variants in detected *mutated genes*, *fusion genes*, *structural variants-affected genes*, *CN altered genes*, *HRD genes* and dysregulated *cancer genes*, which can be considered in the treatment decision making process
 
+###### Note
+
+This section is not displayed as default. Set the `--drugs` argument to `TRUE` to present it in the report.
+
+***
+
 ### Addendum
 
+Additional information, including `Parameters`, `Reporter details` and R `Session information`,  added at the end of the report.
+
+<br/>
 
