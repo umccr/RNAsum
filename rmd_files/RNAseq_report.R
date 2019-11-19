@@ -26,6 +26,7 @@
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (default) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (default) and "FALSE"
 #   scaling:      Apply "gene-wise" (default) or "group-wise" data scaling
+#   drugs:        Include drug matching section in the report. Available options are: "TRUE" and "FALSE" (default)
 #   immunogram:   Include immunogram in the report. Available options are: "TRUE" and "FALSE" (default for now, as this feature is not finilised yet)
 #   umccrise (optional):  Location of the corresponding umccrise output from genomic-related data (including PCGR, PURPLE and Manta output files)
 #   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "4")
@@ -90,6 +91,8 @@ option_list = list(
               help="Log (base 2) transform data before normalisation"),
   make_option("--scaling", action="store", default="gene-wise", type='character',
               help="Scaling for z-score transformation (gene-wise or group-wise"),
+  make_option("--drugs", action="store", default=FALSE, type='logical',
+              help="Include drug matching section in the report"),
   make_option("--immunogram", action="store", default=FALSE, type='logical',
               help="Include immunogram in the report"),
   make_option("--umccrise", action="store", default=NULL, type='character',
@@ -253,7 +256,7 @@ if ( !file.exists(opt$report_dir) ) {
 }
 
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), bcbio_rnaseq = opt$bcbio_rnaseq, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = opt$batch_rm, filter = opt$filter, log = opt$log, scaling = opt$scaling, immunogram = opt$immunogram, umccrise = opt$umccrise, clinical_info = opt$clinical_info, clinical_id = opt$clinical_id, subject_id = opt$subject_id, sample_source = opt$sample_source, project = opt$project, dataset_name_incl = dataset_name_incl, save_tables = opt$save_tables, pcgr_tier = opt$pcgr_tier, pcgr_splice_vars = opt$pcgr_splice_vars, cn_loss = opt$cn_loss, cn_gain = opt$cn_gain, top_genes = opt$top_genes, hide_code_btn = opt$hide_code_btn, grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), bcbio_rnaseq = opt$bcbio_rnaseq, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = opt$batch_rm, filter = opt$filter, log = opt$log, scaling = opt$scaling, drugs = opt$drugs, immunogram = opt$immunogram, umccrise = opt$umccrise, clinical_info = opt$clinical_info, clinical_id = opt$clinical_id, subject_id = opt$subject_id, sample_source = opt$sample_source, project = opt$project, dataset_name_incl = dataset_name_incl, save_tables = opt$save_tables, pcgr_tier = opt$pcgr_tier, pcgr_splice_vars = opt$pcgr_splice_vars, cn_loss = opt$cn_loss, cn_gain = opt$cn_gain, top_genes = opt$top_genes, hide_code_btn = opt$hide_code_btn, grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
 
 ##### Remove the assocaited MD file and the redundant folder with plots that are imbedded in the HTML report
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.md"), recursive = TRUE)
