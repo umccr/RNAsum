@@ -46,7 +46,7 @@ source load_rnaseq-report.sh
 
 The pipeline consist of four main components illustrated and breifly described below. See the [workflow.md](workflow.md) for the complete description of the **[data processing workflow](workflow.md)**.
 
-<img src="img/RNAseq_report_workflow.png" width="100%"> 
+<img src="img/RNAsum_workflow.png" width="100%"> 
 
 <br/>
 
