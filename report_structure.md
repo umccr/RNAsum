@@ -80,7 +80,7 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 
 ### Structural variants
 
-Similar to *Mutated genes* analysis but limited to genes located within structural variants (SVs) detected by [MANTA](https://github.com/Illumina/manta) using genomic data. This section is available only for samples with available *[MANTA](https://github.com/Illumina/manta) results*
+Similar to *Mutated genes* analysis but limited to genes located within structural variants (SVs) detected by [MANTA](https://github.com/Illumina/manta) using genomic data. This section is available only for samples with available *[MANTA](https://github.com/Illumina/manta) results*.
 
 ***
 
@@ -92,25 +92,25 @@ Section overlaying the mRNA expression data for [cancer genes](#cancer-genes) wi
 
 ### Immune markers
 
-Similar to *Mutated genes* analysis but limited to genes considered to be immune markers
+Similar to *Mutated genes* analysis but limited to genes considered to be immune markers. The immune markers used in the report are listed in PanelApp panel [Immune markers for WTS report](https://panelapp.agha.umccr.org/panels/243/).
 
 ***
 
 ### HRD genes
 
-Similar to *Mutated genes* analysis but limited to genes considered to be homologous recombination deficiency (HRD) genes
+Similar to *Mutated genes* analysis but limited to genes considered to be homologous recombination deficiency (HRD) genes. The HRD genes used in the report are listed in PanelApp panel [Homologous recombination deficiency (HDR) for WTS report](https://panelapp.agha.umccr.org/panels/242/).
 
 ***
 
 ### Cancer genes
 
-Similar to analysis above, but limited to *UMCCR cancer genes*
+Similar to analysis above, but limited to *UMCCR cancer genes*.
 
 ***
 
 ### Drug matching
 
-List of drugs targeting variants in detected *mutated genes*, *fusion genes*, *structural variants-affected genes*, *CN altered genes*, *HRD genes* and dysregulated *cancer genes*, which can be considered in the treatment decision making process
+List of drugs targeting variants in detected *mutated genes*, *fusion genes*, *structural variants-affected genes*, *CN altered genes*, *HRD genes* and dysregulated *cancer genes*, which can be considered in the treatment decision making process.
 
 ###### Note
 
