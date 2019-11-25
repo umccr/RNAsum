@@ -184,7 +184,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, da
     dataset.counts <- as.data.frame( read.table(gzfile(ref_data[[i]][1]), header=TRUE, sep="\t", row.names=NULL) )
     
     ##### Add prexit to sample names
-    colnames(dataset.counts) <- paste(levels(target.comb[,"Dataset"])[i], colnames(dataset.counts), sep = ".")
+    colnames(dataset.counts) <- paste(unique(target.comb[,"Dataset"])[i], colnames(dataset.counts), sep = ".")
     
     ##### List genes present in individal files
     gene_list <- c( gene_list, as.vector(dataset.counts[,1]) )
@@ -1825,6 +1825,7 @@ suppressMessages(library(matrixStats))
 suppressMessages(library(tibble))
 suppressMessages(library(knitr))
 suppressMessages(library(scales))
+suppressMessages(library(RCircos))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggforce))
 suppressMessages(library(pdftools))
@@ -4125,13 +4126,15 @@ Fusion events are ordered by the following columns:
 
 ***
 
-### - Genomic view
+### - Genomic view {.tabset}
 
 <span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
+#### Circos
+
+```{r circos_prep, comment = NA, message=FALSE, warning=FALSE, fig.width = 6, fig.height = 6, eval = runFusionChunk}
 ##### Keep only reported fusions or those with or cancer gene(s) involved
 if ( runSVsChunk ) {
   fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
@@ -4139,33 +4142,76 @@ if ( runSVsChunk ) {
   fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" , ]
 }
 
-##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
 if ( nrow(fusion_annot_top) > 0 ) {
-  BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]])
-  BezierPlot
-    
-} else {
-  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
-}
-```
-
-```{r genomic_view_plot_fusions_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
-##### Save the BezierPlot as png
-if ( exists("BezierPlot") ) {
+  
+  ##### Create folder for fusion plots
   fusionsPlotDir <- paste(params$report_dir, "results/fusionsPlot", sep = "/")
     
   if ( !file.exists(fusionsPlotDir) ) {
     dir.create(fusionsPlotDir, recursive=TRUE)
   }
+  
+  ##### Prepare object for RCircos
+  eval(parse( text=paste0("data(UCSC.HG", params$ucsc_genome_assembly, ".Human.CytoBandIdeogram)")))
+  cyto.info <- eval(parse( text=paste0("UCSC.HG", params$ucsc_genome_assembly, ".Human.CytoBandIdeogram")))
     
-  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
-  BezierPlot
+  ##### Check if all driver genes are located in standard chromosomes
+  fusion_annot_top <- fusion_annot_top[ paste0("chr", fusion_annot_top$SEQNAME) %in% cyto.info$Chromosome,  ]
+  
+  fusion_annot_top.circos.pairs <- fusion_annot_top[, c("SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL","SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "SYMBOL.1")]
+  
+  ##### Add "chr" to chromosome numbers
+  fusion_annot_top.circos.pairs$SEQNAME <- paste0("chr", fusion_annot_top.circos.pairs$SEQNAME)
+  fusion_annot_top.circos.pairs$SEQNAME.1 <- paste0("chr", fusion_annot_top.circos.pairs$SEQNAME.1)
+  
+  ##### Change column names
+  names(fusion_annot_top.circos.pairs) <- gsub("SEQNAME", "Chromosome", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("GENESEQSTART", "chromStart", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("GENESEQEND", "chromEnd", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("SYMBOL", "Gene", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("Chromosome.1", "Chromosome", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("chromStart.1", "chromStart", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("chromEnd.1", "chromEnd", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("Gene.1", "Gene", names(fusion_annot_top.circos.pairs))
+  
+  fusion_annot_top.circos <- rbind(fusion_annot_top.circos.pairs[, 1:4 ], fusion_annot_top.circos.pairs[, 5:8 ])
+  fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[, colnames(fusion_annot_top.circos.pairs) %!in% c("Gene", "Gene.1") ]
+  
+  ##### Generate circos plot
+  RCircos.Set.Core.Components( cyto.info=cyto.info, chr.exclude=NULL, tracks.inside=4, tracks.outside=0 )
+  RCircos.Set.Plot.Area()  
+  RCircos.Chromosome.Ideogram.Plot()
+  RCircos.Gene.Connector.Plot(genomic.data = fusion_annot_top.circos, track.num = 1, side="in") 
+  RCircos.Gene.Name.Plot(gene.data = fusion_annot_top.circos, name.col = 4, track.num = 2, side = "in")
+  RCircos.Link.Plot(link.data = fusion_annot_top.circos.pairs, track.num=4, by.chromosome=TRUE, is.sorted=FALSE, lineWidth=rep(2, nrow(fusion_annot_top.circos.pairs)))
   invisible(dev.off())
+  
+  ##### Clean the space
+  rm(fusion_annot_top.circos, fusion_annot_top.circos.pairs)
 }
 ```
 
-```{r genomic_view_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-if ( exists("BezierPlot") ) {
+```{r fusions_genomic_view_circos_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
+##### Generate circos plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA or reported fusions are presented
+if ( nrow(fusion_annot_top) > 0 ) {
+  
+  ##### Save circos into a png file
+  png( filename = paste(fusionsPlotDir, "circosPlot.png", sep="/"), width = 800, height = 800, units = "px", pointsize = 24 )
+  RCircos.Set.Core.Components( cyto.info=cyto.info, chr.exclude=NULL, tracks.inside=4, tracks.outside=0 )
+  RCircos.Set.Plot.Area()  
+  RCircos.Chromosome.Ideogram.Plot()
+  RCircos.Gene.Connector.Plot(genomic.data = fusion_annot_top.circos, track.num = 1, side="in") 
+  RCircos.Gene.Name.Plot(gene.data = fusion_annot_top.circos, name.col = 4, track.num = 2, side = "in")
+  RCircos.Link.Plot(link.data = fusion_annot_top.circos.pairs, track.num=4, by.chromosome=TRUE, is.sorted=FALSE, lineWidth=rep(2, nrow(fusion_annot_top.circos.pairs)))
+  invisible(dev.off())
+    
+} else {
+  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data or was previously reported.")
+}
+```
+
+```{r genomic_view_circos_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
+if ( nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
   fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
@@ -4188,16 +4234,46 @@ if ( exists("BezierPlot") ) {
       DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
     DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
 
-fusions.genomicView
+  fusions.genomicView
 }
 
 ##### Clean the space
 rm(fusion_annot_top.clean)
 ```
 
+***
+
+#### Plain
+
+```{r fusions_genomic_view_plain, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
+##### Generate circos plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA or reported fusions are presented
+if ( nrow(fusion_annot_top) > 0 ) {
+  BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]])
+  BezierPlot
+    
+} else {
+  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data or was previously reported.")
+}
+```
+
+```{r fusions_genomic_view_plain_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
+##### Save the BezierPlot as png
+if ( exists("BezierPlot") ) {
+  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
+  plot(BezierPlot)
+  invisible(dev.off())
+}
+```
+
+```{r genomic_view_plain_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
+if ( nrow(fusion_annot_top) > 0 ) {
+  fusions.genomicView
+}
+```
+
 ```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Save the table as html file
-if ( exists("BezierPlot") && params$save_tables ) {
+if ( nrow(fusion_annot_top) > 0 && params$save_tables ) {
   saveWidgetFix(widget=fusions.genomicView, file=paste(fusionsTableDir, "fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
 }
 
