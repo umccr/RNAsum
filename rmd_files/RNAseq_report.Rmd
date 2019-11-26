@@ -4135,7 +4135,7 @@ Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c(
 
 #### Circos
 
-```{r circos_prep, comment = NA, message=FALSE, warning=FALSE, fig.width = 6, fig.height = 6, eval = runFusionChunk}
+```{r circos_prep, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8, eval = runFusionChunk}
 ##### Keep only reported fusions or those with or cancer gene(s) involved
 if ( runSVsChunk ) {
   fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
@@ -4687,13 +4687,13 @@ rm(list = ls(pattern='^output*'))
 
 ## CN altered genes
 
-Section overlaying the mRNA expression data for **[Cancer genes]** with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), as well as SNVs/indels and SVs data, if available.
+Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), as well as SNVs/indels and SVs data, if available.
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
 ### - Genomic view
 
-`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span>.
+`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span> or **black**.
 
 ```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -4755,11 +4755,11 @@ if ( nrow(data.annot) > 0 ) {
   ##### Restrict the results to the genes of interest
   manhattanr.res$data <- manhattanr.res$data[ manhattanr.res$data$Gene %in% data.sub$Gene, ]
   
-  p <- manhattanly(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", col = "#969696", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", suggestiveline = cn_top, genomewideline  = cn_bottom, suggestiveline_color = "gray", genomewideline_color = "gray", ylab = "CN value", showgrid = TRUE, title = "", logp = FALSE, width = 800, height = 400) %>%
+  p <- manhattanly(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", suggestiveline = cn_top, genomewideline  = cn_bottom, suggestiveline_color = "gray", genomewideline_color = "gray", ylab = "CN value", showgrid = FALSE, title = "", logp = FALSE, width = 800, height = 400) %>%
     
     add_markers(y = manhattanr.res$data$P, x = manhattanr.res$data$pos, 
                 name = manhattanr.res$data$Gene,
-                text = paste0("Gene: ", manhattanr.res$data$Gene, "\nZ_score_diff: ", manhattanr.res$data$Z_score_diff, "\nPerc_diff: ", manhattanr.res$data$Perc_diff, "\nAlterations: ", manhattanr.res$data$Alterations),
+                text = paste0("Gene: ", manhattanr.res$data$Gene, "\nZ_score_diff: ", manhattanr.res$data$Z_score_diff, "\nPerc_diff: ", manhattanr.res$data$Perc_diff, "\nAlterations: ", manhattanr.res$data$Alterations, "\nchr: ", manhattanr.res$data$CHR),
                 mode = 'markers',
                 marker = list(size=10, symbol="circle"),
                 color = manhattanr.res$data$Gene,
