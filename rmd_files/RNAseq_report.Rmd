@@ -60,6 +60,7 @@ params:
 
 RNA-seq report for patient sample **`r params$sample_name`**.
 
+
 ```{r script_description, eval=FALSE}
 ##### We attempt to structure the script in the following way:
 # 1. Defining functions
@@ -184,7 +185,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, da
     dataset.counts <- as.data.frame( read.table(gzfile(ref_data[[i]][1]), header=TRUE, sep="\t", row.names=NULL) )
     
     ##### Add prexit to sample names
-    colnames(dataset.counts) <- paste(levels(target.comb[,"Dataset"])[i], colnames(dataset.counts), sep = ".")
+    colnames(dataset.counts) <- paste(unique(target.comb[,"Dataset"])[i], colnames(dataset.counts), sep = ".")
     
     ##### List genes present in individal files
     gene_list <- c( gene_list, as.vector(dataset.counts[,1]) )
@@ -965,7 +966,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
 mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer, type = "z", report_dir) {
   
   ##### Extract info for genes to be annotated on the plot
-  genes2annot <- data[ data$CN > cn_top | data$CN < cn_bottom ,]$Gene
+  genes2annot <- data[ data$CN >= cn_top | data$CN <= cn_bottom ,]$Gene
   
   if ( length(genes2annot) == 0 ) {
     genes2annot <- ""
@@ -994,7 +995,7 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
                 legendtitle=TRUE, 
                 inherit = FALSE) %>%
       
-      add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=genes2annot,
+      add_annotations( data = data[ data$CN >= cn_top | data$CN <= cn_bottom ,], text=genes2annot,
                       x=~CN, xanchor="left",
                       y=~Expr, yanchor="top",
                       font = list(color = "Grey", size = 10),
@@ -1006,7 +1007,7 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   } else {
     p <- plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, color = ~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
       
-      add_annotations( data = data[ data$CN > cn_top | data$CN < cn_bottom ,], text=~Gene,
+      add_annotations( data = data[ data$CN >= cn_top | data$CN <= cn_bottom ,], text=~Gene,
                       x=~CN, xanchor="left",
                       y=~Expr, yanchor="top",
                       font = list(color = "Grey",
@@ -1825,6 +1826,7 @@ suppressMessages(library(matrixStats))
 suppressMessages(library(tibble))
 suppressMessages(library(knitr))
 suppressMessages(library(scales))
+suppressMessages(library(RCircos))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggforce))
 suppressMessages(library(pdftools))
@@ -2288,8 +2290,8 @@ if ( runPurpleChunk ) {
   ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
   if ( params$cn_loss == 5 && params$cn_gain == 95 ) {
     cn_data.all.percent <- quantile(ref_genes.list[["summary"]]$CN$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
-    cn_bottom <- round(cn_data.all.percent[2], digits = 0)
-    cn_top <- round(cn_data.all.percent[20], digits = 0)
+    cn_bottom <- round(cn_data.all.percent[2], digits = 2)
+    cn_top <- round(cn_data.all.percent[20], digits = 2)
   
   } else {
     cn_bottom <- params$cn_loss
@@ -2302,7 +2304,7 @@ if ( runPurpleChunk ) {
     cn_bottom <- cn_bottom - 1
   }
   
-  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MeanCopyNumber < cn_bottom | ref_genes.list[["summary"]]$CN$MeanCopyNumber > cn_top, ]$Gene)
+  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MeanCopyNumber <= cn_bottom | ref_genes.list[["summary"]]$CN$MeanCopyNumber >= cn_top, ]$Gene)
 }
 
 # Immune reponse markers
@@ -3037,7 +3039,7 @@ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
 cn_data.sub <- cn_data.sub[ cn_data.sub$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
 
 ##### Keep genes meeting the user-defined CN values thresholds
-ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN < cn_bottom | cn_data.sub$CN > cn_top, ]
+ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[ cn_data.sub$CN <= cn_bottom | cn_data.sub$CN >= cn_top, ]
 
 ##### Clean the space
 rm(cn_data, cn_data.sub, expr_data, gene.mut, mut_data, targets, expr_data.z, expr_data.perc, expr_data.z.sub, expr_data.perc.sub, expr_genes, gene.mut.sub, genes.intersect)
@@ -3474,7 +3476,7 @@ if ( runPurpleChunk ) {
   
   #### Keep only genes with user-define CN values
   ref_genes.list[["summary"]]$CN <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-  ref_genes.list[["summary"]]$CN <- as.character(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$CN < cn_bottom | ref_genes.list[["summary"]]$CN$CN > cn_top,  ]$Gene)
+  ref_genes.list[["summary"]]$CN <- as.character(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$CN <= cn_bottom | ref_genes.list[["summary"]]$CN$CN >= cn_top,  ]$Gene)
 }
 
 ##### ...immune markers section: include only genes with available annotation
@@ -3641,10 +3643,8 @@ rm(summary_table.list)
 
 ***
 
-## Input data
-
 <details>
-<summary>Summary</summary>
+<summary>Input data summary</summary>
 
 **Reference patient cohorts**
 
@@ -3732,23 +3732,18 @@ ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
 
 </details>
 
-***
+`r if ( runClinicalChunk ) { c("***") }`
 
-## Clinical information
+`r if ( runClinicalChunk ) { c("## Clinical information") }`
 
-<details>
-<summary>Treatment timeline</summary>
+`r if ( runClinicalChunk ) { c("#### Treatment timeline") }`
 
-Treatment regimen information for this patient is **`r if ( runClinicalChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
-
-NOTE: for confidentiality reasons, the start of the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to 1st January 2000, but the treatments lengths are preserved.
+`r if ( runClinicalChunk ) { c("NOTE: for confidentiality reasons, the start of the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to 1st January 2000, but the treatments lengths are preserved.") }`
 
 ```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15), eval = runClinicalChunk }
 ##### Present the treatment timeline plot
 treatment_timeline
 ```
-
-</details>
 
 ***
 
@@ -3756,7 +3751,7 @@ treatment_timeline
 
 ### Per-alteration plot
 
-**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
+**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN  values  =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
 
 ```{r findings_summary_plot, comment = NA, message=TRUE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for all altered genes
@@ -3787,7 +3782,7 @@ rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_f
 
 ### Per-gene table
 
-Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values < ", cn_bottom, " or > ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
+Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
@@ -4125,13 +4120,15 @@ Fusion events are ordered by the following columns:
 
 ***
 
-### - Genomic view
+### - Genomic view {.tabset}
 
 <span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
 
-```{r genomic_view_plot_fusions, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
+#### Circos
+
+```{r circos_prep, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8, eval = runFusionChunk}
 ##### Keep only reported fusions or those with or cancer gene(s) involved
 if ( runSVsChunk ) {
   fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
@@ -4139,33 +4136,75 @@ if ( runSVsChunk ) {
   fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" , ]
 }
 
-##### Generate bezier curves-like plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA are presented
 if ( nrow(fusion_annot_top) > 0 ) {
-  BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]])
-  BezierPlot
-    
-} else {
-  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data.")
-}
-```
-
-```{r genomic_view_plot_fusions_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
-##### Save the BezierPlot as png
-if ( exists("BezierPlot") ) {
+  
+  ##### Create folder for fusion plots
   fusionsPlotDir <- paste(params$report_dir, "results/fusionsPlot", sep = "/")
     
   if ( !file.exists(fusionsPlotDir) ) {
     dir.create(fusionsPlotDir, recursive=TRUE)
   }
+  
+  ##### Prepare object for RCircos
+  eval(parse( text=paste0("data(UCSC.HG", params$ucsc_genome_assembly, ".Human.CytoBandIdeogram)")))
+  cyto.info <- eval(parse( text=paste0("UCSC.HG", params$ucsc_genome_assembly, ".Human.CytoBandIdeogram")))
     
-  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
-  BezierPlot
-  invisible(dev.off())
+  ##### Check if all driver genes are located in standard chromosomes
+  fusion_annot_top <- fusion_annot_top[ paste0("chr", fusion_annot_top$SEQNAME) %in% cyto.info$Chromosome,  ]
+  
+  fusion_annot_top.circos.pairs <- fusion_annot_top[, c("SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL","SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "SYMBOL.1")]
+  
+  ##### Add "chr" to chromosome numbers
+  fusion_annot_top.circos.pairs$SEQNAME <- paste0("chr", fusion_annot_top.circos.pairs$SEQNAME)
+  fusion_annot_top.circos.pairs$SEQNAME.1 <- paste0("chr", fusion_annot_top.circos.pairs$SEQNAME.1)
+  
+  ##### Change column names
+  names(fusion_annot_top.circos.pairs) <- gsub("SEQNAME", "Chromosome", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("GENESEQSTART", "chromStart", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("GENESEQEND", "chromEnd", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("SYMBOL", "Gene", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("Chromosome.1", "Chromosome", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("chromStart.1", "chromStart", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("chromEnd.1", "chromEnd", names(fusion_annot_top.circos.pairs))
+  names(fusion_annot_top.circos.pairs) <- gsub("Gene.1", "Gene", names(fusion_annot_top.circos.pairs))
+  
+  fusion_annot_top.circos <- rbind(fusion_annot_top.circos.pairs[, 1:4 ], fusion_annot_top.circos.pairs[, 5:8 ])
+  fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[, colnames(fusion_annot_top.circos.pairs) %!in% c("Gene", "Gene.1") ]
+  
+  ##### Generate circos plot
+  RCircos.Set.Core.Components( cyto.info=cyto.info, chr.exclude=NULL, tracks.inside=4, tracks.outside=0 )
+  RCircos.Set.Plot.Area()  
+  RCircos.Chromosome.Ideogram.Plot()
+  RCircos.Gene.Connector.Plot(genomic.data = fusion_annot_top.circos, track.num = 1, side="in") 
+  RCircos.Gene.Name.Plot(gene.data = fusion_annot_top.circos, name.col = 4, track.num = 2, side = "in")
+  RCircos.Link.Plot(link.data = fusion_annot_top.circos.pairs, track.num=4, by.chromosome=TRUE, is.sorted=FALSE, lineWidth=rep(2, nrow(fusion_annot_top.circos.pairs)))
 }
 ```
 
-```{r genomic_view_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-if ( exists("BezierPlot") ) {
+```{r fusions_genomic_view_circos_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
+##### Generate circos plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA or reported fusions are presented
+if ( nrow(fusion_annot_top) > 0 ) {
+  
+  ##### Save circos into a png file
+  png( filename = paste(fusionsPlotDir, "circosPlot.png", sep="/"), width = 800, height = 800, units = "px", pointsize = 24 )
+  RCircos.Set.Core.Components( cyto.info=cyto.info, chr.exclude=NULL, tracks.inside=4, tracks.outside=0 )
+  RCircos.Set.Plot.Area()  
+  RCircos.Chromosome.Ideogram.Plot()
+  RCircos.Gene.Connector.Plot(genomic.data = fusion_annot_top.circos, track.num = 1, side="in") 
+  RCircos.Gene.Name.Plot(gene.data = fusion_annot_top.circos, name.col = 4, track.num = 2, side = "in")
+  RCircos.Link.Plot(link.data = fusion_annot_top.circos.pairs, track.num=4, by.chromosome=TRUE, is.sorted=FALSE, lineWidth=rep(2, nrow(fusion_annot_top.circos.pairs)))
+  invisible(dev.off())
+    
+  ##### Clean the space
+  rm(fusion_annot_top.circos, fusion_annot_top.circos.pairs)
+  
+} else {
+  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data or was previously reported.")
+}
+```
+
+```{r genomic_view_circos_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
+if ( nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
   fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
@@ -4188,16 +4227,55 @@ if ( exists("BezierPlot") ) {
       DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
     DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
 
-fusions.genomicView
+  fusions.genomicView
 }
 
 ##### Clean the space
 rm(fusion_annot_top.clean)
 ```
 
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#02d653">GREEN</span> indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, and cells hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**. *DNA support (gene A/B)* - DNA-supported fusion gene(s) (see) [Structural variants] section); *Reported fusion* - fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}; *Cancer gene(s)* - gene fusion events involving [Cancer genes]
+
+</font>
+</details>
+
+***
+
+#### Plain
+
+```{r fusions_genomic_view_plain, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
+##### Generate circos plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA or reported fusions are presented
+if ( nrow(fusion_annot_top) > 0 ) {
+  BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]])
+  BezierPlot
+    
+} else {
+  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data or was previously reported.")
+}
+```
+
+```{r fusions_genomic_view_plain_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
+##### Save the BezierPlot as png
+if ( exists("BezierPlot") ) {
+  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
+  plot(BezierPlot)
+  invisible(dev.off())
+}
+```
+
+```{r genomic_view_plain_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
+if ( nrow(fusion_annot_top) > 0 ) {
+  fusions.genomicView
+}
+```
+
 ```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Save the table as html file
-if ( exists("BezierPlot") && params$save_tables ) {
+if ( nrow(fusion_annot_top) > 0 && params$save_tables ) {
   saveWidgetFix(widget=fusions.genomicView, file=paste(fusionsTableDir, "fusions.genomicView.html", sep = "/"), selfcontained=TRUE)  
 }
 
@@ -4602,13 +4680,13 @@ rm(list = ls(pattern='^output*'))
 
 ## CN altered genes
 
-Section overlaying the mRNA expression data for **[Cancer genes]** with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), as well as SNVs/indels and SVs data, if available.
+Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), as well as SNVs/indels and SVs data, if available.
 
 CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
 
 ### - Genomic view
 
-`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }`. All other genes are marked in <span style="color:#808080">gray</span>.
+`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by various colours) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }`. All other genes are marked in *<span style="color:#808080">gray</span>* or ***black***.
 
 ```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -4670,11 +4748,11 @@ if ( nrow(data.annot) > 0 ) {
   ##### Restrict the results to the genes of interest
   manhattanr.res$data <- manhattanr.res$data[ manhattanr.res$data$Gene %in% data.sub$Gene, ]
   
-  p <- manhattanly(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", col = "#969696", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", suggestiveline = cn_top, genomewideline  = cn_bottom, suggestiveline_color = "gray", genomewideline_color = "gray", ylab = "CN value", showgrid = TRUE, title = "", logp = FALSE, width = 800, height = 400) %>%
+  p <- manhattanly(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", suggestiveline = cn_top, genomewideline  = cn_bottom, suggestiveline_color = "gray", genomewideline_color = "gray", ylab = "CN value", showgrid = FALSE, title = "", logp = FALSE, width = 800, height = 400) %>%
     
     add_markers(y = manhattanr.res$data$P, x = manhattanr.res$data$pos, 
                 name = manhattanr.res$data$Gene,
-                text = paste0("Gene: ", manhattanr.res$data$Gene, "\nZ_score_diff: ", manhattanr.res$data$Z_score_diff, "\nPerc_diff: ", manhattanr.res$data$Perc_diff, "\nAlterations: ", manhattanr.res$data$Alterations),
+                text = paste0("Gene: ", manhattanr.res$data$Gene, "\nZ_score_diff: ", manhattanr.res$data$Z_score_diff, "\nPerc_diff: ", manhattanr.res$data$Perc_diff, "\nAlterations: ", manhattanr.res$data$Alterations, "\nchr: ", manhattanr.res$data$CHR),
                 mode = 'markers',
                 marker = list(size=10, symbol="circle"),
                 color = manhattanr.res$data$Gene,
@@ -4793,11 +4871,11 @@ detach("package:plotly", unload=FALSE)
 
 ### - Summary table {.tabset}
 
-Out of the `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN < cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN > cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values > ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values < ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
+Out of the `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN <= cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN >= cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in <span style="color:#808080">BLANK</span> cells with missing values).
 
 #### Gains {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values > `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values >= `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
 ##### Z-scores
 
@@ -4805,7 +4883,7 @@ Table summarising the **mRNA expression** values in cancer and patient samples f
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN gains
 cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-cn_data <- cn_data[ cn_data$CN > cn_top, ]
+cn_data <- cn_data[ cn_data$CN >= cn_top, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
 genes_gains = as.character(cn_genes[ cn_genes %in% rownames(cn_data) ])
 
@@ -4887,7 +4965,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 #### Losses {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values < `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values =< `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr){target="_blank"}).
 
 ##### Z-scores
 
@@ -4895,7 +4973,7 @@ Table summarising the **mRNA expression** values in cancer and patient samples f
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN losses
 cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-cn_data <- cn_data[ cn_data$CN < cn_bottom, ]
+cn_data <- cn_data[ cn_data$CN <= cn_bottom, ]
 cn_data <- cn_data[, "CN", drop=FALSE]
 genes_losses = as.character(cn_genes[ cn_genes %in% rownames(cn_data) ])
 
@@ -5274,14 +5352,11 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ***
 
-```{r immunogram_section, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
-cat("\n### - Immunogram {.tabset} \n")
-cat("\nVisualisation of general and local cancer immunity status using **cancer immunogram** for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target=\"_blank\"} (CIC), a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target=\"_blank\"}\n")
-```
+`r if ( params$immunogram ) { c("### - Immunogram {.tabset}") }`
 
-```{r immunogram_section_cont, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
-cat("\n#### Plot\n")
-```
+`r if ( params$immunogram ) { c("Visualisation of general and local cancer immunity status using **cancer immunogram** for the [cancer-immunity cycle](https://www.sciencedirect.com/topics/medicine-and-dentistry/tumor-immunity){target=\"_blank\"} (CIC), a concept of integrated immune biomarkers scoring system proposed by [Blank et al.](https://science.sciencemag.org/content/352/6286/658.summary){target=\"_blank\"}") }`
+
+`r if ( params$immunogram ) { c("#### Plot") }`
 
 ```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 6, fig.height = 6, eval = params$immunogram}
 ##### Generate spider web plot to present the patient cancer immunity status. For more info about immunogram see the following papers
@@ -5300,11 +5375,11 @@ webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row 
 #legend("topright", legend=c("Patient", "T-cell–rich","T-cell–poor", "T-cell–intermediate"), fill=c("black", "powderblue", "forestgreen", "red"), bty="n", bg = "transparent", cex = 0.8)
 ```
 
-```{r immunogram_section_table, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
-cat("\n***\n")
-cat("\n#### Table {.tabset} \n")
-cat("\n##### Z-scores \n")
-```
+`r if ( params$immunogram ) { c("***") }`
+
+`r if ( params$immunogram ) { c("#### Table {.tabset}") }`
+
+`r if ( params$immunogram ) { c("##### Z-scores") }`
 
 ```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
@@ -5328,7 +5403,7 @@ if ( params$save_tables ) {
 }
 ```
 
-```{r immunogram_section_table_legend, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+```{r immunogram_table_legend, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
 cat("\n<details>\n")
 cat("\n<summary>Table legend</summary>\n")
 cat("\n<font size=\"2\">\n")
@@ -5338,9 +5413,7 @@ cat("\n</details>\n")
 cat("\n***\n")
 ```
 
-```{r immunogram_section_table_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
-cat("\n##### Percentiles \n")
-```
+`r if ( params$immunogram ) { c("##### Percentiles") }`
 
 ```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCr (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
@@ -5358,7 +5431,7 @@ if ( params$save_tables ) {
 rm(immunogram.expr.perc)
 ```
 
-```{r immunogram_section_table_legend_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+```{r immunogram_table_legend_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
 cat("\n<details>\n")
 cat("\n<summary>Table legend</summary>\n")
 cat("\n<font size=\"2\">\n")
@@ -5639,9 +5712,9 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ***
 
-## Drug matching {.tabset}
+`r if ( params$drugs ) { c("## Drug matching {.tabset}") }`
 
-List of drugs targeting variants in detected [Mutated genes], [Fusion genes], [Structural variants]-affected genes, [CN altered genes], [HRD genes] and dysregulated [Cancer genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target="_blank"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target="_blank"}). The evidence pertaining to variants effect on therapeutic response is also provided.
+`r if ( params$drugs ) { c("List of drugs targeting variants in detected [Mutated genes], [Fusion genes], [Structural variants]-affected genes, [CN altered genes], [HRD genes] and dysregulated [Cancer genes], which can be considered in the treatment decision making process. The clinically actionable aberrations are matched based on information provided by *[clinical interpretations of variants in Cancer](https://civicdb.org/home){target=\"_blank\"}* (CIViC) ([Griffith et al. (2017)](https://www.ncbi.nlm.nih.gov/pubmed/28138153){target=\"_blank\"}). The evidence pertaining to variants effect on therapeutic response is also provided.") }`
 
 ```{r drugs_table_dir, comment = NA, message=FALSE, warning=FALSE}
 ##### Create directory for tables
@@ -5651,11 +5724,11 @@ if ( !file.exists(drugsTableDir) ) {
 }
 ```
 
-### - Mutated genes -
+`r if ( params$drugs ) { c("### - Mutated genes -") }`
 
-Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+`r if ( params$drugs && runPcgrChunk ) { c("Mutation data for this sample is **AVAILABLE**.") } else if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }`
 
-**`r if ( runPcgrChunk ) { length(mut_genes.expr.z[[2]]$SYMBOL) } else { c("0") }`** genes with [PCGR](https://github.com/sigven/pcgr){target="_blank"} [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` variants were screened for suitable drugs (see [Mutated genes] section).
+`r if ( params$drugs && runPcgrChunk ) { paste0("**", length(mut_genes.expr.z[[2]]$SYMBOL), "** genes with [PCGR](https://github.com/sigven/pcgr){target=\"_blank\"} [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target=\"_blank\"} 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") } else if ( params$drugs && !runPcgrChunk ) { paste0("**0** genes with [PCGR](https://github.com/sigven/pcgr){target=\"_blank\"} [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target=\"_blank\"} 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") }`
 
 ```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
@@ -5663,7 +5736,9 @@ genes <- mut_genes.expr.z[[2]]$SYMBOL
 
 drugsTable.mut_genes <- civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "mutation")
 
-drugsTable.mut_genes[[1]]
+if ( params$drugs ) {
+  drugsTable.mut_genes[[1]]
+}
 
 ##### Save the expression table as html file
 if ( params$save_tables ) {
@@ -5671,11 +5746,9 @@ if ( params$save_tables ) {
 }
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
+`r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_mut_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_mut_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
 drugsTable_legend <- c("**[Evidence Level](https://civicdb.org/help/evidence/evidence-levels){target=\"_blank\"}**
 
 * **A - Validated association**: Proven/consensus association in human medicine
@@ -5699,16 +5772,15 @@ drugsTable_legend <- c("**[Evidence Level](https://civicdb.org/help/evidence/evi
 cat(drugsTable_legend)
 ```
 
-</font> 
-</details>
+`r if ( params$drugs ) { c("</font>\n</details>") }`
 
-***
+`r if ( params$drugs ) { c("***") }`
 
-### - Fusion genes -
+`r if ( params$drugs ) { c("### - Fusion genes -") }`
 
-Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( params$drugs && runFusionChunk ) { c("Fusion genes information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runFusionChunk ) { c("Fusion genes information for this sample is **NOT AVAILABLE**.") }`
 
-<span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** were screened for suitable drugs.
+`r if ( params$drugs && runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**", nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]), "**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**", nrow(fusions[ fusions$reported_fusion == "Yes" , ]), "**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target=\"_blank\"}** were screened for suitable drugs.") } else if ( params$drugs && !runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**0**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**0**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target=\"_blank\"}** were screened for suitable drugs.") }`
 
 ```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Generate table with drugs targeting fusion genes
@@ -5717,7 +5789,9 @@ genesB <- as.vector(fusions[ fusion_annot$reported_fusion == "Yes" | fusion_anno
 
 drugsTable.fusion_genes <- civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "fusion")
 
-drugsTable.fusion_genes[[1]]
+if ( params$drugs ) {
+  drugsTable.fusion_genes[[1]]
+}
 
 ##### Save the expression table as html file
 if ( params$save_tables ) {
@@ -5725,24 +5799,21 @@ if ( params$save_tables ) {
 }
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
+`r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_fusion_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_fusion_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
 cat(drugsTable_legend)
 ```
 
-</font> 
-</details>
+`r if ( params$drugs ) { c("</font>\n</details>") }`
 
-***
+`r if ( params$drugs ) { c("***") }`
 
-### - Structural variants -
+`r if ( params$drugs ) { c("### - Structural variants -") }`
 
-SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( params$drugs && runSVsChunk ) { c("SVs information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**.") }`
 
-**`r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) } else { length(NULL) }`** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).
+`r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(manta_sv$Gene)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
 
 ```{r drugs_predictive_sv_genes, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate table with drugs targeting dysregulated cancer genes
@@ -5750,7 +5821,9 @@ genes <- unique(manta_sv$Gene)
 
 drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = NULL)
 
-drugsTable.sv_genes[[1]]
+if ( params$drugs ) {
+  drugsTable.sv_genes[[1]]
+}
 
 ##### Save the expression table as html file
 if ( params$save_tables ) {
@@ -5758,26 +5831,23 @@ if ( params$save_tables ) {
 }
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
+`r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_sv_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_sv_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
 cat(drugsTable_legend)
 ```
 
-</font> 
-</details>
+`r if ( params$drugs ) { c("</font>\n</details>") }`
 
-***
+`r if ( params$drugs ) { c("***") }`
 
-### - CN altered genes - {.tabset}
+`r if ( params$drugs ) { c("### - CN altered genes - {.tabset}") }`
 
-CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+`r if ( params$drugs && runPurpleChunk ) { c("CN information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
 
-**`r if ( runPurpleChunk ) { length(cn_genes) } else { length(NULL) }`** genes with CN values > `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**) or < `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**) were screened for suitable drugs (see [CN altered genes] section).
+`r if ( params$drugs && runPurpleChunk ) { paste0("**", length(cn_genes), "** genes with CN values >= ", cn_top, "  (**gains**) or =< ", cn_bottom, " (**losses**) were screened for suitable drugs (see [CN altered genes] section).") } else if ( params$drugs && !runPurpleChunk ) { paste0("**0** genes were affected by CN changes (see [CN altered genes] section).") }`
 
-#### Gains
+`r if ( params$drugs ) { c("#### Gains") }`
 
 ```{r drugs_predictive_cn_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
@@ -5785,7 +5855,9 @@ genes <- cn_expr_genes.expr.gains.z[[2]]$SYMBOL
 
 drugsTable.CN_altered_genes_gains <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "copy_gain")
 
-drugsTable.CN_altered_genes_gains[[1]]
+if ( params$drugs ) {
+  drugsTable.CN_altered_genes_gains[[1]]
+}
 
 ##### Save the expression table as html file
 if ( params$save_tables ) {
@@ -5793,20 +5865,17 @@ if ( params$save_tables ) {
 }
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
+`r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_cn_gains_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_cn_gains_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
 cat(drugsTable_legend)
 ```
 
-</font> 
-</details>
+`r if ( params$drugs ) { c("</font>\n</details>") }`
 
-***
+`r if ( params$drugs ) { c("***") }`
 
-#### Losses
+`r if ( params$drugs ) { c("#### Losses") }`
 
 ```{r drugs_predictive_cn_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate table with drugs targeting CN altered genes
@@ -5814,7 +5883,9 @@ genes <- cn_expr_genes.expr.losses.z[[2]]$SYMBOL
 
 drugsTable.CN_altered_genes_losses <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "copy_loss")
 
-drugsTable.CN_altered_genes_losses[[1]]
+if ( params$drugs ) {
+  drugsTable.CN_altered_genes_losses[[1]]
+}
 
 ##### Save the expression table as html file
 if ( params$save_tables ) {
@@ -5822,22 +5893,19 @@ if ( params$save_tables ) {
 }
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
+`r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_cn_losses_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_cn_losses_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
 cat(drugsTable_legend)
 ```
 
-</font> 
-</details>
+`r if ( params$drugs ) { c("</font>\n</details>") }`
 
-***
+`r if ( params$drugs ) { c("***") }`
 
-### - HRD genes -
+`r if ( params$drugs ) { c("### - HRD genes -") }`
 
-**`r length(which(hrd_genes.expr.z[[2]]$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** reliably measured [HRD genes] were screened for suitable drugs (see [HRD genes] section).
+`r if ( params$drugs ) { paste0("**", length(which(hrd_genes.expr.z[[2]]$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), "** reliably measured [HRD genes] were screened for suitable drugs (see [HRD genes] section).") }`
 
 ```{r drugs_predictive_hrd_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
@@ -5845,7 +5913,9 @@ genes <- hrd_genes.expr.z[[2]]$SYMBOL[ hrd_genes.expr.z[[2]]$SYMBOL %in% rowname
 
 drugsTable.hrd_genes <- civicDrugTable(genes, civic_var_summaries = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "mutation")
 
-drugsTable.hrd_genes[[1]]
+if ( params$drugs ) {
+  drugsTable.hrd_genes[[1]]
+}
 
 ##### Save the expression table as html file
 if ( params$save_tables ) {
@@ -5853,22 +5923,19 @@ if ( params$save_tables ) {
 }
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
+`r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_hrd_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_hrd_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
 cat(drugsTable_legend)
 ```
 
-</font> 
-</details>
+`r if ( params$drugs ) { c("</font>\n</details>") }`
 
-***
+`r if ( params$drugs ) { c("***") }`
 
-### - Cancer genes -
+`r if ( params$drugs ) { c("### - Cancer genes -") }`
 
-**50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients were screened for suitable drugs (see [Cancer genes] section).
+`r if ( params$drugs ) { paste0("**50** cancer genes with the greatest difference in standarised (Z-score) mRNA expression values between patient's sample and the average mRNA expression in samples from cancer patients were screened for suitable drugs (see [Cancer genes] section).") }`
 
 ```{r drugs_predictive_cancer_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -5880,7 +5947,9 @@ genes <- cancer_genes.expr.z[[2]]$SYMBOL[1:50]
 
 drugsTable.cancer_genes <- civicDrugTable(genes, civic_var_summaries  = caner_genes_annot.list[["civic_var_summaries"]], civic_clin_evid  = caner_genes_annot.list[["civic_clin_evid"]],  evid_type = "Predictive", var_type = "expression")
 
-drugsTable.cancer_genes[[1]]
+if ( params$drugs ) {
+  drugsTable.cancer_genes[[1]]
+}
 
 ##### Save the expression table as html file
 if ( params$save_tables ) {
@@ -5888,18 +5957,15 @@ if ( params$save_tables ) {
 }
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
+`r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_cancer_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis"}
+```{r drugsTable_legend_cancer_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
 cat(drugsTable_legend)
 ```
 
-</font> 
-</details>
+`r if ( params$drugs ) { c("</font>\n</details>") }`
 
-***
+`r if ( params$drugs ) { c("***") }`
 
 ```{r mysql_populate_finalise, message=FALSE, warning=FALSE}
 ##### Finalise and write into a file the MySQL commend to populate RNA-seq data portal
