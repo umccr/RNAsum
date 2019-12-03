@@ -3579,10 +3579,6 @@ saveWidgetFix(sunburst_plot[[1]], file = paste(summaryPlotsDir, "sunburst_plot_a
 
 if ( !is.na(sunburst_plot[[2]]) ) {
   saveWidgetFix(sunburst_plot[[2]], file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
-} else {
-  sunburst_plot[[2]] <- as.data.frame(c("No genes are listed in more then one section. Expand the \"All altered genes\" to view  the summary plot for all altered genes."))
-  rownames(sunburst_plot[[2]]) <- ""
-  colnames(sunburst_plot[[2]]) <- ""
 }
 
 ##### Detach plotly package. Otherwise it clashes with other graphics devices
@@ -3752,31 +3748,36 @@ treatment_timeline
 
 ### Per-alteration plot
 
-**Genes** listed **in at least two sections** of this report are summarised in the plot below. These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources. The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.
+`r if ( !is.na(sunburst_plot[[2]]) ) { c("**Genes** listed **in at least two sections** of this report") } else { c("**All altered genes**")  }` are summarised in the plot below. `r if ( !is.na(sunburst_plot[[2]]) ) { c("These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources.")  }` The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. `r if ( !is.na(sunburst_plot[[2]]) ) { c("To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.")  }`
 
+`r if ( is.na(sunburst_plot[[2]]) ) { c("<span style=\"color:#ff0000\">NOTE</span>, no genes are listed in more then one section.") }`
+  
 ```{r findings_summary_plot, comment = NA, message=TRUE, warning=FALSE, fig.width = 8, fig.height = 6 }
-##### Present per-alteration findings summary sunburst plot for all altered genes
-sunburst_plot[[2]]
-
 ##### Update MySQL commend to populate RNA-seq data portal
+mysql_populate <- paste0(mysql_populate, "Findings summary")
+mysql_populate_update <- paste0(mysql_populate_update, "Findings summary")
+
+##### Present per-alteration findings summary sunburst plot for all altered genes
 if ( !is.na(sunburst_plot[[2]]) ) {
-  mysql_populate <- paste0(mysql_populate, "Findings summary")
-  mysql_populate_update <- paste0(mysql_populate_update, "Findings summary")
+  sunburst_plot[[2]]
+} else {
+  sunburst_plot[[1]]
 }
 ```
 
-<details>
-<summary>All altered genes</summary>
+`r if ( !is.na(sunburst_plot[[2]]) ) { c("<details>\n<summary>All altered genes</summary>") }`
 
 ```{r findings_summary_all_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
-##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections 
-sunburst_plot[[1]]
+##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections
+if ( !is.na(sunburst_plot[[2]]) ) {
+  sunburst_plot[[1]]
+}
 ```
 
-</details>
+`r if ( !is.na(sunburst_plot[[2]]) ) { c("</details>") }`
 
 ```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
-rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, sunburst_plot, data.annot)
+rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, data.annot)
 ```
 
 ***
@@ -3784,6 +3785,8 @@ rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_f
 ### Per-gene table
 
 Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
+
+`r if ( is.na(sunburst_plot[[2]]) ) { c("<span style=\"color:#ff0000\">NOTE</span>, no genes are listed in more then one section.") }`
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
@@ -3802,8 +3805,9 @@ if ( !file.exists(summaryTableDir) ) {
 }
 
 saveWidgetFix(widget=findings.summary, file=paste(summaryTableDir, "findings.summary.html", sep = "/"), selfcontained=TRUE)
+
 ##### Clean the space
-rm(summary_table.df, findings.summary)
+rm(summary_table.df, findings.summary, sunburst_plot)
 ```
 
 ***
