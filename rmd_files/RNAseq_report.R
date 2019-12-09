@@ -30,7 +30,7 @@
 #   immunogram:   Include immunogram in the report. Available options are: "TRUE" and "FALSE" (default for now, as this feature is not finilised yet)
 #   umccrise (optional):  Location of the corresponding umccrise output from genomic-related data (including PCGR, PURPLE and Manta output files)
 #   pcgr_tier (optional): Tier threshold for reporting variants reported in PCGR (default is "4")
-#   pcgr_splice_vars (optional): Include non-coding splice region variants reported in PCGR. Available options are: "TRUE" (default) and "FALSE" 
+#   pcgr_splice_vars (optional): Include non-coding splice region variants reported in PCGR. Available options are: "TRUE" (default) and "FALSE"
 #   cn_loss (optional):  CN threshold value to classify genes within lost regions (default is "5th percentile" of all CN values)
 #   cn_gain (optional):  CN threshold value to classify genes within gained regions (default is "95th percentile" of all CN values)
 #   clinical_info (optional): Location of xslx file with clinical information
@@ -56,6 +56,7 @@ graphics.off()
 #===============================================================================
 
 suppressMessages(library(optparse))
+suppressMessages(library(glue))
 
 #===============================================================================
 #    Define functions
@@ -139,17 +140,17 @@ if ( is.na(opt$sample_name) || is.na(opt$bcbio_rnaseq) || is.na(opt$report_dir) 
 
 ##### Make sure that sample ID is availabe if clincal data is provided
 if ( !is.na(opt$clinical_info) && any(is.na(opt$clinical_id) && is.na(opt$subject_id) && is.na(opt$umccrise) ) ) {
-  
+
   cat("ID required to match sample with the subject clinical information is missing! Please provide the ID used in the clinical data by using \"--clinical_id\" argument.\n\n")
   q()
 }
 
 ##### Set default parameters
 if ( is.na(opt$norm)  ) {
-  
+
   if ( opt$transform == "CPM"  ) {
     opt$norm <- "TMM"
-    
+
   } else if ( opt$transform == "TPM"  ) {
     opt$norm <- "quantile"
   }
@@ -166,15 +167,15 @@ if ( is.na(opt$dataset_name_incl)  ) {
 if ( is.na(opt$grch_version)  ) {
   ensembl_version <- 75
   ucsc_genome_assembly <- 19
-  
+
 } else if ( opt$grch_version == 37 ) {
   ensembl_version <- 75
   ucsc_genome_assembly <- 19
-  
+
 } else if ( opt$grch_version == 38 ) {
   ensembl_version <- 86
   ucsc_genome_assembly <- 38
-  
+
 } else {
   cat("\nCurrently human reference genome (GRCh) versions \"37\" and \"38\" are supported.\n\n")
   q()
@@ -182,7 +183,7 @@ if ( is.na(opt$grch_version)  ) {
 
 ##### Check if specified dataset type is valid
 if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC", "LUAD-LCNEC", "PANCAN")) ) {
-  
+
   cat("\nInvalid dataset! Please use one of the following:\n\n")
   cat("[ ACC ] - this will compare the patient's data in the context of samples from TCGA Adrenocortical Carcinoma cohort\n\n")
   cat("[ BLCA ] - this will compare the patient's data in the context of samples from TCGA Bladder Urothelial Carcinoma cohort\n\n")
@@ -228,24 +229,24 @@ if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL",
 
 ##### Make sure that either CPM or TPM transformation is selected
 if ( opt$transform != "CPM" && opt$transform != "TPM" ) {
-  
+
   cat(paste0("\nWrong transformation method was selected! \"", opt$transform, "\" transformation is not available!\n\nUse \"CPM\" or \"TPM\" transformation methods.\n\n"))
   q()
 }
 
 ##### Make sure that TMM, TMMwzp, RLE or upperquartile normalisation is used for CPM-tansformed data and quantile normalisation is used for TPM-tansformed data
 if ( opt$transform == "TPM" && opt$norm != "quantile" && opt$norm != "none" ) {
-  
+
   cat(paste0("\nWrong normalisation method was selected! ", opt$norm, " normalisation is not available for TPM-tansformed data!\n\nQuantile normalisation will be performed for TPM-tansformed data.\n\n"))
   opt$norm <- "quantile"
-  
+
 } else if ( opt$transform == "CPM" && opt$norm == "quantile" ) {
-  
+
   cat(paste0("\nQuantile normalisation is available only for TPM-tansformed data! \"TMM\", \"TMMwzp\", \"RLE\", \"upperquartile\" or \"none\" methods are available for CPM-tansformed data.\n\n"))
   q()
-  
+
 } else if ( opt$transform == "CPM" && opt$norm != "TMM" && opt$norm != "TMMwzp" && opt$norm != "RLE" && opt$norm != "upperquartile" && opt$norm != "none" ) {
-  
+
   cat(paste0("\nWrong normalisation method was selected! \"TMM\", \"TMMwzp\", \"RLE\", \"upperquartile\" or \"none\" methods are available for CPM-tansformed data.\n\n"))
   q()
 }
@@ -255,8 +256,44 @@ if ( !file.exists(opt$report_dir) ) {
   dir.create(opt$report_dir, recursive=TRUE)
 }
 
+params <- list(sample_name = opt$sample_name,
+               dataset = toupper(opt$dataset),
+               bcbio_rnaseq = opt$bcbio_rnaseq,
+               report_dir = opt$report_dir,
+               ref_data_dir = opt$ref_data_dir,
+               transform = opt$transform,
+               norm = opt$norm,
+               batch_rm = opt$batch_rm,
+               filter = opt$filter,
+               log = opt$log,
+               scaling = opt$scaling,
+               drugs = opt$drugs,
+               immunogram = opt$immunogram,
+               umccrise = opt$umccrise,
+               clinical_info = opt$clinical_info,
+               clinical_id = opt$clinical_id,
+               subject_id = opt$subject_id,
+               sample_source = opt$sample_source,
+               project = opt$project,
+               dataset_name_incl = dataset_name_incl,
+               save_tables = opt$save_tables,
+               pcgr_tier = opt$pcgr_tier,
+               pcgr_splice_vars = opt$pcgr_splice_vars,
+               cn_loss = opt$cn_loss,
+               cn_gain = opt$cn_gain,
+               top_genes = opt$top_genes,
+               hide_code_btn = opt$hide_code_btn,
+               grch_version = as.numeric(opt$grch_version),
+               ensembl_version = as.numeric(ensembl_version),
+               ucsc_genome_assembly = as.numeric(ucsc_genome_assembly))
+
+cat(params)
+
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
-rmarkdown::render(input = "RNAseq_report.Rmd", output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"), output_dir = opt$report_dir, params = list(sample_name = opt$sample_name, dataset = toupper(opt$dataset), bcbio_rnaseq = opt$bcbio_rnaseq, report_dir = opt$report_dir, ref_data_dir = opt$ref_data_dir, transform = opt$transform, norm = opt$norm, batch_rm = opt$batch_rm, filter = opt$filter, log = opt$log, scaling = opt$scaling, drugs = opt$drugs, immunogram = opt$immunogram, umccrise = opt$umccrise, clinical_info = opt$clinical_info, clinical_id = opt$clinical_id, subject_id = opt$subject_id, sample_source = opt$sample_source, project = opt$project, dataset_name_incl = dataset_name_incl, save_tables = opt$save_tables, pcgr_tier = opt$pcgr_tier, pcgr_splice_vars = opt$pcgr_splice_vars, cn_loss = opt$cn_loss, cn_gain = opt$cn_gain, top_genes = opt$top_genes, hide_code_btn = opt$hide_code_btn, grch_version = as.numeric(opt$grch_version), ensembl_version = as.numeric(ensembl_version), ucsc_genome_assembly = as.numeric(ucsc_genome_assembly)))
+rmarkdown::render(input = "RNAseq_report.Rmd",
+                  output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"),
+                  output_dir = opt$report_dir,
+                  params = params )
 
 ##### Remove the assocaited MD file and the redundant folder with plots that are imbedded in the HTML report
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.md"), recursive = TRUE)
