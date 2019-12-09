@@ -256,7 +256,7 @@ if ( !file.exists(opt$report_dir) ) {
   dir.create(opt$report_dir, recursive=TRUE)
 }
 
-params <- list(sample_name = opt$sample_name,
+param_list <- list(sample_name = opt$sample_name,
                dataset = toupper(opt$dataset),
                bcbio_rnaseq = opt$bcbio_rnaseq,
                report_dir = opt$report_dir,
@@ -287,13 +287,11 @@ params <- list(sample_name = opt$sample_name,
                ensembl_version = as.numeric(ensembl_version),
                ucsc_genome_assembly = as.numeric(ucsc_genome_assembly))
 
-cat(params)
-
 ##### Pass the user-defined arguments to the RNAseq_report R markdown script and generate the report
 rmarkdown::render(input = "RNAseq_report.Rmd",
                   output_file = paste0(opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.html"),
                   output_dir = opt$report_dir,
-                  params = params )
+                  params = param_list )
 
 ##### Remove the assocaited MD file and the redundant folder with plots that are imbedded in the HTML report
 unlink(paste0(opt$report_dir, "/", opt$sample_name, toupper(dataset_name_incl), ".RNAseq_report.md"), recursive = TRUE)
