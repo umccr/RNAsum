@@ -30,7 +30,7 @@ WORKDIR /rmd_files
 
 #change permissions
 #RUN chmod +x /rmd_files/*
-RUN chmod -R 777 ./
+RUN chmod -R 777 /rmd_files
 
 # Setting locales and timezones, based on https://github.com/jacksoncage/node-docker/blob/master/Dockerfile
 # (setting UTC for readr expecting UTC https://rdrr.io/github/tidyverse/readr/src/R/locale.R - credit umccrise)
