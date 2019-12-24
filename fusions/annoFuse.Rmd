@@ -1,0 +1,96 @@
+---
+title: "annoFuse"
+author: "Sehrish Kanwal"
+date: "17/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The major goal of the tool is to enable the multi-algorithm filtering and annotation steps to allow users to integrate calls from multiple algorithms to improve high confidence, consensus fusion calling
+
+The package offers the following 3 capabilities to filter and annotate fusion calls for an idividual sample.
+
+1. Standardize calls from fusion callers
+
+2. Filter standardized fusion calls
+
+3. Annotate genes in standardized and filtered fusion calls
+
+```{r load-libraries, echo = FALSE}
+suppressMessages(library(annoFuse))
+suppressMessages(library(tidyverse))
+```
+
+## Read in Arriba results and perform pre-processing steps
+
+The tool requires input arriba calls to have a "Sample","Caller" and "annots" column in addition to the standard Arriba output.
+
+It recommends using FusionAnnotator https://github.com/FusionAnnotator/FusionAnnotator/tree/v0.2.0 which adds a column "annots" which we have found very useful to gather database level annotation for fusion QC filtering (using artifactFilter="GTEx_Recurrent|DGD_PARALOGS|Normal|BodyMap|ConjoinG" in fusion_filtering_QC function ).
+
+If we decide not to add FusionAnnotator annotation, we can simply add a column "annots" assign it "NA" or our own custom annotationa that we would like to use as QC filtering.
+
+```{r pre-processing, echo = FALSE}
+Arribainputfile <- read_tsv("~/Documents/UMCCR/data/fusions/arriba/SBJ00051_MDX190040_SFRC01112_T_RNA_L1900448/fusions.tsv")
+#arriba output file has a # in the first coloumn. Removing it, otherwise the first column name become s"#gene1" instead of "gene"
+names(Arribainputfile)[names(Arribainputfile) == "#gene1"] <- "gene1"
+
+#pre-processing - adding "Sample", "Caller" and "annots" coloumn. Skipping FusionAnnotations annotation and adding an empty "annots" field.
+Arribainputfile$Sample <- "SFRC01112"
+Arribainputfile$Caller <- "Arriba"
+Arribainputfile$annots <- "NA"
+
+#the input looks like
+head(Arribainputfile)
+```
+
+## Standardize fusion calls
+
+Standardize calls from fusion callers to retain information regarding fused genes,breakpoints, reading frame information as well as annotation from FusionAnnotator.
+
+
+```{r standardize-calls, echo = FALSE}
+standardizedArriba<-fusion_standardization(fusion_calls = Arribainputfile,caller = "ARRIBA")
+
+#the standardized Arriba output looks like
+head(standardizedArriba)
+```
+
+
+## QC filtering 
+
+Filter standardized fusion calls to remove false positives with low read support, annotated as read-throughs, found in normal and gene homolog databases and if both fused genes are not expressed above the given threshold.
+
+If not using FusionAnnotator annots column for filtering,  only filter using cutoff for junction and spanning read support and readthrough fusion.
+
+```{r filter-calls, echo = FALSE}
+fusionQCarriba<-fusion_filtering_QC(standardFusioncalls=standardizedArriba,
+                                    readingFrameFilter="in-frame|frameshift|other", artifactFilter="none", junctionReadCountFilter=1,
+                                    spanningFragCountFilter=10, readthroughFilter=TRUE)
+
+#T=the filtered calls look like
+head(fusionQCarriba)
+```
+
+## Annotate genes in standardized and filtered fusion calls
+
+Annotation is performed using useful biological features of interest eg. Kinase, Tumor suppressor etc. AND Annotate genes in standardized and filtered fusion calls with useful biological features of interest eg. Kinase, Tumor suppressor etc.
+
+```{r annotate-calls, echo = FALSE}
+#the geneListReferenceDataTab and fusionReferenceDataTab are available with the package
+geneListReferenceDataTab<-read.delim(system.file("extdata", "genelistreference.txt", package="annoFuse"),stringsAsFactors = FALSE)
+fusionReferenceDataTab<-read.delim(system.file("extdata", "fusionreference.txt", package="annoFuse"),stringsAsFactors = FALSE)
+
+#annotation of filtered fusion calls
+filteredFusionAnnotated<-annotate_fusion_calls(standardFusioncalls=fusionQCarriba,
+                                               geneListReferenceDataTab=geneListReferenceDataTab,
+                                               fusionReferenceDataTab=fusionReferenceDataTab)
+
+#annotated calls look like
+head(filteredFusionAnnotated)
+```
+
+
+
