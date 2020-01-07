@@ -41,9 +41,9 @@ params:
   pcgr_splice_vars: TRUE
   cn_loss: 5
   cn_gain: 95
-  grch_version: 37
-  ensembl_version: 75
-  ucsc_genome_assembly: 19
+  grch_version: 38
+  ensembl_version: 86
+  ucsc_genome_assembly: 38
   annot_file: 'genes/tx2gene.ensembl.v95.csv'
   genes_cancer: 'genes/umccr_cancer_genes.2019-03-20.tsv'
   genes_immunogram: 'genes/Genes_immunogram.txt'
@@ -58,7 +58,7 @@ params:
   FusionGDB: 'FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt'
 ---
 
-RNA-seq report for patient sample **`r params$sample_name`**.
+Transcriptome summary for patient sample **`r params$sample_name`**.
 
 
 ```{r script_description, eval=FALSE}
@@ -4173,6 +4173,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   names(fusion_annot_top.circos.pairs) <- gsub("chromEnd.1", "chromEnd", names(fusion_annot_top.circos.pairs))
   names(fusion_annot_top.circos.pairs) <- gsub("Gene.1", "Gene", names(fusion_annot_top.circos.pairs))
   
+  fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[complete.cases(fusion_annot_top.circos.pairs), ]
   fusion_annot_top.circos <- rbind(fusion_annot_top.circos.pairs[, 1:4 ], fusion_annot_top.circos.pairs[, 5:8 ])
   fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[, colnames(fusion_annot_top.circos.pairs) %!in% c("Gene", "Gene.1") ]
   
@@ -5980,8 +5981,8 @@ if (runClinicalChunk ) {
   mysql_populate_update <- paste0(mysql_populate_update, ",Clinical information")
 }
 
-mysql_populate <- paste0(mysql_populate, "\", \"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
-mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"RNA-seq report for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
+mysql_populate <- paste0(mysql_populate, "\", \"Transcriptome summary for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
+mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"Transcriptome summary for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
 mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")
 writeLines(mysql_populate, con = paste0(params$report_dir, "/results/", params$sample_name, ".RNAseq_report.sql"))
 ```

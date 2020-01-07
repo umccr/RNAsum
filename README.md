@@ -191,7 +191,7 @@ Argument | Description | Required
 --dataset_name_incl | Include dataset in the report name. Available options are: `TRUE` and `FALSE` (default) | No
 --save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` (default) and `FALSE` | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (default) and `FALSE` | No
---grch_version | Human reference genome version used for genes annotation. Available options: `37` (default) and `38` | No
+--grch_version | Human reference genome version used for genes annotation. Available options: `37` and `38` (default) | No
 
 <br />
 
@@ -199,7 +199,7 @@ Argument | Description | Required
 
 ###### Note
 
-Human reference genome ***[GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)*** (*Ensembl* based annotation version ***75***) is used for genes annotation as default. Alternatively, human reference genome [GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39) (*Ensembl* based annotation version *86*) is used when argument `grch_version` is set to `38`.
+Human reference genome ***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)*** (*Ensembl* based annotation version ***86***) is used for genes annotation as default. Alternatively, human reference genome [GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/) (*Ensembl* based annotation version *75*) is used when argument `grch_version` is set to `37`.
 
 
 ### Examples 
