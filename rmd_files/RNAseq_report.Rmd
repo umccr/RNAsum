@@ -1523,103 +1523,6 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
   return( list(dt.table,  drug.info) )
 }
 
-##### Generate bezier curves-like plot representing gene fusion events
-fusionsBezierPlot <- function(fusion_annot, genes_annot) {
-  
-  ##### Keep only fusions for which both genes are annotated and have genomic coordinates available
-  fusion_annot <- fusion_annot[ fusion_annot$SYMBOL %in% genes_annot$SYMBOL, ]
-  
-  ##### Get the genes chromosomes...
-  chr1 <- paste0("chr", fusion_annot$SEQNAME)
-  chr2 <- paste0("chr", fusion_annot$SEQNAME.1)
-  
-  ##### ...positions
-  pos1 <- fusion_annot$GENESEQSTART
-  pos2 <- fusion_annot$GENESEQSTART.1
-  
-  ##### ... and the events type
-  type <- paste( fusion_annot$reported_fusion, fusion_annot$geneA_dna_support, fusion_annot$geneB_dna_support, sep = "-") 
-  type <- gsub("Yes-Yes-Yes","Reported fusion and DNA-supported gene(s)", type)
-  type <- gsub("Yes-Yes--","Reported fusion and DNA-supported gene(s)", type)
-  type <- gsub("Yes---Yes","Reported fusion and DNA-supported gene(s)", type)
-  type <- gsub("Yes----","Reported fusion", type)
-  type <- gsub("--Yes-Yes","DNA-supported gene(s)", type)
-  type <- gsub("--Yes--","DNA-supported gene(s)", type)
-  type <- gsub("----Yes","DNA-supported gene(s)", type)
-  type <- gsub("-----","Other", type)
-
-  #### Prepare x-axis coordinates info for ggplot
-  ##### This part of the script converts the genomic positions from hg38 to coordinates that can be plotted on the ggplot x-axis
-  ##### Start with calculating the whole genome length. Here we consider chromosomes 1-22, X and Y
-  genome.length <- sum(seqlengths(Hsapiens)[1:24])
-  
-  ##### Now calculate fake chromosomes' start positions so that they match with the x-axis coordinates in the ggplot
-  chrs_fake_starts <- vector("list", 24)
-  chrs_fake_starts  <- setNames(chrs_fake_starts,  names(Hsapiens)[1:24] )
-  
-  ##### Chromosome 1 has coordingate 0
-  chrs_fake_starts[["chr1"]] <- 0
-  
-  ##### The coordinates for the remaining chromosomes will be calculated by adding the lengths of individual preceding chromosomes
-  length_sum <- 0
-  
-  for ( i in 2:length(chrs_fake_starts) ) {
-  	length_sum <- length_sum + as.numeric(seqlengths(Hsapiens)[[i-1]])
-  	chrs_fake_starts[[names(Hsapiens)[i]]] <- length_sum
-  }
-  
-  ##### Calculate the coordinates for x-axis labels (chr1, chr2...) for ggplot by adding the half-lenght of each chrosomome to its fake start
-  chrs_fake_label.pos <- vector("list", 24)
-  chrs_fake_label.pos  <- setNames(chrs_fake_label.pos,  names(Hsapiens)[1:24] )
-  
-  for ( i in 1:length(chrs_fake_starts) ) {
-  	chrs_fake_label.pos[[names(Hsapiens)[i]]] <- seqlengths(Hsapiens)[[i]]/2 + chrs_fake_starts[[names(Hsapiens)[i]]]
-  }
-  
-  #### Calculate ggplot x-axis coordinates for fusion events
-  ##### Calculate the coordinates to draw bezier curves by adding the fusion events position info to the fake start coordinates of corresponding chromosomes
-  pos1_fake <- vector("list", nrow(fusion_annot))
-  pos2_fake <- vector("list", nrow(fusion_annot))
-  
-  for ( i in 1:nrow(fusion_annot) ) {
-  	pos1_fake[[i]] <- chrs_fake_starts[[chr1[i]]] + pos1[i]
-  	pos2_fake[[i]] <- chrs_fake_starts[[chr2[i]]] + pos2[i]
-  }
-  
-  ##### Get random number for the bezier curves' heigths and caluclate the middle point for each bezier curve
-  beziers.height <- runif(nrow(fusion_annot), 1, 2)
-  beziers.mid <- unlist(pos1_fake)+(unlist(pos2_fake)-unlist(pos1_fake))/2
-  
-  ##### Create data-frame with beziers curves info
-  beziers <- data.frame(
-      x = c(rbind( unlist(pos1_fake), beziers.mid, unlist(pos2_fake) )),
-      y = c(rbind( 0.2, beziers.height, 0.2 ) ),
-      type = rep( paste( chr1, make.names(pos1, unique=TRUE), chr2, make.names(pos2, unique=TRUE), sep="_" ), each=3),
-  		group = rep( type, each=3)
-  )
-  
-  ##### Generate a bezier curves-like plot representing fusion events
-  p <- ggplot() + geom_bezier(aes(x= x, y = y, group = type, color = group ), data = beziers, show.legend = TRUE, size = 0.2) +
-  		##### Remove default axes labels and grey backgroud
-  		theme(axis.title.x=element_blank(), axis.text.x= element_blank(), axis.ticks.x=element_blank(), axis.title.y=element_blank(), axis.text.y= element_blank(), axis.ticks.y=element_blank(),
-  		##### ...and the grey backgroud
-  					panel.background = element_rect(fill = NA),
-  		##### ...change the legend parameters
-  					legend.title=element_text(size=6), legend.text=element_text(size=10), legend.key.size = unit(1,"line"), legend.key= element_blank(), legend.position = c(0.8,0.65) ) +
-  		##### Set the axes limits
-  		scale_x_continuous(limits = c(1, genome.length)) +
-  		scale_y_continuous(limits = c(0, 2)) +
-  		##### Add chromosomes boundaries
-  		geom_segment(aes(x = c(1,unlist(chrs_fake_starts)[2:24],genome.length) , xend = c(1,unlist(chrs_fake_starts)[2:24],genome.length), y = 0, yend = 0.2), colour = 'grey', size = 0.2) +
-  		labs( color = "") +
-  		##### Add chromosomes labels
-  		annotate(geom = 'text', label = names(chrs_fake_label.pos), x = unlist(chrs_fake_label.pos), y = 0.1, size = 2, angle = 45)
-  
-  ##### Clean the space and return output
-  rm(fusion_annot, genes_annot, chr1, chr2, pos1, pos2, type, chrs_fake_label.pos, pos1_fake, pos2_fake, beziers)
-  return( p )
-}
-
 ##### Code from UMCCRISE to prioritise SV events (version for "-sv-prioritize-manta-pass.tsv" files, https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd)
 sv_prioritize_short <- function(sv_file) {
   
@@ -1837,7 +1740,7 @@ suppressMessages(library(htmlwidgets))
 suppressMessages(library(devtools))
 suppressMessages(library(lares))
 suppressMessages(library(package=paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE))
-suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)) # required to get chromosomes lengts for fusionsBezierPlot function generating Bezier plot to present gene fusions in the genomics context
+suppressMessages(library(package=paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE))
 ```
 
 ```{r prepare_parameters, message=FALSE, warning=FALSE}
@@ -3375,6 +3278,9 @@ fusion_annot$geneB_dna_support <- "-"
 
 colnames(fusion_annot) = make.names(colnames(fusion_annot), unique=TRUE)
 
+##### Remove entries with missing annotation
+fusion_annot <- fusion_annot[complete.cases(fusion_annot), ]
+
 ##### Clean the space
 rm(fusion_annot1, fusion_annot2, fusions.annot, fusion_genes_annot)
 ```
@@ -3423,6 +3329,9 @@ if ( runFusionChunk ) {
     fusion_annot <- fusion_annot[ idx, ]
   }
 }
+
+##### Remove entries with missing annotation
+fusion_annot <- fusion_annot[complete.cases(fusion_annot), ]
 
 ##### Clean the space and return output
 rm(manta_fusions)
@@ -4125,13 +4034,11 @@ Fusion events are ordered by the following columns:
 
 ***
 
-### - Genomic view {.tabset}
+### - Genomic view
 
 <span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion == "Yes" , ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
-
-#### Circos
 
 ```{r circos_prep, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8, eval = runFusionChunk}
 ##### Keep only reported fusions or those with or cancer gene(s) involved
@@ -4173,6 +4080,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   names(fusion_annot_top.circos.pairs) <- gsub("chromEnd.1", "chromEnd", names(fusion_annot_top.circos.pairs))
   names(fusion_annot_top.circos.pairs) <- gsub("Gene.1", "Gene", names(fusion_annot_top.circos.pairs))
   
+  ##### Remove entries with missing genomic coordinates
   fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[complete.cases(fusion_annot_top.circos.pairs), ]
   fusion_annot_top.circos <- rbind(fusion_annot_top.circos.pairs[, 1:4 ], fusion_annot_top.circos.pairs[, 5:8 ])
   fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[, colnames(fusion_annot_top.circos.pairs) %!in% c("Gene", "Gene.1") ]
@@ -4240,45 +4148,6 @@ if ( nrow(fusion_annot_top) > 0 ) {
 rm(fusion_annot_top.clean)
 ```
 
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#02d653">GREEN</span> indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, and cells hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**. *DNA support (gene A/B)* - DNA-supported fusion gene(s) (see) [Structural variants] section); *Reported fusion* - fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}; *Cancer gene(s)* - gene fusion events involving [Cancer genes]
-
-</font>
-</details>
-
-***
-
-#### Plain
-
-```{r fusions_genomic_view_plain, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
-##### Generate circos plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA or reported fusions are presented
-if ( nrow(fusion_annot_top) > 0 ) {
-  BezierPlot <- fusionsBezierPlot(fusion_annot = fusion_annot_top, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]])
-  BezierPlot
-    
-} else {
-  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data or was previously reported.")
-}
-```
-
-```{r fusions_genomic_view_plain_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
-##### Save the BezierPlot as png
-if ( exists("BezierPlot") ) {
-  png( filename = paste(fusionsPlotDir, "bezierPlot.png", sep="/"), width = 800, height = 300, units = "px" )
-  plot(BezierPlot)
-  invisible(dev.off())
-}
-```
-
-```{r genomic_view_plain_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-if ( nrow(fusion_annot_top) > 0 ) {
-  fusions.genomicView
-}
-```
-
 ```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Save the table as html file
 if ( nrow(fusion_annot_top) > 0 && params$save_tables ) {
@@ -4286,7 +4155,7 @@ if ( nrow(fusion_annot_top) > 0 && params$save_tables ) {
 }
 
 ##### Clean the space and return output
-rm(fusions.genomicView, BezierPlot)
+rm(fusions.genomicView)
 ```
 
 <details>
@@ -5227,7 +5096,7 @@ Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_marke
 
 ### - Summary table {.tabset}
 
-#### - Percentiles
+#### Percentiles
 
 ```{r immune_genes_table_perc, comment = NA, message=FALSE, warning=FALSE}
 ##### Update MySQL commend to populate RNA-seq data portal
