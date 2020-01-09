@@ -42,7 +42,7 @@
 #   dataset_name_incl:  Include dataset in the report name. Available options are: "TRUE" and "FALSE" (default)
 #   save_tables:   Save interactive summary tables as HTML. Available options are: "TRUE" (default) and "FALSE"
 #   hide_code_btn : Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (default) and "FALSE"
-#   grch_version :  Human reference genome version used for genes annotation (default is "37")
+#   grch_version :  Human reference genome version used for genes annotation (default is "38")
 #
 ################################################################################
 
@@ -165,17 +165,17 @@ if ( is.na(opt$dataset_name_incl)  ) {
 }
 
 if ( is.na(opt$grch_version)  ) {
-  ensembl_version <- 75
-  ucsc_genome_assembly <- 19
-
-} else if ( opt$grch_version == 37 ) {
-  ensembl_version <- 75
-  ucsc_genome_assembly <- 19
-
+  ensembl_version <- 86
+  ucsc_genome_assembly <- 38
+  
 } else if ( opt$grch_version == 38 ) {
   ensembl_version <- 86
   ucsc_genome_assembly <- 38
-
+  
+} else if ( opt$grch_version == 37 ) {
+  ensembl_version <- 75
+  ucsc_genome_assembly <- 19
+  
 } else {
   cat("\nCurrently human reference genome (GRCh) versions \"37\" and \"38\" are supported.\n\n")
   q()
