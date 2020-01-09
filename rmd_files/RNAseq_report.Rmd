@@ -3400,7 +3400,7 @@ if ( !is.null(add_cancer_group) ) {
 ##### ...gene fusion section: Include only those which are DNA-supported (see Structural variants section) or reported in FusionGDB 
 if ( runFusionChunk ) {
   ref_genes.list[["summary"]]$Fusion <- fusions[ fusions$reported_fusion == "Yes" | fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]
-  ref_genes.list[["summary"]]$Fusion <- unique(c(ref_genes.list[["summary"]]$Fusion$SYMBOL, ref_genes.list[["summary"]]$Fusion$SYMBOL.1))
+  ref_genes.list[["summary"]]$Fusion <- unique(c(as.vector(ref_genes.list[["summary"]]$Fusion$geneA), as.vector(ref_genes.list[["summary"]]$Fusion$geneB)))
 } else {
   ref_genes.list[["summary"]]$Fusion <- NULL
 }
@@ -3749,7 +3749,7 @@ rm(summary_table.df, findings.summary, sunburst_plot)
 
 mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer cohorts. NOTE, only PCGR [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` `r if ( params$pcgr_splice_vars ) { c("and non-coding splice region " ) }` variants are reported.
 
-Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }` 
 
 ### - Summary table {.tabset}
 
@@ -3950,7 +3950,7 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 
 </details>
 
-Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( !runFusionChunk ) { c("Fusion genes information for this sample is **NOT AVAILABLE**.") }`
 
 ### - Summary
 
@@ -4058,7 +4058,7 @@ Fusion events are ordered by the following columns:
 
 <span style="color:#ff0000">NOTE</span>: **`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" | fusions$geneA_dna_support == "Yes") & fusions$circos != "Yes", ]) } else { c("0") }`** of such fusions do not have genomic information available and are not presented on the *circos plot* (see *Genomic view* column in the [- Summary] table). 
 
-Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( !runSVsChunk ) { c("Genomic data this sample is **NOT AVAILABLE**.") }`
 
 ```{r circos_prep, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8, eval = runFusionChunk}
 ##### Keep only reported fusions or those with or cancer gene(s) involved
@@ -4403,7 +4403,7 @@ rm(list = ls(pattern='^output*'))
 
 mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta){target="_blank"} SV caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
 
-SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**") }` 
 
 ### - Summary table {.tabset}
 
@@ -4575,7 +4575,7 @@ rm(list = ls(pattern='^output*'))
 
 Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), as well as SNVs/indels and SVs data, if available.
 
-CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+`r if ( !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
 
 ### - Genomic view
 
@@ -5617,7 +5617,7 @@ if ( !file.exists(drugsTableDir) ) {
 
 `r if ( params$drugs ) { c("### - Mutated genes -") }`
 
-`r if ( params$drugs && runPcgrChunk ) { c("Mutation data for this sample is **AVAILABLE**.") } else if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }`
 
 `r if ( params$drugs && runPcgrChunk ) { paste0("**", length(mut_genes.expr.perc[[2]]$SYMBOL), "** genes with [PCGR](https://github.com/sigven/pcgr){target=\"_blank\"} [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target=\"_blank\"} 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") } else if ( params$drugs && !runPcgrChunk ) { paste0("**0** genes with [PCGR](https://github.com/sigven/pcgr){target=\"_blank\"} [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target=\"_blank\"} 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") }`
 
@@ -5669,7 +5669,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("### - Fusion genes -") }`
 
-`r if ( params$drugs && runFusionChunk ) { c("Fusion genes information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runFusionChunk ) { c("Fusion genes information for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runFusionChunk ) { c("Fusion genes information for this sample is **NOT AVAILABLE**.") }`
 
 `r if ( params$drugs && runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**", nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]), "**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**", nrow(fusions[ fusions$reported_fusion == "Yes" , ]), "**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target=\"_blank\"}** were screened for suitable drugs.") } else if ( params$drugs && !runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**0**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**0**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target=\"_blank\"}** were screened for suitable drugs.") }`
 
@@ -5702,7 +5702,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("### - Structural variants -") }`
 
-`r if ( params$drugs && runSVsChunk ) { c("SVs information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**.") }`
 
 `r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(manta_sv$Gene)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
 
@@ -5734,7 +5734,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("### - CN altered genes - {.tabset}") }`
 
-`r if ( params$drugs && runPurpleChunk ) { c("CN information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
 
 `r if ( params$drugs && runPurpleChunk ) { paste0("**", length(cn_genes), "** genes with CN values >= ", cn_top, "  (**gains**) or =< ", cn_bottom, " (**losses**) were screened for suitable drugs (see [CN altered genes] section).") } else if ( params$drugs && !runPurpleChunk ) { paste0("**0** genes were affected by CN changes (see [CN altered genes] section).") }`
 
