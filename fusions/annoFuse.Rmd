@@ -37,8 +37,8 @@ If we decide not to add FusionAnnotator annotation, we can simply add a column "
 
 ```{r pre-processing, warning = FALSE}
 Arribainputfile <- read_tsv("~/Documents/UMCCR/data/fusions/arriba/SBJ00051_MDX190040_SFRC01112_T_RNA_L1900448/fusions.tsv", col_types = cols())
-#arriba output file has a # in the first coloumn. Removing it, otherwise the first column name become s"#gene1" instead of "gene"
-names(Arribainputfile)[names(Arribainputfile) == "#gene1"] <- "gene1"
+#arriba output file has a # in the first coloumn. Removing it, otherwise the first column name becomes "#gene1" instead of "gene"
+names(Arribainputfile)[names(Arribainputfile) == "#gene1"] <- "gene1" 
 
 #pre-processing - adding "Sample", "Caller" and "annots" coloumn. Skipping FusionAnnotations annotation and adding an empty "annots" field.
 Arribainputfile$Sample <- "SFRC01112"
@@ -106,4 +106,14 @@ kable(filteredFusionAnnotated) %>%
   scroll_box(width = "100%", height = "200px")
 ```
 
+## Appendix
 
+The following is the quick peice of code to preare Arriba's input fusions calls for FusionAnnotator. 
+
+```{r prepare-FA-input, warning = FALSE}
+Arribainputfile %>%
+    dplyr::mutate(FusionName = paste0(gene1, "--", gene2, sep = '')) %>%
+    dplyr::select(FusionName, everything()) %>%
+    write.table(file = here("../arriba/SBJ00051/fusionsFA"), sep = "\t", 
+                col.names = FALSE, row.names = FALSE, quote = FALSE)
+```
