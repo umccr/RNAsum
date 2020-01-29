@@ -235,10 +235,10 @@ In this scenario, only [WTS](#wts) data will be used and only expression levels 
 The input files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
 
 
 #### 2. WTS and WGS data
@@ -249,10 +249,10 @@ The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
 
 #### 3. WTS WGS and clinical data
 
@@ -260,10 +260,10 @@ For samples derived from subjects, for which clinical information is available, 
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
 
 
 ### Output
