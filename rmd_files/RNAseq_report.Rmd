@@ -1057,7 +1057,7 @@ arriba_plots <- function(arriba_file, arriba_results, results_dir) {
 }
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, genes_annot = NULL, oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
+exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, genes_annot = NULL, oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
   
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[ genes %!in% rownames(data) ]
@@ -1326,9 +1326,9 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
       names(group.z)[ match("Diff", names(group.z)) ] <- paste0("Patient vs ", comp_cancer)
   }
   
-  ##### Limit the ordered table to maximum of 1500 entries
-  if ( nrow(group.z) > 1500 ) {
-    group.z <- group.z[ 1:1500, ]
+  ##### Limit the ordered table to maximum of 2000 entries if "keep_all" is set to FALSE (default)
+  if ( nrow(group.z) > 2000 && !keep_all ) {
+    group.z <- group.z[ 1:2000, ]
   }
   
   ##### Define table height
@@ -2787,16 +2787,16 @@ rm(data, data.df, gene_info)
 ```
 
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
-##### Save the entire expression data with cancer genes annotaiton as a data table html file
+##### Save the entire expression data for all genes measured in patient's sample with cancer genes annotaiton as a data table html file
 ##### Generate expression summary table for mutated genes
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
-genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+genes.expr.perc <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Z-scores
-genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+genes.expr.z <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Create directory for saving tables
 exprTableDir <- paste(params$report_dir, "results/exprTables", sep = "/")
@@ -2820,12 +2820,12 @@ expr_data <- ref_dataset.list[[dataset]][["data_to_report"]]
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 
 ##### ...percerntiles
-expr_data.perc <- exprTable( genes = rownames(expr_data), data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
+expr_data.perc <- exprTable( genes = rownames(expr_data), keep_all = TRUE, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
 
 expr_genes <- expr_data.perc$SYMBOL
 
 ##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores using exprTable function
-expr_data.z <- exprTable( genes = expr_genes, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
+expr_data.z <- exprTable( genes = expr_genes, keep_all = TRUE, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
 
 ##### Make sure the tables have the same genes order
 expr_data.perc <- expr_data.perc[ expr_genes, ]
@@ -3730,7 +3730,7 @@ Table summarising **all altered genes** listed across following report sections:
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
-findings.summary <- DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrltip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 455, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ; height:50%;'), escape = FALSE) %>%
+findings.summary <- DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrltip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 455, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100%'), escape = FALSE) %>%
       DT::formatStyle( columns = colnames(summary_table.df), `font-size` = '12px', 'text-align' = 'center' ) %>%
       ##### Colour cells according to evidence level and trust rating
       DT::formatStyle(columns = colnames(summary_table.df)[c(2:ncol(summary_table.df)-2)], 
@@ -3810,6 +3810,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( genes_no > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_no, " to 2000 entries.")) } else { cat("") }`
+
 ***
 
 #### Z-scores
@@ -3837,6 +3839,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 </font>
 </details>
+
+`r if ( genes_no > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_no, " to 2000 entries.")) } else { cat("") }`
 
 ***
 
@@ -4159,7 +4163,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   
   names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
 
-  fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800,  escape = FALSE) %>%
+  fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318,  escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
     
       ##### Highlight rows with fusions involving cancer genes (grey)
@@ -4378,6 +4382,11 @@ if ( genes_no > 0 ) {
     cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n")
     cat("\n</font>\n")
     cat("\n</details>\n")
+    
+    if ( genes_no > 2000 ) { 
+        cat(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_no, " to 2000 entries.")) 
+    }
+    
     cat("\n***\n")
     
     cat("\n###### Z-scores\n")
@@ -4389,6 +4398,11 @@ if ( genes_no > 0 ) {
     cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ",  comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n"))
     cat("\n</font>\n")
     cat("\n</details>\n")
+    
+    if ( genes_no > 2000 ) { 
+        cat(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_no, " to 2000 entries.")) 
+    }
+    
     cat("\n***\n")
   }
 } else {
@@ -4467,6 +4481,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( genes_no > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_no, " to 2000 entries.")) } else { cat("") }`
+
 ***
 
 #### Z-scores
@@ -4497,6 +4513,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 </font>
 </details>
+
+`r if ( genes_no > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_no, " to 2000 entries.")) } else { cat("") }`
 
 ***
 
@@ -4826,6 +4844,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( genes_gains_no > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_gains_no, " to 2000 entries.")) } else { cat("") }`
+
 ***
 
 ##### Z-scores
@@ -4860,6 +4880,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 </font>
 </details>
+
+`r if ( genes_gains_no > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_gains_no, " to 2000 entries.")) } else { cat("") }`
 
 ***
 
@@ -4922,6 +4944,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( genes_losses_no > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_losses_no, " to 2000 entries.")) } else { cat("") }`
+
 ***
 
 ##### Z-scores
@@ -4956,6 +4980,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 </font>
 </details>
+
+`r if ( genes_losses_no > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was trimmed from ", genes_losses_no, " to 2000 entries.")) } else { cat("") }`
 
 ***
 
