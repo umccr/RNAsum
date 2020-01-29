@@ -36,14 +36,17 @@ It recommends using FusionAnnotator https://github.com/FusionAnnotator/FusionAnn
 If we decide not to add FusionAnnotator annotation, we can simply add a column "annots" assign it "NA" or our own custom annotationa that we would like to use as QC filtering.
 
 ```{r pre-processing, warning = FALSE}
-Arribainputfile <- read_tsv("~/Documents/UMCCR/data/fusions/arriba/SBJ00051_MDX190040_SFRC01112_T_RNA_L1900448/fusions.tsv", col_types = cols())
+Arribainputfile <- read_tsv(here("../data/fusions/arriba/SBJ00051_MDX190040_SFRC01112_T_RNA_L1900448/fusions.tsv"), col_types = cols())
 #arriba output file has a # in the first coloumn. Removing it, otherwise the first column name becomes "#gene1" instead of "gene"
 names(Arribainputfile)[names(Arribainputfile) == "#gene1"] <- "gene1" 
 
-#pre-processing - adding "Sample", "Caller" and "annots" coloumn. Skipping FusionAnnotations annotation and adding an empty "annots" field.
+Fusionannfile <- read_tsv(here("../data/fusions/arriba/SBJ00051_MDX190040_SFRC01112_T_RNA_L1900448/fusionsAnno.tsv"), col_types = cols(), col_names = FALSE)
+colnames(Fusionannfile) <- c("fusion", "ann")
+
+#pre-processing - adding "Sample", "Caller" and "annots" coloumn using FusionAnnotator's output.
 Arribainputfile$Sample <- "SFRC01112"
 Arribainputfile$Caller <- "Arriba"
-Arribainputfile$annots <- "NA"
+Arribainputfile$annots <- Fusionannfile$ann
 
 #the input looks like
 df <- ldply (Arribainputfile, data.frame) %>%
@@ -110,14 +113,14 @@ kable(filteredFusionAnnotated) %>%
 
 The following is the quick peice of code to prepare Arriba's input fusions calls for FusionAnnotator. 
 
-```{r prepare-FA-input, warning = FALSE}
+```{r prepare-FA-input, warning = FALSE, eval = FALSE}
 Arribainputfile %>%
     dplyr::mutate(gene1 = gsub("\\..*", "", gene1),
                   gene2 = gsub("\\..*", "", gene2)) %>%
     dplyr::mutate(gene1 = gsub("\\-.*", "", gene1),
                   gene2 = gsub("\\-.*", "", gene2)) %>%
     dplyr::mutate(FusionName = paste0(gene1, "--", gene2, sep = '')) %>%
-    dplyr::select(FusionName, everything()) %>%
+    dplyr::select(FusionName) %>%
     write.table(file = here("../arriba/SBJ00051/fusionsFA"), sep = "\t", 
                 col.names = FALSE, row.names = FALSE, quote = FALSE)
 ```
