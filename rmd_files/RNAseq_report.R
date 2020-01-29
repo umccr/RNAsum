@@ -165,6 +165,7 @@ if ( is.na(opt$dataset_name_incl)  ) {
 }
 
 if ( is.na(opt$grch_version)  ) {
+  opt$grch_version <- 38
   ensembl_version <- 86
   ucsc_genome_assembly <- 38
   
