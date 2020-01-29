@@ -38,7 +38,7 @@
 #   subject_id (optional):    Subject ID. If umccrise output is specified (flag --umccrise) then Subject ID is extracted from there and used to overwrite this argument
 #   sample_source (optional):   Source of investigated sample (e.g. fresh frozen tissue, organoid). This information is for annotation purposes only
 #   project (optional):   Project name. This information is for annotation purposes only
-#   top_genes:    The number of top ranked genes to be presented (default is "10")
+#   top_genes:    The number of top ranked genes to be presented (default is "5")
 #   dataset_name_incl:  Include dataset in the report name. Available options are: "TRUE" and "FALSE" (default)
 #   save_tables:   Save interactive summary tables as HTML. Available options are: "TRUE" (default) and "FALSE"
 #   hide_code_btn : Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (default) and "FALSE"
@@ -116,7 +116,7 @@ option_list = list(
               help="Type of investigated sample"),
   make_option("--project", action="store", default="-", type='character',
               help="Project name"),
-  make_option("--top_genes", action="store", default=10, type='integer',
+  make_option("--top_genes", action="store", default=5, type='integer',
               help="The number of top ranked genes to be presented"),
   make_option("--dataset_name_incl", action="store", default=NA, type='character',
               help="Include dataset in the report name"),

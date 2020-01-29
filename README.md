@@ -187,7 +187,7 @@ Argument | Description | Required
 --subject_id | Subject ID. Note, if `umccrise` is specified (flag `--umccrise`) then subject ID is extracted from `umccrise` output files and used to overwrite this argument | No
 --sample_source | Source of investigated sample (e.g. fresh frozen tissue, organoid; for annotation purposes only) | No
 --project | Project name (for annotation purposes only) | No
---top_genes | The number of top ranked genes to be presented (default is `10`) | No
+--top_genes | The number of top ranked genes to be presented (default is `5`) | No
 --dataset_name_incl | Include dataset in the report name. Available options are: `TRUE` and `FALSE` (default) | No
 --save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` (default) and `FALSE` | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (default) and `FALSE` | No
