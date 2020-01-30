@@ -311,7 +311,7 @@ The `results` folder contains intermediate files, including plots and tables tha
 
  - Pull ready to run docker image from DockerHub
 
- `docker pull umccr/rnasum:0.3.1`
+ `docker pull umccr/rnasum:0.3.2`
  
  - An example command to use this pulled docker container is:
 
@@ -321,4 +321,4 @@ The `results` folder contains intermediate files, including plots and tables tha
  
  - Assumptions
 
- 	- You are running the RNAsum container against the [RNAsum code, test data and reference data](https://github.com/umccr/RNAsum/tree/master/data/)
+ 	- You are running the RNAsum container against the [RNAsum code](https://github.com/umccr/RNAsum/) and  [test/reference data](https://github.com/umccr/RNAsum/tree/master/data/)
