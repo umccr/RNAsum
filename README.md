@@ -21,6 +21,7 @@ RNA-seq reporting workflow designed to post-process, summarise and visualise an 
   	 * [WTS and WGS data](#2-wts-and-wgs-data)
   	 * [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
   * [Output](#output)
+* [Docker](#docker)
 
 <!-- vim-markdown-toc -->
 
@@ -305,3 +306,19 @@ Detailed description of the **[report structure](report_structure.md)**, includi
 #### Results
 
 The `results` folder contains intermediate files, including plots and tables that are presented in the [report](#report).
+
+## Docker
+
+ - Pull ready to run docker image from DockerHub
+
+ `docker pull umccr/rnasum:0.3.1`
+ 
+ - An example command to use this pulled docker container is:
+
+ ```
+ docker run --rm -v /path/to/RNAseq-report/RNAseq-Analysis-Report/envm/wts-report-wrapper.sh:/work/test.sh -v /path/to/RNAseq-report/RNAseq-Analysis-Report/data:/work c18db89d3093 /work/test.sh
+ ```
+ 
+ - Assumptions
+
+ 	- You are running the RNAsum container against the [RNAsum code, test data and reference data](https://github.com/umccr/RNAsum/tree/master/data/)
