@@ -188,7 +188,7 @@ Argument | Description | Required
 --subject_id | Subject ID. Note, if `umccrise` is specified (flag `--umccrise`) then subject ID is extracted from `umccrise` output files and used to overwrite this argument | No
 --sample_source | Source of investigated sample (e.g. fresh frozen tissue, organoid; for annotation purposes only) | No
 --project | Project name (for annotation purposes only) | No
---top_genes | The number of top ranked genes to be presented (default is `10`) | No
+--top_genes | The number of top ranked genes to be presented (default is `5`) | No
 --dataset_name_incl | Include dataset in the report name. Available options are: `TRUE` and `FALSE` (default) | No
 --save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` (default) and `FALSE` | No
 --hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (default) and `FALSE` | No
@@ -236,10 +236,10 @@ In this scenario, only [WTS](#wts) data will be used and only expression levels 
 The input files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset BLCA  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
 
 
 #### 2. WTS and WGS data
@@ -250,10 +250,10 @@ The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset CESC  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
 
 #### 3. WTS WGS and clinical data
 
@@ -261,10 +261,10 @@ For samples derived from subjects, for which clinical information is available, 
 
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAseq_report.html` will be created in `data/test_data/final/test_sample_WTS/RNAseq_report` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
 
 
 ### Output
