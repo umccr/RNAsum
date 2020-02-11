@@ -28,18 +28,18 @@ RNA-seq reporting workflow designed to post-process, summarise and visualise an 
 
 ## Installation
 
-Run the following to create a directory "rnaseq-report" and install into it
+Run the following to create a directory "rnasum" and install into it
 
 ```
-mkdir rnaseq-report
-cd rnaseq-report
+mkdir rnasum
+cd rnasum
 source <(curl -s https://raw.githubusercontent.com/umccr/RNAseq-Analysis-Report/master/install.sh)
 ```
 
-It will generate `load_rnaseq-report.sh` script that can be sourced to load the `rnaseq-report` environment:
+It will generate `load_rnasum.sh` script that can be sourced to load the `rnasum` environment:
 
 ```
-source load_rnaseq-report.sh
+source load_rnasum.sh
 ```
 
 
@@ -216,7 +216,7 @@ Below are command line use examples for generating *Patient Transcriptome Summar
 * make sure that the created *conda* environment (see [Installation](#installation) section) is  activated
 
 ```
-conda activate rnaseq-report
+conda activate rnasum
 ```
 
 * *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see the beginning of [Usage](#usage) section) should be executed from [rmd_files](./rmd_files) folder
