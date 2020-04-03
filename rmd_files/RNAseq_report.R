@@ -14,7 +14,7 @@
 #
 #	  Description: Script collecting user-defined parameters for the corresponding RNAseq_report.Rmd markdown script generating the "UMCCR Transcriptome Patient Summary" report. Note, only genes intersection between the sample read count file and the reference datasets expression matrices will be considered in the analyses.
 #
-#	  Command line use example: Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir (pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --clinical_id test.subject
+#	  Command line use example: Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir (pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --clinical_id test.subject
 #
 #   dataset:      Dataset to be used as external reference cohort (default is "PANCAN")
 #   bcbio_rnaseq: Location of the results folder from bcbio RNA-seq pipeline
@@ -38,7 +38,7 @@
 #   subject_id (optional):    Subject ID. If umccrise output is specified (flag --umccrise) then Subject ID is extracted from there and used to overwrite this argument
 #   sample_source (optional):   Source of investigated sample (e.g. fresh frozen tissue, organoid). This information is for annotation purposes only
 #   project (optional):   Project name. This information is for annotation purposes only
-#   top_genes:    The number of top ranked genes to be presented (default is "10")
+#   top_genes:    The number of top ranked genes to be presented (default is "5")
 #   dataset_name_incl:  Include dataset in the report name. Available options are: "TRUE" and "FALSE" (default)
 #   save_tables:   Save interactive summary tables as HTML. Available options are: "TRUE" (default) and "FALSE"
 #   hide_code_btn : Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (default) and "FALSE"
@@ -116,7 +116,7 @@ option_list = list(
               help="Type of investigated sample"),
   make_option("--project", action="store", default="-", type='character',
               help="Project name"),
-  make_option("--top_genes", action="store", default=10, type='integer',
+  make_option("--top_genes", action="store", default=5, type='integer',
               help="The number of top ranked genes to be presented"),
   make_option("--dataset_name_incl", action="store", default=NA, type='character',
               help="Include dataset in the report name"),
@@ -165,6 +165,7 @@ if ( is.na(opt$dataset_name_incl)  ) {
 }
 
 if ( is.na(opt$grch_version)  ) {
+  opt$grch_version <- 38
   ensembl_version <- 86
   ucsc_genome_assembly <- 38
   
@@ -182,7 +183,7 @@ if ( is.na(opt$grch_version)  ) {
 }
 
 ##### Check if specified dataset type is valid
-if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC", "LUAD-LCNEC", "PANCAN")) ) {
+if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC", "LUAD-LCNEC", "PANCAN", "TEST")) ) {
 
   cat("\nInvalid dataset! Please use one of the following:\n\n")
   cat("[ ACC ] - this will compare the patient's data in the context of samples from TCGA Adrenocortical Carcinoma cohort\n\n")
@@ -224,6 +225,7 @@ if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL",
   cat("[ PAAD-ACC ] - this will compare the patient's data in the context of samples from TCGA Pancreatic Adenocarcinoma cohort (including acinar cell carcinoma (ACC) samples) and UMCCR internal pancreatic ductal adenocarcinoma cohort\n")
   cat("[ LUAD-LCNEC ] - this will compare the patient's data in the context of samples from TCGA Lung Adenocarcinoma cohort (including favor large-cell neuroendocrine carcinoma (LCNEC) samples)\n")
   cat("[ PANCAN ] - this will compare the patient's data in the context of samples from all TCGA cohorts\n")
+  cat("[ TEST ] - this will compare the patient's data in the context of subset of samples from TCGA Pancreatic Adenocarcinoma cohort and UMCCR internal pancreatic ductal adenocarcinoma cohort\n")
   q()
 }
 

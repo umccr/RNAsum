@@ -34,7 +34,7 @@ params:
   subject_id: ''
   sample_source: "-"
   project: "-"
-  top_genes: 10
+  top_genes: 5
   save_tables: TRUE
   hide_code_btn: TRUE
   pcgr_tier: 4
@@ -1057,7 +1057,7 @@ arriba_plots <- function(arriba_file, arriba_results, results_dir) {
 }
 
 ##### Generate table with coloured cells indicating expression values for selected genes
-exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, genes_annot = NULL, oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
+exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, genes_annot = NULL, oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
   
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[ genes %!in% rownames(data) ]
@@ -1326,16 +1326,23 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
       names(group.z)[ match("Diff", names(group.z)) ] <- paste0("Patient vs ", comp_cancer)
   }
   
+  ##### Limit the ordered table to maximum of 2000 entries if "keep_all" is set to FALSE (default)
+  if ( nrow(group.z) > 2000 && !keep_all ) {
+    group.z <- group.z[ 1:2000, ]
+  }
+  
   ##### Define table height
   if ( nrow(group.z) == 2 ) {
     table_height <- 230
+    scrollY <- "67px"
   } else {
-    table_height <- NULL
+    scrollY <- "167px"
+    table_height <- 318
   }
   
   ##### Generate a table with genes annotations and coloured expression values in each group
   if ( !is.null(cn_data) ) {
-    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, height = table_height, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = scrollY, scroller = TRUE), width = 800, height = table_height, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = '12px', 'text-align' = 'center' ) %>%
       
       ##### Colour cells according to the expression values quantiles in each group
@@ -1351,7 +1358,7 @@ exprTable <- function(genes, data, cn_data = NULL, sv_data = NULL, cn_decrease =
     
   ##### Generate a table with genes annotations and coloured expression values in each group
   } else {
-    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, height = table_height, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+    dt.table <- DT::datatable( data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")], filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE, scrollY = scrollY, scroller = TRUE), width = 800, height = table_height, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = '12px', 'text-align' = 'center' ) %>%
       
       ##### Colour cells according to the expression values quantiles in each group
@@ -1510,7 +1517,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
   drug.info <- drug.info[ , c("Gene", "Variant", "Variant type", "Drugs", "Clinical trials", "Evidence level", "Evidence direction", "Clinical significance", "Trust rating", "Actionability score", "Disease", "Phenotypes", "PubMed ID",  "Representative transcript", "Representative transcript 2")] 
   
   ##### Generate a table
-  dt.table <- DT::datatable( data = drug.info, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+  dt.table <- DT::datatable( data = drug.info, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
     DT::formatStyle( columns = names(drug.info), `font-size` = '12px', 'text-align' = 'center' ) %>%
     ##### Colour cells according to evidence level and trust rating
     DT::formatStyle(columns = "Evidence level", 
@@ -1839,8 +1846,6 @@ dataDir <- params$bcbio_rnaseq
 ##### Get the subject ID
 if ( !is.na(params$subject_id) ) {
   subjectID <- params$subject_id
-} else if ( !is.na(params$clinical_id) ) {
-  subjectID <- params$clinical_id
 } else {
   subjectID <- ""
 }
@@ -2840,16 +2845,16 @@ rm(data, data.df, gene_info)
 ```
 
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
-##### Save the entire expression data with cancer genes annotaiton as a data table html file
+##### Save the entire expression data for all genes measured in patient's sample with cancer genes annotaiton as a data table html file
 ##### Generate expression summary table for mutated genes
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
-genes.expr.perc <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+genes.expr.perc <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Z-scores
-genes.expr.z <- exprTable( genes = rownames(data), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+genes.expr.z <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Create directory for saving tables
 exprTableDir <- paste(params$report_dir, "results/exprTables", sep = "/")
@@ -2873,12 +2878,12 @@ expr_data <- ref_dataset.list[[dataset]][["data_to_report"]]
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 
 ##### ...percerntiles
-expr_data.perc <- exprTable( genes = rownames(expr_data), data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
+expr_data.perc <- exprTable( genes = rownames(expr_data), keep_all = TRUE, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
 
 expr_genes <- expr_data.perc$SYMBOL
 
 ##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores using exprTable function
-expr_data.z <- exprTable( genes = expr_genes, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
+expr_data.z <- exprTable( genes = expr_genes, keep_all = TRUE, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
 
 ##### Make sure the tables have the same genes order
 expr_data.perc <- expr_data.perc[ expr_genes, ]
@@ -3741,7 +3746,7 @@ treatment_timeline
 
 ### Per-alteration plot
 
-`r if ( !is.na(sunburst_plot[[2]]) ) { c("**Genes** listed **in at least two sections** of this report") } else { c("**All altered genes**")  }` are summarised in the plot below. `r if ( !is.na(sunburst_plot[[2]]) ) { c("These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources.")  }` The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically. `r if ( !is.na(sunburst_plot[[2]]) ) { c("To see the summary plot for all altered genes (i.e. listed in any report section) expand the *All altered genes* button below.")  }`
+`r if ( !is.na(sunburst_plot[[2]]) ) { c("**Genes** listed **in at least two sections** of this report") } else { c("**All altered genes**")  }` are summarised in the plot below. `r if ( !is.na(sunburst_plot[[2]]) ) { c("These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources.")  }` The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically.
 
 `r if ( is.na(sunburst_plot[[2]]) ) { c("<span style=\"color:#ff0000\">NOTE</span>, no genes are listed in more then one section.") }`
   
@@ -3758,7 +3763,7 @@ if ( !is.na(sunburst_plot[[2]]) ) {
 }
 ```
 
-`r if ( !is.na(sunburst_plot[[2]]) ) { c("<details>\n<summary>All altered genes</summary>") }`
+`r if ( !is.na(sunburst_plot[[2]]) ) { c("<details>\n<summary>Show all altered genes</summary>") }`
 
 ```{r findings_summary_all_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections
@@ -3783,7 +3788,7 @@ Table summarising **all altered genes** listed across following report sections:
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
-findings.summary <- DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+findings.summary <- DT::datatable( data = summary_table.df, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrltip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 455, caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:grey; font-size:100%'), escape = FALSE) %>%
       DT::formatStyle( columns = colnames(summary_table.df), `font-size` = '12px', 'text-align' = 'center' ) %>%
       ##### Colour cells according to evidence level and trust rating
       DT::formatStyle(columns = colnames(summary_table.df)[c(2:ncol(summary_table.df)-2)], 
@@ -3809,7 +3814,7 @@ rm(summary_table.df, findings.summary, sunburst_plot)
 
 mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr){target="_blank"} report, in patient's sample and their average mRNA expression in samples from cancer cohorts. NOTE, only PCGR [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target="_blank"} 1-`r params$pcgr_tier` `r if ( params$pcgr_splice_vars ) { c("and non-coding splice region " ) }` variants are reported.
 
-Mutation data for this sample is **`r if ( runPcgrChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }` 
 
 ### - Summary table {.tabset}
 
@@ -3863,6 +3868,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( runPcgrChunk && length(genes) > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) } else { cat("") }`
+
 ***
 
 #### Z-scores
@@ -3890,6 +3897,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 </font>
 </details>
+
+`r if ( runPcgrChunk && length(genes) > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) } else { cat("") }`
 
 ***
 
@@ -4011,7 +4020,7 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 
 </details>
 
-Fusion genes information for this sample is **`r if ( runFusionChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( !runFusionChunk ) { c("Fusion genes information for this sample is **NOT AVAILABLE**.") }`
 
 ### - Summary
 
@@ -4045,7 +4054,7 @@ if ( runFusionChunk ) {
   names(fusions.table) <- c("Gene A", "Gene B", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Confidence (Arriba)", "Breakpoint (A)", "Breakpoint (B)", "Site (A)", "Site (B)", "Type", "Genomic view")
   
   ##### Present gene fusion events in a table
-  fusions.summary <- DT::datatable( data = fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+  fusions.summary <- DT::datatable( data = fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 490, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
     
       ##### Highlight rows with fusions involving cancer genes (grey) or DNA support (from MANTA, orange)
@@ -4064,7 +4073,7 @@ if ( runFusionChunk ) {
   names(fusions.table) <- c("Gene A", "Gene B", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Confidence (Arriba)", "Breakpoint (A)", "Breakpoint (B)", "Site (A)", "Site (B)", "Type", "Genomic view")
 
   ##### Present gene fusion events in a table
-  fusions.summary <- DT::datatable( data = fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+  fusions.summary <- DT::datatable( data = fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 490, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
       DT::formatStyle( columns = names(fusions.table), `font-size` = '12px', 'text-align' = 'center' )
   
   fusions.summary
@@ -4115,11 +4124,11 @@ Fusion events are ordered by the following columns:
 
 ### - Genomic view
 
-<span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes") & fusions$circos == "Yes", ]) } else { c("0") }`**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion == "Yes" & fusions$circos == "Yes", ]) } else { c("0") }`**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
+<span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes") & fusions$circos == "Yes", ]) } else { c("0") }`**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion == "Yes" & fusions$circos == "Yes", ]) } else { c("0") }`**</span> fusions events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 <span style="color:#ff0000">NOTE</span>: **`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" | fusions$geneA_dna_support == "Yes") & fusions$circos != "Yes", ]) } else { c("0") }`** of such fusions do not have genomic information available and are not presented on the *circos plot* (see *Genomic view* column in the [- Summary] table). 
 
-Genomic data this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( !runSVsChunk ) { c("Genomic data this sample is **NOT AVAILABLE**.") }`
 
 ```{r circos_prep, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 8, eval = runFusionChunk}
 ##### Keep only reported fusions or those with or cancer gene(s) involved
@@ -4213,7 +4222,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
   
   names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
 
-  fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = 200, scroller = TRUE), width = 800,  escape = FALSE) %>%
+  fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318,  escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
     
       ##### Highlight rows with fusions involving cancer genes (grey)
@@ -4229,6 +4238,15 @@ if ( nrow(fusion_annot_top) > 0 ) {
 rm(fusion_annot_top.clean)
 ```
 
+<details>
+<summary>Table legend</summary>
+<font size="2">
+
+Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#02d653">GREEN</span> indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, and cells hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**. *DNA support (gene A/B)* - DNA-supported fusion gene(s) (see) [Structural variants] section); *Reported fusion* - fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}; *Cancer gene(s)* - gene fusion events involving [Cancer genes]
+
+</font>
+</details>
+
 ```{r genomic_view_table_fusions_save, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Save the table as html file
 if ( nrow(fusion_annot_top) > 0 && params$save_tables ) {
@@ -4238,15 +4256,6 @@ if ( nrow(fusion_annot_top) > 0 && params$save_tables ) {
 ##### Clean the space and return output
 rm(fusions.genomicView)
 ```
-
-<details>
-<summary>Table legend</summary>
-<font size="2">
-
-Cells in <span style="color:#ff0000">RED</span> indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in <span style="color:#02d653">GREEN</span> indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}**, and cells hihglighted in <span style="color:#767689">GREY</span> indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"} and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers){target="_blank"} (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**. *DNA support (gene A/B)* - DNA-supported fusion gene(s) (see) [Structural variants] section); *Reported fusion* - fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}; *Cancer gene(s)* - gene fusion events involving [Cancer genes]
-
-</font>
-</details>
 
 ***
 
@@ -4432,6 +4441,11 @@ if ( genes_no > 0 ) {
     cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n")
     cat("\n</font>\n")
     cat("\n</details>\n")
+    
+    if ( length(genes) > 2000 ) { 
+        cat(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) 
+    }
+    
     cat("\n***\n")
     
     cat("\n###### Z-scores\n")
@@ -4443,6 +4457,11 @@ if ( genes_no > 0 ) {
     cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ",  comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes){target=\"_blank\"} database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n"))
     cat("\n</font>\n")
     cat("\n</details>\n")
+    
+    if ( length(genes) > 2000 ) { 
+        cat(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) 
+    }
+    
     cat("\n***\n")
   }
 } else {
@@ -4454,7 +4473,6 @@ if ( genes_no > 0 ) {
 detach("package:plotly", unload=FALSE)
 
 ##### Clean the space
-rm(fusion_reads.selected)
 rm(list = ls(pattern='^output*'))
 ```
 
@@ -4464,7 +4482,7 @@ rm(list = ls(pattern='^output*'))
 
 mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta){target="_blank"} SV caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
 
-SVs information for this sample is **`r if ( runSVsChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**. 
+`r if ( !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**") }` 
 
 ### - Summary table {.tabset}
 
@@ -4521,6 +4539,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( runSVsChunk && length(genes) > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) } else { cat("") }`
+
 ***
 
 #### Z-scores
@@ -4551,6 +4571,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 </font>
 </details>
+
+`r if ( runSVsChunk && length(genes) > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) } else { cat("") }`
 
 ***
 
@@ -4637,7 +4659,7 @@ rm(limit_genes)
 
 Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator){target="_blank"}), as well as SNVs/indels and SVs data, if available.
 
-CN information for this sample is **`r if ( runPurpleChunk ) { c("AVAILABLE") } else { c("NOT AVAILABLE") }`**.
+`r if ( !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
 
 ### - Genomic view
 
@@ -4881,6 +4903,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( runPurpleChunk && length(genes_gains) > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) } else { cat("") }`
+
 ***
 
 ##### Z-scores
@@ -4915,6 +4939,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 </font>
 </details>
+
+`r if ( runPurpleChunk && length(genes_gains) > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) } else { cat("") }`
 
 ***
 
@@ -4977,6 +5003,8 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( runPurpleChunk && length(genes_losses) > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) } else { cat("") }`
+
 ***
 
 ##### Z-scores
@@ -5012,11 +5040,13 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 </font>
 </details>
 
+`r if ( runPurpleChunk && length(genes_losses) > 2000 ) { c(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries.")) } else { cat("") }`
+
 ***
 
 ### - Expression profiles {.tabset}
 
-`r if ( exists("limit_genes") ) { if ( limit_genes ) { c(paste0("Expression profiles for ", genes_gains_no, " genes with the highest (**gains**) and ", genes_losses_no, " genes with the lowest (**losses**) CN values and the greatest difference in mRNA expression (percentile) values between patient's sample and the average mRNA expression in samples from cancer patients.")) } else { cat(" ") }}`
+`r if ( exists("limit_genes") && exists("genes_gains_no") ) { if ( limit_genes ) { c(paste0("Expression profiles for ", genes_gains_no, " genes with the highest (**gains**) and ", genes_losses_no, " genes with the lowest (**losses**) CN values and the greatest difference in mRNA expression (percentile) values between patient's sample and the average mRNA expression in samples from cancer patients.")) } else { cat(" ") }}`
 
 #### Gains {.tabset}
 
@@ -5680,7 +5710,7 @@ if ( !file.exists(drugsTableDir) ) {
 
 `r if ( params$drugs ) { c("### - Mutated genes -") }`
 
-`r if ( params$drugs && runPcgrChunk ) { c("Mutation data for this sample is **AVAILABLE**.") } else if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }`
 
 `r if ( params$drugs && runPcgrChunk ) { paste0("**", length(mut_genes.expr.perc[[2]]$SYMBOL), "** genes with [PCGR](https://github.com/sigven/pcgr){target=\"_blank\"} [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target=\"_blank\"} 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") } else if ( params$drugs && !runPcgrChunk ) { paste0("**0** genes with [PCGR](https://github.com/sigven/pcgr){target=\"_blank\"} [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg){target=\"_blank\"} 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") }`
 
@@ -5732,7 +5762,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("### - Fusion genes -") }`
 
-`r if ( params$drugs && runFusionChunk ) { c("Fusion genes information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runFusionChunk ) { c("Fusion genes information for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runFusionChunk ) { c("Fusion genes information for this sample is **NOT AVAILABLE**.") }`
 
 `r if ( params$drugs && runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**", nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]), "**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**", nrow(fusions[ fusions$reported_fusion == "Yes" , ]), "**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target=\"_blank\"}** were screened for suitable drugs.") } else if ( params$drugs && !runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**0**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**0**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target=\"_blank\"}** were screened for suitable drugs.") }`
 
@@ -5765,7 +5795,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("### - Structural variants -") }`
 
-`r if ( params$drugs && runSVsChunk ) { c("SVs information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**.") }`
 
 `r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(manta_sv$Gene)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
 
@@ -5797,7 +5827,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("### - CN altered genes - {.tabset}") }`
 
-`r if ( params$drugs && runPurpleChunk ) { c("CN information for this sample is **AVAILABLE**.") } else if ( params$drugs && !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
 
 `r if ( params$drugs && runPurpleChunk ) { paste0("**", length(cn_genes), "** genes with CN values >= ", cn_top, "  (**gains**) or =< ", cn_bottom, " (**losses**) were screened for suitable drugs (see [CN altered genes] section).") } else if ( params$drugs && !runPurpleChunk ) { paste0("**0** genes were affected by CN changes (see [CN altered genes] section).") }`
 
