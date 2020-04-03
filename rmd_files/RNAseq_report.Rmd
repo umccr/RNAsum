@@ -1562,48 +1562,94 @@ sv_prioritize <- function(sv_file) {
 
   if (length(readLines(con = sv_file, n = 2)) > 1) {
     
-    sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
-      dplyr::select(-caller, -sample) %>% 
-      split_sv_field(BPI_AF, is_pct = T) %>% 
-      split_sv_field(AF, is_pct = T) %>% 
-      split_sv_field(CN) %>% 
-      split_sv_field(CN_change) %>% 
-      dplyr::mutate(
-        Ploidy = as.double(Ploidy),
-        Ploidy = format(Ploidy, nsmall = 2)
-      ) %>% 
-      tidyr::separate(split_read_support, c("SR (alt)", "SR (ref)"), ",") %>% 
-      dplyr::mutate(SR = as.integer(`SR (alt)`)) %>% 
-      tidyr::separate(paired_support_PR, c("PR (alt)", "PR (ref)"), ",") %>% 
-      dplyr::mutate(PR = as.integer(`PR (alt)`)) %>% 
-      tidyr::separate(paired_support_PE, c("PE (alt)", "PE (ref)"), ",") %>% 
-      dplyr::mutate(PE = as.integer(`PE (alt)`)) %>% 
+    ##### Due to changes in PURPLE output format there are two expected coumn names combinations
+    if ( all(c("AF_BPI", "AF_PURPLE", "CN_PURPLE", "CN_change_PURPLE", "Ploidy_PURPLE") %in% names(read_tsv(sv_file, col_names = TRUE, col_types = col_types))) ) {
+    
+      sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
+        dplyr::select(-caller, -sample) %>% 
+        split_sv_field(AF_BPI, is_pct = T) %>% 
+        split_sv_field(AF_PURPLE, is_pct = T) %>% 
+        split_sv_field(CN_PURPLE) %>% 
+        split_sv_field(CN_change_PURPLE) %>% 
+        dplyr::mutate(
+          Ploidy_PURPLE = as.double(Ploidy_PURPLE),
+          Ploidy_PURPLE = format(Ploidy_PURPLE, nsmall = 2)
+        ) %>% 
+        tidyr::separate(split_read_support, c("SR (alt)", "SR (ref)"), ",") %>% 
+        dplyr::mutate(SR = as.integer(`SR (alt)`)) %>% 
+        tidyr::separate(paired_support_PR, c("PR (alt)", "PR (ref)"), ",") %>% 
+        dplyr::mutate(PR = as.integer(`PR (alt)`)) %>% 
+        tidyr::separate(paired_support_PE, c("PE (alt)", "PE (ref)"), ",") %>% 
+        dplyr::mutate(PE = as.integer(`PE (alt)`)) %>% 
+        
+        dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
+        tidyr::unnest(annotation = strsplit(annotation, ',')) %>%  # Unpack multiple annotations per region
+        tidyr::separate(annotation,
+                        c('Event', 'Effect', 'Genes', 'Transcript', 'Detail', 'Tier'),
+                        sep = '\\|', convert = TRUE) %>%  # Unpack annotation columns
+        dplyr::mutate(start = format(start, big.mark = ',', trim = T),
+                      end = format(end, big.mark = ',', trim = T)) %>% 
+        dplyr::mutate(location = str_c(chrom, ':', start, sep = ''),
+                      location = ifelse(is.na(end), location, str_c(location))) %>% 
+        dplyr::arrange(Tier, Effect, desc(AF_PURPLE), Genes) %>% 
+        dplyr::mutate(Gene = subset_genes(Genes, c(1, 2)),
+                      Gene = ifelse((str_split(Genes, '&') %>% map_int(length)) > 2,
+                                    str_c(Gene, '...', sep = ', '),
+                                    Gene),
+                      `Other affected genes` = subset_genes(Genes, -c(1,2)) %>% str_replace_all('&', ', '),
+                      Gene = ifelse(str_detect(Effect, "gene_fusion"),
+                                    Gene,
+                                    Gene %>% str_replace_all('&', ', '))
+                      ) %>% 
+        separate(Effect, c("Effect", "Other effects"), sep = '&') %>% 
+        dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = Detail, Location = location, AF = AF_PURPLE, `CN chg` = CN_change_PURPLE, SR, PR, CN = CN_PURPLE, Ploidy = Ploidy_PURPLE, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = Transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF_PURPLE1, `AF at breakpoint 2` = AF_PURPLE2, `CN at breakpoint 1` = CN_PURPLE1, `CN at breakpoint 2` = CN_PURPLE2, `CN change at breakpoint 1` = CN_change_PURPLE1, `CN change at breakpoint 2` = CN_change_PURPLE2, `AF before adjustment, bp 1` = AF_BPI1, `AF before adjustment, bp 2` = AF_BPI2
+        ) %>%
+        dplyr::distinct()
+        # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%
       
-      dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
-      tidyr::unnest(annotation = strsplit(annotation, ',')) %>%  # Unpack multiple annotations per region
-      tidyr::separate(annotation,
-                      c('Event', 'Effect', 'Genes', 'Transcript', 'Detail', 'Tier'),
-                      sep = '\\|', convert = TRUE) %>%  # Unpack annotation columns
-      dplyr::mutate(start = format(start, big.mark = ',', trim = T),
-                    end = format(end, big.mark = ',', trim = T)) %>% 
-      dplyr::mutate(location = str_c(chrom, ':', start, sep = ''),
-                    location = ifelse(is.na(end), location, str_c(location))) %>% 
-      dplyr::arrange(Tier, Effect, desc(AF), Genes) %>% 
-      dplyr::mutate(Gene = subset_genes(Genes, c(1, 2)),
-                    Gene = ifelse((str_split(Genes, '&') %>% map_int(length)) > 2,
-                                  str_c(Gene, '...', sep = ', '),
-                                  Gene),
-                    `Other affected genes` = subset_genes(Genes, -c(1,2)) %>% str_replace_all('&', ', '),
-                    Gene = ifelse(str_detect(Effect, "gene_fusion"),
-                                  Gene,
-                                  Gene %>% str_replace_all('&', ', '))
-                    ) %>% 
-      separate(Effect, c("Effect", "Other effects"), sep = '&') %>% 
-      dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = Detail, Location = location, AF, `CN chg` = CN_change, SR, PR, CN, Ploidy, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = Transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF1, `AF at breakpoint 2` = AF2, `CN at breakpoint 1` = CN1, `CN at breakpoint 2` = CN2, `CN change at breakpoint 1` = CN_change1, `CN change at breakpoint 2` = CN_change2, `AF before adjustment, bp 1` = BPI_AF1, `AF before adjustment, bp 2` = BPI_AF2
-      ) %>%
-      dplyr::distinct()
-      # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%
-
+    } else {
+         sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
+        dplyr::select(-caller, -sample) %>% 
+        split_sv_field(BPI_AF, is_pct = T) %>% 
+        split_sv_field(AF, is_pct = T) %>% 
+        split_sv_field(CN) %>% 
+        split_sv_field(CN_change) %>% 
+        dplyr::mutate(
+          Ploidy = as.double(Ploidy),
+          Ploidy = format(Ploidy, nsmall = 2)
+        ) %>% 
+        tidyr::separate(split_read_support, c("SR (alt)", "SR (ref)"), ",") %>% 
+        dplyr::mutate(SR = as.integer(`SR (alt)`)) %>% 
+        tidyr::separate(paired_support_PR, c("PR (alt)", "PR (ref)"), ",") %>% 
+        dplyr::mutate(PR = as.integer(`PR (alt)`)) %>% 
+        tidyr::separate(paired_support_PE, c("PE (alt)", "PE (ref)"), ",") %>% 
+        dplyr::mutate(PE = as.integer(`PE (alt)`)) %>% 
+        
+        dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
+        tidyr::unnest(annotation = strsplit(annotation, ',')) %>%  # Unpack multiple annotations per region
+        tidyr::separate(annotation,
+                        c('Event', 'Effect', 'Genes', 'Transcript', 'Detail', 'Tier'),
+                        sep = '\\|', convert = TRUE) %>%  # Unpack annotation columns
+        dplyr::mutate(start = format(start, big.mark = ',', trim = T),
+                      end = format(end, big.mark = ',', trim = T)) %>% 
+        dplyr::mutate(location = str_c(chrom, ':', start, sep = ''),
+                      location = ifelse(is.na(end), location, str_c(location))) %>% 
+        dplyr::arrange(Tier, Effect, desc(AF), Genes) %>% 
+        dplyr::mutate(Gene = subset_genes(Genes, c(1, 2)),
+                      Gene = ifelse((str_split(Genes, '&') %>% map_int(length)) > 2,
+                                    str_c(Gene, '...', sep = ', '),
+                                    Gene),
+                      `Other affected genes` = subset_genes(Genes, -c(1,2)) %>% str_replace_all('&', ', '),
+                      Gene = ifelse(str_detect(Effect, "gene_fusion"),
+                                    Gene,
+                                    Gene %>% str_replace_all('&', ', '))
+                      ) %>% 
+        separate(Effect, c("Effect", "Other effects"), sep = '&') %>% 
+        dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = Detail, Location = location, AF, `CN chg` = CN_change, SR, PR, CN, Ploidy, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = Transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF1, `AF at breakpoint 2` = AF2, `CN at breakpoint 1` = CN1, `CN at breakpoint 2` = CN2, `CN change at breakpoint 1` = CN_change1, `CN change at breakpoint 2` = CN_change2, `AF before adjustment, bp 1` = BPI_AF1, `AF before adjustment, bp 2` = BPI_AF2
+        ) %>%
+        dplyr::distinct()
+        # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%
+    }
   } else {
     warning('No prioritized events detected')
   }
@@ -1639,6 +1685,12 @@ split_sv_field = function(.data, field, is_pct = F) {
       !!f1_q := format_val(!!f1_q, is_pct),
       !!f2_q := format_val(!!f2_q, is_pct)
     )
+}
+
+CapStr <- function(y) {
+  c <- strsplit(y, " ")[[1]]
+  paste(toupper(substring(c, 1,1)), substring(c, 2),
+      sep="", collapse=" ")
 }
 
 ##### A wrapper to saveWidget which compensates for arguable BUG in saveWidget which requires `file` to be in current working directory (see post https://github.com/ramnathv/htmlwidgets/issues/299 )
@@ -1933,11 +1985,15 @@ if ( !is.null(params$umccrise) ) {
   }
   
   ##### Check if purple (CN) output file exists
-  purple_file <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.gene.cnv"), sep = "/")
+  purple_file_1 <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.gene.cnv"), sep = "/")
+  purple_file_2 <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.cnv.gene.tsv"), sep = "/")
   runPurpleChunk <- TRUE
   
-  if ( file.exists(purple_file) ) {
-    ref_genes.list[["purple"]] <- read.table(purple_file, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE, quote = "")
+  if ( file.exists(purple_file_1) ) {
+    ref_genes.list[["purple"]] <- read.table(purple_file_1, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE, quote = "")
+  } else if ( file.exists(purple_file_2) ) {
+    ref_genes.list[["purple"]] <- read.table(purple_file_2, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE, quote = "")
+    colnames(ref_genes.list[["purple"]]) <- sapply(colnames(ref_genes.list[["purple"]]), CapStr)
   } else {
     ref_genes.list[["purple"]] <- NULL
     runPurpleChunk <- FALSE
@@ -2747,6 +2803,10 @@ for ( dataset in names(ref_dataset.list) ) {
   } else {
     ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
   }
+  
+  ##### Save the combined expression matrix, genes list and associated targets into txt files
+  write.table(prepare2write(ref_dataset.list[[dataset]][["combined_data"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.gene_annot_all.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 
 ##### Clean the space
@@ -3405,7 +3465,7 @@ if ( !is.null(add_cancer_group) ) {
 ##### ...gene fusion section: Include only those which are DNA-supported (see Structural variants section) or reported in FusionGDB 
 if ( runFusionChunk ) {
   ref_genes.list[["summary"]]$Fusion <- fusions[ fusions$reported_fusion == "Yes" | fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]
-  ref_genes.list[["summary"]]$Fusion <- unique(c(as.vector(ref_genes.list[["summary"]]$Fusion$geneA), as.vector(ref_genes.list[["summary"]]$Fusion$geneB)))
+  ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(ref_genes.list[["summary"]]$Fusion$geneA), as.character(ref_genes.list[["summary"]]$Fusion$geneB)))
 } else {
   ref_genes.list[["summary"]]$Fusion <- NULL
 }
@@ -3917,6 +3977,7 @@ detach("package:plotly", unload=FALSE)
 
 ##### Clean the space
 rm(list = ls(pattern='^output*'))
+rm(limit_genes)
 ```
 
 `r if ( !runPcgrChunk ) { c("***") } else { c(" ") }`
@@ -4589,6 +4650,7 @@ detach("package:plotly", unload=FALSE)
 
 ##### Clean the space
 rm(list = ls(pattern='^output*'))
+rm(limit_genes)
 ```
 
 `r if ( !runSVsChunk ) { c("***") } else { c(" ") }`
@@ -5134,6 +5196,7 @@ detach("package:plotly", unload=FALSE)
 
 ##### Clean the space
 rm(list = ls(pattern='^output*'))
+rm(limit_genes)
 ```
 
 `r if ( !runPurpleChunk ) { c("***") } else { c(" ") }`
