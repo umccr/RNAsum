@@ -19,8 +19,8 @@ COPY ./envm/environment.yaml /tmp/environment.yaml
 RUN conda env create -f /tmp/environment.yaml
 
 # Activate the environment and set path
-ENV PATH  /miniconda/envs/rnaseq-report/bin:$PATH
-ENV CONDA_PREFIX /miniconda/envs/rnaseq-report
+ENV PATH  /miniconda/envs/rnasum/bin:$PATH
+ENV CONDA_PREFIX /miniconda/envs/rnasum
 
 #get WTS report's RMD and R params script
 COPY rmd_files /rmd_files
