@@ -76,6 +76,8 @@ option_list = list(
               help="Dataset to be used as external reference cohort"),
   make_option("--bcbio_rnaseq", action="store", default=NA, type='character',
               help="Location of the results folder from bcbio RNA-seq pipeline"),
+  make_option("--dragen_rnaseq", action="store", default=NA, type='character',
+              help="Location of the results folder from Dragen RNA-seq pipeline"),
   make_option("--report_dir", action="store", default=NA, type='character',
               help="Desired location for the report"),
   make_option("--ref_data_dir", action="store", default="../data", type='character',
@@ -131,10 +133,10 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 ##### Read in argument from command line and check if all were provide by the user
-if ( is.na(opt$sample_name) || is.na(opt$bcbio_rnaseq) || is.na(opt$report_dir) ) {
+if ( is.na(opt$sample_name) || is.na(opt$bcbio_rnaseq) || is.na(opt$report_dir) || is.na(opt$dragen_rnaseq)) {
 
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS OR  --bcbio_rnaseq $(pwd)/../data/test_data/dragen_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\n")
   q()
 }
 
@@ -261,6 +263,7 @@ if ( !file.exists(opt$report_dir) ) {
 param_list <- list(sample_name = opt$sample_name,
                dataset = toupper(opt$dataset),
                bcbio_rnaseq = opt$bcbio_rnaseq,
+               dragen_rnaseq = opt$dragen_rnaseq,
                report_dir = opt$report_dir,
                ref_data_dir = opt$ref_data_dir,
                transform = opt$transform,
