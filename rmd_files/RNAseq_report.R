@@ -18,6 +18,7 @@
 #
 #   dataset:      Dataset to be used as external reference cohort (default is "PANCAN")
 #   bcbio_rnaseq: Location of the results folder from bcbio RNA-seq pipeline
+#   dragen_rnaseq:Location of the results folder from dragen RNA-seq pipeline
 #   report_dir:   Desired location for the report
 #   ref_data_dir: Location of the reference and annotation files
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (default) and "TPM"
@@ -74,9 +75,9 @@ option_list = list(
               help="Desired sample name to be presented in the report"),
   make_option("--dataset", action="store", default="PANCAN", type='character',
               help="Dataset to be used as external reference cohort"),
-  make_option("--bcbio_rnaseq", action="store", default=NA, type='character',
+  make_option("--bcbio_rnaseq", action="store", default=NULL, type='character',
               help="Location of the results folder from bcbio RNA-seq pipeline"),
-  make_option("--dragen_rnaseq", action="store", default=NA, type='character',
+  make_option("--dragen_rnaseq", action="store", default=NULL, type='character',
               help="Location of the results folder from Dragen RNA-seq pipeline"),
   make_option("--report_dir", action="store", default=NA, type='character',
               help="Desired location for the report"),
@@ -133,10 +134,18 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 ##### Read in argument from command line and check if all were provide by the user
-if ( is.na(opt$sample_name) || is.na(opt$bcbio_rnaseq) || is.na(opt$report_dir) || is.na(opt$dragen_rnaseq)) {
+if ( (is.na(opt$sample_name) || is.null(opt$bcbio_rnaseq) || is.na(opt$report_dir)) && is.null(opt$dragen_rnaseq) ) {
 
   cat("\nPlease type in required arguments!\n\n")
-  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS OR  --bcbio_rnaseq $(pwd)/../data/test_data/dragen_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\nor\n\n")
+  cat("Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAseq_report\n\n")
+  q()
+  
+} else if ( !is.null(opt$bcbio_rnaseq) && !is.null(opt$dragen_rnaseq) ) {
+  
+  cat("\nOutput from only one RNA-seq pipeline, either bcbio-nextgen RNA-seq pipeline or DRAGEN RNA pipeline, is accepted at a time!\n\n")
+  cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\nor\n\n")
+  cat("Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAseq_report\n\n")
   q()
 }
 
