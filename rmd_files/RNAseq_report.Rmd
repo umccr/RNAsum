@@ -1818,6 +1818,22 @@ mysql_populate <- paste0("### MySQL command to insert data for sample \"", param
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
 ```
 
+```{r tx2ensembl, comment = NA, message=FALSE, warning=FALSE}
+##### Get gene annotations for transcripts
+edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
+  
+##### Get keytypes for gene SYMBOL
+keys <- keys(edb, keytype="GENEID")
+  
+##### Get genes genomic coordiantes
+tx2ensembl <- ensembldb::select(edb, keys=keys, columns=c("TXID", "GENEID"), keytype="GENEID")
+names(tx2ensembl) <- gsub("TXID", "tx_name", names(tx2ensembl))
+names(tx2ensembl) <- gsub("GENEID", "gene_id", names(tx2ensembl))
+  
+##### Clean the space
+rm(edb, keys)
+```
+
 ```{r load_ref_data, message=FALSE, warning=FALSE}
 ##### Load reference datasets
 ##### Define the reference datasets based on user-defined input
@@ -1847,10 +1863,6 @@ if ( !is.na(params$subject_id) ) {
 } else {
   subjectID <- ""
 }
-
-##### Read-in the annotation file for tximport
-tx2ensembl <- read.csv(file.path(paste(params$ref_data_dir, params$annot_file, sep = "/")), header = FALSE)
-colnames(tx2ensembl) <- c("tx_name", "gene_id")
 
 if ( !is.null(params$bcbio_rnase) ) {
   
