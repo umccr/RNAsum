@@ -13,6 +13,8 @@ RNA-seq reporting workflow designed to post-process, summarise and visualise an 
     * [Internal reference cohort](#internal-reference-cohort)
 * [Input data](#input-data)
   * [WTS](#wts)
+     * [bcbio-nextgen](#bcbio-nextgen)
+     * [DRAGEN RNA](#dragen-rna)
   * [WGS](#wgs)
 * [Usage](#usage)
   * [Arguments](#arguments)
@@ -81,7 +83,7 @@ Each dataset was **cleaned** based on the quality metrics provided in the *Merge
 
 The publically available TCGA datasets are expected to demonstrate prominent [batch effects](https://www.ncbi.nlm.nih.gov/pubmed/20838408) when compared to the in-house WTS data due to differences in applied experimental procedures and analytical pipelines. Moreover, TCGA data may include samples from tissue material of lower quality and cellularity compared to samples processed using local protocols. To address these issues, we have built a high-quality internal reference cohort processed using the same pipelines as input data (see [Data pre-processing](./workflow.md#data-pre-processing) section on the [workflow](./workflow.md) page). 
 
-This internal reference set of **40 pancreatic cancer samples** is based on WTS data generated at **[UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)** and processed with **[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)** and **[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)** pipelines to minimise potential batch effects between investigated samples and the reference cohort and to make sure the data are comparable. The internal reference cohort assembly is summarised in [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house) repository.
+This internal reference set of **40 pancreatic cancer samples** is based on WTS data generated at **[UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)** and processed with **[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)** pipeline to minimise potential batch effects between investigated samples and the reference cohort and to make sure the data are comparable. The internal reference cohort assembly is summarised in [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house) repository.
 
 ###### Note
 
@@ -98,7 +100,11 @@ The pipeline accepts [WTS](#wts) data processed by *[bcbio-nextgen RNA-seq](http
 
 ### WTS 
 
-The only required WTS input data are **read counts** provided in quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) (see example *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* file and its [description](https://pachterlab.github.io/kallisto/starting#results)). The per-transcript abundances are reported in *estimated counts* (`est_counts`) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`tpm`), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** detected by [arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly) can be provided (see example *[fusions.tsv](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* and *[test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)*). 
+The only required WTS input data are **read counts** provided in quantification file from either *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
+
+#### bcbio-nextgen
+
+The **read counts** are provided within quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) (see example *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* file and its [description](https://pachterlab.github.io/kallisto/starting#results)). The per-transcript abundances are reported in *estimated counts* (`est_counts`) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`tpm`), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** detected by [arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly) can be provided (see example *[fusions.tsv](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* and *[test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)*). 
 
 Table below lists all input data accepted in the pipeline:
 
@@ -129,6 +135,14 @@ These files are expected to be organised following the folder structure below
 
 [Fusion genes](./fusions) detected by [pizzly](https://github.com/pmelsted/pizzly) are expected to be listed in the [flat table](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
 
+
+#### DRAGEN RNA
+
+<br />
+
+**WORK IN PROGRESS** ...
+
+<br />
 
 ### WGS
 
