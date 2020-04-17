@@ -89,9 +89,9 @@ This internal reference set of **40 pancreatic cancer samples** is based on WTS 
 
 The are two rationales for using the internal reference cohort:
 
-1. In case of **pancreatic cancer samples** this cohort serves as a reference point for **comparing per-gene expression levels** observed in the investigated single-subject data and data from other pancreatic cancer patients.
+1. In case of **pancreatic cancer samples** this cohort is used (I) in ***batch effects correction***, as well as (II) as a reference point for ***comparing per-gene expression levels*** observed in the investigated single-subject data and data from other pancreatic cancer patients.
 
-2. In case of samples from **any cancer type** the data from the internal reference cohort is used in batch effects correction procedure performed to minimise technical-related variation in the data.
+2. In case of samples from **any cancer type** the data from the internal reference cohort is used in ***batch effects correction*** procedure performed to minimise technical-related variation in the data.
 
 ## Input data
 
