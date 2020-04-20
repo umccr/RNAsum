@@ -1947,18 +1947,27 @@ runFusionChunk <- FALSE
 if ( file.exists(arriba_file) ) {
   ref_genes.list[["arriba"]] <- read.table(file = arriba_file, header = TRUE, comment.char = "", quote = "")
   
-  ##### Convert Arribe pdf booklet with fusion plots to png images
-  if ( file.exists(arriba_pdf) ) {
-    arriba_plots(arriba_file = arriba_file, arriba_results = ref_genes.list[["arriba"]], results_dir = paste(params$report_dir, "results", "arriba", sep = "/"))
+  ##### Make sure that at least one fusions has been reported by Arriba
+  if ( nrow(ref_genes.list[["arriba"]]) > 0 ) {
+    
+    ##### Convert Arribe pdf booklet with fusion plots to png images
+    if ( file.exists(arriba_pdf) ) {
+      arriba_plots(arriba_file = arriba_file, arriba_results = ref_genes.list[["arriba"]], results_dir = paste(params$report_dir, "results", "arriba", sep = "/"))
+    }
+    
+    ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
+    fusion <- gsub(":", ".", c("", paste0(make.names(paste(ref_genes.list[["arriba"]]$X.gene1, ref_genes.list[["arriba"]]$gene2, sep = "__")), "_", ref_genes.list[["arriba"]]$breakpoint1, "-", ref_genes.list[["arriba"]]$breakpoint2)))
+    
+    write.table(prepare2write(fusion), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+  
+    runArribaChunk <- TRUE
+    runFusionChunk <- TRUE
+    
+  } else {
+    ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
+  write.table(prepare2write(""), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
   }
   
-  ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-  fusion <- gsub(":", ".", c("", paste0(make.names(paste(ref_genes.list[["arriba"]]$X.gene1, ref_genes.list[["arriba"]]$gene2, sep = "__")), "_", ref_genes.list[["arriba"]]$breakpoint1, "-", ref_genes.list[["arriba"]]$breakpoint2)))
-  
-  write.table(prepare2write(fusion), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
-
-  runArribaChunk <- TRUE
-  runFusionChunk <- TRUE
 } else {
   ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
   write.table(prepare2write(""), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
