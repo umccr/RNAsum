@@ -1,6 +1,6 @@
 ## RNAsum data processing workflow
 
-The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* data **[processing](#1-data-processing)**, (**2**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**3**) results **[annotation](#3-results-annotation)** and (**4**) presentation in the *Patient Transcriptome Summary* **[report](#4-report-generation)**. 
+The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* data **[collection](#1-data-collection)**, (**2**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* data **[processing](#1-data-processing)**, (**3**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**4**) results **[annotation](#3-results-annotation)** and (**5**) presentation in the *Patient Transcriptome Summary* **[report](#4-report-generation)**. 
 
 <img src="img/RNAsum_workflow.png" width="100%"> 
 
@@ -9,7 +9,8 @@ The description of the main workflow components involved in (**1**) *[read count
 ## Table of contents
 
 <!-- vim-markdown-toc GFM -->
-* [1. Data processing](#1-data-processing)
+* [1. Data collection](#1-data-collection)
+* [2. Data processing](#1-data-processing)
     * [Counts processing](#counts-processing)
     	* [Data collection](#data-collection)
     	* [Transformation](#transformation)
@@ -18,26 +19,30 @@ The description of the main workflow components involved in (**1**) *[read count
     	* [Combination](#combination)
     	* [Batch-effects correction (optional)](#batch-effects-correction-optional)
     	* [Data scaling](#data-scaling)
-* [2. Integration with WGS-based results](#2-integration-with-wgs-based-results)
+* [3. Integration with WGS-based results](#2-integration-with-wgs-based-results)
 	* [Somatic SNVs and small indels](#somatic-snvs-and-small-indels)
 	* [Structural variants](#structural-variants)
 	* [Somatic CNVs](#somatic-cnvs)
-* [3. Results annotation](#3-results-annotation)
+* [4. Results annotation](#3-results-annotation)
 	* [Key cancer genes](#key-cancer-genes)
 	* [OncoKB](#oncokb)
 	* [VICC](#vicc)
 	* [CIViC](#civic)
 	* [CGI](#cgi)
 	* [FusionGDB](#fusiongdb)
-* [4. Report generation](#4-report-generation)
+* [5. Report generation](#4-report-generation)
 
 <!-- vim-markdown-toc -->
 
-## 1. Data processing 
+## 1. Data collection
+
+**[Read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** data from patient sample are collected from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
+
+## 2. Data processing 
 
 ### Counts processing
 
-The **read count** data (see [Input data](./README.md#input-data) section in the main page) in *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) are processed following steps illustrated in [Figure 1](./img/counts_post-processing_scheme.png) and described below.
+The **read count** data (see [Input data](./README.md#input-data) section in the main page) in *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* or *[quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* quantification files from [kallisto](https://pachterlab.github.io/kallisto/about) or [salmon](https://salmon.readthedocs.io/en/latest/salmon.html), respectively, are processed following steps illustrated in [Figure 1](./img/counts_post-processing_scheme.png) and described below.
 
 <img src="img/counts_post-processing_scheme.png" width="40%"> 
 
@@ -141,7 +146,7 @@ The group-wise centering apporach is presented in [Figure 3](./img/centering_gro
 \* used only for pancreatic cancer patients
 
 
-## 2. Integration with WGS-based results
+## 3. Integration with WGS-based results
 
 For patients with available [WGS](./README.md#wgs) data processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline (see ```--umccrise``` [argument](README.md/#arguments)) the expression level information for [mutated](#somatic-snvs-and-small-indels) genes or genes located within detected [structural variants](#structural-variants) (SVs) or [copy-number](#somatic-cnvs) (CN) [altered regions](#somatic-cnvs), as well as the genome-based findings are incorporated and used as primary source for expression profiles prioritisation.
 
@@ -165,7 +170,7 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 * **Extract** expression level **information** and genome-based findings for genes located within detected CNVs (use ```--cn_loss ``` and ```--cn_gain ``` [arguments](README.md/#arguments) to define CN threshold values to classify genes within lost and gained regions)
 * **Ordered genes** by increasing (for genes within lost regions) or decreasing (for genes within gained regions) **[CN](https://github.com/umccr/umccrise/blob/master/workflow.md#somatic-cnv)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
 
-## 3. Results annotation
+## 4. Results annotation
 
 [WTS](./README.md#wts)- and/or [WGS](./README.md#wgs)-based results for the altered genes are collated with **knowledge** derived from in-house resources and public **databases** (listed below) to provide additional source of evidence for their significance, e.g. to flag variants with clinical significance or potential druggable targets.
 
@@ -217,7 +222,7 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 * [FusionGDB](https://ccsm.uth.edu/FusionGDB/) database is used to flag genes known to be involved in gene fusions and to prioritise candidate [gene fusions](./fusions)
 
-### 4. Report generation
+### 5. Report generation
 
 The final html-based ***Patient Transcriptome Summary*** **report** contains searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources providing additional source of evidence for their significance. The individual **[report sections](report_structure.md)**, **[results prioritisation](report_structure.md)** and **[visualisation](report_structure.md)** are described more in detail in [report_structure.md](report_structure.md).
 
