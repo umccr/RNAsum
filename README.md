@@ -47,20 +47,22 @@ source load_rnasum.sh
 
 ## Workflow
 
-The pipeline consist of four main components illustrated and breifly described below. See the [workflow.md](workflow.md) for the complete description of the **[data processing workflow](workflow.md)**.
+The pipeline consist of five main components illustrated and breifly described below. See the [workflow.md](workflow.md) for the complete description of the **[data processing workflow](workflow.md)**.
 
 <img src="img/RNAsum_workflow.png" width="100%"> 
 
 <br/>
 
-1. Process the patient sample WTS from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and **[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)**, and add expression data from [reference cohorts](#reference-data) to get an idea about expression levels of genes of interest in other cancer [patient cohorts](#reference-data). The [gene fusion](./fusions) candidates are re-quantified and the read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
+1. Collect patient sample WTS data from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and **[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)**
 
-2. Feed in **genome-based findings** from whole-genome sequencing (WGS) data to focus on genes of interest and provide additional evidence for dysregulation of mutated genes, or genes located within detected structural variants (SVs) or copy-number (CN) altered regions. The ***RNAsum*** pipeline is designed to be compatible with WGS patient report based on ***[umccrise](https://github.com/umccr/umccrise)*** pipeline output.
+2. Add expression data from [reference cohorts](#reference-data) to get an idea about expression levels of genes of interest in other cancer [patient cohorts](#reference-data). The read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
+
+3. Feed in **genome-based findings** from whole-genome sequencing (WGS) data to focus on genes of interest and provide additional evidence for dysregulation of mutated genes, or genes located within detected structural variants (SVs) or copy-number (CN) altered regions. The ***RNAsum*** pipeline is designed to be compatible with WGS patient report based on ***[umccrise](https://github.com/umccr/umccrise)*** pipeline output.
 
 
-3. Collate results with knowledge derived from in-house resources and public **databases** to provide additional source of evidence for clinical significance of altered genes, e.g. to flag variants with clinical significance or potential druggable targets.
+4. Collate results with knowledge derived from in-house resources and public **databases** to provide additional source of evidence for clinical significance of altered genes, e.g. to flag variants with clinical significance or potential druggable targets.
 
-4. The final product is a html-based **interactive report** with searchable tables and plots presenting expression levels of the genes of interest genes. The report consist of several sections described in [report_structure.md](report_structure.md).
+5. The final product is a html-based **interactive report** with searchable tables and plots presenting expression levels of the genes of interest genes. The report consist of several sections described in [report_structure.md](report_structure.md).
 
 
 ## Reference data
