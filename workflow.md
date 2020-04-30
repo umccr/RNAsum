@@ -10,7 +10,7 @@ The description of the main workflow components involved in (**1**) *[read count
 
 <!-- vim-markdown-toc GFM -->
 * [1. Data collection](#1-data-collection)
-* [2. Data processing](#1-data-processing)
+* [2. Data processing](#2-data-processing)
     * [Counts processing](#counts-processing)
     	* [Data collection](#data-collection)
     	* [Transformation](#transformation)
@@ -19,18 +19,18 @@ The description of the main workflow components involved in (**1**) *[read count
     	* [Combination](#combination)
     	* [Batch-effects correction (optional)](#batch-effects-correction-optional)
     	* [Data scaling](#data-scaling)
-* [3. Integration with WGS-based results](#2-integration-with-wgs-based-results)
+* [3. Integration with WGS-based results](#3-integration-with-wgs-based-results)
 	* [Somatic SNVs and small indels](#somatic-snvs-and-small-indels)
 	* [Structural variants](#structural-variants)
 	* [Somatic CNVs](#somatic-cnvs)
-* [4. Results annotation](#3-results-annotation)
+* [4. Results annotation](#4-results-annotation)
 	* [Key cancer genes](#key-cancer-genes)
 	* [OncoKB](#oncokb)
 	* [VICC](#vicc)
 	* [CIViC](#civic)
 	* [CGI](#cgi)
 	* [FusionGDB](#fusiongdb)
-* [5. Report generation](#4-report-generation)
+* [5. Report generation](#5-report-generation)
 
 <!-- vim-markdown-toc -->
 
