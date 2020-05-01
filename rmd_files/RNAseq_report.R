@@ -269,6 +269,7 @@ if ( !file.exists(opt$report_dir) ) {
   dir.create(opt$report_dir, recursive=TRUE)
 }
 
+##### Collect parameters
 param_list <- list(sample_name = opt$sample_name,
                dataset = toupper(opt$dataset),
                bcbio_rnaseq = opt$bcbio_rnaseq,
