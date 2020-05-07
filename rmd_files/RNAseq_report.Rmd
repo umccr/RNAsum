@@ -1864,7 +1864,7 @@ if ( !is.na(params$subject_id) ) {
   subjectID <- ""
 }
 
-if ( !is.null(params$bcbio_rnase) ) {
+if ( !is.null(params$bcbio_rnaseq) ) {
   
   ##### Get patient data dir and sample file name
   dataDir <- params$bcbio_rnaseq
@@ -1875,6 +1875,59 @@ if ( !is.null(params$bcbio_rnase) ) {
   counts <- as.data.frame(txi.kallisto$counts) %>%
     tibble::rownames_to_column() %>%
     dplyr::rename(count = V1)
+  
+  ##### Read in gene fusion data for investigate sample
+  ##### Read in arriba and pizzly fusion calls
+  ##### Check if arriba output file exists
+  arriba_file <- paste(dataDir, "arriba", "fusions.tsv", sep = "/")
+  arriba_pdf <- paste(dataDir, "arriba", "fusions.pdf", sep = "/")
+  runArribaChunk <- FALSE
+  runFusionChunk <- FALSE
+  
+  if ( file.exists(arriba_file) ) {
+    ref_genes.list[["arriba"]] <- read.table(file = arriba_file, header = TRUE, comment.char = "", quote = "")
+    
+    ##### Make sure that at least one fusions has been reported by Arriba
+    if ( nrow(ref_genes.list[["arriba"]]) > 0 ) {
+      
+      ##### Convert Arribe pdf booklet with fusion plots to png images
+      if ( file.exists(arriba_pdf) ) {
+        arriba_plots(arriba_file = arriba_file, arriba_results = ref_genes.list[["arriba"]], results_dir = paste(params$report_dir, "results", "arriba", sep = "/"))
+      }
+      
+      ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
+      fusion <- gsub(":", ".", c("", paste0(make.names(paste(ref_genes.list[["arriba"]]$X.gene1, ref_genes.list[["arriba"]]$gene2, sep = "__")), "_", ref_genes.list[["arriba"]]$breakpoint1, "-", ref_genes.list[["arriba"]]$breakpoint2)))
+      
+      write.table(prepare2write(fusion), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+    
+      runArribaChunk <- TRUE
+      runFusionChunk <- TRUE
+      
+    } else {
+      ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
+    write.table(prepare2write(""), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+    }
+    
+  } else {
+    ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
+    write.table(prepare2write(""), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+  }
+  
+  ##### Read in pizzly fusion calls
+  ##### Check if pizzly output file exists
+  pizzly_file <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat.tsv"), sep = "/")
+  pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat-filtered.tsv"), sep = "/")
+  runPizzlyChunk <- FALSE
+  
+  if ( file.exists(pizzly_file) ) {
+    ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file, header = TRUE, quote = "")
+    runPizzlyChunk <- TRUE
+    runFusionChunk <- TRUE
+  } else if ( file.exists(pizzly_file_filtered) ) {
+    ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file_filtered, header = TRUE, quote = "")
+    runPizzlyChunk <- TRUE
+    runFusionChunk <- TRUE
+  }
   
 } else if ( !is.null(params$dragen_rnaseq) ) {
   
@@ -1887,6 +1940,18 @@ if ( !is.null(params$bcbio_rnase) ) {
   counts <- as.data.frame(txi.salmon$counts) %>%
     tibble::rownames_to_column() %>%
     dplyr::rename(count = V1)
+  
+  ##### Read in Dragen fusion calls
+  ##### Check if Dragen fusion output file exists
+  dragen_fusion_file <- paste(dataDir, paste0(params$sample_name, ".fusion_candidates.final"), sep = "/")
+  if ( file.exists(dragen_fusion_file) ) {
+    #Dragen's fusion output file header starts with '#' hence first reading without header and then assigning the correct one
+    dragen_fusion_file <- read.table(file = dragen_fusion_file, header = FALSE, quote = "")
+    colnames(dragen_fusion_file) <- c("FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "ReadNames")
+    ref_genes.list[["dragenFusion"]] <- dragen_fusion_file
+    runDragenFusionChunk <- TRUE
+    runFusionChunk <- TRUE
+  }
 }
 
 ##### Create directory for results
@@ -1934,59 +1999,6 @@ ref_genes.list[["genes_hrd"]] <- read.table(paste(params$ref_data_dir, params$ge
 
 if ( params$immunogram ) {
   ref_genes.list[["genes_immune"]]$immunogram <- read.table(paste(params$ref_data_dir, params$genes_immunogram, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
-}
-
-##### Read in gene fusion data for investigate sample
-##### Read in arriba and pizzly fusion calls
-##### Check if arriba output file exists
-arriba_file <- paste(dataDir, "arriba", "fusions.tsv", sep = "/")
-arriba_pdf <- paste(dataDir, "arriba", "fusions.pdf", sep = "/")
-runArribaChunk <- FALSE
-runFusionChunk <- FALSE
-
-if ( file.exists(arriba_file) ) {
-  ref_genes.list[["arriba"]] <- read.table(file = arriba_file, header = TRUE, comment.char = "", quote = "")
-  
-  ##### Make sure that at least one fusions has been reported by Arriba
-  if ( nrow(ref_genes.list[["arriba"]]) > 0 ) {
-    
-    ##### Convert Arribe pdf booklet with fusion plots to png images
-    if ( file.exists(arriba_pdf) ) {
-      arriba_plots(arriba_file = arriba_file, arriba_results = ref_genes.list[["arriba"]], results_dir = paste(params$report_dir, "results", "arriba", sep = "/"))
-    }
-    
-    ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-    fusion <- gsub(":", ".", c("", paste0(make.names(paste(ref_genes.list[["arriba"]]$X.gene1, ref_genes.list[["arriba"]]$gene2, sep = "__")), "_", ref_genes.list[["arriba"]]$breakpoint1, "-", ref_genes.list[["arriba"]]$breakpoint2)))
-    
-    write.table(prepare2write(fusion), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
-  
-    runArribaChunk <- TRUE
-    runFusionChunk <- TRUE
-    
-  } else {
-    ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-  write.table(prepare2write(""), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
-  }
-  
-} else {
-  ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-  write.table(prepare2write(""), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
-}
-
-##### Read in pizzly fusion calls
-##### Check if pizzly output file exists
-pizzly_file <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat.tsv"), sep = "/")
-pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat-filtered.tsv"), sep = "/")
-runPizzlyChunk <- FALSE
-
-if ( file.exists(pizzly_file) ) {
-  ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file, header = TRUE, quote = "")
-  runPizzlyChunk <- TRUE
-  runFusionChunk <- TRUE
-} else if ( file.exists(pizzly_file_filtered) ) {
-  ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file_filtered, header = TRUE, quote = "")
-  runPizzlyChunk <- TRUE
-  runFusionChunk <- TRUE
 }
 
 ##### Read in mutation data for investigate sample
