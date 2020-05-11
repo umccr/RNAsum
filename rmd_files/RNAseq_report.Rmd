@@ -3254,8 +3254,6 @@ if ( runPizzlyChunk ) {
 rm(arriba.fusions, arriba.fusion.transcripts, arriba.cancer_genes, arriba.other_genes)
 ```
 
-
-
 ```{r dragen_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
 ##### Read in the arriba fusion calls
 dragen.fusions <- ref_genes.list[["dragenFusion"]]
@@ -3349,7 +3347,7 @@ if ( nrow(dragen.cancer_genes) > 0 ) {
 
 ##### Re-ordering dragen's results on the basis of Dragen's confidence, reported fusions and then score (as Dragen doesn't includes split count and paircount info) and then involvment of cancer genes and reported one of the fusion genes
 fusions <- fusions[ order(fusions$reported_fusion, fusions$Score, fusions$fusions_cancer, fusions$reported_fusion_geneA, fusions$reported_fusion_geneB, decreasing = TRUE), ]
-fusions <- fusions[order(factor(fusions$confidence, levels=c("high", "medium", "low"))), ]
+#fusions <- fusions[order(factor(fusions$confidence, levels=c("high", "medium", "low"))), ]
 
 ##### Keep only key columns and add info about Arriba detected fusions and 
 fusions <- fusions[ colnames(fusions) %in% c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint")]
@@ -3518,7 +3516,11 @@ fusion_annot1 <- fusion_annot1[ order(fusion_annot1$order), ]
 fusion_annot2 <- merge(fusion_genes_annot, fusions.annot[ , c("order","geneB")], by = 2, sort=FALSE, all.y = TRUE)
 fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
 
-fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+if ( runArribaChunk ) {
+  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+} else if (runDragenFusionChunk) {
+  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("Score", "LeftBreakpoint", "RightBreakpoint")])
+}
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
 fusion_annot$geneA_dna_support <- "-"
