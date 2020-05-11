@@ -3535,8 +3535,8 @@ fusion_annot <- fusion_annot[complete.cases(fusion_annot), ]
 rm(fusion_annot1, fusion_annot2, fusions.annot, fusion_genes_annot)
 ```
 
-```{r pizzly_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-##### Compare PIZZY and MANTA called gene fusion events
+```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+##### Compare FUSIONS and MANTA called gene fusion events
 ##### Add row for gene fusion events so that there is one row per gene
 manta_sv <- ref_genes.list[["manta"]]
 manta_sv$"Fusion genes" <- manta_sv$Gene
@@ -3559,13 +3559,13 @@ while ( i <= nrow(manta_sv) ) {
   }
 }
 
-##### Compare fusion genes called by PIZZLy and MANTA
+##### Compare fusion genes called by FUSION CALLER and MANTA
 ##### First limit MANTA output to fusions only
 if ( runFusionChunk ) {
   manta_fusions <- unique(manta_sv[ grep("&", manta_sv$"Fusion genes"),  ]$Gene)
   manta_fusions <- manta_fusions[ manta_fusions %in% unique(c(as.vector(fusions$geneA), as.vector(fusions$geneB))) ]
     
-  ##### Flag PIZZLY fusions that were also reported in MANTA
+  ##### Flag fusions that were also reported in MANTA
   if ( length(manta_fusions) > 0 ) {
     fusions$geneA_dna_support[ sort( match( manta_fusions , fusions$geneA ), na.last = NA ) ] <- "Yes"
     fusions$geneB_dna_support[ sort( match( manta_fusions , fusions$geneB ), na.last = NA ) ] <- "Yes"
@@ -3573,8 +3573,13 @@ if ( runFusionChunk ) {
     fusion_annot$geneA_dna_support[ sort( match( manta_fusions , fusion_annot$SYMBOL ), na.last = NA ) ] <- "Yes"
     fusion_annot$geneB_dna_support[ sort( match( manta_fusions , fusion_annot$SYMBOL.1 ), na.last = NA ) ] <- "Yes"
   
-    ##### Re-order pizzly dataframe with MANTA supporting fusions on top
-    idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Arriba, fusions$reported_fusion, decreasing = TRUE)
+    ##### Re-order fusion dataframe with MANTA supporting fusions on top
+    if (runArribaChunk) {
+      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Arriba, fusions$reported_fusion, decreasing = TRUE)
+    } else if (runDragenFusionChunk) {
+      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Dragen, fusions$reported_fusion, decreasing = TRUE)
+    }
+    
     fusions <- fusions[ idx, ]
     fusion_annot <- fusion_annot[ idx, ]
   }
