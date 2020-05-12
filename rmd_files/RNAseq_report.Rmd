@@ -1953,6 +1953,9 @@ if ( !is.null(params$bcbio_rnaseq) ) {
     ref_genes.list[["dragenFusion"]] <- dragen_fusion
     runDragenFusionChunk <- TRUE
     runFusionChunk <- TRUE
+    #need to set following for goi_summary code chuck
+    runArribaChunk <- FALSE
+    runPizzlyChunk <- FALSE
   }
 }
 
@@ -3254,7 +3257,7 @@ if ( runPizzlyChunk ) {
 rm(arriba.fusions, arriba.fusion.transcripts, arriba.cancer_genes, arriba.other_genes)
 ```
 
-```{r dragen_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
+```{r dragen_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
 ##### Read in the arriba fusion calls
 dragen.fusions <- ref_genes.list[["dragenFusion"]]
 colnames(dragen.fusions) <- gsub("gene1", "geneA", colnames(dragen.fusions))
@@ -3305,7 +3308,7 @@ for ( i in 1:nrow(fusions) ) {
     fusions$reported_fusion_geneA[i] <- "Yes"
     fusions$reported_fusion_geneB[i] <- "Yes"
       
-  ##### Now check if any ofthe arriba detected fusion genes are reported
+  ##### Now check if any of the dragen detected fusion genes are reported
   } else {
     fusions$reported_fusion[i] <- "-"
       
@@ -3350,7 +3353,7 @@ fusions <- fusions[ order(fusions$reported_fusion, fusions$Score, fusions$fusion
 #fusions <- fusions[order(factor(fusions$confidence, levels=c("high", "medium", "low"))), ]
 
 ##### Keep only key columns and add info about Arriba detected fusions and 
-fusions <- fusions[ colnames(fusions) %in% c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint")]
+fusions <- fusions[ colnames(fusions) %in% c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
 fusions$geneA_dna_support <- "-"
@@ -3519,7 +3522,7 @@ fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
 if ( runArribaChunk ) {
   fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
 } else if (runDragenFusionChunk) {
-  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("Score", "LeftBreakpoint", "RightBreakpoint")])
+  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("Score", "LeftBreakpoint", "RightBreakpoint", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
 }
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
@@ -3577,7 +3580,7 @@ if ( runFusionChunk ) {
     if (runArribaChunk) {
       idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Arriba, fusions$reported_fusion, decreasing = TRUE)
     } else if (runDragenFusionChunk) {
-      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Dragen, fusions$reported_fusion, decreasing = TRUE)
+      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$reported_fusion, decreasing = TRUE)
     }
     
     fusions <- fusions[ idx, ]
@@ -3597,9 +3600,13 @@ rm(manta_fusions)
 if ( runArribaChunk ) {
   fusions <- fusions %>% dplyr::filter( split_readsA > 1 | split_readsB > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
   fusion_annot <- fusion_annot %>% dplyr::filter( split_readsA > 1 | split_readsB > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-} else {
+} else if (runPizzlyChunk) {
   fusions <- fusions %>% dplyr::filter(split_readsA > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
   fusion_annot <- fusion_annot %>% dplyr::filter(split_readsA > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
+} else if (runDragenFusionChunk) {
+  #For Dragen , this filtering is not changing the results. We'll review the "Score" value again once we start to regularly produce the RNAsum report for Dragen results
+  fusions <- fusions %>% dplyr::filter(Score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
+  fusion_annot <- fusion_annot %>% dplyr::filter(Score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
 }
 ```
 
