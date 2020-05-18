@@ -4227,7 +4227,7 @@ Out of the `r if ( runFusionChunk ) { nrow(fusions) } else { c("0") }` fusion ev
 
 ```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Create a nice table output (with dataTable)
-if ( runFusionChunk ) {
+if ( runArribaChunk ) {
   
   ##### Update MySQL commend to populate RNA-seq data portal
   mysql_populate <- paste0(mysql_populate, ",Fusion genes")
@@ -4291,6 +4291,74 @@ if ( params$save_tables ) {
 ##### Clean the space and return output
 rm(fusions.table, fusions.summary)
 ```
+
+```{r fusions_summary_table, comment = NA, message=FALSE, warning=FALSE}
+##### Create a nice table output (with dataTable)
+if ( runDragenFusionChunk ) {
+  
+  ##### Update MySQL commend to populate RNA-seq data portal
+  mysql_populate <- paste0(mysql_populate, ",Fusion genes")
+  mysql_populate_update <- paste0(mysql_populate_update, ",Fusion genes")
+  
+  fusions.table <- fusions
+  fusions.table$geneA <- as.vector(fusions.table$geneA)
+  fusions.table$geneB <- as.vector(fusions.table$geneB)
+  
+  ##### Provide link to FusionGDB
+  for ( i in 1:nrow(fusions.table) ) {
+      if ( fusions.table$reported_fusion[i] == "Yes" ) {
+        fusions.table$geneA[i] <- paste0("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search=", fusions.table$FGID[i], "' target='_blank'>", fusions.table$geneA[i], "</a>")
+  
+        fusions.table$geneB[i] <- paste0("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search=", fusions.table$FGID[i], "' target='_blank'>", fusions.table$geneB[i], "</a>")
+      }
+  }
+  
+  fusions.table <- fusions.table[ , names(fusions.table) %!in% "FGID" ]
+  fusions.table <- fusions.table[ , c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "circos")]
+  names(fusions.table) <- c("Gene A", "Gene B", "Score", "Left breakpoint", "Right breakpoint", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Genomic view")
+  
+  ##### Present gene fusion events in a table
+  fusions.summary <- DT::datatable( data = fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 490, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(fusions.table), `font-size` = '12px', 'text-align' = 'center' ) %>%
+    
+      ##### Highlight rows with fusions involving cancer genes (grey) or DNA support (from MANTA, orange)
+      DT::formatStyle( columns = colnames(fusions.table) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
+      DT::formatStyle( columns = colnames(fusions.table) %in% "DNA support (A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+      DT::formatStyle( columns = colnames(fusions.table) %in% "DNA support (B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
+      DT::formatStyle( columns = colnames(fusions.table) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
+  
+  fusions.summary
+  
+} else {
+  
+  ##### Create empty table
+  fusions.table <- data.frame(matrix(ncol = 18, nrow = 0))
+  
+  names(fusions.table) <- c("Gene A", "Gene B", "Score", "Left breakpoint", "Right breakpoint", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Genomic view")
+
+  ##### Present gene fusion events in a table
+  fusions.summary <- DT::datatable( data = fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 490, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
+      DT::formatStyle( columns = names(fusions.table), `font-size` = '12px', 'text-align' = 'center' )
+  
+  fusions.summary
+}
+
+##### Save the table as html file
+if ( params$save_tables ) {
+  
+  ##### Create directory for tables
+  fusionsTableDir <- paste(params$report_dir, "results/fusionsTables", sep = "/")
+  if ( !file.exists(fusionsTableDir) ) {
+          dir.create(fusionsTableDir, recursive=TRUE)
+  }
+
+  saveWidgetFix(widget=fusions.summary, file=paste(fusionsTableDir, "fusions.summary.html", sep = "/"), selfcontained=TRUE)
+}
+
+##### Clean the space and return output
+rm(fusions.table, fusions.summary)
+```
+
 
 <details>
 <summary>Table legend</summary>
