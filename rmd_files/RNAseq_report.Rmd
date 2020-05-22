@@ -4473,7 +4473,7 @@ if ( nrow(fusion_annot_top) > 0 ) {
 ```
 
 ```{r genomic_view_circos_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-if ( nrow(fusion_annot_top) > 0 ) {
+if ( nrow(fusion_annot_top) > 0 && runArribaChunk ) {
   
   ##### Clean the table for better presentation
   fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
@@ -4487,17 +4487,34 @@ if ( nrow(fusion_annot_top) > 0 ) {
   
   names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
 
-  fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318,  escape = FALSE) %>%
+} else if ( nrow(fusion_annot_top) > 0 && runDragenFusionChunk ) {
+  
+  ##### Clean the table for better presentation
+  fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "LeftBreakpoint", "RightBreakpoint", "Score", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
+  
+  
+  ##### Order fusions based on the genomic location (chrom and start positions)
+  chrOrder <-c((1:22),"X","Y","M")
+  
+  fusion_annot_top.clean$SEQNAME <- factor(fusion_annot_top.clean$SEQNAME, chrOrder, ordered=TRUE)
+  fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
+  fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
+  
+  names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Score", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
+  
+}
+
+fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318,  escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
     
-      ##### Highlight rows with fusions involving cancer genes (grey)
-      DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
+##### Highlight rows with fusions involving cancer genes (grey)
+DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'lightgrey')) ) %>%
       DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
       DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "DNA support (B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c('transparent', 'coral')) ) %>%
     DT::formatStyle( columns = colnames(fusion_annot_top.clean) %in% "Reported fusion", backgroundColor = DT::styleEqual( c("-", "Yes"), c('transparent', 'lightgreen')) )
 
   fusions.genomicView
-}
+
 
 ##### Clean the space
 rm(fusion_annot_top.clean)
