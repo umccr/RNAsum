@@ -22,7 +22,7 @@
 #   report_dir:   Desired location for the report
 #   ref_data_dir: Location of the reference and annotation files
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (default) and "TPM"
-#   norm:         Normalisation method. Currently, "TMM" is used for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
+#   norm:         Normalisation method. Currently, "TMM","TMMwzp", "RLE" and "upperquartile" methods are available for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
 #   batch_rm:     Remove batch-associated effects between datasets. Available options are: "TRUE" (default) and "FALSE"
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (default) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (default) and "FALSE"
@@ -194,7 +194,7 @@ if ( is.na(opt$grch_version)  ) {
 }
 
 ##### Check if specified dataset type is valid
-if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC", "LUAD-LCNEC", "PANCAN", "TEST")) ) {
+if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC", "LUAD-LCNEC", "PANCAN", "TEST", "PAEN")) ) {
 
   cat("\nInvalid dataset! Please use one of the following:\n\n")
   cat("[ ACC ] - this will compare the patient's data in the context of samples from TCGA Adrenocortical Carcinoma cohort\n\n")

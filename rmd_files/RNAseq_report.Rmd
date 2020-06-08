@@ -15,7 +15,7 @@ output:
     highlight: kate
 params:
   sample_name: 'test_sample_WTS'
-  dataset: 'TEST'
+  dataset: 'PAEN'
   dataset_name_incl: ''
   bcbio_rnaseq: NULL
   dragen_rnaseq: '../data/test_data/stratus/test_sample_WTS'
@@ -45,7 +45,6 @@ params:
   grch_version: 38
   ensembl_version: 86
   ucsc_genome_assembly: 38
-  annot_file: 'genes/tx2gene.ensembl.v95.csv'
   genes_cancer: 'genes/umccr_cancer_genes.2019-03-20.tsv'
   genes_immunogram: 'genes/Genes_immunogram.txt'
   genes_immune_markers: 'genes/Genes_immune_markers.txt'
@@ -1839,8 +1838,8 @@ rm(edb, keys)
 ##### Define the reference datasets based on user-defined input
 dataset <- toupper(params$dataset)
 
-ref_dataset <- list( "ext_ref" = c(paste0(params$ref_data_dir, "/ref_data/TCGA_", strsplit(dataset, split='-', fixed=TRUE)[[1]][1], "_Counts.exp.gz"), paste0(params$ref_data_dir, "/ref_data/TCGA_", dataset, "_Target.txt"), paste0(strsplit(dataset, split='-', fixed=TRUE)[[1]][1], " (TCGA)")),
-                     "int_ref" = c(paste0(params$ref_data_dir, "/ref_data/UMCCR_PDAC_Counts.exp.gz"), paste0(params$ref_data_dir, "/ref_data/UMCCR_PDAC_Target.txt"), "PAAD (UMCCR)")
+ref_dataset <- list( "ext_ref" = c(paste0(params$ref_data_dir, "/ref_data/", strsplit(dataset, split='-', fixed=TRUE)[[1]][1], "_Counts.tsv.gz"), paste0(params$ref_data_dir, "/ref_data/", dataset, "_Target.txt"), paste0(strsplit(dataset, split='-', fixed=TRUE)[[1]][1], " (ICGC-AU)")),
+                     "int_ref" = c(paste0(params$ref_data_dir, "/ref_data/UMCCR_PDAC_Counts.tsv.gz"), paste0(params$ref_data_dir, "/ref_data/UMCCR_PDAC_Target.txt"), "PAAD (UMCCR)")
 )
 
 ##### Create a list with reference datasets
@@ -2403,7 +2402,7 @@ for ( group in targets_mod.list ) {
     ##### Create EdgeR DGEList object
     y[[group]] <- edgeR::DGEList(counts=data,  group=target$Dataset)
     
-    ##### Remove genes with CPM of at least 1 in less than 10% of samples
+    ##### Keep genes with CPM of at least 1 in more than 10% of samples
     filter.threshold <- 1
     keep <- rowSums(edgeR::cpm(y[[group]])>filter.threshold) >= ncol(data)/10
     
@@ -2412,12 +2411,12 @@ for ( group in targets_mod.list ) {
     y[[group]]$filtered <- y[[group]][keep, , keep.lib.sizes=FALSE]
     
     ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-    y[[group]]$samples["norm.factors"] <- edgeR::calcNormFactors(y[[group]], method = "none")$samples["norm.factors"]
     y[[group]]$transformed <- edgeR::cpm(y[[group]], normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
     y[[group]]$filtered.transformed <- edgeR::cpm(y[[group]]$filtered, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
   
   ##### CPM transformation without filtering
   } else if ( !params$filter && params$transform == "CPM" ) {
+    
     ##### Create EdgeR DGEList object
     y[[group]] <- edgeR::DGEList(counts=data,  group=target$Dataset)
     
@@ -2446,7 +2445,7 @@ for ( group in targets_mod.list ) {
     if ( params$log ) {
       y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed+0.25))
       
-      ##### Remove genes with TPM of at least 1 in less than 10% of samples
+      ##### Keep genes with TPM of at least 1 in more than 10% of samples
       filter.threshold <- 1+0.25
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed)/10
       
@@ -2458,7 +2457,7 @@ for ( group in targets_mod.list ) {
     } else {
       y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
       
-      ##### Remove genes with TPM of at least 1 in less than 10% of samples
+      ##### Keep genes with TPM of at least 1 in more than 10% of samples
       filter.threshold <- 1
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed)/10
       
