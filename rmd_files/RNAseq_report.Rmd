@@ -2403,7 +2403,7 @@ for ( group in targets_mod.list ) {
     ##### Create EdgeR DGEList object
     y[[group]] <- edgeR::DGEList(counts=data,  group=target$Dataset)
     
-    ##### Remove genes with CPM of at least 1 in less than 10% of samples
+    ##### Keep genes with CPM of at least 1 in more than 10% of samples
     filter.threshold <- 1
     keep <- rowSums(edgeR::cpm(y[[group]])>filter.threshold) >= ncol(data)/10
     
@@ -2412,7 +2412,6 @@ for ( group in targets_mod.list ) {
     y[[group]]$filtered <- y[[group]][keep, , keep.lib.sizes=FALSE]
     
     ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-    y[[group]]$samples["norm.factors"] <- edgeR::calcNormFactors(y[[group]], method = "none")$samples["norm.factors"]
     y[[group]]$transformed <- edgeR::cpm(y[[group]], normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
     y[[group]]$filtered.transformed <- edgeR::cpm(y[[group]]$filtered, normalized.lib.sizes=FALSE, log=params$log, prior.count=0.25)
   
@@ -2446,7 +2445,7 @@ for ( group in targets_mod.list ) {
     if ( params$log ) {
       y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed+0.25))
       
-      ##### Remove genes with TPM of at least 1 in less than 10% of samples
+      ##### Keep genes with TPM of at least 1 in more than 10% of samples
       filter.threshold <- 1+0.25
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed)/10
       
@@ -2458,7 +2457,7 @@ for ( group in targets_mod.list ) {
     } else {
       y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
       
-      ##### Remove genes with TPM of at least 1 in less than 10% of samples
+      ##### Keep genes with TPM of at least 1 in more than 10% of samples
       filter.threshold <- 1
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed)/10
       
