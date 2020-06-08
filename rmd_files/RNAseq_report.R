@@ -22,7 +22,7 @@
 #   report_dir:   Desired location for the report
 #   ref_data_dir: Location of the reference and annotation files
 #   transform:    Transformation method to be used when converting read counts. Available options are: "CPM" (default) and "TPM"
-#   norm:         Normalisation method. Currently, "TMM" is used for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
+#   norm:         Normalisation method. Currently, "TMM","TMMwzp", "RLE" and "upperquartile" methods are available for CPM-transformed data and "quantile" normalisation is used for TPM-transformed data
 #   batch_rm:     Remove batch-associated effects between datasets. Available options are: "TRUE" (default) and "FALSE"
 #   filter:       Filtering out low expressed genes. Available options are: "TRUE" (default) and "FALSE"
 #   log:          Log (base 2) transform data before normalisation. Available options are: "TRUE" (default) and "FALSE"
