@@ -1883,6 +1883,7 @@ if ( !is.null(params$bcbio_rnaseq) ) {
   arriba_pdf <- paste(dataDir, "arriba", "fusions.pdf", sep = "/")
   runArribaChunk <- FALSE
   runFusionChunk <- FALSE
+  runDragenFusionChunk <- FALSE
   
   if ( file.exists(arriba_file) ) {
     ref_genes.list[["arriba"]] <- read.table(file = arriba_file, header = TRUE, comment.char = "", quote = "")
@@ -1941,6 +1942,9 @@ if ( !is.null(params$bcbio_rnaseq) ) {
     tibble::rownames_to_column() %>%
     dplyr::rename(count = V1)
   
+  runArribaChunk <- FALSE
+  runFusionChunk <- FALSE
+  
   ##### Read in Dragen fusion calls
   ##### Check if Dragen fusion output file exists
   dragen_fusion_file <- paste(dataDir, paste0(params$sample_name, ".fusion_candidates.final"), sep = "/")
@@ -1953,9 +1957,6 @@ if ( !is.null(params$bcbio_rnaseq) ) {
     ref_genes.list[["dragenFusion"]] <- dragen_fusion
     runDragenFusionChunk <- TRUE
     runFusionChunk <- TRUE
-    #need to set following for goi_summary code chuck
-    runArribaChunk <- FALSE
-    runPizzlyChunk <- FALSE
   }
 }
 
@@ -3352,7 +3353,7 @@ if ( nrow(dragen.cancer_genes) > 0 ) {
 fusions <- fusions[ order(fusions$reported_fusion, fusions$Score, fusions$fusions_cancer, fusions$reported_fusion_geneA, fusions$reported_fusion_geneB, decreasing = TRUE), ]
 #fusions <- fusions[order(factor(fusions$confidence, levels=c("high", "medium", "low"))), ]
 
-##### Keep only key columns and add info about Arriba detected fusions and 
+##### Keep only key columns
 fusions <- fusions[ colnames(fusions) %in% c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
@@ -4247,8 +4248,8 @@ if ( runArribaChunk ) {
   }
   
   fusions.table <- fusions.table[ , names(fusions.table) %!in% "FGID" ]
-  fusions.table <- fusions.table[ , c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "circos")]
-  names(fusions.table) <- c("Gene A", "Gene B", "Score", "Left breakpoint", "Right breakpoint", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Genomic view")
+  fusions.table <- fusions.table[ , c("geneA", "geneB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "confidence", "breakpointA", "breakpointB", "siteA", "siteB", "type", "circos")]
+  names(fusions.table) <- c("Gene A", "Gene B", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Confidence (Arriba)", "Breakpoint (A)", "Breakpoint (B)", "Site (A)", "Site (B)", "Type", "Genomic view")
   
   ##### Present gene fusion events in a table
   fusions.summary <- DT::datatable( data = fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 490, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
