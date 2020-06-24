@@ -2072,8 +2072,16 @@ if ( !is.null(params$umccrise) ) {
     ref_genes.list[["manta"]] <- sv_prioritize(sv_file_2)
     ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][, c("Tier", "Event", "Gene", "Effect", "Detail", "Location", "AF", "CN chg", "SR", "PR", "CN", "Ploidy", "Transcript", "Other effects")]
     
-    ##### Omit SVs without assigned gene
-    ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][ ref_genes.list[["manta"]]$Gene != "",  ]
+    ##### Check if there are any SVs
+    if ( !is.null(ref_genes.list[["manta"]]) ) {
+      
+      ##### Omit SVs without assigned gene
+      ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][ ref_genes.list[["manta"]]$Gene != "",  ]
+    } else {
+      ##### Create empty dataframe
+      ref_genes.list[["manta"]] <- data.frame(matrix(ncol = 14, nrow = 0))
+      colnames(ref_genes.list[["manta"]]) <- c("Tier", "Event", "Gene", "Effect", "Detail", "Location", "AF", "CN chg", "SR", "PR", "CN", "Ploidy", "Transcript", "Other effects")
+    }
     
   } else {
     ref_genes.list[["manta"]] <- NULL
@@ -2284,7 +2292,11 @@ if ( runPcgrChunk ) {
   }
   
   ##### Remove NAs
-  ref_genes.list[["summary"]]$Mutated <- ref_genes.list[["summary"]]$Mutated[ !(is.na(ref_genes.list[["summary"]]$Mutated)) ]
+  if ( length(ref_genes.list[["summary"]]$Mutated) > 0 ) {
+    ref_genes.list[["summary"]]$Mutated <- ref_genes.list[["summary"]]$Mutated[ !(is.na(ref_genes.list[["summary"]]$Mutated)) ]
+  } else {
+    ref_genes.list[["summary"]]$Mutated <- NULL
+  }
 }
     
 # ARRIBA and PIZZLY annotation of gene fusion events detected in given patient based on PIZZLY results
@@ -2301,7 +2313,11 @@ if ( runFusionChunk ) {
   }
   
   ##### Remove NAs
-  ref_genes.list[["summary"]]$Fusion <- ref_genes.list[["summary"]]$Fusion[ !(is.na(ref_genes.list[["summary"]]$Fusion)) ]
+  if ( length(ref_genes.list[["summary"]]$Mutated) > 0 ) {
+    ref_genes.list[["summary"]]$Fusion <- ref_genes.list[["summary"]]$Fusion[ !(is.na(ref_genes.list[["summary"]]$Fusion)) ]
+  } else {
+    ref_genes.list[["summary"]]$Fusion <- NULL
+  }
 }
 
 # MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
@@ -2309,10 +2325,14 @@ if ( runSVsChunk ) {
   ref_genes.list[["summary"]]$SV <- ref_genes.list[["manta"]]
   ref_genes.list[["summary"]]$SV <- ref_genes.list[["summary"]]$SV[ ref_genes.list[["summary"]]$SV$Gene != "",  ]$Gene
   # ...and distinguish classified by MANTA as fusion genes
-  ref_genes.list[["summary"]]$SV <- unique(unlist(strsplit(ref_genes.list[["summary"]]$SV, split='&', fixed=TRUE)))
   
   ##### Remove NAs
-  ref_genes.list[["summary"]]$SV <- ref_genes.list[["summary"]]$SV[ !(is.na(ref_genes.list[["summary"]]$SV)) ]
+  if ( length(ref_genes.list[["summary"]]$SV) > 0 ) {
+    ref_genes.list[["summary"]]$SV <- unique(unlist(strsplit(ref_genes.list[["summary"]]$SV, split='&', fixed=TRUE)))
+    ref_genes.list[["summary"]]$SV <- ref_genes.list[["summary"]]$SV[ !(is.na(ref_genes.list[["summary"]]$SV)) ]
+  } else {
+    ref_genes.list[["summary"]]$SV <- NULL
+  }
 }
 
 # PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results, including only those with CN values meeting user-defined thresholds
@@ -2349,7 +2369,11 @@ if ( runPurpleChunk ) {
   ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ ref_genes.list[["summary"]]$CN$MeanCopyNumber <= cn_bottom | ref_genes.list[["summary"]]$CN$MeanCopyNumber >= cn_top, ]$Gene)
   
   ##### Remove NAs
-  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ !(is.na(ref_genes.list[["summary"]]$CN)) ]
+  if ( length(ref_genes.list[["summary"]]$CN) > 0 ) {
+    ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ !(is.na(ref_genes.list[["summary"]]$CN)) ]
+  } else {
+    ref_genes.list[["summary"]]$CN <- NULL
+  }
 }
 
 # Immune reponse markers
