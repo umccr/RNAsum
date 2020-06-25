@@ -122,15 +122,14 @@ These files are expected to be organised following the folder structure below
 
 ```
 |
-|____final
-  |____<SampleName>
-    |____kallisto
-    | |____abundance.tsv
-    |____pizzly
-    | |____<SampleName>-flat.tsv
-    |____arriba
-      |____fusions.pdf
-      |____fusions.tsv
+|____<SampleName>
+  |____kallisto
+  | |____abundance.tsv
+  |____pizzly
+  | |____<SampleName>-flat.tsv
+  |____arriba
+    |____fusions.pdf
+    |____fusions.tsv
 ```
 
 ###### Note
@@ -140,9 +139,26 @@ These files are expected to be organised following the folder structure below
 
 #### DRAGEN RNA
 
+The **read counts** are provided within quantification file from [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) (see example *[TEST.quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* file and its [description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)). The per-transcript abundances are reported in *estimated counts* (`NumReads `) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`TPM `), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** can be provided (see example *[TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final)*). 
+
+Table below lists all input data accepted in the pipeline:
+
+Input file | Tool | Example | Required
+------------ | ------------ | ------------ | ------------
+Quantified **abundances** of transcripts | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) | [TEST.quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf) | **Yes**
+List of detected **fusion genes** | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final) | No
+
 <br />
 
-**WORK IN PROGRESS** ...
+These files are expected to be organised following the folder structure below
+
+```
+|
+|____<SampleName>
+  |____<SampleName>quant.sf
+  |____<SampleName>.fusion_candidates.final
+```
+
 
 <br />
 
@@ -222,7 +238,7 @@ Argument | Description | Required
 Human reference genome ***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)*** (*Ensembl* based annotation version ***86***) is used for genes annotation as default. Alternatively, human reference genome [GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/) (*Ensembl* based annotation version *75*) is used when argument `grch_version` is set to `37`.
 
 
-### Examples 
+### Examples
 
 Below are command line use examples for generating *Patient Transcriptome Summary* report using:
 
