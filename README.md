@@ -1,6 +1,6 @@
 # RNAsum
 
-RNA-seq reporting workflow designed to post-process, summarise and visualise an output from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipelines. Its main application is to complement genome-based findings from [umccrise](https://github.com/umccr/umccrise) pipeline and to provide additional evidence for detected alterations.
+RNA-seq reporting workflow designed to post-process, summarise and visualise an output from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipelines. Its main application is to complement genome-based findings from [umccrise](https://github.com/umccr/umccrise) pipeline and to provide additional evidence for detected alterations.
 
 
 ## Table of contents
@@ -14,7 +14,7 @@ RNA-seq reporting workflow designed to post-process, summarise and visualise an 
 * [Input data](#input-data)
   * [WTS](#wts)
      * [bcbio-nextgen](#bcbio-nextgen)
-     * [DRAGEN RNA](#dragen-rna)
+     * [Dragen RNA](#dragen-rna)
   * [WGS](#wgs)
 * [Usage](#usage)
   * [Arguments](#arguments)
@@ -53,7 +53,7 @@ The pipeline consist of five main components illustrated and breifly described b
 
 <br/>
 
-1. Collect patient sample WTS data from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and **[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)**.
+1. Collect patient sample WTS data from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and **[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)**.
 
 2. Add expression data from [reference cohorts](#reference-data) to get an idea about expression levels of genes of interest in other cancer [patient cohorts](#reference-data). The read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
 
@@ -97,12 +97,12 @@ The are two rationales for using the internal reference cohort:
 
 ## Input data
 
-The pipeline accepts [WTS](#wts) data processed by *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)*  pipeline. Additionally, the WTS data can be integrated with [WGS](#wgs)-based data processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline. In the latter case, the genome-based findings from corresponding sample are incorporated into the report and are used as a primary source for expression profiles prioritisation.
+The pipeline accepts [WTS](#wts) data processed by *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)*  pipeline. Additionally, the WTS data can be integrated with [WGS](#wgs)-based data processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline. In the latter case, the genome-based findings from corresponding sample are incorporated into the report and are used as a primary source for expression profiles prioritisation.
 
 
 ### WTS 
 
-The only required WTS input data are **read counts** provided in quantification file from either *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
+The only required WTS input data are **read counts** provided in quantification file from either *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
 
 #### bcbio-nextgen
 
@@ -137,7 +137,7 @@ These files are expected to be organised following the folder structure below
 [Fusion genes](./fusions) detected by [pizzly](https://github.com/pmelsted/pizzly) are expected to be listed in the [flat table](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
 
 
-#### DRAGEN RNA
+#### Dragen RNA
 
 The **read counts** are provided within quantification file from [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) (see example *[TEST.quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* file and its [description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)). The per-transcript abundances are reported in *estimated counts* (`NumReads `) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`TPM `), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** can be provided (see example *[TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final)*). 
 
@@ -146,7 +146,7 @@ Table below lists all input data accepted in the pipeline:
 Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
 Quantified **abundances** of transcripts | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) | [TEST.quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf) | **Yes**
-List of detected **fusion genes** | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final) | No
+List of detected **fusion genes** | [Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final) | No
 
 <br />
 
@@ -200,7 +200,7 @@ Argument | Description | Required
 ------------ | ------------ | ------------
 --sample_name | The name of the sample to be analysed and reported | **Yes**
 --bcbio_rnaseq | Location of the results folder from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* | **Yes***
---dragen_rnaseq | Location of the results folder from *[DRAGEN RNA pipeline](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* | **Yes***
+--dragen_rnaseq | Location of the results folder from *[Dragen RNA pipeline](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* | **Yes***
 --report_dir | Desired location for the report | **Yes**
 --dataset | Dataset to be used as external reference cohort. Available options are [TCGA](https://tcga-data.nci.nih.gov/) project IDs listed in [TCGA projects summary table](./TCGA_projects_summary.md) `Project` column (default is `PANCAN`) | No
 --transform | Transformation method for converting read counts. Available options are: `CPM` (default) and `TPM` | No
@@ -229,7 +229,7 @@ Argument | Description | Required
 
 <br />
 
-\* Location of the results folder from either *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline is required.
+\* Location of the results folder from either *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline is required.
 
 **Packages**: required packages are listed in [environment.yaml](envm/environment.yaml) file.
 
@@ -270,11 +270,22 @@ In this scenario, only [WTS](#wts) data will be used and only expression levels 
 
 The input files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
 
+
+##### bcbio-nextgen
+
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --save_tables FALSE
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
+
+##### Dragen RNA
+
+```
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --save_tables FALSE
+```
+
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
 
 
 #### 2. WTS and WGS data
@@ -283,17 +294,28 @@ This is the **most frequent and preferred case**, in which the [WGS](#wgs)-based
 
 The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to be organised following the folder structure described in [Input data:WGS](#wgs) section.
 
+##### bcbio-nextgen
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --save_tables FALSE
 ```
 
 >The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
+
+##### Dragen RNA
+
+```
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --save_tables FALSE
+```
+
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
+
 
 #### 3. WTS WGS and clinical data
 
 For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Patient Transcriptome Summary* report. This can be added by specifying location of a relevant excel spreadsheet (see example [test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx)) using the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`, along with `START` and `STOP` dates of corresponding treatments. A subset of the [TCGA](https://tcga-data.nci.nih.gov/) pancreatic adenocarcinoma dataset is used as reference cohort (`--dataset TEST `).
 
+##### bcbio-nextgen
 
 ```
 Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx --save_tables FALSE
@@ -301,6 +323,13 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_
 
 >The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
 
+##### Dragen RNA
+
+```
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --save_tables FALSE
+```
+
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
 
 ### Output
 
