@@ -2431,6 +2431,43 @@ genes2keep = genes2keep[!duplicated(genes2keep$SYMBOL),]
 rm(edb, keys, gene_info)
 ```
 
+```{r library_size_plot, message = FALSE, warning = FALSE, echo = TRUE, fig.width = 12, fig.height = 9}
+suppressMessages(library(plotly))
+##### Generate bar-plot for library size. The colours indicate sample groups, as provided in *Target* column in the sample annotation file
+
+data <- ref_dataset.list[[dataset]][["combined_data"]]
+target <- ref_dataset.list[[dataset]][["sample_annot"]]
+target$Target[ target$Target==params$sample_name ] <- "Patient"
+
+##### Change the datasets levels order
+target$Target <- factor(target$Target, levels = unique(target$Target))
+
+##### Assigne colours to targets and datasets
+targets.colour <- getColours(target$Target)
+
+##### Prepare data frame
+data.df <- data.frame(colnames(data), as.numeric(colSums(data)*1e-6), target$Target)
+colnames(data.df) <- c("Sample", "Library_size", "Target")
+
+##### The default order will be alphabetized unless specified as below
+data.df$Sample <- factor(data.df$Sample, levels = data.df[["Sample"]])
+
+library_size <- plot_ly(data.df, x = ~Sample, y = ~Library_size, color = ~Target, colors = targets.colour[[1]], type = 'bar', width = 800, height = 400) %>%
+  layout(title = "", xaxis = list( tickfont = list(size = 10), title = "", showticklabels = FALSE), yaxis = list(title = "Library size (millions)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, showlegend=TRUE, legend = list(orientation = 'h', y = max(data.df$Library_size), bgcolor = "white"))
+
+##### Create directory for input data plots
+PlotsDir <- paste(params$report_dir, "results/InputDataPlots", sep = "/")
+if ( !file.exists(PlotsDir) ) {
+  dir.create(PlotsDir, recursive=TRUE)
+}
+
+##### Save interactive plot as html file
+saveWidgetFix(library_size, file = paste(PlotsDir, "library_size.html", sep = "/"))
+  
+##### Detach plotly package. Otherwise it clashes with other graphics devices
+detach("package:plotly", unload=FALSE)
+```
+
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
 ##### Filtering to remove low expressed genes. For differential expression and related analyses, gene expression is rarely considered at the level of raw counts since libraries sequenced at a greater depth will result in higher counts. Rather, it is common practice to transform raw counts onto a scale that accounts for such library size differences. Genes with very low counts across all libraries provide little evidence for differential expression. In the biological point of view, a gene must be expressed at some minimal level before it is likely to be translated into a protein or to be biologically important. In addition, the pronounced discretenes of these counts interferes with some of the statistical approximations that are used later in the pipeline. These genes should be filtered out prior to further analysis. Users should filter with CPM rather than filtering on the counts directly, as the latter does not account for differences in library sizes between samples. For instance for the CPM-transformed data we keep only genes that have CPM of 1
 
@@ -2448,7 +2485,7 @@ names(y) <- targets_mod.list
 ##### Keep info about samples with the lowest and greates counts for defined CPM threshold
 cpm.min <- round(min(as.numeric(colSums(ref_dataset.list[[dataset]][["combined_data"]])*1e-6)), digits=0)
 cpm.max <- round(max(as.numeric(colSums(ref_dataset.list[[dataset]][["combined_data"]])*1e-6)), digits=0)
-  
+
 #### For each group...
 for ( group in targets_mod.list ) {
     target <- target_mod[ target_mod$Dataset==group, ]
@@ -2574,12 +2611,6 @@ rm(target, target_mod, genes_mod, keep)
 ```
 
 ```{r data_transformation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
-##### Create directory for input data plots
-PlotsDir <- paste(params$report_dir, "results/InputDataPlots", sep = "/")
-if ( !file.exists(PlotsDir) ) {
-  dir.create(PlotsDir, recursive=TRUE)
-}
-
 ##### Assigne colours to targets and datasets
 target <- ref_dataset.list[[dataset]][["sample_annot"]]
 targets.colour <- getColours(target$Target)
@@ -3785,6 +3816,15 @@ Out of the `r nrow(ref_dataset.list[[dataset]][["combined_data"]])` input genes:
 * `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["data_to_report"]]) - nrow(data.annot) } else { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
 NOTE, the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Structural variants], [CN altered genes], [Immune markers], [HRD genes] and [Cancer genes] sections.
+
+
+**Library size**
+
+Bar-plot illustrating library size for each sample.
+
+```{r library_size, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+library_size
+```
 
 **Data filtering and transformation**
 
