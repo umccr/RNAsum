@@ -2395,7 +2395,7 @@ ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
 ref_genes.list[["summary"]]$HRD <- ref_genes.list[["summary"]]$HRD[ !(is.na(ref_genes.list[["summary"]]$HRD)) ]
   
 # Cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and from OncoKB portal (http://oncokb.org/#/cancerGenes)
-ref_genes.list[["summary"]]$Cancer <- unique(ref_genes.list[["genes_cancer"]]$symbol)
+ref_genes.list[["summary"]]$Cancer <- rownames(ref_genes.list[["genes_cancer"]])
 
 ##### Remove NAs
 ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["summary"]]$Cancer[ !(is.na(ref_genes.list[["summary"]]$Cancer)) ]
@@ -2418,14 +2418,20 @@ names(gene_info) <- gsub("GENEID", "ENSEMBL", names(gene_info))
 names(gene_info) <- gsub("GENENAME", "SYMBOL", names(gene_info))
   
 ##### Limit genes annotation to the gene of interest
-genes2keep <-  gene_info[ gene_info$SYMBOL %in% genes2keep,  ]
+genes2keep <- gene_info[ gene_info$SYMBOL %in% genes2keep,  ]
   
 ##### Remove rows with duplicated ENSEMBL IDs
 genes2keep = genes2keep[!duplicated(genes2keep$ENSEMBL),]
 rownames(genes2keep) <- genes2keep$ENSEMBL
-  
-##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc)
-genes2keep = genes2keep[!duplicated(genes2keep$SYMBOL),]
+
+##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc). Preferably select ENSEMBL ID that is used in the count data
+genes2keep.combined_data <- genes2keep[ genes2keep$ENSEMBL %in% rownames(ref_dataset.list[[dataset]]$combined_data), ]
+genes2keep <- genes2keep[ genes2keep$SYMBOL %!in% genes2keep.combined_data$SYMBOL, ]
+genes2keep <-  genes2keep[!duplicated(genes2keep$SYMBOL),]
+genes2keep <- rbind(genes2keep.combined_data, genes2keep)
+
+##### Add column to store info about filtered genes
+genes2keep$EXP <- TRUE
 
 ##### Clean the space
 rm(edb, keys, gene_info)
@@ -2502,6 +2508,9 @@ for ( group in targets_mod.list ) {
     filter.threshold <- 1
     keep <- rowSums(edgeR::cpm(y[[group]])>filter.threshold) >= ncol(data)/10
     
+    ##### Note which genes of interest are not expressed
+    genes2keep$EXP[ rownames(genes2keep) %!in% names(keep) ] <- FALSE
+    
     ##### Keep the genes of interest too
     keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
     y[[group]]$filtered <- y[[group]][keep, , keep.lib.sizes=FALSE]
@@ -2544,6 +2553,9 @@ for ( group in targets_mod.list ) {
       filter.threshold <- 1+0.25
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed)/10
       
+      ##### Note which genes of interest are not expressed
+      genes2keep$EXP[ rownames(genes2keep) %!in% names(keep) ] <- FALSE
+    
       ##### Keep the genes of interest too
       keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
       y[[group]]$filtered <- y[[group]]$counts[keep, ]
@@ -2556,9 +2568,11 @@ for ( group in targets_mod.list ) {
       filter.threshold <- 1
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed)/10
       
+      ##### Note which genes of interest are not expressed
+      genes2keep$EXP[ rownames(genes2keep) %!in% names(keep) ] <- FALSE
+    
       ##### Keep the genes of interest too
       keep[ names(keep) %in% rownames(genes2keep) ] <- TRUE
-    
       y[[group]]$filtered <- y[[group]]$counts[keep, ]
       y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
     }
@@ -3809,13 +3823,14 @@ The following reference patient cohorts were used for the analysis:
 
 **Input genes**
 
-Out of the `r nrow(ref_dataset.list[[dataset]][["combined_data"]])` input genes:
+Out of the `r nrow(ref_dataset.list[[dataset]][["combined_data"]])` input genes **`r nrow(data.annot)`** are used for analyses:
 
-* **`r nrow(data.annot)` genes** have reliably detected expression
+* **`r if (params$filter) { nrow(data.annot) - nrow(genes2keep[ !genes2keep$EXP, ]) } else { ("0") }`** have reliably detected expression
+* **`r if (params$filter) { nrow(genes2keep[ !genes2keep$EXP, ]) } else { ("0") }`** are not expressed but are of interest and are included in analyses
 * `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` are either not expressed or their expression level is too low to be detected
 * `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["data_to_report"]]) - nrow(data.annot) } else { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(data.annot) }` genes were ignored due to lack of [HGNC](https://www.genenames.org/){target="_blank"}-approved gene symbol
 
-NOTE, the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Structural variants], [CN altered genes], [Immune markers], [HRD genes] and [Cancer genes] sections.
+NOTE, the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_data"]]) - nrow(ref_dataset.list[[dataset]][["data_to_report"]]) + nrow(genes2keep[ !genes2keep$EXP, ]) } else { ("0") }` genes with no/low expression are indicated in <span style="color:#808080">BLANK</span> cells with missing values in *expression summary tables* in [Mutated genes], [Structural variants], [CN altered genes], [Immune markers], [HRD genes] and [Cancer genes] sections.
 
 
 **Library size**
