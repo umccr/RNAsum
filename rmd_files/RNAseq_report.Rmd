@@ -306,7 +306,7 @@ pca <- function(data, targets, title = "", report_dir, suffix = "" ) {
   layout(title = title, xaxis = list(title = paste( "PC1", " (",importance_pca["PC1"],")",sep="")), yaxis = list(title = paste( "PC2", " (",importance_pca["PC2"],")",sep="")), margin = list(l=50, r=50, b=50, t=30, pad=4), autosize = FALSE, showlegend = TRUE, legend = list(orientation = "v", y = 0.9))
 
   ##### Generate Scree-plot
-  data.subset_scree.df <- data.frame(paste0("PC ", c(1:length(data.subset_pca$sdev))), data.subset_pca$sdev)
+  data.subset_scree.df <- data.frame(paste0("PC ", c(1:length(importance_pca))), as.numeric(gsub("%", "",importance_pca)))
 colnames(data.subset_scree.df) <- c("PC", "Variances")
 
   ##### The default order will be alphabetized unless specified as below
@@ -1599,11 +1599,11 @@ sv_prioritize <- function(sv_file) {
           Ploidy_PURPLE = as.double(Ploidy_PURPLE),
           Ploidy_PURPLE = format(Ploidy_PURPLE, nsmall = 2)
         ) %>% 
-        tidyr::separate(split_read_support, c("SR (alt)", "SR (ref)"), ",") %>% 
+        tidyr::separate(split_read_support, c("SR (ref)", "SR (alt)"), ",") %>% 
         dplyr::mutate(SR = as.integer(`SR (alt)`)) %>% 
-        tidyr::separate(paired_support_PR, c("PR (alt)", "PR (ref)"), ",") %>% 
+        tidyr::separate(paired_support_PR, c("PR (ref)", "PR (alt)"), ",") %>% 
         dplyr::mutate(PR = as.integer(`PR (alt)`)) %>% 
-        tidyr::separate(paired_support_PE, c("PE (alt)", "PE (ref)"), ",") %>% 
+        tidyr::separate(paired_support_PE, c("PE (ref)", "PE (alt)"), ",") %>% 
         dplyr::mutate(PE = as.integer(`PE (alt)`)) %>% 
         
         dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
@@ -1642,11 +1642,11 @@ sv_prioritize <- function(sv_file) {
           Ploidy = as.double(Ploidy),
           Ploidy = format(Ploidy, nsmall = 2)
         ) %>% 
-        tidyr::separate(split_read_support, c("SR (alt)", "SR (ref)"), ",") %>% 
+        tidyr::separate(split_read_support, c("SR (ref)", "SR (alt)"), ",") %>% 
         dplyr::mutate(SR = as.integer(`SR (alt)`)) %>% 
-        tidyr::separate(paired_support_PR, c("PR (alt)", "PR (ref)"), ",") %>% 
+        tidyr::separate(paired_support_PR, c("PR (ref)", "PR (alt)"), ",") %>% 
         dplyr::mutate(PR = as.integer(`PR (alt)`)) %>% 
-        tidyr::separate(paired_support_PE, c("PE (alt)", "PE (ref)"), ",") %>% 
+        tidyr::separate(paired_support_PE, c("PE (ref)", "PE (alt)"), ",") %>% 
         dplyr::mutate(PE = as.integer(`PE (alt)`)) %>% 
         
         dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
@@ -4333,7 +4333,7 @@ Fusion events are ordered by the following columns:
 
 ### - Genomic view
 
-<span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes") & fusions$circos == "Yes", ]) } else { c("0") }`**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion == "Yes" & fusions$circos == "Yes", ]) } else { c("0") }`**</span> fusions events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
+<span style="color:#ff0000">**`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes") & fusions$circos == "Yes", ]) } else { c("0") }`**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style="color:#02d653">**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion == "Yes" & fusions$circos == "Yes", ]) } else { c("0") }`**</span> fusions events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB){target="_blank"}** are presented in the genomic context. *<span style="color:#ff0000">Red</span>* colour is used for links between positions of same chromosomes and *<span style="color:#0000ff">blue</span>* for links between different chromosomes. The table at the bottom contains genomic coordingates of individual fusion genes sorted based on their genomic location.
 
 <span style="color:#ff0000">NOTE</span>: **`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" | fusions$geneA_dna_support == "Yes") & fusions$circos != "Yes", ]) } else { c("0") }`** of such fusions do not have genomic information available and are not presented on the *circos plot* (see *Genomic view* column in the [- Summary] table). 
 
