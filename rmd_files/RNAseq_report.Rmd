@@ -34,6 +34,7 @@ params:
   clinical_id: 'test_subject'
   subject_id: ''
   sample_source: "-"
+  sample_name_mysql: 'test_sample_WTS'
   project: "-"
   top_genes: 5
   save_tables: TRUE
@@ -1839,8 +1840,8 @@ if (tolower(params$scaling) == "gene-wise"){
 ```
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
-##### Initiate MySQL commend to populate RNA-seq data portal
-mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Source, Project, Report, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
+##### Initiate MySQL command to populate RNA-seq data portal
+mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name_mysql, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Source, Project, Report, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
 ```
 
@@ -2102,8 +2103,8 @@ if ( !is.null(params$umccrise) ) {
 }
 
 ##### Update MySQL commend to populate RNA-seq data portal
-mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name, "\", \""  )
-mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name, "\", Analysis=\""  )
+mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name_mysql, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name_mysql, "\", \""  )
+mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name_mysql, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name_mysql, "\", Analysis=\""  )
     
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_clin_vars, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
@@ -6222,10 +6223,10 @@ if (runClinicalChunk ) {
   mysql_populate_update <- paste0(mysql_populate_update, ",Clinical information")
 }
 
-mysql_populate <- paste0(mysql_populate, "\", \"Transcriptome summary for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
-mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"Transcriptome summary for sample ", params$sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
+mysql_populate <- paste0(mysql_populate, "\", \"Transcriptome summary for sample ", params$sample_name_mysql, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
+mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"Transcriptome summary for sample ", params$sample_name_mysql, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
 mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")
-writeLines(mysql_populate, con = paste0(params$report_dir, "/results/", params$sample_name, ".RNAseq_report.sql"))
+writeLines(mysql_populate, con = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.sql"))
 ```
 
 ## Addendum
