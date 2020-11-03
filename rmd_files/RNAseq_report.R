@@ -40,9 +40,9 @@
 #   subject_id (optional):    Subject ID. If umccrise output is specified (flag --umccrise) then Subject ID is extracted from there and used to overwrite this argument
 #   sample_source (optional):   Source of investigated sample (e.g. fresh frozen tissue, organoid). This information is for annotation purposes only
 #   sample_name_mysql (optional):   Desired sample name for MySQL insert command. By default value in --sample_name is used
+#   dataset_name_incl:  Include dataset in the report name. Available options are: "TRUE" and "FALSE" (default)
 #   project (optional):   Project name. This information is for annotation purposes only
 #   top_genes:     The number of top ranked genes to be presented (default is "5")
-#   dataset_name_incl:  Include dataset in the report name. Available options are: "TRUE" and "FALSE" (default)
 #   save_tables:   Save interactive summary tables as HTML. Available options are: "TRUE" (default) and "FALSE"
 #   hide_code_btn: Hide the "Code" button allowing to show/hide code chunks in the final HTML report. Available options are: "TRUE" (default) and "FALSE"
 #   grch_version:  Human reference genome version used for genes annotation (default is "38")
@@ -121,12 +121,12 @@ option_list = list(
               help="Type of investigated sample"),
   make_option("--sample_name_mysql", action="store", default=NA, type='character',
               help="Desired sample name for MySQL insert command"),
+  make_option("--dataset_name_incl", action="store", default=NA, type='character',
+              help="Include dataset in the report name"),
   make_option("--project", action="store", default="-", type='character',
               help="Project name"),
   make_option("--top_genes", action="store", default=5, type='integer',
               help="The number of top ranked genes to be presented"),
-  make_option("--dataset_name_incl", action="store", default=NA, type='character',
-              help="Include dataset in the report name"),
   make_option("--save_tables", action="store", default=TRUE, type='logical',
               help="Save interactive summary tables as HTML"),
   make_option("--hide_code_btn", action="store", default=TRUE, type='logical',
@@ -176,7 +176,7 @@ if ( is.na(opt$dataset_name_incl)  ) {
 } else if ( isFALSE(as.logical(opt$dataset_name_incl))  ) {
   dataset_name_incl <- ""
 } else {
-  dataset_name_incl <- paste0(".", opt$dataset)
+  dataset_name_incl <- paste0("_", opt$dataset)
 }
 
 if ( is.na(opt$sample_name_mysql)  ) {
@@ -298,8 +298,8 @@ param_list <- list(sample_name = opt$sample_name,
                subject_id = opt$subject_id,
                sample_source = opt$sample_source,
                sample_name_mysql = opt$sample_name_mysql,
-               project = opt$project,
                dataset_name_incl = dataset_name_incl,
+               project = opt$project,
                save_tables = opt$save_tables,
                pcgr_tier = opt$pcgr_tier,
                pcgr_splice_vars = opt$pcgr_splice_vars,
