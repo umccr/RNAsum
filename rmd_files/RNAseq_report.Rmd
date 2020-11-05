@@ -2094,7 +2094,7 @@ if ( params$dataset_name_incl != "" ) {
 }
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts, ref_data=ref_dataset, report_dir = paste0(params$report_dir, "/results/"), dataset = dataset, dataset_name_incl = params$dataset_name_incl)
+ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts, ref_data=ref_dataset, report_dir = paste0(params$report_dir, "/results/"), dataset = dataset)
 names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Define internal, external and addition cancer group names based on the targets definition
@@ -2451,6 +2451,7 @@ suppressMessages(library(plotly))
 data <- ref_dataset.list[[dataset]][["combined_data"]]
 target <- ref_dataset.list[[dataset]][["sample_annot"]]
 target$Target[ target$Target==sample_name ] <- "Patient"
+rownames(target)[ rownames(target)==sample_name ] <- "Patient"
 
 ##### Change the datasets levels order
 target$Target <- factor(target$Target, levels = unique(target$Target))
@@ -2459,7 +2460,7 @@ target$Target <- factor(target$Target, levels = unique(target$Target))
 targets.colour <- getColours(target$Target)
 
 ##### Prepare data frame
-data.df <- data.frame(colnames(data), as.numeric(colSums(data)*1e-6), target$Target)
+data.df <- data.frame(rownames(target), as.numeric(colSums(data)*1e-6), target$Target)
 colnames(data.df) <- c("Sample", "Library_size", "Target")
 
 ##### The default order will be alphabetized unless specified as below
