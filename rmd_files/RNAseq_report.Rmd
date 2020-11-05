@@ -33,7 +33,6 @@ params:
   clinical_id: 'test_subject'
   subject_id: ''
   sample_source: "-"
-  sample_name_mysql: 'test_sample_WTS'
   dataset_name_incl: ''
   project: "-"
   top_genes: 5
@@ -60,7 +59,7 @@ params:
   FusionGDB: 'FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt'
 ---
 
-Transcriptome summary for patient sample **`r params$sample_name`**.
+Transcriptome summary for patient sample **`r paste0(params$sample_name, params$dataset_name_incl)`**.
 
 
 ```{r script_description, eval=FALSE}
@@ -143,7 +142,7 @@ prepare2write <- function (x) {
 }
 
 ##### Combine sample expression profile with reference datasets. This function outputs a vector with first element containing the merged data and second element containing merged targets info
-combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, dataset, dataset_name_incl = FALSE) {
+combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, dataset) {
   
   ##### Extract info about target file for the external reference dataset
   target.ext <- read.table(ref_data[["ext_ref"]][2], sep="\t", as.is=TRUE, header=TRUE)
@@ -215,11 +214,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, da
   
   ##### Write list of missing genes into a file
   if ( length(gene_list.missing) > 0 ) {
-    if ( isFALSE(dataset_name_incl) || dataset_name_incl == "" ) {
-      write.table(prepare2write(gene_list.missing), file = paste0(report_dir, "/", sample_name, ".RNAseq_report.missing_genes.txt"), sep="\t", quote=FALSE, row.names=TRUE, append = FALSE )
-    } else {
-      write.table(prepare2write(gene_list.missing), file = paste0(report_dir, "/", sample_name, "_",  dataset, ".RNAseq_report.missing_genes.txt"), sep="\t", quote=FALSE, row.names=TRUE, append = FALSE )
-    }
+    write.table(prepare2write(gene_list.missing), file = paste0(report_dir, "/", sample_name, ".RNAseq_report.missing_genes.txt"), sep="\t", quote=FALSE, row.names=TRUE, append = FALSE )
   }
   
   ##### Clean the space and return output
@@ -864,7 +859,8 @@ barPlot <- function(gene, data, targets, y_title = "Counts", sampleName,  ext_ca
   
   ##### Prepare data frame
   targets$Target[ targets$Target==sampleName ] <- "Patient"
-  data.df <- data.frame(targets$Target, colnames(data), as.numeric(data))
+  rownames(targets)[ rownames(targets)==sampleName ] <- "Patient"
+  data.df <- data.frame(targets$Target, rownames(targets), as.numeric(data))
   colnames(data.df) <- c("Group","Sample", "Data")
   
   ##### Reorder groups and add colours
@@ -1839,12 +1835,6 @@ if (tolower(params$scaling) == "gene-wise"){
 }
 ```
 
-```{r mysql_populate, message=FALSE, warning=FALSE}
-##### Initiate MySQL command to populate RNA-seq data portal
-mysql_populate <- paste0("### MySQL command to insert data for sample \"", params$sample_name_mysql, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Source, Project, Report, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
-mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
-```
-
 ```{r tx2ensembl, comment = NA, message=FALSE, warning=FALSE}
 ##### Annotate transcripts with gene IDs
 edb <- eval(parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
@@ -1919,28 +1909,6 @@ if ( !is.null(params$bcbio_rnase) ) {
 ##### Create directory for results
 if ( !file.exists(paste0(params$report_dir, "/results/")) ) {
   dir.create(paste0(params$report_dir, "/results/"), recursive=TRUE)
-}
-
-##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_dataset.list[[dataset]] <- combineDatasets(sample_name=params$sample_name, sample_counts=counts, ref_data=ref_dataset, report_dir = paste0(params$report_dir, "/results/"), dataset = dataset, dataset_name_incl = params$dataset_name_incl)
-names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
-
-##### Define internal, external and addition cancer group names based on the targets definition
-int_cancer_group <- ref_dataset$int_ref[3]
-ext_cancer_group <- ref_dataset$ext_ref[3]
-
-if ( length(unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)) > 3 ) {
-  
-  add_cancer_group <- unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)[2]
-} else {
-  add_cancer_group <- NULL
-}
-
-##### Define the cancer group to be used to compare per-gene expression values and report in the summary tables
-if ( dataset == "PAAD" || dataset == "PAAD-IPMN" || dataset == "PAAD-NET" || dataset == "PAAD-ACC" ) {
-  comp_cancer_group <- int_cancer_group
-} else {
-  comp_cancer_group <- ext_cancer_group
 }
 
 ##### Check if spreadsheet with clinical information exists
@@ -2102,10 +2070,6 @@ if ( !is.null(params$umccrise) ) {
   runSVsChunk <- FALSE
 }
 
-##### Update MySQL commend to populate RNA-seq data portal
-mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", params$sample_name_mysql, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"), "\", \"", params$sample_name_mysql, "\", \""  )
-mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", params$sample_name_mysql, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(params$sample_name, params$dataset_name_incl, ".RNAseq_report.html"),"\", PMID=\"", params$sample_name_mysql, "\", Analysis=\""  )
-    
 ##### Read in OncoKB (http://oncokb.org) annotations
 caner_genes_annot.list[["oncokb_clin_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_clin_vars, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 caner_genes_annot.list[["oncokb_all_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_all_vars, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="", fill = TRUE)
@@ -2121,8 +2085,48 @@ caner_genes_annot.list[["cancer_biomarkers_trans"]] <- read.table(paste(params$r
 caner_genes_annot.list[["FusionGDB"]] <- read.table(paste(params$ref_data_dir, params$FusionGDB, sep="/"), sep="\t", as.is=TRUE, header=FALSE, row.names=NULL, quote="", fill = TRUE)
 names(caner_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "TgeneID", "FGname", "FGID")
 
+
+##### Add refenence cohort name to the sample name
+if ( params$dataset_name_incl != "" ) {
+  sample_name <- paste0(params$sample_name, "_", params$dataset)
+} else {
+  sample_name <- params$sample_name
+}
+
+##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
+ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts, ref_data=ref_dataset, report_dir = paste0(params$report_dir, "/results/"), dataset = dataset, dataset_name_incl = params$dataset_name_incl)
+names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
+
+##### Define internal, external and addition cancer group names based on the targets definition
+int_cancer_group <- ref_dataset$int_ref[3]
+ext_cancer_group <- ref_dataset$ext_ref[3]
+
+if ( length(unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)) > 3 ) {
+  
+  add_cancer_group <- unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)[2]
+} else {
+  add_cancer_group <- NULL
+}
+
+##### Define the cancer group to be used to compare per-gene expression values and report in the summary tables
+if ( dataset == "PAAD" || dataset == "PAAD-IPMN" || dataset == "PAAD-NET" || dataset == "PAAD-ACC" ) {
+  comp_cancer_group <- int_cancer_group
+} else {
+  comp_cancer_group <- ext_cancer_group
+}
+
 ##### Clean the space
 rm(counts, tx2ensembl)
+```
+
+```{r mysql_populate, message=FALSE, warning=FALSE}
+##### Initiate MySQL command to populate RNA-seq data portal
+mysql_populate <- paste0("### MySQL command to insert data for sample \"", sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Source, Project, Report, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
+mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
+
+##### Update MySQL commend to populate RNA-seq data portal
+mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", sample_name, "\", \"", params$dataset , "\", \"", params$sample_source , "\", \"", params$project , "\", \"", paste0(sample_name, ".RNAseq_report.html"), "\", \"", sample_name, "\", \""  )
+mysql_populate_update <-  paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", sample_name, "\", Cancer=\"", params$dataset , "\", Source=\"", params$sample_source , "\", Project=\"", params$project , "\", Report=\"", paste0(sample_name, ".RNAseq_report.html"),"\", PMID=\"", sample_name, "\", Analysis=\""  )
 ```
 
 ```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
@@ -2446,7 +2450,7 @@ suppressMessages(library(plotly))
 
 data <- ref_dataset.list[[dataset]][["combined_data"]]
 target <- ref_dataset.list[[dataset]][["sample_annot"]]
-target$Target[ target$Target==params$sample_name ] <- "Patient"
+target$Target[ target$Target==sample_name ] <- "Patient"
 
 ##### Change the datasets levels order
 target$Target <- factor(target$Target, levels = unique(target$Target))
@@ -2484,7 +2488,7 @@ detach("package:plotly", unload=FALSE)
 
 ##### For counts data processing consider the investigated sample and internal reference cohort as one group  (regardless of the investigated patient tissie origin), and TCGA data (of any cancer type) as another group. This is to facilitate batch-effects (related with technical aspects) correction process
 target_mod <- ref_dataset.list[[dataset]][["sample_annot"]]
-target_mod$Dataset <- gsub(params$sample_name, int_cancer_group, target_mod$Dataset)
+target_mod$Dataset <- gsub(sample_name, int_cancer_group, target_mod$Dataset)
 targets_mod.list <- unique(target_mod$Dataset)
 
 ##### Create lists with processed data each group
@@ -2877,7 +2881,7 @@ rm(targets.colour, den, y)
 batches <- as.character(ref_dataset.list[[dataset]][["sample_annot"]]$Dataset)
 
 ##### Change the sample dataset name to internal reference cohort
-batches[ match(params$sample_name, batches) ] <- int_cancer_group
+batches[ match(sample_name, batches) ] <- int_cancer_group
 
 ##### Perform batch-effect correctrion using limma
 ref_dataset.list[[dataset]][["batch_effect_corrected"]] <- limma::removeBatchEffect(ref_dataset.list[[dataset]][["combined_data_processed"]], batch = batches)
@@ -2890,8 +2894,8 @@ suppressMessages(library(plotly))
 ##### Loop through combined datasets and perform PCA
 for ( dataset in names(ref_dataset.list) ) {
   target <- ref_dataset.list[[dataset]][["sample_annot"]]
-  target$Dataset <- gsub(params$sample_name, "Patient", target$Dataset)
-  target$Target <- gsub(params$sample_name, "Patient", target$Target)
+  target$Dataset <- gsub(sample_name, "Patient", target$Dataset)
+  target$Target <- gsub(sample_name, "Patient", target$Target)
   
   if ( params$batch_rm ) {
     ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = paste0(params$report_dir, "/results/"), suffix = "_before_batch_rm")
@@ -2975,8 +2979,8 @@ for ( dataset in names(ref_dataset.list) ) {
   }
   
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["combined_data"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.gene_annot_all.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["combined_data"]]), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.combined_data.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.gene_annot_all.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 
 ##### Clean the space
@@ -3005,9 +3009,9 @@ for ( dataset in names(ref_dataset.list) ) {
   ref_dataset.list[[dataset]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
   
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 
 ##### Clean the space
@@ -3021,10 +3025,10 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
-genes.expr.perc <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+genes.expr.perc <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Z-scores
-genes.expr.z <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+genes.expr.z <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Create directory for saving tables
 exprTableDir <- paste(params$report_dir, "results/exprTables", sep = "/")
@@ -3048,12 +3052,12 @@ expr_data <- ref_dataset.list[[dataset]][["data_to_report"]]
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 
 ##### ...percerntiles
-expr_data.perc <- exprTable( genes = rownames(expr_data), keep_all = TRUE, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
+expr_data.perc <- exprTable( genes = rownames(expr_data), keep_all = TRUE, data = expr_data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
 
 expr_genes <- expr_data.perc$SYMBOL
 
 ##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores using exprTable function
-expr_data.z <- exprTable( genes = expr_genes, keep_all = TRUE, data = expr_data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
+expr_data.z <- exprTable( genes = expr_genes, keep_all = TRUE, data = expr_data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
 
 ##### Make sure the tables have the same genes order
 expr_data.perc <- expr_data.perc[ expr_genes, ]
@@ -4051,7 +4055,7 @@ if ( length(genes) == 0 ) {
   genes_no <- length(genes)
 }
 
-mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+mut_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 mut_genes.expr.perc[[1]]
@@ -4079,7 +4083,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk, results = "asis"}
-mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+mut_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
 mut_genes.expr.z
@@ -4123,16 +4127,16 @@ for( i in 1:genes_no ) {
   if ( genes_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
     genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  genes[i] ]
     
-    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
     
     ##### Density plot - expression distribution
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
   }
   
   #### Clear plots to free up some memory
@@ -4518,42 +4522,42 @@ for( i in 1:genes_no ) {
     if ( geneA %in% rownames(data) ) {
       
       ##### CDF plot
-      output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+      output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
       
       ##### Bar-plot of read counts
       ##### First map the gene symbol to Ensmebl ID (used in the counts data)
       genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  geneA ]
       
-      output_counts_A[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+      output_counts_A[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
       
       ##### Density plot - expression distribution
-      output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
+      output_density_A[[i]] <- densityPlot(gene = geneA, data = data, main_title= "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
     }
     
     ##### Gene B
     if ( geneB %in% rownames(data) && geneB != geneA) {
       
       ##### CDF plot
-      output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+      output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
       
       ##### Bar-plot of read counts
       ##### First map the gene symbol to Ensmebl ID (used in the counts data)
       genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  geneB ]
       
-      output_counts_B[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+      output_counts_B[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
       
       ##### Density plot - expression distribution
-      output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
+      output_density_B[[i]] <- densityPlot(gene = geneB, data = data, main_title= "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
     }
       
     ##### Generate expression summary tables
     genes <- c(geneA, geneB)
       
     ##### Z-scores
-    output_table_Z[[i]] <- exprTable( genes = unique(genes), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+    output_table_Z[[i]] <- exprTable( genes = unique(genes), data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "z", scaling = scaling)[[1]]
       
     ##### Percentiles
-    output_table_perc[[i]] <- exprTable( genes = unique(genes), data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+    output_table_perc[[i]] <- exprTable( genes = unique(genes), data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline") ], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB ), ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
   }
 }
 
@@ -4736,7 +4740,7 @@ if ( length(genes) == 0 ) {
   genes_no <- length(genes)
 }
 
-sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+sv_genes.expr.perc <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
@@ -4766,7 +4770,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+sv_genes.expr.z <- exprTable( genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
 sv_genes.expr.z
@@ -4812,16 +4816,16 @@ for( i in 1:genes_no ) {
   if ( genes_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
     genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  genes[i] ]
     
-    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
     
     ##### Density plot - expression distribution
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
   }
 }
 
@@ -5112,11 +5116,11 @@ if ( length(genes_gains) == 0 ) {
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 if ( runPcgrChunk && runPurpleChunk ) {
-  cn_expr_genes.expr.gains.perc <- exprTable( genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+  cn_expr_genes.expr.gains.perc <- exprTable( genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
-  cn_expr_genes.expr.gains.perc <- exprTable( genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+  cn_expr_genes.expr.gains.perc <- exprTable( genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -5146,11 +5150,11 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( runPcgrChunk && runPurpleChunk ) {
-  cn_expr_genes.expr.gains.z <- exprTable( genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+  cn_expr_genes.expr.gains.z <- exprTable( genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
-  cn_expr_genes.expr.gains.z <- exprTable( genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+  cn_expr_genes.expr.gains.z <- exprTable( genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -5212,11 +5216,11 @@ if ( genes_gains_no + genes_losses_no > params$top_genes ) {
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 if ( runPcgrChunk && runPurpleChunk ) {
-  cn_expr_genes.expr.losses.perc <- exprTable( genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+  cn_expr_genes.expr.losses.perc <- exprTable( genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
-  cn_expr_genes.expr.losses.perc <- exprTable( genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
+  cn_expr_genes.expr.losses.perc <- exprTable( genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "perc", scaling = scaling)
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -5246,11 +5250,11 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if ( runPcgrChunk && runPurpleChunk ) {
-  cn_expr_genes.expr.losses.z <- exprTable( genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+  cn_expr_genes.expr.losses.z <- exprTable( genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
   
 ##### Generate expression summary table for per-gene expression values and CN values
 } else if ( runPurpleChunk ) {
-  cn_expr_genes.expr.losses.z <- exprTable( genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
+  cn_expr_genes.expr.losses.z <- exprTable( genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline") ], ext_links = TRUE, type = "z", scaling = scaling)
 }
   
 ##### Present the expression, CN and mutation data summary table
@@ -5297,16 +5301,16 @@ for( i in 1:genes_gains_no ) {
   if ( genes_gains_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
     genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  genes[i] ]
     
-    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
     
     ##### Density plot - expression distribution
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling) 
   }
 }
 
@@ -5375,16 +5379,16 @@ for( i in 1:genes_losses_no ) {
   if ( genes_losses_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
     
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
     genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL ==  genes[i] ]
     
-    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
+    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group )
     
     ##### Density plot - expression distribution
-    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = params$sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
+    output_density[[i]] <- densityPlot(gene = genes[i], data = data, main_title= "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
   }
 }
 
@@ -5465,7 +5469,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+immune_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
 immune_genes.expr.perc
@@ -5494,7 +5498,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+immune_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
 immune_genes.expr.z
@@ -5530,7 +5534,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
@@ -5560,7 +5564,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
@@ -5636,7 +5640,7 @@ if ( length(genes) == 0 ) {
 }
 
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCr (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immunogram.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
+immunogram.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
 immunogram.expr.perc
@@ -5664,7 +5668,7 @@ cat("\n***\n")
 
 ```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immunogram.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+immunogram.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
 immunogram.expr.z
@@ -5700,7 +5704,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-hrd_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)
+hrd_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 hrd_genes.expr.perc[[1]]
@@ -5726,7 +5730,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for hrd genes from Richard
-hrd_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)
+hrd_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Present the expression summary table
 hrd_genes.expr.z[[1]]
@@ -5762,7 +5766,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
@@ -5792,7 +5796,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
@@ -5840,7 +5844,7 @@ if ( length(genes) == 0 ) {
   genes <- NULL
 }
 
-cancer_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+cancer_genes.expr.perc <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
@@ -5866,7 +5870,7 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-cancer_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
+cancer_genes.expr.z <- exprTable( genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)[[1]]
 
 ##### Present the expression summary table
 cancer_genes.expr.z
@@ -5904,7 +5908,7 @@ suppressMessages(library(plotly))
 genes <- cancer_genes.expr.perc[[2]]$SYMBOL[1:50]
 
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
@@ -5933,7 +5937,7 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 suppressMessages(library(plotly))
 
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = params$sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
@@ -6223,10 +6227,10 @@ if (runClinicalChunk ) {
   mysql_populate_update <- paste0(mysql_populate_update, ",Clinical information")
 }
 
-mysql_populate <- paste0(mysql_populate, "\", \"Transcriptome summary for sample ", params$sample_name_mysql, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
-mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"Transcriptome summary for sample ", params$sample_name_mysql, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
+mysql_populate <- paste0(mysql_populate, "\", \"Transcriptome summary for sample ", sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
+mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"Transcriptome summary for sample ", sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
 mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")
-writeLines(mysql_populate, con = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.sql"))
+writeLines(mysql_populate, con = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.sql"))
 ```
 
 ## Addendum
