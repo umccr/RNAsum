@@ -36,7 +36,7 @@ The description of the main workflow components involved in (**1**) *[read count
 
 ## 1. Data collection
 
-**[Read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** data from patient sample are collected from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/pipelines.html#rna-seq)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
+**[Read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** data from patient sample are collected from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
 
 ## 2. Data processing 
 
