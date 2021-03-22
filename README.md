@@ -47,7 +47,7 @@ source load_rnasum.sh
 
 ## Workflow
 
-The pipeline consist of five main components illustrated and breifly described below. See the [workflow.md](workflow.md) for the complete description of the **[data processing workflow](workflow.md)**.
+The pipeline consist of five main components illustrated and briefly described below. See the [workflow.md](workflow.md) for the complete description of the **[data processing workflow](workflow.md)**.
 
 <img src="img/RNAsum_workflow.png" width="100%"> 
 
