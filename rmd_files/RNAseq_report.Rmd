@@ -1552,11 +1552,10 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
 ##### Code from UMCCRISE to prioritise SV events (version for "-sv-prioritize-manta-pass.tsv" files, https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd)
 sv_prioritize_short <- function(sv_file) {
   
-  col_types <- "ccciicccccc"
   sv_all = NULL
   
   if (length(readLines(con = sv_file, n = 2)) > 1) {
-    sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
+    sv_all <- readr::read_tsv(sv_file, col_names = TRUE) %>%
       tidyr::unnest(annotation = strsplit(annotation, ',')) %>% # Unpack multiple annotations per region
       tidyr::separate(annotation,
                       c('Event', 'Annotation', 'Gene', 'Transcript', 'Priority', 'Tier'),
@@ -1582,16 +1581,10 @@ sv_prioritize <- function(sv_file) {
 
   if (length(readLines(con = sv_file, n = 2)) > 1) {
     
-    if ( ncol(read_tsv(sv_file, col_names = TRUE)) == 22 ) {
-      col_types <- "ccciiccccciiccccdc"
-    } else if ( ncol(read_tsv(sv_file, col_names = TRUE)) == 23 ) {
-      col_types <- "ccciiccccciiccccdcc"
-    }
-    
     ##### Due to changes in PURPLE output format there are two expected column names combinations
-    if ( all(c("AF_BPI", "AF_PURPLE", "CN_PURPLE", "CN_change_PURPLE", "Ploidy_PURPLE") %in% names(read_tsv(sv_file, col_names = TRUE, col_types = col_types))) ) {
+    if ( all(c("AF_BPI", "AF_PURPLE", "CN_PURPLE", "CN_change_PURPLE", "Ploidy_PURPLE") %in% names(read_tsv(sv_file, col_names = TRUE))) ) {
     
-      sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
+      sv_all <- readr::read_tsv(sv_file, col_names = TRUE) %>%
         dplyr::select(-caller, -sample) %>% 
         split_sv_field(AF_BPI, is_pct = T) %>% 
         split_sv_field(AF_PURPLE, is_pct = T) %>% 
@@ -1634,7 +1627,7 @@ sv_prioritize <- function(sv_file) {
         # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%
       
     } else {
-         sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = col_types) %>%
+         sv_all <- readr::read_tsv(sv_file, col_names = TRUE) %>%
         dplyr::select(-caller, -sample) %>% 
         split_sv_field(BPI_AF, is_pct = T) %>% 
         split_sv_field(AF, is_pct = T) %>% 
