@@ -79,11 +79,13 @@ Transcriptome summary for patient sample **`r paste0(params$sample_name, params$
 # 5. ref_dataset.list[[dataset]][["batch_effect_corrected"]] = transformed, filtered, normalised and batch effect corrected data (see "batch_effect_correction" chunk)
 # 6. ref_dataset.list[[dataset]][["pca_combined_data_processed"]] = PCA results for combined data
 # 7. ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] = PCA results for batch-effect corrected data
-# 8. ref_dataset.list[[dataset]][["data_to_report"]] = Fully combined and processed data to be used for reporting
-# 9. ref_dataset.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
-# 10. ref_dataset.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
-# 11. ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] = combined expression, mutation and copy-number data
-# 12. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data limited to cancer genes that meet user-deinfed CN values threshold
+# 8. ref_dataset.list[[dataset]][["rle_combined_data_processed"]] = RLE plot for combined data
+# 9. ref_dataset.list[[dataset]][["rle_batch_effect_corrected"]] = RLE plot for batch-effect corrected data
+# 10. ref_dataset.list[[dataset]][["data_to_report"]] = Fully combined and processed data to be used for reporting
+# 11. ref_dataset.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
+# 12. ref_dataset.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+# 13. ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] = combined expression, mutation and copy-number data
+# 14. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data limited to cancer genes that meet user-deinfed CN values threshold
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
 # 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and OncoKB portal (http://oncokb.org/#/cancerGenes) 
@@ -1796,6 +1798,7 @@ knitr::knit_hooks$set(plot = allow_thumbnails)
 ##### Load libraries
 suppressMessages(library(edgeR))
 suppressMessages(library(limma))
+suppressMessages(library(EDASeq))
 suppressMessages(library(preprocessCore))
 suppressMessages(library(rapportools))
 suppressMessages(library(tximport))
@@ -2872,7 +2875,7 @@ legend("topright", legend=legend, fill=targets.colour[[1]], horiz=TRUE, bg = "tr
 invisible(dev.off())
 
 ##### Clean the space
-rm(targets.colour, den, y)
+rm(den, y)
 ```
 
 ```{r batch_effect_correction, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm}
@@ -2914,6 +2917,71 @@ detach("package:plotly", unload=FALSE)
 
 #### Clear plots to free up some memory
 if(!is.null(dev.list())) invisible(dev.off())
+```
+
+```{r rle, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
+##### Generate relative log expression (RLE) plot using combined-only data and batch-effect corrected data
+##### Loop through combined datasets and generate RLE plot
+for ( dataset in names(ref_dataset.list) ) {
+  target <- ref_dataset.list[[dataset]][["sample_annot"]]
+  target$Dataset <- gsub(sample_name, "Patient", target$Dataset)
+  target$Target <- gsub(sample_name, "Patient", target$Target)
+  
+  if ( params$batch_rm ) {
+    par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
+    
+    ##### Before batch-effects correction
+    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="Before batch-effects correction", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    
+    ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
+    
+    ##### After batch-effects correction
+    plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="After batch-effects correction", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    
+    ref_dataset.list[[dataset]][["rle_batch_effect_corrected"]] <- recordPlot()
+    
+    
+    ##### Save the plot as png file
+    png(paste0(PlotsDir, "/rle.png"), width=900, height=700, pointsize = 14)
+    par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
+  
+    ##### Before batch-effects correction
+    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="Before batch-effects correction", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+  
+    ##### After batch-effects correction
+    plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="After batch-effects correction", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    invisible(dev.off())
+
+  } else {
+    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    
+    ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
+    
+    ##### Save the plot as png file
+    png(paste0(PlotsDir, "/rle.png"), width=900, height=450, pointsize = 14)
+  
+    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    invisible(dev.off())
+  }
+}
+
+#### Clear plots to free up some memory
+if(!is.null(dev.list())) invisible(dev.off())
+
+##### Clean the space
+rm(targets.colour, den, y)
 ```
 
 ```{r gene_annot_count_data, comment = NA, message=FALSE, warning=FALSE}
@@ -3921,6 +3989,26 @@ if(!is.null(dev.list())) invisible(dev.off())
 
 ```{r scree_batch_effect_corrected_display, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm, fig.width = 12, fig.height = 5 }
 ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
+
+#### Clear plots to free up some memory
+if(!is.null(dev.list())) invisible(dev.off())
+```
+
+* **RLE plot**
+
+The relative log expression (RLE) plot is a useful diagnostic tool to visualise the differences between the distributions of read counts across samples. It shows boxplots of the log-ratios of the gene-level read counts of each sample to those of a reference sample (defined as the median across the samples). Ideally, the distributions should be centered around the zero line and as tight as possible. Clear deviations indicate the need for normalisation and/or the presence of outlying samples.
+
+```{r rle_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5}
+ref_dataset.list[[dataset]][["rle_combined_data_processed"]]
+  
+#### Clear plots to free up some memory
+if(!is.null(dev.list())) invisible(dev.off())
+```
+
+`r if ( params$batch_rm ) { cat("* After batch-effects correction") } else { cat(" ") }`
+
+```{r rle_batch_effect_corrected_display, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm, fig.width = 12, fig.height = 5 }
+ref_dataset.list[[dataset]][["rle_batch_effect_corrected"]]
 
 #### Clear plots to free up some memory
 if(!is.null(dev.list())) invisible(dev.off())
