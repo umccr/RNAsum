@@ -79,11 +79,13 @@ Transcriptome summary for patient sample **`r paste0(params$sample_name, params$
 # 5. ref_dataset.list[[dataset]][["batch_effect_corrected"]] = transformed, filtered, normalised and batch effect corrected data (see "batch_effect_correction" chunk)
 # 6. ref_dataset.list[[dataset]][["pca_combined_data_processed"]] = PCA results for combined data
 # 7. ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] = PCA results for batch-effect corrected data
-# 8. ref_dataset.list[[dataset]][["data_to_report"]] = Fully combined and processed data to be used for reporting
-# 9. ref_dataset.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
-# 10. ref_dataset.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
-# 11. ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] = combined expression, mutation and copy-number data
-# 12. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data limited to cancer genes that meet user-deinfed CN values threshold
+# 8. ref_dataset.list[[dataset]][["rle_combined_data_processed"]] = RLE plot for combined data
+# 9. ref_dataset.list[[dataset]][["rle_batch_effect_corrected"]] = RLE plot for batch-effect corrected data
+# 10. ref_dataset.list[[dataset]][["data_to_report"]] = Fully combined and processed data to be used for reporting
+# 11. ref_dataset.list[[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "ENSEMBL" is used for rownames
+# 12. ref_dataset.list[[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. The annotation includes "SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND". "SYMBOL" is used for rownames
+# 13. ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] = combined expression, mutation and copy-number data
+# 14. ref_dataset.list[[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and copy-number data limited to cancer genes that meet user-deinfed CN values threshold
 
 ##### Genes of interest are stored in "ref_genes.list" list variable with elements holding the following gene sets:
 # 1. ref_genes.list[["genes_cancer"]] = list of cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and OncoKB portal (http://oncokb.org/#/cancerGenes) 
@@ -1796,6 +1798,7 @@ knitr::knit_hooks$set(plot = allow_thumbnails)
 ##### Load libraries
 suppressMessages(library(edgeR))
 suppressMessages(library(limma))
+suppressMessages(library(EDASeq))
 suppressMessages(library(preprocessCore))
 suppressMessages(library(rapportools))
 suppressMessages(library(tximport))
@@ -1905,8 +1908,10 @@ if ( !is.null(params$bcbio_rnase) ) {
 }
 
 ##### Create directory for results
-if ( !file.exists(paste0(params$report_dir, "/results/")) ) {
-  dir.create(paste0(params$report_dir, "/results/"), recursive=TRUE)
+results_dir <- paste0(params$report_dir, "/", params$sample_name, params$dataset_name_incl, ".results")
+
+if ( !file.exists(results_dir) ) {
+  dir.create(results_dir, recursive=TRUE)
 }
 
 ##### Check if spreadsheet with clinical information exists
@@ -1943,27 +1948,27 @@ if ( file.exists(arriba_file) ) {
   ##### Make sure that at least one fusions has been reported by Arriba
   if ( nrow(ref_genes.list[["arriba"]]) > 0 ) {
     
-    ##### Convert Arribe pdf booklet with fusion plots to png images
+    ##### Convert Arriba pdf booklet with fusion plots to png images
     if ( file.exists(arriba_pdf) ) {
-      arriba_plots(arriba_file = arriba_file, arriba_results = ref_genes.list[["arriba"]], results_dir = paste(params$report_dir, "results", "arriba", sep = "/"))
+      arriba_plots(arriba_file = arriba_file, arriba_results = ref_genes.list[["arriba"]], results_dir = paste0(results_dir, "/arriba"))
     }
     
-    ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
+    ##### Write list of fusion events for which Arriba plot is available into a file (for PIEdb portal)
     fusion <- gsub(":", ".", c("", paste0(make.names(paste(ref_genes.list[["arriba"]]$X.gene1, ref_genes.list[["arriba"]]$gene2, sep = "__")), "_", ref_genes.list[["arriba"]]$breakpoint1, "-", ref_genes.list[["arriba"]]$breakpoint2)))
     
-    write.table(prepare2write(fusion), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+    write.table(prepare2write(fusion), file = paste0(results_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
   
     runArribaChunk <- TRUE
     runFusionChunk <- TRUE
     
   } else {
     ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-  write.table(prepare2write(""), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+  write.table(prepare2write(""), file = paste0(results_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
   }
   
 } else {
   ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-  write.table(prepare2write(""), file = paste0(params$report_dir, "/results/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
+  write.table(prepare2write(""), file = paste0(results_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
 }
 
 ##### Read in pizzly fusion calls
@@ -2092,7 +2097,7 @@ if ( params$dataset_name_incl != "" ) {
 }
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts, ref_data=ref_dataset, report_dir = paste0(params$report_dir, "/results/"), dataset = dataset)
+ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts, ref_data=ref_dataset, report_dir = results_dir, dataset = dataset)
 names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Define internal, external and addition cancer group names based on the targets definition
@@ -2195,7 +2200,7 @@ if ( length(sampleID.col) > 0 ) {
     names(treamtent.df) <- c("Treatment", "Drug", "Type", "Start",  "End")
     
     ##### Create directory for timeline plot
-    PlotsDir <- paste(params$report_dir, "results/clinical_info", sep = "/")
+    PlotsDir <- paste(results_dir, "clinical_info", sep = "/")
     if ( !file.exists(PlotsDir) ) {
       dir.create(PlotsDir, recursive=TRUE)
     }
@@ -2468,7 +2473,7 @@ library_size <- plot_ly(data.df, x = ~Sample, y = ~Library_size, color = ~Target
   layout(title = "", xaxis = list( tickfont = list(size = 10), title = "", showticklabels = FALSE), yaxis = list(title = "Library size (millions)"), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, showlegend=TRUE, legend = list(orientation = 'h', y = max(data.df$Library_size), bgcolor = "white"))
 
 ##### Create directory for input data plots
-PlotsDir <- paste(params$report_dir, "results/InputDataPlots", sep = "/")
+PlotsDir <- paste(results_dir, "InputDataPlots", sep = "/")
 if ( !file.exists(PlotsDir) ) {
   dir.create(PlotsDir, recursive=TRUE)
 }
@@ -2631,7 +2636,7 @@ rm(target, target_mod, genes_mod, keep)
 ```
 
 ```{r data_transformation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
-##### Assigne colours to targets and datasets
+##### Assign colours to targets and datasets
 target <- ref_dataset.list[[dataset]][["sample_annot"]]
 targets.colour <- getColours(target$Target)
   
@@ -2872,7 +2877,7 @@ legend("topright", legend=legend, fill=targets.colour[[1]], horiz=TRUE, bg = "tr
 invisible(dev.off())
 
 ##### Clean the space
-rm(targets.colour, den, y)
+rm(den, y)
 ```
 
 ```{r batch_effect_correction, comment = NA, message=FALSE, warning=FALSE, eval=params$batch_rm}
@@ -2897,14 +2902,14 @@ for ( dataset in names(ref_dataset.list) ) {
   target$Target <- gsub(sample_name, "Patient", target$Target)
   
   if ( params$batch_rm ) {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = paste0(params$report_dir, "/results/"), suffix = "_before_batch_rm")
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = results_dir, suffix = "_before_batch_rm")
     
-    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], targets = target, title = "After batch-effects correction", report_dir = paste0(params$report_dir, "/results/"), suffix = "_after_batch_rm")
+    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], targets = target, title = "After batch-effects correction", report_dir = results_dir, suffix = "_after_batch_rm")
     
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["batch_effect_corrected"]]
     
   } else {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, report_dir = paste0(params$report_dir, "/results/"))
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, report_dir = results_dir)
     
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["combined_data_processed"]]
   }
@@ -2914,6 +2919,71 @@ detach("package:plotly", unload=FALSE)
 
 #### Clear plots to free up some memory
 if(!is.null(dev.list())) invisible(dev.off())
+```
+
+```{r rle, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
+##### Generate relative log expression (RLE) plot using combined-only data and batch-effect corrected data
+##### Loop through combined datasets and generate RLE plot
+for ( dataset in names(ref_dataset.list) ) {
+  target <- ref_dataset.list[[dataset]][["sample_annot"]]
+  target$Dataset <- gsub(sample_name, "Patient", target$Dataset)
+  target$Target <- gsub(sample_name, "Patient", target$Target)
+  
+  if ( params$batch_rm ) {
+    par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
+    
+    ##### Before batch-effects correction
+    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="Before batch-effects correction", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    
+    ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
+    
+    ##### After batch-effects correction
+    plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="After batch-effects correction", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    
+    ref_dataset.list[[dataset]][["rle_batch_effect_corrected"]] <- recordPlot()
+    
+    
+    ##### Save the plot as png file
+    png(paste0(PlotsDir, "/rle.png"), width=900, height=700, pointsize = 14)
+    par(mfrow=c(2,1), mar=c(2, 5, 3, 2))
+  
+    ##### Before batch-effects correction
+    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="Before batch-effects correction", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+  
+    ##### After batch-effects correction
+    plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="After batch-effects correction", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    invisible(dev.off())
+
+  } else {
+    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    
+    ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
+    
+    ##### Save the plot as png file
+    png(paste0(PlotsDir, "/rle.png"), width=900, height=450, pointsize = 14)
+  
+    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col=targets.colour[[2]], main="", pch="", las=3, xaxt="n", outline = FALSE)
+    title(main="", ylab="RLE")
+    legend("topright", legend=levels(factor(target$Target)), fill=targets.colour[[1]], horiz=TRUE, bg = "transparent", box.col="transparent")
+    invisible(dev.off())
+  }
+}
+
+#### Clear plots to free up some memory
+if(!is.null(dev.list())) invisible(dev.off())
+
+##### Clean the space
+rm(targets.colour, den, y)
 ```
 
 ```{r gene_annot_count_data, comment = NA, message=FALSE, warning=FALSE}
@@ -2978,8 +3048,8 @@ for ( dataset in names(ref_dataset.list) ) {
   }
   
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["combined_data"]]), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.combined_data.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.gene_annot_all.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["combined_data"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.gene_annot_all.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 
 ##### Clean the space
@@ -3008,9 +3078,9 @@ for ( dataset in names(ref_dataset.list) ) {
   ref_dataset.list[[dataset]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
   
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
-  write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data_processed.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data_processed.genes.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
+  write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.sample_annot.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE, append = FALSE )
 }
 
 ##### Clean the space
@@ -3030,7 +3100,7 @@ genes.expr.perc <- exprTable( genes = rownames(data), keep_all = TRUE, data = da
 genes.expr.z <- exprTable( genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Create directory for saving tables
-exprTableDir <- paste(params$report_dir, "results/exprTables", sep = "/")
+exprTableDir <- paste(results_dir, "exprTables", sep = "/")
     
 if ( !file.exists(exprTableDir) ) {
   dir.create(exprTableDir, recursive=TRUE)
@@ -3743,7 +3813,7 @@ if ( nrow(sunburst.df) > 0 ) {
 }
 
 ##### Create directory for the plots
-summaryPlotsDir <- paste(params$report_dir, "results/summaryPlots", sep = "/")
+summaryPlotsDir <- paste(results_dir, "summaryPlots", sep = "/")
 if ( !file.exists(summaryPlotsDir) ) {
   dir.create(summaryPlotsDir, recursive=TRUE)
 }
@@ -3908,7 +3978,7 @@ if(!is.null(dev.list())) invisible(dev.off())
 
 * **Scree-plot**
 
-`r if ( params$batch_rm ) { paste0("Scree-plots presenting the fraction of total variance (y-axis) attributed to each PC (x-axis) before and after batch effects correction. The PCs are ordered by decreasing order of contribution to total variance.") } else { paste0("Scree-plot presenting the fraction of total variance (y-axis) attributed to each PC (x-axis). The PCs are ordered by decreasing order of contribution to total variance. ") }`
+`r if ( params$batch_rm ) { paste0("Scree-plots presenting the fraction of total variance (*y-axis*) attributed to each PC (*x-axis*) before and after batch effects correction. The PCs are ordered by decreasing order of contribution to total variance.") } else { paste0("Scree-plot presenting the fraction of total variance (*y-axis*) attributed to each PC (*x-axis*). The PCs are ordered by decreasing order of contribution to total variance. ") }`
 
 ```{r scree_combined_data_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5 }
 ref_dataset.list[[dataset]][["pca_combined_data_processed"]][[3]]
@@ -3924,6 +3994,18 @@ ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]][[3]]
 
 #### Clear plots to free up some memory
 if(!is.null(dev.list())) invisible(dev.off())
+```
+
+* **RLE plot**
+
+The relative log expression (RLE) plot is a useful diagnostic tool to visualise the differences between the distributions of read counts across samples. It shows boxplot of the log-ratios of the gene-level read counts (*y-axis*) of each sample to those of a reference sample (defined as the median across the samples). Ideally, the distributions should be centered around the zero line and as tight as possible. Clear deviations indicate the need for normalisation and/or the presence of outlying samples.
+
+```{r rle_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15)}
+ref_dataset.list[[dataset]][["rle_combined_data_processed"]]
+
+if ( params$norm != "none" ) {
+  ref_dataset.list[[dataset]][["rle_batch_effect_corrected"]]
+}
 ```
 
 </details>
@@ -4004,7 +4086,7 @@ findings.summary <- DT::datatable( data = summary_table.df, filter="none", rowna
 findings.summary
 
 ##### Create directory for tables
-summaryTableDir <- paste(params$report_dir, "results/summaryTables", sep = "/")
+summaryTableDir <- paste(results_dir, "summaryTables", sep = "/")
 if ( !file.exists(summaryTableDir) ) {
     dir.create(summaryTableDir, recursive=TRUE)
 }
@@ -4126,7 +4208,7 @@ for( i in 1:genes_no ) {
   if ( genes_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir)
     
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
@@ -4296,7 +4378,7 @@ if ( runFusionChunk ) {
 if ( params$save_tables ) {
   
   ##### Create directory for tables
-  fusionsTableDir <- paste(params$report_dir, "results/fusionsTables", sep = "/")
+  fusionsTableDir <- paste(results_dir, "fusionsTables", sep = "/")
   if ( !file.exists(fusionsTableDir) ) {
           dir.create(fusionsTableDir, recursive=TRUE)
   }
@@ -4354,7 +4436,7 @@ if ( runSVsChunk ) {
 if ( nrow(fusion_annot_top) > 0 ) {
   
   ##### Create folder for fusion plots
-  fusionsPlotDir <- paste(params$report_dir, "results/fusionsPlot", sep = "/")
+  fusionsPlotDir <- paste(results_dir, "fusionsPlot", sep = "/")
     
   if ( !file.exists(fusionsPlotDir) ) {
     dir.create(fusionsPlotDir, recursive=TRUE)
@@ -4521,7 +4603,7 @@ for( i in 1:genes_no ) {
     if ( geneA %in% rownames(data) ) {
       
       ##### CDF plot
-      output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+      output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = results_dir)
       
       ##### Bar-plot of read counts
       ##### First map the gene symbol to Ensmebl ID (used in the counts data)
@@ -4537,7 +4619,7 @@ for( i in 1:genes_no ) {
     if ( geneB %in% rownames(data) && geneB != geneA) {
       
       ##### CDF plot
-      output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+      output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = results_dir)
       
       ##### Bar-plot of read counts
       ##### First map the gene symbol to Ensmebl ID (used in the counts data)
@@ -4580,11 +4662,11 @@ if ( genes_no > 0 ) {
     cat("\n#### ", paste(fusions$geneA[i], fusions$geneB[i], sep="-"), "\n")
     
     ##### Check if Arriba fusion plot exists. Skip this section if it doesn't
-    if ( file.exists(gsub(":", ".", paste0(params$report_dir, "/results/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png"))) ) {
+    if ( file.exists(gsub(":", ".", paste0(results_dir, "/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png"))) ) {
       cat("\n##### Fusion genes visualisation\n")
   
       ##### Present Arriba plots it in the report
-      cat(paste0("![](", gsub(":", ".", paste0(params$report_dir, "/results/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png)"))), "\n")
+      cat(paste0("![](", gsub(":", ".", paste0(results_dir, "/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png)"))), "\n")
       cat("\n***\n")
     }
     
@@ -4815,7 +4897,7 @@ for( i in 1:genes_no ) {
   if ( genes_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir)
     
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
@@ -4970,7 +5052,7 @@ if ( nrow(data.annot) > 0 ) {
                       showarrow=FALSE )
   
   ##### Create directory for the plots
-  PlotDir <- paste(params$report_dir, "results/cn_genomic_view", sep = "/")
+  PlotDir <- paste(results_dir, "cn_genomic_view", sep = "/")
   if ( !file.exists(PlotDir) ) {
     dir.create(PlotDir, recursive=TRUE)
   }
@@ -5006,7 +5088,7 @@ suppressMessages(library(plotly))
 cn_dist_plot
 
 ##### Create directory for the plots
-PlotDir <- paste(params$report_dir, "results/cn_dist_plot", sep = "/")
+PlotDir <- paste(results_dir, "cn_dist_plot", sep = "/")
 if ( !file.exists(PlotDir) ) {
   dir.create(PlotDir, recursive=TRUE)
 }
@@ -5035,11 +5117,11 @@ suppressMessages(library(plotly))
 cn_genes <- data.sub$Gene
 
 if ( runPcgrChunk && length(cn_genes) > 0 ) {
-  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = paste0(params$report_dir, "/results/"))
+  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir)
   
 } else if ( length(cn_genes) > 0) {
   data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = paste0(params$report_dir, "/results/"))
+  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir)
   
 } else {
   cn_genes <- NULL
@@ -5063,11 +5145,11 @@ suppressMessages(library(plotly))
 
 if ( runPcgrChunk && length(cn_genes) > 0 ) {
   data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = paste0(params$report_dir, "/results/"))
+  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = results_dir)
   
 } else if ( length(cn_genes) > 0) {
   data.sub <- data.sub[ data.sub$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = paste0(params$report_dir, "/results/"))
+  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = results_dir)
   
 } else {
   cn_genes <- NULL
@@ -5300,7 +5382,7 @@ for( i in 1:genes_gains_no ) {
   if ( genes_gains_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir)
     
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
@@ -5378,7 +5460,7 @@ for( i in 1:genes_losses_no ) {
   if ( genes_losses_no > 0 && genes[i] %in% rownames(data) ) {
     
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir)
     
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
@@ -5533,7 +5615,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
@@ -5563,7 +5645,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
@@ -5765,7 +5847,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
@@ -5795,7 +5877,7 @@ suppressMessages(library(plotly))
 
 ##### Generate overview boxplot
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
@@ -5907,7 +5989,7 @@ suppressMessages(library(plotly))
 genes <- cancer_genes.expr.perc[[2]]$SYMBOL[1:50]
 
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = results_dir)
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
@@ -5936,7 +6018,7 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 suppressMessages(library(plotly))
 
 if ( !is.null(genes) ) {
-  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = paste0(params$report_dir, "/results/"))
+  glanceExprPlot(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = results_dir)
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
@@ -5965,7 +6047,7 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ```{r drugs_table_dir, comment = NA, message=FALSE, warning=FALSE}
 ##### Create directory for tables
-drugsTableDir <- paste(params$report_dir, "results/drugsTables", sep = "/")
+drugsTableDir <- paste(results_dir, "drugsTables", sep = "/")
 if ( !file.exists(drugsTableDir) ) {
   dir.create(drugsTableDir, recursive=TRUE)
 }
@@ -6229,7 +6311,7 @@ if (runClinicalChunk ) {
 mysql_populate <- paste0(mysql_populate, "\", \"Transcriptome summary for sample ", sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
 mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"Transcriptome summary for sample ", sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
 mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")
-writeLines(mysql_populate, con = paste0(params$report_dir, "/results/", sample_name, ".RNAseq_report.sql"))
+writeLines(mysql_populate, con = paste0(results_dir, "/", sample_name, ".RNAseq_report.sql"))
 ```
 
 ## Addendum
