@@ -76,6 +76,9 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
         apt-transport-https \
         ca-certificates \
         software-properties-common && \
+    echo "Installing Rpdftools dependencies" 1>&2 && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+          libpoppler-cpp-dev && \
     echo "Add CRAN to sources list repository" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-key adv \
           --keyserver "${CRAN_KEY_SERVER}" \
@@ -109,7 +112,7 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
                                    quiet=TRUE)' && \
     echo "Installing Bioconda packages through R" 1>&2 && \
       Rscript -e 'options(Ncpus=2L, repos="https://cloud.r-project.org/"); \
-                  BiocManager::install(ask=FALSE, pkgs=c( "edgeR", "limma", "EDAseq", \
+                  BiocManager::install(ask=FALSE, pkgs=c( "edgeR", "limma", "EDASeq", \
                                                           "preprocessCore", "tximport", "rhdf5", \
                                                           "EnsDb.Hsapiens.v75", \
                                                           "EnsDb.Hsapiens.v86", \
