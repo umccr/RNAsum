@@ -55,6 +55,9 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
         dbus \
         apt-transport-https \
         apt-utils \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        pkg-config \
         locales language-pack-en \
         tzdata && \
       echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections && \
@@ -102,15 +105,17 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
                                       "plotly", "scales", "rcircos", \
                                       "ggplot2", "ggforce", "pdftools", \
                                       "png", "htmltools", "htmlwidgets", \
-                                      "devtools", "manhattanly", "lares" ))' && \
+                                      "devtools", "manhattanly", "lares" ), \
+                                   quiet=TRUE)' && \
     echo "Installing Bioconda packages through R" 1>&2 && \
       Rscript -e 'options(Ncpus=2L, repos="https://cloud.r-project.org/"); \
-                  BiocManager::install(ask=FALSE, pkgs=c( "edger", "limma", "edaseq", \
-                                                          "preprocesscore", "tximport", "rhdf5", \
-                                                          "ensdb.hsapiens.v75", \
-                                                          "ensdb.hsapiens.v86", \
-                                                          "bsgenome.hsapiens.ucsc.hg19", \
-                                                          "bsgenome.hsapiens.ucsc.hg38" ))' && \
+                  BiocManager::install(ask=FALSE, pkgs=c( "edgeR", "limma", "EDAseq", \
+                                                          "preprocessCore", "tximport", "rhdf5", \
+                                                          "EnsDb.Hsapiens.v75", \
+                                                          "EnsDb.Hsapiens.v86", \
+                                                          "BSgenome.Hsapiens.UCSC.hg19", \
+                                                          "BSgenome.Hsapiens.UCSC.hg38" ), \
+                                       quiet=TRUE)' && \
     echo "Cleaning up conda" && \
       conda clean --all -y && \
     echo "Adding user $USER:$GROUP" 1>&2 && \
@@ -125,8 +130,8 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
         --uid "${UID}" \
         "$USER" && \
     echo "Changing ownership to user for /miniconda and /rmd_files" 1>&2 && \
-      chmod -R "$USER:$GROUP" /miniconda/ && \
-      chmod -R "$USER:$GROUP" /rmd_files/ && \
+      chown -R "$USER:$GROUP" /miniconda/ && \
+      chown -R "$USER:$GROUP" /rmd_files/ && \
     echo "Docker RUN time build complete!" 1>&2
 
 # Set user
@@ -138,5 +143,3 @@ ENV CONDA_PREFIX /miniconda/envs/rnasum
 
 # Set runtime working directory
 WORKDIR /rmd_files
-
-
