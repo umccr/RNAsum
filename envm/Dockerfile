@@ -14,8 +14,11 @@ ARG USER="rnasum_user"
 ARG UID=1000
 ARG GID=1000
 ARG GROUP="rnasum_group"
+
+# Set versions
 ARG MAMBAFORGE_VERSION="4.10.3-4"
 ARG PYPY_VERSION="3"
+ARG PANDOC_VERSION="2.14.1"
 
 ARG CRAN_KEY_SERVER="keyserver.ubuntu.com"
 ARG CRAN_RECV_KEY="E298A3A825C0D65DFD57CBB651716619E084DAB9"
@@ -30,15 +33,18 @@ ENV LC_ALL en_US.UTF-8
 RUN echo "Setting 'platform_arg'" 1>&2 && \
       echo "Got target platform value ${TARGETPLATFORM}" 1>&2 && \
       if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-        platform_arg="x86_64"; \
+        mamba_aws_platform_arg="x86_64"; \
+        pandoc_platform_arg="amd64"; \
       elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        platform_arg="aarch64"; \
+        mamba_aws_platform_arg="aarch64"; \
+        pandoc_platform_arg="arm64"; \
       else \
         echo "Warning target platform $TARGETPLATFORM is not supported" 1>&2 && \
         echo "Defaulting to linux/amd64" 1>&2 && \
-        platform_arg="x86_64"; \
+        mamba_aws_platform_arg="x86_64"; \
+        pandoc_platform_arg="amd64"; \
       fi && \
-      echo "Got platform arg value ${platform_arg}" 1>&2 && \
+      echo "Got platform arg value ${mamba_aws_platform_arg}" 1>&2 && \
     echo "Updating and installing basics" 1>&2 && \
       DEBIAN_FRONTEND=noninteractive apt-get update && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
@@ -69,6 +75,11 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
       DEBIAN_FRONTEND=noninteractive dpkg-reconfigure locales && \
       echo "Etc/UTC" > /etc/timezone && \
       DEBIAN_FRONTEND=noninteractive dpkg-reconfigure tzdata && \
+   echo "Install aws v2" 1>&2 && \
+      curl "https://awscli.amazonaws.com/awscli-exe-linux-${mamba_aws_platform_arg}.zip" -o "awscliv2.zip" && \
+      unzip awscliv2.zip && \
+      ./aws/install && \
+      rm -rf "aws/" "awscliv2.zip" && \
    echo "Installing R dependencies" 1>&2 && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
         dirmngr \
@@ -85,6 +96,13 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
           --recv-keys "${CRAN_RECV_KEY}" && \
         DEBIAN_FRONTEND=noninteractive add-apt-repository \
           'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' && \
+    echo "Installing pandoc" 1>&2 && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          texlive && \
+        wget --no-verbose --output-document pandoc.deb \
+        "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${pandoc_platform_arg}.deb" && \
+        DEBIAN_FRONTEND=noninteractive dpkg --install pandoc.deb && \
+        rm pandoc.deb && \
     echo "Install R" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
           r-base && \
@@ -92,7 +110,7 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
       rm -rf "/var/lib/apt/lists" && \
     echo "Download and Install conda" 1>&2 && \
       wget --no-verbose --output-document mambaforge.sh \
-        "https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-pypy${PYPY_VERSION}-${MAMBAFORGE_VERSION}-Linux-${platform_arg}.sh" && \
+        "https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-pypy${PYPY_VERSION}-${MAMBAFORGE_VERSION}-Linux-${mamba_aws_platform_arg}.sh" && \
       bash mambaforge.sh -b -p /miniconda && \
     echo "Deleting conda install script" 1>&2 && \
       rm mambaforge.sh && \
@@ -104,8 +122,8 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
       Rscript -e 'options(Ncpus=2L, repos="https://cloud.r-project.org/"); \
                   install.packages(c( "BiocManager", "tidyverse", "rapportools", "optparse", \
                                       "openxlsx", "readr", "dplyr", "tidyr",\
-                                      "glue", "rlang", "dt", "matrixstats", "knitr", \
-                                      "plotly", "scales", "rcircos", \
+                                      "glue", "rlang", "DT", "matrixStats", "knitr", \
+                                      "plotly", "scales", "RCircos", \
                                       "ggplot2", "ggforce", "pdftools", \
                                       "png", "htmltools", "htmlwidgets", \
                                       "devtools", "manhattanly", "lares" ), \
