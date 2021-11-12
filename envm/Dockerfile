@@ -16,6 +16,7 @@ ENV PATH /miniconda/bin:$PATH
 
 # Copy environment file for conda and use it for creating conda environment
 COPY ./envm/environment.yaml /tmp/environment.yaml
+RUN conda config --set channel_priority strict
 RUN conda env create -f /tmp/environment.yaml
 
 # Activate the environment and set path
