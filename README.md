@@ -7,6 +7,7 @@ RNA-seq reporting workflow designed to post-process, summarise and visualise an 
 
 <!-- vim-markdown-toc GFM -->
 * [Installation](#installation)
+* [Docker](#docker)
 * [Workflow](#workflow)
 * [Reference data](#reference-data)
     * [External reference cohorts](#external-reference-cohorts)
@@ -23,7 +24,6 @@ RNA-seq reporting workflow designed to post-process, summarise and visualise an 
   	 * [WTS and WGS data](#2-wts-and-wgs-data)
   	 * [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
   * [Output](#output)
-* [Docker](#docker)
 
 <!-- vim-markdown-toc -->
 
@@ -43,6 +43,22 @@ It will generate `load_rnasum.sh` script that can be sourced to load the `rnasum
 ```
 source load_rnasum.sh
 ```
+
+## Docker
+
+ - Pull ready to run docker image from DockerHub
+
+ `docker pull umccr/rnasum:0.3.2`
+ 
+ - An example command to use this pulled docker container is:
+
+ ```
+ docker run --rm -v /path/to/RNAseq-report/RNAseq-Analysis-Report/envm/wts-report-wrapper.sh:/work/test.sh -v /path/to/RNAseq-report/RNAseq-Analysis-Report/data:/work c18db89d3093 /work/test.sh
+ ```
+ 
+ - Assumptions
+
+ 	- You are running the RNAsum container against the [RNAsum code](https://github.com/umccr/RNAsum/) and  [test/reference data](https://github.com/umccr/RNAsum/tree/master/data/)
 
 
 ## Workflow
@@ -372,18 +388,3 @@ Detailed description of the **[report structure](report_structure.md)**, includi
 
 The `results` folder contains intermediate files, including plots and tables that are presented in the [report](#report).
 
-## Docker
-
- - Pull ready to run docker image from DockerHub
-
- `docker pull umccr/rnasum:0.3.2`
- 
- - An example command to use this pulled docker container is:
-
- ```
- docker run --rm -v /path/to/RNAseq-report/RNAseq-Analysis-Report/envm/wts-report-wrapper.sh:/work/test.sh -v /path/to/RNAseq-report/RNAseq-Analysis-Report/data:/work c18db89d3093 /work/test.sh
- ```
- 
- - Assumptions
-
- 	- You are running the RNAsum container against the [RNAsum code](https://github.com/umccr/RNAsum/) and  [test/reference data](https://github.com/umccr/RNAsum/tree/master/data/)
