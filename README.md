@@ -6,24 +6,40 @@ RNA-seq reporting workflow designed to post-process, summarise and visualise an 
 ## Table of contents
 
 <!-- vim-markdown-toc GFM -->
-* [Installation](#installation)
-* [Docker](#docker)
-* [Workflow](#workflow)
-* [Reference data](#reference-data)
-    * [External reference cohorts](#external-reference-cohorts)
-    * [Internal reference cohort](#internal-reference-cohort)
-* [Input data](#input-data)
-  * [WTS](#wts)
-     * [bcbio-nextgen](#bcbio-nextgen)
-     * [Dragen RNA](#dragen-rna)
-  * [WGS](#wgs)
-* [Usage](#usage)
-  * [Arguments](#arguments)
-  * [Examples](#examples)
-  	 * [WTS data only](#1-wts-data-only)
-  	 * [WTS and WGS data](#2-wts-and-wgs-data)
-  	 * [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
-  * [Output](#output)
+- [RNAsum](#rnasum)
+  - [Table of contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Docker](#docker)
+  - [Workflow](#workflow)
+  - [Reference data](#reference-data)
+    - [External reference cohorts](#external-reference-cohorts)
+          - [Note](#note)
+    - [Internal reference cohort](#internal-reference-cohort)
+          - [Note](#note-1)
+  - [Input data](#input-data)
+    - [WTS](#wts)
+      - [bcbio-nextgen](#bcbio-nextgen)
+          - [Note](#note-2)
+      - [Dragen RNA](#dragen-rna)
+    - [WGS](#wgs)
+  - [Usage](#usage)
+    - [Arguments](#arguments)
+          - [Note](#note-3)
+    - [Run via AWS-Batch](#run-via-aws-batch)
+    - [Examples](#examples)
+          - [Note](#note-4)
+      - [1. WTS data only](#1-wts-data-only)
+        - [bcbio-nextgen](#bcbio-nextgen-1)
+        - [Dragen RNA](#dragen-rna-1)
+      - [2. WTS and WGS data](#2-wts-and-wgs-data)
+        - [bcbio-nextgen](#bcbio-nextgen-2)
+        - [Dragen RNA](#dragen-rna-2)
+      - [3. WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
+        - [bcbio-nextgen](#bcbio-nextgen-3)
+        - [Dragen RNA](#dragen-rna-3)
+    - [Output](#output)
+      - [Report](#report)
+      - [Results](#results)
 
 <!-- vim-markdown-toc -->
 
@@ -254,6 +270,25 @@ Argument | Description | Required
 
 Human reference genome ***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)*** (*Ensembl* based annotation version ***86***) is used for genes annotation as default. Alternatively, human reference genome [GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/) (*Ensembl* based annotation version *75*) is used when argument `grch_version` is set to `37`.
 
+### Run via AWS-Batch
+
+We run RNAsum on patients data in production via [AWS-batch](https://aws.amazon.com/batch/). Before running, collate the following information:
+
+- S3 path to samples' umccrise results.
+- S3 path to samples' WTS data results (bcbio).
+- [Reference dataset](https://github.com/umccr/RNAsum/blob/master/TCGA_projects_summary.md) to use for the sample. This info is mentioned on Trello card.
+
+Now, follow the following steps.
+
+1. Configure [AWS-SSO](https://github.com/umccr/wiki/blob/master/computing/cloud/amazon/aws_cli.md#configuration) locally to access data on S3.
+2. Run AWS lambda invoke command. An example looks like:
+
+```
+aws lambda invoke --region ap-southeast-2 --function-name wts_report_trigger_lambda_prod --cli-binary-format raw-in-base64-out --payload '{"dataDirWGS":"Scott-SFRC/SBJ0000/WGS/2021-11-24/umccrised/SBJ0000__SB0000_something", "dataDirWTS":"Scott-SFRC/SBJ0000/WTS/2021-11-07/final/SBJ0000_something","refDataset":"UCEC"}' /tmp/lambda.output
+```
+
+RNAsum for this sample will be created in `umccr-primary-data-prod` bucket, under `Scott-SFRC/SBJ0000/WTS/2021-11-07/RNAsum`.
+To use primary data from a different S3 bucket, use `"dataBucket":"a-different-bucket"` in lambda invoke command. Also set `resultBucket` accordingly.
 
 ### Examples
 
