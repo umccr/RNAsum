@@ -1,48 +1,40 @@
-# RNAsum
+# RNAsum <!-- omit in toc -->
 
 RNA-seq reporting workflow designed to post-process, summarise and visualise an output from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipelines. Its main application is to complement genome-based findings from [umccrise](https://github.com/umccr/umccrise) pipeline and to provide additional evidence for detected alterations.
 
 
-## Table of contents
+## Table of contents <!-- omit in toc -->
 
 <!-- vim-markdown-toc GFM -->
-- [RNAsum](#rnasum)
-  - [Table of contents](#table-of-contents)
-  - [Installation](#installation)
-  - [Docker](#docker)
-  - [Workflow](#workflow)
-  - [Reference data](#reference-data)
-    - [External reference cohorts](#external-reference-cohorts)
-          - [Note](#note)
-    - [Internal reference cohort](#internal-reference-cohort)
-          - [Note](#note-1)
-  - [Input data](#input-data)
-    - [WTS](#wts)
-      - [bcbio-nextgen](#bcbio-nextgen)
-          - [Note](#note-2)
-      - [Dragen RNA](#dragen-rna)
-    - [WGS](#wgs)
-  - [Usage](#usage)
-    - [Arguments](#arguments)
-          - [Note](#note-3)
-    - [Run via AWS-Batch](#run-via-aws-batch)
-    - [Examples](#examples)
-          - [Note](#note-4)
-      - [1. WTS data only](#1-wts-data-only)
-        - [bcbio-nextgen](#bcbio-nextgen-1)
-        - [Dragen RNA](#dragen-rna-1)
-      - [2. WTS and WGS data](#2-wts-and-wgs-data)
-        - [bcbio-nextgen](#bcbio-nextgen-2)
-        - [Dragen RNA](#dragen-rna-2)
-      - [3. WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
-        - [bcbio-nextgen](#bcbio-nextgen-3)
-        - [Dragen RNA](#dragen-rna-3)
-    - [Output](#output)
-      - [Report](#report)
-      - [Results](#results)
+- [Installation](#installation)
+- [Docker](#docker)
+- [Workflow](#workflow)
+- [Reference data](#reference-data)
+  - [External reference cohorts](#external-reference-cohorts)
+  - [Internal reference cohort](#internal-reference-cohort)
+- [Input data](#input-data)
+  - [WTS](#wts)
+    - [bcbio-nextgen](#bcbio-nextgen)
+    - [Dragen RNA](#dragen-rna)
+  - [WGS](#wgs)
+- [Usage](#usage)
+  - [Arguments](#arguments)
+  - [Run via AWS-Batch](#run-via-aws-batch)
+  - [Examples](#examples)
+    - [1. WTS data only](#1-wts-data-only)
+      - [bcbio-nextgen](#bcbio-nextgen-1)
+      - [Dragen RNA](#dragen-rna-1)
+    - [2. WTS and WGS data](#2-wts-and-wgs-data)
+      - [bcbio-nextgen](#bcbio-nextgen-2)
+      - [Dragen RNA](#dragen-rna-2)
+    - [3. WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
+      - [bcbio-nextgen](#bcbio-nextgen-3)
+      - [Dragen RNA](#dragen-rna-3)
+  - [Output](#output)
+    - [Report](#report)
+    - [Results](#results)
 
 <!-- vim-markdown-toc -->
-
 
 ## Installation
 
@@ -108,7 +100,7 @@ In order to explore expression changes in queried sample we have built a high-qu
 
 Depending on the tissue from which the patient's sample was taken, one of **33 cancer datasets** from [TCGA](https://tcga-data.nci.nih.gov/) can be used as a reference cohort for comparing expression changes in genes of interest in investigated sample. Additionally, 10 samples from each of the 33 datasets were combined to create **[Pan-Cancer dataset](./TCGA_projects_summary.md#pan-cancer-dataset)**, and for some cohorts **[extended sets](./TCGA_projects_summary.md#extended-datasets)** are also available. All available datasets are listed in **[TCGA projects summary table](./TCGA_projects_summary.md)**. These datasets have been processed using methods described in [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data) repository. The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section). 
 
-###### Note
+**Note**
 
 Each dataset was **cleaned** based on the quality metrics provided in the *Merged Sample Quality Annotations* file **[merged_sample_quality_annotations.tsv](http://api.gdc.cancer.gov/data/1a7d7be8-675d-4e60-a105-19d4121bdebf)** from [TCGA PanCanAtlas initiative webpage](https://gdc.cancer.gov/about-data/publications/pancanatlas) (see [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/tree/master/expression/README.md#data-clean-up) repository for more details, including sample inclusion criteria).
 
@@ -119,7 +111,7 @@ The publically available TCGA datasets are expected to demonstrate prominent [ba
 
 This internal reference set of **40 pancreatic cancer samples** is based on WTS data generated at **[UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)** and processed with **[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)** pipeline to minimise potential batch effects between investigated samples and the reference cohort and to make sure the data are comparable. The internal reference cohort assembly is summarised in [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house) repository.
 
-###### Note
+**Note**
 
 The are two rationales for using the internal reference cohort:
 
@@ -164,7 +156,7 @@ These files are expected to be organised following the folder structure below
     |____fusions.tsv
 ```
 
-###### Note
+**Note**
 
 [Fusion genes](./fusions) detected by [pizzly](https://github.com/pmelsted/pizzly) are expected to be listed in the [flat table](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
 
@@ -266,7 +258,7 @@ Argument | Description | Required
 
 **Packages**: required packages are listed in [environment.yaml](envm/environment.yaml) file.
 
-###### Note
+**Note**
 
 Human reference genome ***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)*** (*Ensembl* based annotation version ***86***) is used for genes annotation as default. Alternatively, human reference genome [GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/) (*Ensembl* based annotation version *75*) is used when argument `grch_version` is set to `37`.
 
@@ -298,7 +290,7 @@ Below are command line use examples for generating *Patient Transcriptome Summar
 2. **[WTS and WGS data](#2-wts-and-wgs-data)**
 3. [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
 
-###### Note
+**Note**
 
 * make sure that the created *conda* environment (see [Installation](#installation) section) is  activated
 
