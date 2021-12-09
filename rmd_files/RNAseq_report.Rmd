@@ -1054,10 +1054,11 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
 arriba_plots <- function(arriba_file, arriba_results, results_dir) {
 
   ##### Get path to fusion visualisation  pdf file
-  arriba_plots.pdf <- gsub("tsv", "pdf", arriba_file)
   arriba_dir <- unlist(strsplit(arriba_file, split='/', fixed=TRUE))
+  arriba_plots.pdf <- list.files(paste(arriba_dir[1:length(arriba_dir)-1], collapse = "/"), pattern="\\.pdf$")
   arriba_dir <- paste(arriba_dir[1:length(arriba_dir)-1], collapse = "/")
-  
+  arriba_plots.pdf <- paste(arriba_dir, arriba_plots.pdf, sep = "/")
+    
   ##### Create directory for results
   if ( !file.exists(results_dir) ) {
     dir.create(results_dir, recursive=TRUE)
@@ -1886,6 +1887,7 @@ if ( !is.null(params$bcbio_rnaseq) ) {
   
   ##### Get patient data dir and sample file name
   dataDir <- params$bcbio_rnaseq
+  
   ##### Look at countsFromAbundance parameter to change the method to generate the counts
   txi.kallisto <- tximport(paste0(dataDir, "/kallisto/abundance.tsv"), type = "kallisto", tx2gene = tx2ensembl)
   
@@ -1897,7 +1899,8 @@ if ( !is.null(params$bcbio_rnaseq) ) {
 } else if ( !is.null(params$dragen_rnaseq) ) {
   
   ##### Get patient data dir and sample file name
-  dataDir <- params$dragen_rnaseq
+  dataDir <- paste(params$dragen_rnaseq, "dragen", sep = "/")
+  
   ##### Look at countsFromAbundance parameter to change the method to generate the counts
   txi.salmon <- tximport(paste0(dataDir, "/", list.files(dataDir, pattern="\\.sf$")), type = "salmon", tx2gene = tx2ensembl)
   
@@ -1970,6 +1973,27 @@ if ( file.exists(arriba_file) ) {
   ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
   write.table(prepare2write(""), file = paste0(results_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE, append = FALSE )
 }
+
+##### Read in dragen fusion calls
+##### Check if dragen output file exists
+dragen_fusion_file <- paste(dataDir, list.files(dataDir, pattern="\\.fusion_candidates.final$"), sep = "/")
+runDragenFusionChunk <- FALSE
+  
+if ( file.exists(dragen_fusion_file) ) {
+  
+  ##### Dragen's fusion output file header starts with '#' hence first reading without header and then assigning the correct one
+  dragen_fusion <- read.table(file = dragen_fusion_file, header = FALSE, quote = "")
+  colnames(dragen_fusion) <- c("FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "Gene1Location", "Gene2Location", "Gene1Sense", "Gene2Sense", "Gene1Id", "Gene2Id", "NumSplitReads", "NumSoftClippedReads", "NumPairedReads", "ReadNames")
+  
+  dragen_fusion_genes <- dragen_fusion %>%
+    tidyr::separate(col = FusionGene, into = c("gene1", "gene2"), sep = "--")
+  
+  ref_genes.list[["dragenFusion"]] <- dragen_fusion_genes
+  
+  runDragenFusionChunk <- TRUE
+  runFusionChunk <- TRUE
+}
+
 
 ##### Read in pizzly fusion calls
 ##### Check if pizzly output file exists
@@ -2322,6 +2346,10 @@ if ( runFusionChunk ) {
   
   if ( runPizzlyChunk ) {
     ref_genes.list[["summary"]]$Fusion <- unique(c(ref_genes.list[["summary"]]$Fusion, as.character(ref_genes.list[["pizzly"]]$geneA.name), as.character(ref_genes.list[["pizzly"]]$geneB.name)))
+  }
+  
+  if ( runDragenFusionChunk ) {
+    ref_genes.list[["summary"]]$Fusion <- unique(c(ref_genes.list[["summary"]]$Fusion, as.character(ref_genes.list[["dragenFusion"]]$gene1), as.character(ref_genes.list[["dragenFusion"]]$gene2)))
   }
   
   ##### Remove NAs
@@ -3417,12 +3445,159 @@ fusions <- fusions[ colnames(fusions) %in% c("geneA", "geneB", "breakpointA", "b
 fusions$geneA_dna_support <- "-"
 fusions$geneB_dna_support <- "-"
 
-if ( runPizzlyChunk ) {
+if ( runPizzlyChunk || runDragenFusionChunk ) {
   fusions$Arriba <- c(rep("Yes", nrow(fusions)))
 }
 
 ##### Clean the space and return output
 rm(arriba.fusions, arriba.fusion.transcripts, arriba.cancer_genes, arriba.other_genes)
+```
+
+```{r dragen_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
+##### Read in the arriba fusion calls
+dragen.fusions <- ref_genes.list[["dragenFusion"]]
+colnames(dragen.fusions) <- gsub("gene1", "geneA", colnames(dragen.fusions))
+colnames(dragen.fusions) <- gsub("1", "A", colnames(dragen.fusions))
+colnames(dragen.fusions) <- gsub("2", "B", colnames(dragen.fusions))
+
+##### Extract only those fusion genes that are in cancer genes list
+dragen.cancer_genes <- data.frame()
+
+for (row in 1:nrow(dragen.fusions)){
+  if(dragen.fusions[row,"geneA"] %in% rownames(ref_genes.list[["genes_cancer"]]) | dragen.fusions[row,"geneB"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
+    
+    ##### Creating a new dataframe for extracting dragen rows with cancer gene hits
+    dragen.cancer_genes <- rbind(dragen.cancer_genes, data.frame(dragen.fusions[row,]))
+  }
+}
+
+##### Add columns for info about reported fusions
+dragen.fusions <- cbind(dragen.fusions, data.frame(matrix("", ncol = 5, nrow = nrow(dragen.fusions)), stringsAsFactors = FALSE))
+colnames(dragen.fusions)[(ncol(dragen.fusions)-4):ncol(dragen.fusions)] <- c("FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene")
+
+##### Add annotations about known fusion events
+##### Loop through all genes involved in deteced gene fusions (dragen results) and check which are already reported
+for ( i in 1:nrow(dragen.fusions) ) {
+  geneA <- as.character(dragen.fusions$geneA[i])
+  geneB <- as.character(dragen.fusions$geneB[i])
+          
+  ##### First check if the exact reported gene pairs were detected by dragen
+  if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
+      
+    ##### provide fusion URL to FusionGDB
+    dragen.fusions$reported_fusion[i] <- "Yes"
+      
+    ##### provide fusion ID from FusionGDB
+    dragen.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneA, geneB, sep="-")  ]
+      
+    dragen.fusions$reported_fusion_geneA[i] <- "Yes"
+    dragen.fusions$reported_fusion_geneB[i] <- "Yes"
+      
+  } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
+      
+    ##### provide fusion URL to FusionGDB
+    dragen.fusions$reported_fusion[i] <- "Yes"
+      
+    ##### provide fusion ID from FusionGDB
+    dragen.fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneB, geneA, sep="-")  ]
+      
+    dragen.fusions$reported_fusion_geneA[i] <- "Yes"
+    dragen.fusions$reported_fusion_geneB[i] <- "Yes"
+      
+  ##### Now check if any of the dragen detected fusion genes are reported
+  } else {
+    dragen.fusions$reported_fusion[i] <- "-"
+      
+    ##### Check the Cancer Genome Interpreter (CGI) database first
+    ##### Check dragen genes A and genes B in reported fusions
+    if ( geneA %in% known_translocations$geneA ) {
+       dragen.fusions$reported_fusion_geneA[i] <- "Yes"
+        
+    ##### Check dragen genes A and genes B in reported fusions
+    } else if ( geneA %in% known_translocations$geneB ) {
+      dragen.fusions$reported_fusion_geneA[i] <- "Yes"
+    }
+      
+    ##### Check dragen genes B and genes A in reported fusions
+    if ( geneB %in% known_translocations$geneA ) {
+      dragen.fusions$reported_fusion_geneB[i] <- "Yes"
+        
+    ##### Check dragen genes B and genes A in reported fusions
+    } else if ( geneB %in% known_translocations$geneB ) {
+      dragen.fusions$reported_fusion_geneB[i] <- "Yes"
+    }
+      
+    ##### Flag if any of the genes are effector gene
+    if ( geneA %in% known_translocations$effector_gene  ) {
+      dragen.fusions$effector_gene[i] <- geneA
+    } else if ( geneB == known_translocations$effector_gene  ) {
+      dragen.fusions$effector_gene[i] <- geneB
+    }
+  }
+}
+
+##### Add column indicating fusions containing known cancer genes
+dragen.fusions$fusions_cancer <- c(rep("-", nrow(dragen.fusions)))
+
+if ( nrow(dragen.cancer_genes) > 0 ) {
+  dragen.fusions$fusions_cancer[ dragen.fusions$geneA %in% dragen.cancer_genes$geneA ] <- "Yes"
+  dragen.fusions$fusions_cancer[ dragen.fusions$geneB %in% dragen.cancer_genes$geneB ] <- "Yes"
+}
+
+##### Re-ordering dragen's results on the basis of Dragen's confidence, reported fusions and then score (as Dragen doesn't includes split count and paircount info) and then involvment of cancer genes and reported one of the fusion genes
+dragen.fusions <- dragen.fusions[ order(dragen.fusions$reported_fusion, dragen.fusions$Score, dragen.fusions$fusions_cancer, dragen.fusions$reported_fusion_geneA, dragen.fusions$reported_fusion_geneB, decreasing = TRUE), ]
+#dragen.fusions <- dragen.fusions[order(factor(dragen.fusions$confidence, levels=c("high", "medium", "low"))), ]
+
+##### Keep only key columns
+dragen.fusions <- dragen.fusions[ colnames(dragen.fusions) %in% c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint", "GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
+
+##### Add column to flag fusions supported by WGS data (from MANTA), if available
+dragen.fusions$geneA_dna_support <- "-"
+dragen.fusions$geneB_dna_support <- "-"
+
+##### Add results from Arriba
+if ( runArribaChunk ) {
+  
+  ##### Add column with Dragen fusions
+  dragen.fusions$fusion <- paste(dragen.fusions$geneA, dragen.fusions$geneB, sep="__")
+  fusions$Dragen <- c(rep("-", nrow(fusions)))
+  fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
+  fusions$soft_clipped_reads <- c(rep("-", nrow(fusions)))
+  fusions$score <- c(rep("-", nrow(fusions)))
+  
+  ##### Re-order columns
+  fusions <- fusions %>% dplyr::relocate(split_reads, .before = split_readsA)
+  fusions <- fusions %>% dplyr::relocate(soft_clipped_reads, .before = confidence)
+  fusions <- fusions %>% dplyr::relocate(score, .before = FGID)
+  
+  ##### Loop through Dragen results, mark fusions detected by both tools. For those detected only by Dragen adapt results format to Arriba results
+  for ( i in 1:nrow(dragen.fusions) ) {
+    
+    if ( !is.na(match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__"))) ) {
+      fusions$Dragen[ match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__")) ] <- "Yes"
+      dragen.fusions[ i, ] <-  rep("-", ncol(dragen.fusions))
+    } else {
+      fusions <- rbind(fusions, data.frame(geneA=dragen.fusions$geneA[i],geneB=dragen.fusions$geneB[i], breakpointA=dragen.fusions$LeftBreakpoint[i], breakpointB=dragen.fusions$RightBreakpoint[i], siteA=dragen.fusions$GeneALocation[i], siteB=dragen.fusions$GeneBLocation[i], type="-", split_reads=dragen.fusions$NumSplitReads[i], split_readsA="-", split_readsB="-", discordant_mates="-", soft_clipped_reads=dragen.fusions$NumSoftClippedReads[i], confidence="-", score=dragen.fusions$Score[i], FGID=dragen.fusions$FGID[i], reported_fusion=dragen.fusions$reported_fusion[i], reported_fusion_geneA=dragen.fusions$reported_fusion_geneA[i], reported_fusion_geneB=dragen.fusions$reported_fusion_geneB[i], effector_gene=dragen.fusions$effector_gene[i], fusions_cancer=dragen.fusions$fusions_cancer[i], geneA_dna_support="-", geneB_dna_support="-", Arriba="-", Dragen="Yes" ))
+    }
+  }
+##### Otherwise add empty columns expected from Aribba results
+} else {
+  fusions <- dragen.fusions
+  fusions$breakpointA <-  c(rep("-", nrow(fusions)))
+  fusions$breakpointB <-  c(rep("-", nrow(fusions)))
+  fusions$siteA <-  c(rep("-", nrow(fusions)))
+  fusions$siteB <-  c(rep("-", nrow(fusions)))
+  fusions$type <-  c(rep("-", nrow(fusions)))
+  fusions$split_readsA <-  c(rep("-", nrow(fusions)))
+  fusions$split_readsB <-  c(rep("-", nrow(fusions)))
+  fusions$confidence <-  c(rep("-", nrow(fusions)))
+  fusions$geneA_dna_support <- c(rep("-", nrow(fusions)))
+  fusions$geneB_dna_support <- c(rep("-", nrow(fusions)))
+  fusions$Arriba <-  c(rep("-", nrow(fusions)))
+}
+
+##### Clean the space and return output
+rm(dragen.fusions, dragen.fusion.transcripts, dragen.cancer_genes, dragen.other_genes)
 ```
 
 ```{r pizzly_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runPizzlyChunk}
@@ -3536,15 +3711,14 @@ if ( runArribaChunk ) {
   ##### Add column with pizzly fusions
   pizzly.fusions$fusion <- paste(pizzly.fusions$geneA, pizzly.fusions$geneB, sep="__")
   fusions$Pizzly <-  c(rep("-", nrow(fusions)))
-
+  
   ##### Loop through Pizzly results, mark fusions detected by both tools. For those detected only by pizzly adapt results format to Arriba results
   for ( i in 1:nrow(pizzly.fusions) ) {
     
     if ( !is.na(match(pizzly.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__"))) ) {
       fusions$Pizzly[ match(pizzly.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__")) ] <- "Yes"
       pizzly.fusions[ i, ] <-  rep("-", ncol(pizzly.fusions))
-    } 
-    else {
+    } else {
       fusions <- rbind(fusions, data.frame(geneA=pizzly.fusions$geneA[i],geneB=pizzly.fusions$geneB[i], breakpointA="-", breakpointB="-", siteA="-", siteB="-", type="-", split_readsA=pizzly.fusions$split_readsA[i], split_readsB="-", discordant_mates=pizzly.fusions$discordant_mates[i], confidence="-", FGID=pizzly.fusions$FGID[i], reported_fusion=pizzly.fusions$reported_fusion[i], reported_fusion_geneA=pizzly.fusions$reported_fusion_geneA[i], reported_fusion_geneB=pizzly.fusions$reported_fusion_geneB[i], effector_gene=pizzly.fusions$effector_gene[i], fusions_cancer=pizzly.fusions$fusions_cancer[i], geneA_dna_support="-", geneB_dna_support="-", Arriba="-", Pizzly="Yes" ))
     }
   }
@@ -3581,7 +3755,15 @@ fusion_annot1 <- fusion_annot1[ order(fusion_annot1$order), ]
 fusion_annot2 <- merge(fusion_genes_annot, fusions.annot[ , c("order","geneB")], by = 2, sort=FALSE, all.y = TRUE)
 fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
 
-fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+if ( runArribaChunk ) {
+  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+  
+} else if (runDragenFusionChunk) {
+  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("Score", "LeftBreakpoint", "RightBreakpoint", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+  
+} else {
+  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+}
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
 fusion_annot$geneA_dna_support <- "-"
@@ -3596,7 +3778,7 @@ fusion_annot <- fusion_annot[complete.cases(fusion_annot), ]
 rm(fusion_annot1, fusion_annot2, fusions.annot, fusion_genes_annot)
 ```
 
-```{r pizzly_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Compare PIZZY and MANTA called gene fusion events
 ##### Add row for gene fusion events so that there is one row per gene
 manta_sv <- ref_genes.list[["manta"]]
@@ -3626,7 +3808,7 @@ if ( runFusionChunk ) {
   manta_fusions <- unique(manta_sv[ grep("&", manta_sv$"Fusion genes"),  ]$Gene)
   manta_fusions <- manta_fusions[ manta_fusions %in% unique(c(as.vector(fusions$geneA), as.vector(fusions$geneB))) ]
     
-  ##### Flag PIZZLY fusions that were also reported in MANTA
+  ##### Flag fusions that were also reported in MANTA
   if ( length(manta_fusions) > 0 ) {
     fusions$geneA_dna_support[ sort( match( manta_fusions , fusions$geneA ), na.last = NA ) ] <- "Yes"
     fusions$geneB_dna_support[ sort( match( manta_fusions , fusions$geneB ), na.last = NA ) ] <- "Yes"
@@ -3634,8 +3816,13 @@ if ( runFusionChunk ) {
     fusion_annot$geneA_dna_support[ sort( match( manta_fusions , fusion_annot$SYMBOL ), na.last = NA ) ] <- "Yes"
     fusion_annot$geneB_dna_support[ sort( match( manta_fusions , fusion_annot$SYMBOL.1 ), na.last = NA ) ] <- "Yes"
   
-    ##### Re-order pizzly dataframe with MANTA supporting fusions on top
-    idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Arriba, fusions$reported_fusion, decreasing = TRUE)
+    ##### Re-order fusion dataframe with MANTA supporting fusions on top
+    if ( runArribaChunk ) {
+      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Arriba, fusions$reported_fusion, decreasing = TRUE)
+    } else {
+      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$reported_fusion, decreasing = TRUE)
+    }
+    
     fusions <- fusions[ idx, ]
     fusion_annot <- fusion_annot[ idx, ]
   }
@@ -3650,10 +3837,21 @@ rm(manta_fusions)
 
 ```{r fusions_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Filter out fusions that are with < 2 split reads and < 2 pair reads and are not supported by genomic data, are not reported and don't involve cancer genes
-if ( runArribaChunk ) {
+if ( runArribaChunk && runDragenFusionChunk ) {
+  fusions <- fusions %>% dplyr::filter( split_reads > 1 | discordant_mates > 1 | score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
+  fusion_annot <- fusion_annot %>% dplyr::filter( split_readsA > 1 | split_readsB > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
+
+} else if ( runDragenFusionChunk ) {
+  
+  ##### For Dragen , this filtering is not changing the results. We'll review the "Score" value again once we start to regularly produce the RNAsum report for Dragen results
+  fusions <- fusions %>% dplyr::filter(split_reads > 1 | Score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
+  fusion_annot <- fusion_annot %>% dplyr::filter(split_reads > 1 | Score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
+  
+} else if ( runArribaChunk ) {
   fusions <- fusions %>% dplyr::filter( split_readsA > 1 | split_readsB > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
   fusion_annot <- fusion_annot %>% dplyr::filter( split_readsA > 1 | split_readsB > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-} else {
+  
+} else if (runPizzlyChunk) {
   fusions <- fusions %>% dplyr::filter(split_readsA > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
   fusion_annot <- fusion_annot %>% dplyr::filter(split_readsA > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
 }
@@ -3661,7 +3859,7 @@ if ( runArribaChunk ) {
 
 ```{r fusions_circos, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Indicate which fusions have genomic coordinates and can be presented on circos plot
-##### Take into account only reported fusions or those with or cancer gene(s) involved
+##### Take into account only reported fusions or those with both genes genes supported by DNA
 if ( runSVsChunk ) {
   fusion_annot_top <- fusion_annot[ fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes" , ]
 } else {
