@@ -136,13 +136,13 @@ opt = parse_args(OptionParser(option_list=option_list))
 
 ##### Read in argument from command line and check if all were provide by the user
 if ( (is.na(opt$sample_name) || is.null(opt$bcbio_rnaseq) || is.na(opt$report_dir)) && is.null(opt$dragen_rnaseq) ) {
-
+  
   cat("\nPlease type in required arguments!\n\n")
   cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\nor\n\n")
   cat("Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAseq_report\n\n")
   q()
   
-} else if ( !is.null(opt$bcbio_rnaseq) && !is.null(opt$dragen_rnaseq) ) {
+} else if ( is.null(opt$bcbio_rnaseq) && is.null(opt$dragen_rnaseq) ) {
   
   cat("\nOutput from only one RNA-seq pipeline, either bcbio-nextgen RNA-seq pipeline or DRAGEN RNA pipeline, is accepted at a time!\n\n")
   cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\nor\n\n")
@@ -152,17 +152,15 @@ if ( (is.na(opt$sample_name) || is.null(opt$bcbio_rnaseq) || is.na(opt$report_di
 
 ##### Make sure that sample ID is availabe if clincal data is provided
 if ( !is.na(opt$clinical_info) && any(is.na(opt$clinical_id) && is.na(opt$subject_id) && is.na(opt$umccrise) ) ) {
-
+  
   cat("ID required to match sample with the subject clinical information is missing! Please provide the ID used in the clinical data by using \"--clinical_id\" argument.\n\n")
   q()
 }
 
 ##### Set default parameters
 if ( is.na(opt$norm)  ) {
-
   if ( opt$transform == "CPM"  ) {
     opt$norm <- "TMM"
-
   } else if ( opt$transform == "TPM"  ) {
     opt$norm <- "quantile"
   }
@@ -196,7 +194,7 @@ if ( is.na(opt$grch_version)  ) {
 
 ##### Check if specified dataset type is valid
 if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL", "COAD", "DLBC", "ESCA", "GBM", "HNSC", "KICH", "KIRC", "KIRP", "LAML", "LGG", "LIHC", "LUAD", "LUSC", "MESO", "OV", "PAAD", "PCPG", "PRAD", "READ", "SARC", "SKCM", "STAD", "TGCT", "THCA", "THYM", "UCEC", "UCS", "UVM", "BLCA-NET", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC", "LUAD-LCNEC", "PANCAN", "TEST")) ) {
-
+  
   cat("\nInvalid dataset! Please use one of the following:\n\n")
   cat("[ ACC ] - this will compare the patient's data in the context of samples from TCGA Adrenocortical Carcinoma cohort\n\n")
   cat("[ BLCA ] - this will compare the patient's data in the context of samples from TCGA Bladder Urothelial Carcinoma cohort\n\n")
@@ -243,24 +241,24 @@ if ( toupper(opt$dataset) %!in% toupper(c("ACC", "BLCA", "BRCA", "CESC", "CHOL",
 
 ##### Make sure that either CPM or TPM transformation is selected
 if ( opt$transform != "CPM" && opt$transform != "TPM" ) {
-
+  
   cat(paste0("\nWrong transformation method was selected! \"", opt$transform, "\" transformation is not available!\n\nUse \"CPM\" or \"TPM\" transformation methods.\n\n"))
   q()
 }
 
 ##### Make sure that TMM, TMMwzp, RLE or upperquartile normalisation is used for CPM-tansformed data and quantile normalisation is used for TPM-tansformed data
 if ( opt$transform == "TPM" && opt$norm != "quantile" && opt$norm != "none" ) {
-
+  
   cat(paste0("\nWrong normalisation method was selected! ", opt$norm, " normalisation is not available for TPM-tansformed data!\n\nQuantile normalisation will be performed for TPM-tansformed data.\n\n"))
   opt$norm <- "quantile"
-
+  
 } else if ( opt$transform == "CPM" && opt$norm == "quantile" ) {
-
+  
   cat(paste0("\nQuantile normalisation is available only for TPM-tansformed data! \"TMM\", \"TMMwzp\", \"RLE\", \"upperquartile\" or \"none\" methods are available for CPM-tansformed data.\n\n"))
   q()
-
+  
 } else if ( opt$transform == "CPM" && opt$norm != "TMM" && opt$norm != "TMMwzp" && opt$norm != "RLE" && opt$norm != "upperquartile" && opt$norm != "none" ) {
-
+  
   cat(paste0("\nWrong normalisation method was selected! \"TMM\", \"TMMwzp\", \"RLE\", \"upperquartile\" or \"none\" methods are available for CPM-tansformed data.\n\n"))
   q()
 }
