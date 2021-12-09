@@ -3755,10 +3755,13 @@ fusion_annot1 <- fusion_annot1[ order(fusion_annot1$order), ]
 fusion_annot2 <- merge(fusion_genes_annot, fusions.annot[ , c("order","geneB")], by = 2, sort=FALSE, all.y = TRUE)
 fusion_annot2 <- fusion_annot2[ order(fusion_annot2$order), ]
 
-if ( runArribaChunk ) {
+if ( runArribaChunk && runDragenFusionChunk ) {
+  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_reads",  "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+  
+} else if ( runArribaChunk ) {
   fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
   
-} else if (runDragenFusionChunk) {
+} else if ( runDragenFusionChunk ) {
   fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("Score", "LeftBreakpoint", "RightBreakpoint", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
   
 } else {
@@ -4542,9 +4545,17 @@ if ( runFusionChunk ) {
       }
   }
   
-  fusions.table <- fusions.table[ , names(fusions.table) %!in% "FGID" ]
-  fusions.table <- fusions.table[ , c("geneA", "geneB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "confidence", "breakpointA", "breakpointB", "siteA", "siteB", "type", "circos")]
+  
+  if ( runDragenFusionChunk ) {
+    fusions.table <- fusions.table[ , names(fusions.table) %!in% "FGID" ]
+    fusions.table <- fusions.table[ , c("geneA", "geneB", "split_reads", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "confidence", "score", "breakpointA", "breakpointB", "siteA", "siteB", "type", "circos")]
+  names(fusions.table) <- c("Gene A", "Gene B", "Split reads (Total)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Confidence (Arriba)", "Score (Dragen)", "Breakpoint (A)", "Breakpoint (B)", "Site (A)", "Site (B)", "Type", "Genomic view")
+  
+  } else {
+    fusions.table <- fusions.table[ , names(fusions.table) %!in% "FGID" ]
+    fusions.table <- fusions.table[ , c("geneA", "geneB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "confidence", "breakpointA", "breakpointB", "siteA", "siteB", "type", "circos")]
   names(fusions.table) <- c("Gene A", "Gene B", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Confidence (Arriba)", "Breakpoint (A)", "Breakpoint (B)", "Site (A)", "Site (B)", "Type", "Genomic view")
+  }
   
   ##### Present gene fusion events in a table
   fusions.summary <- DT::datatable( data = fusions.table, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 490, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
@@ -4707,7 +4718,11 @@ if ( nrow(fusion_annot_top) > 0 ) {
 if ( nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
-  fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
+  if ( runDragenFusionChunk ) {
+    fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_reads", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
+  } else {
+    fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
+  }
   
   ##### Order fusions based on the genomic location (chrom and start positions)
   chrOrder <-c((1:22),"X","Y","M")
@@ -4716,7 +4731,11 @@ if ( nrow(fusion_annot_top) > 0 ) {
   fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
   fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
   
-  names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
+  if ( runDragenFusionChunk ) {
+    names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (Total)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
+  } else {
+    names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
+  }
 
   fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318,  escape = FALSE) %>%
       DT::formatStyle( columns = names(fusion_annot_top.clean), `font-size` = '12px', 'text-align' = 'center' ) %>%
