@@ -142,7 +142,7 @@ if ( (is.na(opt$sample_name) || is.null(opt$bcbio_rnaseq) || is.na(opt$report_di
   cat("Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAseq_report\n\n")
   q()
   
-} else if ( !is.null(opt$bcbio_rnaseq) && !is.null(opt$dragen_rnaseq) ) {
+} else if ( is.null(opt$bcbio_rnaseq) && is.null(opt$dragen_rnaseq) ) {
   
   cat("\nOutput from only one RNA-seq pipeline, either bcbio-nextgen RNA-seq pipeline or DRAGEN RNA pipeline, is accepted at a time!\n\n")
   cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\nor\n\n")
