@@ -18,7 +18,7 @@ export PATH=$(pwd)/miniconda/envs/${ENV_NAME}/bin:$PATH
 
 ### Create the loader script
 ENV_NAME=rnaseq-report
-cat <<EOT > load_rnaseq-report.sh
+cat <<EOT > load_rnasum.sh
 unset PYTHONPATH
 unset PERL5LIB
 export PATH=$(pwd)/miniconda/envs/${ENV_NAME}/bin:$(pwd)/miniconda/bin:\$PATH
