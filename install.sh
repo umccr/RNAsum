@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-### Clone the repo
-git clone https://github.com/umccr/RNAsum
-
 ### Install conda
 unset PYTHONPATH
 unset CONDA_PREFIX
