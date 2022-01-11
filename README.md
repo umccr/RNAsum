@@ -43,7 +43,7 @@ Run the following to create a directory "rnasum" and install into it
 ```
 mkdir rnasum
 cd rnasum
-source <(curl -s https://raw.githubusercontent.com/umccr/RNAseq-Analysis-Report/master/install.sh)
+source <(curl -s https://raw.githubusercontent.com/umccr/RNAsum/master/install.sh)
 ```
 
 It will generate `load_rnasum.sh` script that can be sourced to load the `rnasum` environment:
