@@ -12,12 +12,12 @@ export PATH=$(pwd)/miniconda/bin:$PATH
 conda update conda
 
 ### Install environments
-ENV_NAME=rnaseq-report
+ENV_NAME=rnasum
 conda env create -p $(pwd)/miniconda/envs/${ENV_NAME} --file RNAseq-Analysis-Report/envm/environment.yaml
 export PATH=$(pwd)/miniconda/envs/${ENV_NAME}/bin:$PATH
 
 ### Create the loader script
-ENV_NAME=rnaseq-report
+ENV_NAME=rnasum
 cat <<EOT > load_rnasum.sh
 unset PYTHONPATH
 unset PERL5LIB
