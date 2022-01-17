@@ -301,7 +301,7 @@ conda activate ./miniconda/envs/rnasum
 * *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see the beginning of [Usage](#usage) section) should be executed from [rmd_files](./rmd_files) folder
 
 ```
-cd rmd_files
+cd RNAsum/rmd_files
 ```
 
 * example data is provided in [data/test_data](./data/test_data) folder
