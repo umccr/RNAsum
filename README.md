@@ -331,6 +331,10 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen
 
 >The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
 
+Note:
+
+Test data for Dragen versions older than 3.9.3 is provided under `$(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.7.5`
+
 
 #### 2. WTS and WGS data
 
