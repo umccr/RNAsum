@@ -163,14 +163,14 @@ These files are expected to be organised following the folder structure below
 
 #### Dragen RNA
 
-The **read counts** are provided within quantification file from [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) (see example *[TEST.quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* file and its [description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)). The per-transcript abundances are reported in *estimated counts* (`NumReads `) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`TPM `), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** can be provided (see example *[TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final)*). 
+The **read counts** are provided within quantification file from [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) (see example *[TEST.quant.sf](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.quant.sf)* file and its [description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)). The per-transcript abundances are reported in *estimated counts* (`NumReads `) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`TPM `), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** can be provided (see example *[TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.fusion_candidates.final)*). 
 
 Table below lists all input data accepted in the pipeline:
 
 Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
-Quantified **abundances** of transcripts | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) | [TEST.quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf) | **Yes**
-List of detected **fusion genes** | [Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final) | No
+Quantified **abundances** of transcripts | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) | [TEST.quant.sf](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.quant.sf) | **Yes**
+List of detected **fusion genes** | [Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.fusion_candidates.final) | No
 
 <br />
 
@@ -326,10 +326,14 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
+
+Note:
+
+Test data for Dragen versions older than 3.9.3 is provided under `$(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.7.5`
 
 
 #### 2. WTS and WGS data
@@ -349,10 +353,10 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
 
 
 #### 3. WTS WGS and clinical data
@@ -370,10 +374,10 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
 
 ### Output
 

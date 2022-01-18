@@ -17,8 +17,8 @@ params:
   sample_name: 'test_sample_WTS'
   dataset: 'TEST'
   bcbio_rnaseq: NULL
-  dragen_rnaseq: '../data/test_data/stratus/test_sample_WTS'
-  report_dir: '../data/test_data/stratus/test_sample_WTS/RNAsum'
+  dragen_rnaseq: '../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3'
+  report_dir: '../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum'
   ref_data_dir: '../data'
   transform: 'CPM'
   filter: TRUE
@@ -1980,9 +1980,17 @@ runDragenFusionChunk <- FALSE
 
 if ( !is.null(params$dragen_rnaseq) && file.exists(dragen_fusion_file) ) {
   
-  ##### Dragen's fusion output file header starts with '#' hence first reading without header and then assigning the correct one
-  dragen_fusion <- read.table(file = dragen_fusion_file, header = FALSE, quote = "")
-  colnames(dragen_fusion) <- c("FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "Gene1Location", "Gene2Location", "Gene1Sense", "Gene2Sense", "Gene1Id", "Gene2Id", "NumSplitReads", "NumSoftClippedReads", "NumPairedReads", "ReadNames")
+  ##### Dragen's fusion output file header starts with '#' hence change the comment indicator option to '^' ( https://stackoverflow.com/questions/27196470/reading-a-line-that-starts-with-a-hash-on-a-txt-file )
+  
+  dragen_fusion <- read.table(file = dragen_fusion_file[1], header = TRUE, comment.char = '^', quote = "")
+  
+  ##### Check Dragen's fusion format version
+  #####  Dragen's fusion format version 3.9.3
+  if ( all(c("X.FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "Gene1Location", "Gene2Location", "Gene1Sense", "Gene2Sense", "Gene1Id", "Gene2Id", "NumSplitReads", "NumSoftClippedReads", "NumPairedReads", "ReadNames") %in% colnames(dragen_fusion)) ) {
+    colnames(dragen_fusion) <- c("FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "Gene1Location", "Gene2Location", "Gene1Sense", "Gene2Sense", "Gene1Id", "Gene2Id", "NumSplitReads", "NumSoftClippedReads", "NumPairedReads", "ReadNames")
+  } else if ( all(c("X.FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "ReadNames") %in% colnames(dragen_fusion)) ) {
+    colnames(dragen_fusion) <- c("FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "ReadNames")
+  }
   
   dragen_fusion_genes <- dragen_fusion %>%
     tidyr::separate(col = FusionGene, into = c("gene1", "gene2"), sep = "--")
@@ -3557,28 +3565,57 @@ dragen.fusions$geneB_dna_support <- "-"
 ##### Add results from Arriba
 if ( runArribaChunk ) {
   
-  ##### Add column with Dragen fusions
-  dragen.fusions$fusion <- paste(dragen.fusions$geneA, dragen.fusions$geneB, sep="__")
-  fusions$Dragen <- c(rep("-", nrow(fusions)))
-  fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
-  fusions$soft_clipped_reads <- c(rep("-", nrow(fusions)))
-  fusions$score <- c(rep("-", nrow(fusions)))
-  
-  ##### Re-order columns
-  fusions <- fusions %>% dplyr::relocate(split_reads, .before = split_readsA)
-  fusions <- fusions %>% dplyr::relocate(soft_clipped_reads, .before = confidence)
-  fusions <- fusions %>% dplyr::relocate(score, .before = FGID)
-  
-  ##### Loop through Dragen results, mark fusions detected by both tools. For those detected only by Dragen adapt results format to Arriba results
-  for ( i in 1:nrow(dragen.fusions) ) {
+  #####  Dragen's fusion format version 3.9.3
+  if ( all(c("GeneALocation", "GeneBLocation", "NumSplitReads","NumSoftClippedReads", "Score") %in% colnames(dragen.fusions)) ) {
+
+    ##### Add column with Dragen fusions
+    dragen.fusions$fusion <- paste(dragen.fusions$geneA, dragen.fusions$geneB, sep="__")
+    fusions$Dragen <- c(rep("-", nrow(fusions)))
+    fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
+    fusions$soft_clipped_reads <- c(rep("-", nrow(fusions)))
+    fusions$score <- c(rep("-", nrow(fusions)))
     
-    if ( !is.na(match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__"))) ) {
-      fusions$Dragen[ match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__")) ] <- "Yes"
-      dragen.fusions[ i, ] <-  rep("-", ncol(dragen.fusions))
-    } else {
-      fusions <- rbind(fusions, data.frame(geneA=dragen.fusions$geneA[i],geneB=dragen.fusions$geneB[i], breakpointA=dragen.fusions$LeftBreakpoint[i], breakpointB=dragen.fusions$RightBreakpoint[i], siteA=dragen.fusions$GeneALocation[i], siteB=dragen.fusions$GeneBLocation[i], type="-", split_reads=dragen.fusions$NumSplitReads[i], split_readsA="-", split_readsB="-", discordant_mates="-", soft_clipped_reads=dragen.fusions$NumSoftClippedReads[i], confidence="-", score=dragen.fusions$Score[i], FGID=dragen.fusions$FGID[i], reported_fusion=dragen.fusions$reported_fusion[i], reported_fusion_geneA=dragen.fusions$reported_fusion_geneA[i], reported_fusion_geneB=dragen.fusions$reported_fusion_geneB[i], effector_gene=dragen.fusions$effector_gene[i], fusions_cancer=dragen.fusions$fusions_cancer[i], geneA_dna_support="-", geneB_dna_support="-", Arriba="-", Dragen="Yes" ))
+    ##### Re-order columns
+    fusions <- fusions %>% dplyr::relocate(split_reads, .before = split_readsA)
+    fusions <- fusions %>% dplyr::relocate(soft_clipped_reads, .before = confidence)
+    fusions <- fusions %>% dplyr::relocate(score, .before = FGID)
+    
+    ##### Loop through Dragen results, mark fusions detected by both tools. For those detected only by Dragen adapt results format to Arriba results
+    for ( i in 1:nrow(dragen.fusions) ) {
+      
+      if ( !is.na(match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__"))) ) {
+        fusions$Dragen[ match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__")) ] <- "Yes"
+        dragen.fusions[ i, ] <-  rep("-", ncol(dragen.fusions))
+      } else {
+        fusions <- rbind(fusions, data.frame(geneA=dragen.fusions$geneA[i],geneB=dragen.fusions$geneB[i], breakpointA=dragen.fusions$LeftBreakpoint[i], breakpointB=dragen.fusions$RightBreakpoint[i], siteA=dragen.fusions$GeneALocation[i], siteB=dragen.fusions$GeneBLocation[i], type="-", split_reads=dragen.fusions$NumSplitReads[i], split_readsA="-", split_readsB="-", discordant_mates="-", soft_clipped_reads=dragen.fusions$NumSoftClippedReads[i], confidence="-", score=dragen.fusions$Score[i], FGID=dragen.fusions$FGID[i], reported_fusion=dragen.fusions$reported_fusion[i], reported_fusion_geneA=dragen.fusions$reported_fusion_geneA[i], reported_fusion_geneB=dragen.fusions$reported_fusion_geneB[i], effector_gene=dragen.fusions$effector_gene[i], fusions_cancer=dragen.fusions$fusions_cancer[i], geneA_dna_support="-", geneB_dna_support="-", Arriba="-", Dragen="Yes" ))
+      }
+    }
+  
+  #####  Dragen's fusion format version 3.7.5
+  } else if ( "Score" %in% colnames(dragen.fusions) ) {
+    
+    ##### Add column with Dragen fusions
+    dragen.fusions$fusion <- paste(dragen.fusions$geneA, dragen.fusions$geneB, sep="__")
+    fusions$Dragen <- c(rep("-", nrow(fusions)))
+    fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
+    fusions$score <- c(rep("-", nrow(fusions)))
+    
+    ##### Re-order columns
+    fusions <- fusions %>% dplyr::relocate(split_reads, .before = split_readsA)
+    fusions <- fusions %>% dplyr::relocate(score, .before = FGID)
+      
+    ##### Loop through Dragen results, mark fusions detected by both tools. For those detected only by Dragen adapt results format to Arriba results
+    for ( i in 1:nrow(dragen.fusions) ) {
+        
+      if ( !is.na(match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__"))) ) {
+        fusions$Dragen[ match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep="__")) ] <- "Yes"
+        dragen.fusions[ i, ] <-  rep("-", ncol(dragen.fusions))
+      } else {
+        fusions <- rbind(fusions, data.frame(geneA=dragen.fusions$geneA[i],geneB=dragen.fusions$geneB[i], breakpointA=dragen.fusions$LeftBreakpoint[i], breakpointB=dragen.fusions$RightBreakpoint[i], siteA="-", siteB="-", type="-", split_reads="-", split_readsA="-", split_readsB="-", discordant_mates="-", confidence="-", score=dragen.fusions$Score[i], FGID=dragen.fusions$FGID[i], reported_fusion=dragen.fusions$reported_fusion[i], reported_fusion_geneA=dragen.fusions$reported_fusion_geneA[i], reported_fusion_geneB=dragen.fusions$reported_fusion_geneB[i], effector_gene=dragen.fusions$effector_gene[i], fusions_cancer=dragen.fusions$fusions_cancer[i], geneA_dna_support="-", geneB_dna_support="-", Arriba="-", Dragen="Yes" ))
+      }
     }
   }
+  
 ##### Otherwise add empty columns expected from Aribba results
 } else {
   fusions <- dragen.fusions
