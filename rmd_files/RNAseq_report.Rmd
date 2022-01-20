@@ -17,8 +17,8 @@ params:
   sample_name: 'test_sample_WTS'
   dataset: 'TEST'
   bcbio_rnaseq: NULL
-  dragen_rnaseq: '../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3'
-  report_dir: '../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum'
+  dragen_rnaseq: '../data/test_data/stratus/test_sample_WTS_dragen_v3.7.5'
+  report_dir: '../data/test_data/stratus/test_sample_WTS_dragen_v3.7.5/RNAsum'
   ref_data_dir: '../data'
   transform: 'CPM'
   filter: TRUE
@@ -28,7 +28,7 @@ params:
   scaling: 'gene-wise'
   drugs: FALSE
   immunogram: FALSE
-  umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
+  umccrise: NULL
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   clinical_id: 'test_subject'
   subject_id: ''
@@ -3883,8 +3883,8 @@ if ( runArribaChunk && runDragenFusionChunk ) {
 } else if ( runDragenFusionChunk ) {
   
   ##### For Dragen , this filtering is not changing the results. We'll review the "Score" value again once we start to regularly produce the RNAsum report for Dragen results
-  fusions <- fusions %>% dplyr::filter(split_reads > 1 | Score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-  fusion_annot <- fusion_annot %>% dplyr::filter(split_reads > 1 | Score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
+  fusions <- fusions %>% dplyr::filter(Score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
+  fusion_annot <- fusion_annot %>% dplyr::filter(Score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
   
 } else if ( runArribaChunk ) {
   fusions <- fusions %>% dplyr::filter( split_readsA > 1 | split_readsB > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
@@ -4582,10 +4582,15 @@ if ( runFusionChunk ) {
   }
   
   
-  if ( runDragenFusionChunk ) {
+  if ( runDragenFusionChunk && runArribaChunk) {
     fusions.table <- fusions.table[ , names(fusions.table) %!in% "FGID" ]
     fusions.table <- fusions.table[ , c("geneA", "geneB", "split_reads", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "confidence", "score", "breakpointA", "breakpointB", "siteA", "siteB", "type", "circos")]
   names(fusions.table) <- c("Gene A", "Gene B", "Split reads (Total)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Confidence (Arriba)", "Score (Dragen)", "Breakpoint (A)", "Breakpoint (B)", "Site (A)", "Site (B)", "Type", "Genomic view")
+  
+  } else if ( runDragenFusionChunk && runArribaChunk == FALSE) {
+    fusions.table <- fusions.table[ , names(fusions.table) %!in% "FGID" ]
+    fusions.table <- fusions.table[ , c("geneA", "geneB", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "confidence", "Score", "breakpointA", "breakpointB", "siteA", "siteB", "type", "circos")]
+  names(fusions.table) <- c("Gene A", "Gene B", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Confidence (Arriba)", "Score (Dragen)", "Breakpoint (A)", "Breakpoint (B)", "Site (A)", "Site (B)", "Type", "Genomic view")
   
   } else {
     fusions.table <- fusions.table[ , names(fusions.table) %!in% "FGID" ]
@@ -4754,10 +4759,10 @@ if ( nrow(fusion_annot_top) > 0 ) {
 if ( nrow(fusion_annot_top) > 0 ) {
   
   ##### Clean the table for better presentation
-  if ( runDragenFusionChunk ) {
+  if ( runDragenFusionChunk && runArribaChunk) {
     fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_reads", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
   } else {
-    fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
+    fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer") ]
   }
   
   ##### Order fusions based on the genomic location (chrom and start positions)
@@ -4767,10 +4772,10 @@ if ( nrow(fusion_annot_top) > 0 ) {
   fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered=TRUE)
   fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
   
-  if ( runDragenFusionChunk ) {
+  if ( runDragenFusionChunk && runArribaChunk) {
     names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (Total)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
   } else {
-    names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
+    names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
   }
 
   fusions.genomicView <- DT::datatable( data = fusion_annot_top.clean, filter="none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318,  escape = FALSE) %>%
