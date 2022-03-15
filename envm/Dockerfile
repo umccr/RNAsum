@@ -25,8 +25,8 @@ ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 
 RUN echo "Updating and installing basics" 1>&2 && \
-      DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+      DEBIAN_FRONTEND=noninteractive apt-get update -y -qq && \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         curl \
         wget \
         git \
@@ -42,6 +42,7 @@ RUN echo "Updating and installing basics" 1>&2 && \
         apt-utils \
         libcurl4-openssl-dev \
         libssl-dev \
+        libxml2-dev \
         pkg-config \
         locales language-pack-en \
         tzdata && \
@@ -50,14 +51,14 @@ RUN echo "Updating and installing basics" 1>&2 && \
 
 RUN echo "Install fonts for pandoc/rmarkdown - credit umccrise" 1>&2 && \
       echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections && \
-        DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+        DEBIAN_FRONTEND=noninteractive apt-get update -y -qq && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
           ttf-mscorefonts-installer && \
     echo "Clean up apt" 1>&2 && \
       rm -rf "/var/lib/apt/lists"
 
 RUN echo "Update locales" 1>&2 && \
-      DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
+      DEBIAN_FRONTEND=noninteractive apt-get update -y -qq && \
       DEBIAN_FRONTEND=noninteractive locale-gen en_US.UTF-8 && \
       DEBIAN_FRONTEND=noninteractive dpkg-reconfigure locales && \
       echo "UTC" > /etc/timezone && \
@@ -74,21 +75,21 @@ RUN echo "Install aws v2" 1>&2 && \
           echo "Defaulting to linux/amd64" 1>&2 && \
           aws_platform_arg="x86_64"; \
         fi && \
-      wget --output-document "awscliv2.zip" "https://awscli.amazonaws.com/awscli-exe-linux-$aws_platform_arg.zip"  && \
-      unzip awscliv2.zip && \
+      wget --no-verbose --output-document "awscliv2.zip" "https://awscli.amazonaws.com/awscli-exe-linux-$aws_platform_arg.zip"  && \
+      unzip -qq awscliv2.zip && \
       ./aws/install && \
       rm -rf "aws/" "awscliv2.zip"
 
 
 RUN echo "Installing R dependencies" 1>&2 && \
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         dirmngr \
         gnupg \
         apt-transport-https \
         ca-certificates \
         software-properties-common && \
     echo "Installing Rpdftools dependencies" 1>&2 && \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
           libpoppler-cpp-dev && \
     echo "Clean up apt" 1>&2 && \
       rm -rf "/var/lib/apt/lists"
@@ -104,8 +105,8 @@ RUN echo "Installing pandoc" 1>&2 && \
         echo "Defaulting to linux/amd64" 1>&2 && \
         pandoc_platform_arg="amd64"; \
       fi && \
-      DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+      DEBIAN_FRONTEND=noninteractive apt-get update -y -qq && \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         texlive && \
       wget --no-verbose --output-document "pandoc.deb" \
       "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-$pandoc_platform_arg.deb" && \
@@ -134,14 +135,15 @@ RUN echo "Download and Install conda" 1>&2 && \
     echo "Deleting conda install script" 1>&2 && \
       rm mambaforge.sh && \
     echo "Update conda" 1>&2 && \
-      conda update --yes \
+      /miniconda/bin/conda update --quiet --yes \
         --name base \
         --channel defaults \
         conda && \
     echo "Install environment with mamba" 1>&2 && \
-      mamba env create -f /tmp/environment.yaml && \
+      /miniconda/bin/mamba env create --quiet \
+        --file /tmp/environment.yaml && \
     echo "Cleaning up conda" && \
-      conda clean --all --yes
+      /miniconda/bin/conda clean --all --quiet --yes
 
 RUN echo "Add CRAN to sources list repository" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-key adv \
@@ -150,8 +152,8 @@ RUN echo "Add CRAN to sources list repository" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive add-apt-repository \
           'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' && \
     echo "Install R" 1>&2 && \
-        DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+        DEBIAN_FRONTEND=noninteractive apt-get update -y -qq && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
           r-base && \
     echo "Clean up apt" 1>&2 && \
       rm -rf "/var/lib/apt/lists"
@@ -167,7 +169,7 @@ RUN echo "Install R packages though R" 1>&2 && \
                                       "devtools", "manhattanly", "lares" ), \
                                    quiet=TRUE)' && \
     echo "Clean up R downloaded packages" 1>&2 && \
-    rm -rf "/tmp/downloaded_packages/" "/tmp/*.rds" \
+    rm -rf "/tmp/downloaded_packages/" "/tmp/*.rds"
 
 RUN echo "Install Bioconductor packages thorugh R" 1>&2 && \
       Rscript -e 'options(Ncpus=2L, repos="https://cloud.r-project.org/"); \
