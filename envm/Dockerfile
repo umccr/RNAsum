@@ -44,9 +44,10 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
         mamba_aws_platform_arg="x86_64"; \
         pandoc_platform_arg="amd64"; \
       fi && \
-      echo "Got platform arg value ${mamba_aws_platform_arg}" 1>&2 && \
-    echo "Updating and installing basics" 1>&2 && \
-      DEBIAN_FRONTEND=noninteractive apt-get update && \
+      echo "Got platform arg value ${mamba_aws_platform_arg}" 1>&2
+
+RUN echo "Updating and installing basics" 1>&2 && \
+      DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
         curl \
         wget \
@@ -66,21 +67,32 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
         pkg-config \
         locales language-pack-en \
         tzdata && \
+      echo "Clean up apt" 1>&2 && \
+      rm -rf "/var/lib/apt/lists"
+
+RUN echo "Install fonts for pandoc/rmarkdown - credit umccrise" 1>&2 && \
       echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections && \
-    echo "Install fonts for pandoc/rmarkdown - credit umccrise" 1>&2 && \
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
-        ttf-mscorefonts-installer && \
-    echo "Update locales" 1>&2 && \
+        DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+          ttf-mscorefonts-installer && \
+    echo "Clean up apt" 1>&2 && \
+      rm -rf "/var/lib/apt/lists"
+
+RUN echo "Update locales" 1>&2 && \
+      DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
       DEBIAN_FRONTEND=noninteractive locale-gen en_US.UTF-8 && \
       DEBIAN_FRONTEND=noninteractive dpkg-reconfigure locales && \
-      echo "Etc/UTC" > /etc/timezone && \
-      DEBIAN_FRONTEND=noninteractive dpkg-reconfigure tzdata && \
-   echo "Install aws v2" 1>&2 && \
+      echo "UTC" > /etc/timezone && \
+      DEBIAN_FRONTEND=noninteractive dpkg-reconfigure tzdata
+
+RUN echo "Install aws v2" 1>&2 && \
       curl "https://awscli.amazonaws.com/awscli-exe-linux-${mamba_aws_platform_arg}.zip" -o "awscliv2.zip" && \
       unzip awscliv2.zip && \
       ./aws/install && \
-      rm -rf "aws/" "awscliv2.zip" && \
-   echo "Installing R dependencies" 1>&2 && \
+      rm -rf "aws/" "awscliv2.zip" \
+
+
+RUN echo "Installing R dependencies" 1>&2 && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
         dirmngr \
         gnupg \
@@ -90,35 +102,50 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
     echo "Installing Rpdftools dependencies" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
           libpoppler-cpp-dev && \
-    echo "Add CRAN to sources list repository" 1>&2 && \
+    echo "Clean up apt" 1>&2 && \
+      rm -rf "/var/lib/apt/lists"
+
+RUN echo "Add CRAN to sources list repository" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-key adv \
           --keyserver "${CRAN_KEY_SERVER}" \
           --recv-keys "${CRAN_RECV_KEY}" && \
         DEBIAN_FRONTEND=noninteractive add-apt-repository \
-          'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' && \
-    echo "Installing pandoc" 1>&2 && \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
+
+RUN echo "Installing pandoc" 1>&2 && \
+        DEBIAN_FRONTEND=noninteractive apt-get update -y -q && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
           texlive && \
-        wget --no-verbose --output-document pandoc.deb \
+        wget --no-verbose --output-document "pandoc.deb" \
         "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${pandoc_platform_arg}.deb" && \
         DEBIAN_FRONTEND=noninteractive dpkg --install pandoc.deb && \
         rm pandoc.deb && \
-    echo "Install R" 1>&2 && \
+    echo "Clean up apt" 1>&2 && \
+      rm -rf "/var/lib/apt/lists"
+
+RUN echo "Install R" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
           r-base && \
     echo "Clean up apt" 1>&2 && \
-      rm -rf "/var/lib/apt/lists" && \
-    echo "Download and Install conda" 1>&2 && \
+      rm -rf "/var/lib/apt/lists"
+
+RUN echo "Download and Install conda" 1>&2 && \
       wget --no-verbose --output-document mambaforge.sh \
         "https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-pypy${PYPY_VERSION}-${MAMBAFORGE_VERSION}-Linux-${mamba_aws_platform_arg}.sh" && \
       bash mambaforge.sh -b -p /miniconda && \
     echo "Deleting conda install script" 1>&2 && \
       rm mambaforge.sh && \
     echo "Update conda" 1>&2 && \
-      conda update -n base -c defaults -y conda && \
+      conda update --yes \
+        --name base \
+        --channel defaults \
+        conda && \
     echo "Install environment with mamba" 1>&2 && \
       mamba env create -f /tmp/environment.yaml && \
-    echo "Install R packages though R" 1>&2 && \
+    echo "Cleaning up conda" && \
+      conda clean --all -y
+
+RUN echo "Install R packages though R" 1>&2 && \
       Rscript -e 'options(Ncpus=2L, repos="https://cloud.r-project.org/"); \
                   install.packages(c( "BiocManager", "tidyverse", "rapportools", "optparse", \
                                       "openxlsx", "readr", "dplyr", "tidyr",\
@@ -137,9 +164,10 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
                                                           "BSgenome.Hsapiens.UCSC.hg19", \
                                                           "BSgenome.Hsapiens.UCSC.hg38" ), \
                                        quiet=TRUE)' && \
-    echo "Cleaning up conda" && \
-      conda clean --all -y && \
-    echo "Adding user $USER:$GROUP" 1>&2 && \
+    echo "Clean up R downloaded packages" 1>&2 && \
+    rm -rf "/tmp/downloaded_packages/" "/tmp/*.rds"
+
+RUN echo "Adding user $USER:$GROUP" 1>&2 && \
       addgroup \
         --system \
         --gid "${GID}" \
@@ -152,8 +180,9 @@ RUN echo "Setting 'platform_arg'" 1>&2 && \
         "$USER" && \
     echo "Changing ownership to user for /miniconda and /rmd_files" 1>&2 && \
       chown -R "$USER:$GROUP" /miniconda/ && \
-      chown -R "$USER:$GROUP" /rmd_files/ && \
-    echo "Docker RUN time build complete!" 1>&2
+      chown -R "$USER:$GROUP" /rmd_files/
+
+RUN echo "Docker RUN time build complete!" 1>&2
 
 # Set user
 USER "$USER"
