@@ -131,19 +131,19 @@ RUN echo "Download and Install conda" 1>&2 && \
         fi && \
       wget --no-verbose --output-document mambaforge.sh \
         "https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-pypy${PYPY_VERSION}-${MAMBAFORGE_VERSION}-Linux-$mamba_platform_arg.sh" && \
-      bash mambaforge.sh -b -p /miniconda && \
+      bash mambaforge.sh -b -p /miniforge && \
     echo "Deleting conda install script" 1>&2 && \
       rm mambaforge.sh && \
-    echo "Update conda" 1>&2 && \
-      /miniconda/bin/conda update --quiet --yes \
+    echo "Update mamba" 1>&2 && \
+      /miniforge/bin/mamba update --quiet --yes \
         --name base \
-        --channel defaults \
-        conda && \
+        --channel conda-forge \
+        mamba && \
     echo "Install environment with mamba" 1>&2 && \
-      /miniconda/bin/mamba env create --quiet \
+      /miniforge/bin/mamba env create --quiet \
         --file /tmp/environment.yaml && \
     echo "Cleaning up conda" && \
-      /miniconda/bin/conda clean --all --quiet --yes
+      /miniforge/bin/conda clean --all --quiet --yes
 
 RUN echo "Add CRAN to sources list repository" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-key adv \
@@ -197,8 +197,8 @@ RUN echo "Adding user $USER:$GROUP" 1>&2 && \
         --ingroup "${GROUP}" \
         --uid "${UID}" \
         "$USER" && \
-    echo "Changing ownership to user for /miniconda and /rmd_files" 1>&2 && \
-      chown -R "$USER:$GROUP" /miniconda/ && \
+    echo "Changing ownership to user for /miniforge and /rmd_files" 1>&2 && \
+      chown -R "$USER:$GROUP" /miniforge/ && \
       chown -R "$USER:$GROUP" /rmd_files/
 
 RUN echo "Docker RUN time build complete!" 1>&2
@@ -208,6 +208,6 @@ RUN echo "Docker RUN time build complete!" 1>&2
 USER "$USER"
 
 # Set env for user
-ENV PATH="/miniconda/envs/rnasum/bin:/miniconda/bin:$PATH"
-ENV CONDA_PREFIX="/miniconda/envs/rnasum"
+ENV PATH="/miniforge/envs/rnasum/bin:/miniforge/bin:$PATH"
+ENV CONDA_PREFIX="/miniforge/envs/rnasum"
 ENV USER="$USER"
