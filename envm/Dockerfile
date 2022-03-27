@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM docker.io/ubuntu:20.04
 MAINTAINER Sehrish Kanwal "https://github.com/skanwal"
 
 # Runtime args
@@ -15,6 +15,10 @@ ARG GROUP="rnasum_group"
 ARG MAMBAFORGE_VERSION="4.12.0-0"
 ARG PYPY_VERSION="3"
 ARG PANDOC_VERSION="2.17.1.1"
+ARG R_VERSION="4"
+ARG R_PATCH_VERSION="4.1.3"
+ARG R_SRC_URL="https://cran.rstudio.com/src/base/R-$R_VERSION/R-$R_PATCH_VERSION.tar.gz"
+ARG R_INSTALL_PATH="/opt/R/$R_VERSION/$R_PATCH_VERSION"
 
 ARG CRAN_KEY_SERVER="keyserver.ubuntu.com"
 ARG CRAN_RECV_KEY="E298A3A825C0D65DFD57CBB651716619E084DAB9"
@@ -65,7 +69,7 @@ RUN echo "Update locales" 1>&2 && \
       DEBIAN_FRONTEND=noninteractive dpkg-reconfigure tzdata
 
 RUN echo "Install aws v2" 1>&2 && \
-      echo "Got target platform value ${TARGETPLATFORM}" 1>&2 && \
+      echo "Got target platform value ${TARGETPLATFORM}" 1>&2; \
         if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
           aws_platform_arg="x86_64"; \
         elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
@@ -74,26 +78,70 @@ RUN echo "Install aws v2" 1>&2 && \
           echo "Warning target platform $TARGETPLATFORM is not supported" 1>&2 && \
           echo "Defaulting to linux/amd64" 1>&2 && \
           aws_platform_arg="x86_64"; \
-        fi && \
+        fi; \
       wget --no-verbose --output-document "awscliv2.zip" "https://awscli.amazonaws.com/awscli-exe-linux-$aws_platform_arg.zip"  && \
       unzip -qq awscliv2.zip && \
       ./aws/install && \
       rm -rf "aws/" "awscliv2.zip"
 
-
-RUN echo "Installing R dependencies" 1>&2 && \
+# From https://community.rstudio.com/t/installing-r-4-0-3-on-raspberry-pi-4-with-ubuntu-20-10/89369
+RUN echo "Installing dependencies to build R from source" 1>&2 && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+        openjdk-11-jdk \
         dirmngr \
         gnupg \
         apt-transport-https \
         ca-certificates \
-        software-properties-common && \
+        software-properties-common \
+        gfortran \
+        libreadline6-dev \
+        libx11-dev \
+        libxt-dev \
+        libpng-dev \
+        libjpeg-dev \
+        libcairo2-dev \
+        xvfb \
+        libbz2-dev \
+        libzstd-dev \
+        liblzma-dev \
+        libcurl4-openssl-dev \
+        texinfo \
+        texlive \
+        texlive-fonts-extra \
+        screen \
+        wget \
+        libpcre2-dev && \
     echo "Installing Rpdftools dependencies" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
           libpoppler-cpp-dev && \
     echo "Clean up apt" 1>&2 && \
       rm -rf "/var/lib/apt/lists"
 
+# Docs here: https://docs.rstudio.com/resources/install-r-source/
+RUN echo "Installing R" 1>&2 && \
+    wget --quiet \
+      --output-document "R-${R_PATCH_VERSION}.tar.gz" \
+      "${R_SRC_URL}" && \
+    tar -xf "R-${R_PATCH_VERSION}.tar.gz" && \
+    ( \
+      cd "R-${R_PATCH_VERSION}" && \
+      ./configure \
+        --prefix "${R_INSTALL_PATH}" \
+        --enable-memory-profiling \
+        --enable-R-shlib \
+        --with-blas \
+        --with-lapack && \
+      make && \
+      make install ) && \
+    echo "Verifying installation" 1>&2 && \
+      "${R_INSTALL_PATH}/bin/R" --version && \
+    echo "Link installation to /usr/local/bin" 1>&2 && \
+    ln -s "${R_INSTALL_PATH}/bin/R" /usr/local/bin/R && \
+    ln -s "${R_INSTALL_PATH}/bin/Rscript" /usr/local/bin/Rscript && \
+    echo "Clean up source" 1>&2 && \
+      rm -rf "R-${R_PATCH_VERSION}" "R-${R_PATCH_VERSION}.tar.gz"
+
+# TODO - can probably remove from conda env if installed here
 RUN echo "Installing pandoc" 1>&2 && \
       echo "Got target platform value ${TARGETPLATFORM}" 1>&2 && \
       if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
@@ -128,7 +176,7 @@ RUN echo "Download and Install conda" 1>&2 && \
           echo "Warning target platform $TARGETPLATFORM is not supported" 1>&2 && \
           echo "Defaulting to linux/amd64" 1>&2 && \
           mamba_platform_arg="x86_64"; \
-        fi && \
+        fi; \
       wget --no-verbose --output-document mambaforge.sh \
         "https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-pypy${PYPY_VERSION}-${MAMBAFORGE_VERSION}-Linux-$mamba_platform_arg.sh" && \
       bash mambaforge.sh -b -p /miniforge && \
@@ -145,47 +193,61 @@ RUN echo "Download and Install conda" 1>&2 && \
     echo "Cleaning up conda" && \
       /miniforge/bin/conda clean --all --quiet --yes
 
-RUN echo "Add CRAN to sources list repository" 1>&2 && \
-        DEBIAN_FRONTEND=noninteractive apt-key adv \
-          --keyserver "${CRAN_KEY_SERVER}" \
-          --recv-keys "${CRAN_RECV_KEY}" && \
-        DEBIAN_FRONTEND=noninteractive add-apt-repository \
-          'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/' && \
-    echo "Install R" 1>&2 && \
-        DEBIAN_FRONTEND=noninteractive apt-get update -y -qq && \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-          r-base && \
-    echo "Clean up apt" 1>&2 && \
-      rm -rf "/var/lib/apt/lists"
 
-RUN echo "Install R packages though R" 1>&2 && \
+# Add in RMD files
+# Add in RMD files
+COPY rmd_files /rmd_files
+
+# Install BiocManager and renv
+RUN echo "Install Renv and BiocManager packages though R" 1>&2 && \
       Rscript -e 'options(Ncpus=2L, repos="https://cloud.r-project.org/"); \
-                  install.packages(c( "BiocManager", "tidyverse", "rapportools", "optparse", \
-                                      "openxlsx", "readr", "dplyr", "tidyr", \
-                                      "glue", "rlang", "DT", "matrixStats", "knitr", \
-                                      "plotly", "scales", "RCircos", \
-                                      "ggplot2", "ggforce", "pdftools", \
-                                      "png", "htmltools", "htmlwidgets", \
-                                      "devtools", "manhattanly", "lares" ), \
-                                   quiet=TRUE)' && \
-    echo "Clean up R downloaded packages" 1>&2 && \
-    rm -rf "/tmp/downloaded_packages/" "/tmp/*.rds"
+                  install.packages(c( "BiocManager", "renv", "yaml"), \
+                                   quiet=TRUE)'
 
+# Biocmanager pacakges that need to be installed prior to renv being activated
+# See https://github.com/rstudio/renv/issues/934 for more details
+# We've also added in rmd_files/renv_required_libraries.R
+# To make sure that libraries that aren't auto downloaded by renv are added to the list
 RUN echo "Install Bioconductor packages thorugh R" 1>&2 && \
-      Rscript -e 'options(Ncpus=2L, repos="https://cloud.r-project.org/"); \
-                  BiocManager::install(ask=FALSE, pkgs=c( "edgeR", "limma", "EDASeq", \
-                                                          "preprocessCore", "tximport", "rhdf5", \
-                                                          "EnsDb.Hsapiens.v75", \
-                                                          "EnsDb.Hsapiens.v86", \
-                                                          "BSgenome.Hsapiens.UCSC.hg19", \
-                                                          "BSgenome.Hsapiens.UCSC.hg38" ), \
+      Rscript -e 'options(repos=BiocManager::repositories()); \
+                  BiocManager::install(ask=FALSE, pkgs=c( \
+                                                         "EDASeq", \
+                                                         "limma", \
+                                                         "preprocessCore", \
+                                                         "edgeR", \
+                                                         "rhdf5", \
+                                                         "tximport", \
+                                                         "EnsDb.Hsapiens.v75", \
+                                                         "EnsDb.Hsapiens.v86", \
+                                                         "BSgenome.Hsapiens.UCSC.hg19", \
+                                                         "BSgenome.Hsapiens.UCSC.hg38" ), \
                                        quiet=TRUE)' && \
     echo "Clean up R downloaded packages" 1>&2 && \
     rm -rf "/tmp/downloaded_packages/" "/tmp/*.rds"
 
-# Add in RMD files
-COPY rmd_files /rmd_files
 
+# Set the RENV_PATHS_CACHE environment variable to a shared path
+# See for more info https://rstudio.github.io/renv/articles/renv.html#cache
+ENV RENV_PATHS_CACHE="${R_INSTALL_PATH}/renv/shared"
+RUN mkdir -p "${RENV_PATHS_CACHE}" && \
+    chmod -R 777 "${RENV_PATHS_CACHE}"
+
+# Install through renv
+# Trying restart
+RUN ( \
+      cd "/rmd_files" && \
+      if [ -f "renv.lock" ]; then \
+        echo "Restoring the environment from the lock file" 1>&2; \
+        Rscript -e "options(repos=BiocManager::repositories()); \
+                    renv::restore()"; \
+      else \
+        echo "No lock file exists, initialising the environment" 1>&2; \
+        Rscript -e 'options(repos=BiocManager::repositories()); \
+                    renv::init()'; \
+      fi; \
+    )  
+
+# Add non-root user
 RUN echo "Adding user $USER:$GROUP" 1>&2 && \
       addgroup \
         --system \
@@ -211,3 +273,12 @@ USER "$USER"
 ENV PATH="/miniforge/envs/rnasum/bin:/miniforge/bin:$PATH"
 ENV CONDA_PREFIX="/miniforge/envs/rnasum"
 ENV USER="$USER"
+
+# Solves https://community.rstudio.com/t/timedatectl-had-status-1/72060/4
+ENV TZ="UTC"
+
+# Set /rmd_files as a volume
+VOLUME /rmd_files
+
+# Set /rmd_files as the default working directory
+WORKDIR /rmd_files
