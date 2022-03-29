@@ -85,6 +85,7 @@ RUN echo "Install aws v2" 1>&2 && \
       rm -rf "aws/" "awscliv2.zip"
 
 # From https://community.rstudio.com/t/installing-r-4-0-3-on-raspberry-pi-4-with-ubuntu-20-10/89369
+# And from https://unix.stackexchange.com/questions/31283/error-in-r-unable-to-open-connection-to-x11
 RUN echo "Installing dependencies to build R from source" 1>&2 && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         openjdk-11-jdk \
@@ -110,6 +111,10 @@ RUN echo "Installing dependencies to build R from source" 1>&2 && \
         texlive-fonts-extra \
         screen \
         wget \
+        xvfb \
+        xvfb-run \
+        xauth \
+        xfonts-base \
         libpcre2-dev && \
     echo "Installing Rpdftools dependencies" 1>&2 && \
         DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
@@ -141,7 +146,6 @@ RUN echo "Installing R" 1>&2 && \
     echo "Clean up source" 1>&2 && \
       rm -rf "R-${R_PATCH_VERSION}" "R-${R_PATCH_VERSION}.tar.gz"
 
-# TODO - can probably remove from conda env if installed here
 RUN echo "Installing pandoc" 1>&2 && \
       echo "Got target platform value ${TARGETPLATFORM}" 1>&2 && \
       if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
@@ -259,9 +263,10 @@ RUN echo "Adding user $USER:$GROUP" 1>&2 && \
         --ingroup "${GROUP}" \
         --uid "${UID}" \
         "$USER" && \
-    echo "Changing ownership to user for /miniforge and /rmd_files" 1>&2 && \
+    echo "Changing ownership and permissions to user for /miniforge and /rmd_files and /rmd_files to 1777 permissions" 1>&2 && \
       chown -R "$USER:$GROUP" /miniforge/ && \
-      chown -R "$USER:$GROUP" /rmd_files/
+      chown -R "$USER:$GROUP" /rmd_files/ && \
+      chmod 1777 /rmd_files/
 
 RUN echo "Docker RUN time build complete!" 1>&2
 
@@ -282,3 +287,6 @@ VOLUME /rmd_files
 
 # Set /rmd_files as the default working directory
 WORKDIR /rmd_files
+
+# Set CMD
+CMD [ "Rscript", "./RNAseq_report.R", "--help" ]
