@@ -3,8 +3,10 @@ name: build-docker-container-and-push-to-ghcrio
 on:
   push:
     tags:
-    - 'v*' # Push events to matching v*, i.e v1.0, v20.15.10 etc
-    - 'pre-v*' # Push events to matching pre-v, i.ve pre-v1.0, pre-v20.15.10
+      # Tags with a pre-v prefix will have a '-dev' at the end of their suffix
+      - 'v*' # Push events to matching v*, i.e v1.0, v20.15.10 etc
+      - 'pre-v*' # Push events to matching pre-v, i.ve pre-v1.0, pre-v20.15.10
+
 
 jobs:
   get_parameters:
@@ -17,7 +19,23 @@ jobs:
       # Get tag name, from /ref/heads/<tag> to <tag>
       - name: Get Tag Name
         id: get_tag_name
-        run: echo "::set-output name=tag_name::$(basename ${{ github.ref }})"
+        shell: bash
+        run: |
+          # Get tag name but strip out 'v' or pre-v from start
+          tag_name="$(basename ${{ github.ref }})"
+          
+          if [[ "${tag_name}" =~ ^pre-v* ]]; then
+            # Strip pre-v from tag and add '-dev' to tag name
+            tag_name="${tag_name#pre-v}-dev"
+          elif [[ "${tag_name}" =~ ^v* ]]; then
+            tag_name="${tag_name#v}"
+          else
+            echo "Error: tag-name had neither 'pre-v' prefix nor 'v' prefix. Exiting"
+            exit 1
+          fi
+          
+          # Output the tag name
+          echo "::set-output name=tag_name::${tag_name}"
       # Get repository name in lower
       - name: get lowercase repo name
         id: get_lowercase_repo_name
