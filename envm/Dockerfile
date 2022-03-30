@@ -97,14 +97,15 @@ RUN echo "Installing dependencies to build R from source" 1>&2 && \
         gfortran \
         libreadline6-dev \
         libx11-dev \
+        libxext-dev \
         libxt-dev \
         libpng-dev \
         libjpeg-dev \
         libcairo2-dev \
-        xvfb \
         libbz2-dev \
         libzstd-dev \
         liblzma-dev \
+        libtiff-dev \
         libcurl4-openssl-dev \
         texinfo \
         texlive \
@@ -112,8 +113,12 @@ RUN echo "Installing dependencies to build R from source" 1>&2 && \
         screen \
         wget \
         xvfb \
-        xvfb-run \
+        xorg-dev \
         xauth \
+        libreadline-dev \
+        tcl \
+        tcl-dev \
+        tk-dev \
         xfonts-base \
         libpcre2-dev && \
     echo "Installing Rpdftools dependencies" 1>&2 && \
@@ -135,6 +140,11 @@ RUN echo "Installing R" 1>&2 && \
         --enable-memory-profiling \
         --enable-R-shlib \
         --with-blas \
+        --with-x \
+        --with-cairo \
+        --with-jpeg-lib \
+        --with-tcltk \
+        --with-readline \
         --with-lapack && \
       make && \
       make install ) && \
@@ -143,6 +153,8 @@ RUN echo "Installing R" 1>&2 && \
     echo "Link installation to /usr/local/bin" 1>&2 && \
     ln -s "${R_INSTALL_PATH}/bin/R" /usr/local/bin/R && \
     ln -s "${R_INSTALL_PATH}/bin/Rscript" /usr/local/bin/Rscript && \
+    echo "Capabilities of R are as follows" 1>&2 && \
+      Rscript -e "capabilities()" 1>&2 && \
     echo "Clean up source" 1>&2 && \
       rm -rf "R-${R_PATCH_VERSION}" "R-${R_PATCH_VERSION}.tar.gz"
 
@@ -197,10 +209,13 @@ RUN echo "Download and Install conda" 1>&2 && \
     echo "Cleaning up conda" && \
       /miniforge/bin/conda clean --all --quiet --yes
 
-
 # Add in RMD files
 # Add in RMD files
 COPY rmd_files /rmd_files
+
+# Add in the Rprofile.site file
+RUN mv "/rmd_files/Rprofile.site" \
+       "${R_INSTALL_PATH}/lib/R/etc/Rprofile.site"
 
 # Install BiocManager and renv
 RUN echo "Install Renv and BiocManager packages though R" 1>&2 && \
@@ -244,6 +259,9 @@ RUN ( \
         echo "Restoring the environment from the lock file" 1>&2; \
         Rscript -e "options(repos=BiocManager::repositories()); \
                     renv::restore()"; \
+        echo "After restoring we must activate the project" 1>&2; \
+        Rscript -e "options(repos=BiocManager::repositories()); \
+                    renv::activate()"; \
       else \
         echo "No lock file exists, initialising the environment" 1>&2; \
         Rscript -e 'options(repos=BiocManager::repositories()); \
@@ -263,9 +281,10 @@ RUN echo "Adding user $USER:$GROUP" 1>&2 && \
         --ingroup "${GROUP}" \
         --uid "${UID}" \
         "$USER" && \
-    echo "Changing ownership and permissions to user for /miniforge and /rmd_files and /rmd_files to 1777 permissions" 1>&2 && \
+    echo "Changing ownership and permissions to user for /miniforge and /rmd_files and renv cache" 1>&2 && \
       chown -R "$USER:$GROUP" /miniforge/ && \
       chown -R "$USER:$GROUP" /rmd_files/ && \
+      chown -R "$USER:$GROUP" "${RENV_PATHS_CACHE}" && \
       chmod 1777 /rmd_files/
 
 RUN echo "Docker RUN time build complete!" 1>&2
@@ -278,6 +297,14 @@ USER "$USER"
 ENV PATH="/miniforge/envs/rnasum/bin:/miniforge/bin:$PATH"
 ENV CONDA_PREFIX="/miniforge/envs/rnasum"
 ENV USER="$USER"
+
+# Set variables for USER cache
+ENV R_USER_CACHE_DIR="/home/$USER/.cache/renv/"
+
+# Create R USER CACHE directory
+# And allow other rootless user to add files
+RUN mkdir -p "${R_USER_CACHE_DIR}" && \
+    chmod 1777 "${R_USER_CACHE_DIR}"
 
 # Solves https://community.rstudio.com/t/timedatectl-had-status-1/72060/4
 ENV TZ="UTC"
