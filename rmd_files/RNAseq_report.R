@@ -19,6 +19,7 @@
 #   sample_name:  The name of the sample to be analysed and reported
 #   bcbio_rnaseq: Location of the results folder from bcbio RNA-seq pipeline
 #   dragen_rnaseq:Location of the results folder from dragen RNA-seq pipeline
+#   arriba_rnaseq:Location of the arriba folder from the dragen rnaseq pipeline
 #   dataset:      Dataset to be used as external reference cohort (default is "PANCAN")
 #   report_dir:   Desired location for the report
 #   ref_data_dir: Location of the reference and annotation files
@@ -80,6 +81,8 @@ option_list = list(
               help="Location of the results folder from bcbio RNA-seq pipeline"),
   make_option("--dragen_rnaseq", action="store", default=NULL, type='character',
               help="Location of the results folder from Dragen RNA-seq pipeline"),
+  make_option("--arriba_rnaseq", action="store", default=NULL, type='character',
+              help="Location of the results folder from Arriba RNA-seq pipeline"),
   make_option("--report_dir", action="store", default=NA, type='character',
               help="Desired location for the report"),
   make_option("--ref_data_dir", action="store", default="../data", type='character',
@@ -273,6 +276,7 @@ param_list <- list(sample_name = opt$sample_name,
                dataset = toupper(opt$dataset),
                bcbio_rnaseq = opt$bcbio_rnaseq,
                dragen_rnaseq = opt$dragen_rnaseq,
+               arriba_rnaseq = opt$arriba_rnaseq,
                report_dir = opt$report_dir,
                ref_data_dir = opt$ref_data_dir,
                transform = opt$transform,

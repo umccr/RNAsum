@@ -18,6 +18,7 @@ params:
   dataset: 'TEST'
   bcbio_rnaseq: '../data/test_data/final/test_sample_WTS'
   dragen_rnaseq: NULL
+  arriba_rnaseq: NULL
   report_dir: '../data/test_data/final/test_sample_WTS/RNAsum'
   ref_data_dir: '../data'
   transform: 'CPM'
@@ -1899,10 +1900,10 @@ if ( !is.null(params$bcbio_rnaseq) ) {
 } else if ( !is.null(params$dragen_rnaseq) ) {
   
   ##### Get patient data dir and sample file name
-  dataDir <- paste(params$dragen_rnaseq, "dragen", sep = "/")
+  dataDir <- params$dragen_rnaseq
   
   ##### Look at countsFromAbundance parameter to change the method to generate the counts
-  txi.salmon <- tximport(paste0(dataDir, "/", list.files(dataDir, pattern="\\.sf$")), type = "salmon", tx2gene = tx2ensembl)
+  txi.salmon <- tximport(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.sf$")), type = "salmon", tx2gene = tx2ensembl)
   
   ##### Extract salmon counts to prepare dataframe
   counts <- as.data.frame(txi.salmon$counts) %>%
@@ -1939,8 +1940,13 @@ if ( params$immunogram ) {
 ##### Read in gene fusion data for investigate sample
 ##### Read in arriba and pizzly fusion calls
 ##### Check if arriba output file exists
-arriba_file <- paste(dataDir, "arriba", "fusions.tsv", sep = "/")
-arriba_pdf <- paste(dataDir, "arriba", "fusions.pdf", sep = "/")
+if ( !is.null(params$arriba_rnaseq) ) {
+    arribaDir <- params$arriba_rnaseq
+} else {
+    arribaDir <- paste(dataDir, "arriba", sep="/")
+}
+arriba_file <- paste(arribaDir, "fusions.tsv", sep = "/")
+arriba_pdf <- paste(arribaDir, "fusions.pdf", sep = "/")
 runArribaChunk <- FALSE
 runFusionChunk <- FALSE
 
