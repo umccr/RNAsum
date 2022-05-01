@@ -5,3 +5,4 @@
 suppressMessages(library(MASS))
 suppressMessages(library(mgcv))
 suppressMessages(library(rpart))
+suppressMessages(library(manhattanly))
