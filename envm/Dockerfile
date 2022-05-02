@@ -267,6 +267,12 @@ RUN ( \
         Rscript -e 'options(repos=BiocManager::repositories()); \
                     renv::init()'; \
       fi; \
+      echo "Hydrating the environment - incase new packages are needed" 1>&2; \
+      Rscript -e "options(repos=BiocManager::repositories()); \
+                  renv::hydrate(update=FALSE)"; \
+      echo "Creating lock file with renv::snapshot()" 1>&2; \
+      Rscript -e "options(repos=BiocManager::repositories()); \
+                  renv::snapshot()"; \
     )  
 
 # Add non-root user
