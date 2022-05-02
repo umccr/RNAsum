@@ -158,7 +158,12 @@ jobs:
         id: checkout_tag
         shell: bash
         run: |
-          git checkout "tags/$(basename ${{ github.ref }})"
+          # Get tag
+          tag_name="$(basename ${{ github.ref }})"
+          # Get branch linked to tag
+          branch_name="$(basename "$(git branch --contains "tags/${tag_name}" --format "%(refname)")")"
+          # Checkout branch
+          git checkout "${branch_name}"
       # Update renv.lock with that generated inside the docker image created
       - name: Update renv lock file
         id: update_renv_lock_file
