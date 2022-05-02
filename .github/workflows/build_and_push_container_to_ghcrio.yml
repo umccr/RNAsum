@@ -143,14 +143,22 @@ jobs:
     needs: [ get_parameters, tag_manifest ]
     runs-on: ubuntu-latest
     steps:
-      # Standard checkout step
+      # Not so standard checkout step
       # But according to https://github.com/EndBug/add-and-commit#faqs
-      # Need to checkout
+      # Need to checkout PR
       - name: Checkout code
         id: git_checkout
         uses: actions/checkout@v3
         with:
+            # Otherwise just in a detached head state
+            fetch-depth: 2
             ref: ${{ github.ref }}
+      # Checkout tag
+      - name: Checkout tag
+        id: checkout_tag
+        shell: bash
+        run: |
+          git checkout "tags/$(basename ${{ github.ref }})"
       # Update renv.lock with that generated inside the docker image created
       - name: Update renv lock file
         id: update_renv_lock_file
