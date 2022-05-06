@@ -84,14 +84,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       # Build and push docker images
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: envm/Dockerfile
-          platforms: ${{ matrix.platform }}
-          push: true
-          tags: ghcr.io/${{ needs.get_parameters.outputs.repo_name }}:${{ needs.get_parameters.outputs.tag_name }}-${{ steps.platform_to_tag_suffix.outputs.platform_tag }}
+      # - name: Build and Push Docker Image
+      #   uses: docker/build-push-action@v2
+      #   with:
+      #     context: .
+      #     file: envm/Dockerfile
+      #     platforms: ${{ matrix.platform }}
+      #     push: true
+      #     tags: ghcr.io/${{ needs.get_parameters.outputs.repo_name }}:${{ needs.get_parameters.outputs.tag_name }}-${{ steps.platform_to_tag_suffix.outputs.platform_tag }}
 
   tag_manifest:
     needs: [ get_parameters, docker_scatter_build ]
@@ -132,13 +132,13 @@ jobs:
           
           # Create the manifest file
           echo "Creating the manifest file" 1>&2
-          docker manifest create \
+          echo docker manifest create \
              "${manifest_name}" \
              ${TAGS_ARRAY[@]/#/${manifest_name}-}
           
           # Push the manifest file
           echo "Pushing the multi-platform manifest file" 1>&2
-          docker manifest push "${manifest_name}"
+          echo docker manifest push "${manifest_name}"
   update_renv_lock:
     needs: [ get_parameters, tag_manifest ]
     runs-on: ubuntu-latest
@@ -151,17 +151,29 @@ jobs:
         uses: actions/checkout@v3
         with:
             # Otherwise just in a detached head state
-            fetch-depth: 2
-            ref: ${{ github.ref }}
+            fetch-depth: 0
       # Checkout tag
       - name: Checkout tag
         id: checkout_tag
         shell: bash
         run: |
           # Get tag
-          tag_name="$(basename ${{ github.ref }})"
-          # Get branch linked to tag
-          branch_name="$(basename "$(git branch --contains "tags/${tag_name}" --format "%(refname)")")"
+          tag_name="${{ github.ref_name }}"
+
+          # Show branches
+          echo "$(git branch --contains "tags/${tag_name}")"
+          
+          # Show rev-parse
+          echo "Commit id is: $(git rev-parse "${tag_name}")"
+          commit_id="$(git rev-parse "${tag_name}")"
+          
+          echo "branch name is: $(git branch --contains "${commit_id}" --format "%(refname:lstrip=2)")"
+          
+          echo "Formerly, branch name was: $(git branch --contains "tags/${tag_name}" --format "%(refname)")"
+          
+          # Can we checkout the branch
+          branch_name="$(git branch --contains "${commit_id}" --format "%(refname:lstrip=2)")"
+          
           # Checkout branch
           git checkout "${branch_name}"
       # Update renv.lock with that generated inside the docker image created
@@ -169,7 +181,7 @@ jobs:
         id: update_renv_lock_file
         shell: bash
         run: |
-          docker run --rm \
+          echo docker run --rm \
             "ghcr.io/${{ needs.get_parameters.outputs.repo_name }}:${{ needs.get_parameters.outputs.tag_name }}" \
               cat /rmd_files/renv.lock > rmd_files/renv.lock
       # Commit and push configuration files
