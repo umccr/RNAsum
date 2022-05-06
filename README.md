@@ -1,32 +1,40 @@
-# RNAsum
+# RNAsum <!-- omit in toc -->
 
 RNA-seq reporting workflow designed to post-process, summarise and visualise an output from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipelines. Its main application is to complement genome-based findings from [umccrise](https://github.com/umccr/umccrise) pipeline and to provide additional evidence for detected alterations.
 
 
-## Table of contents
+## Table of contents <!-- omit in toc -->
 
 <!-- vim-markdown-toc GFM -->
-* [Installation](#installation)
-* [Workflow](#workflow)
-* [Reference data](#reference-data)
-    * [External reference cohorts](#external-reference-cohorts)
-    * [Internal reference cohort](#internal-reference-cohort)
-* [Input data](#input-data)
-  * [WTS](#wts)
-     * [bcbio-nextgen](#bcbio-nextgen)
-     * [Dragen RNA](#dragen-rna)
-  * [WGS](#wgs)
-* [Usage](#usage)
-  * [Arguments](#arguments)
-  * [Examples](#examples)
-  	 * [WTS data only](#1-wts-data-only)
-  	 * [WTS and WGS data](#2-wts-and-wgs-data)
-  	 * [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
-  * [Output](#output)
-* [Docker](#docker)
+- [Installation](#installation)
+- [Docker](#docker)
+- [Workflow](#workflow)
+- [Reference data](#reference-data)
+  - [External reference cohorts](#external-reference-cohorts)
+  - [Internal reference cohort](#internal-reference-cohort)
+- [Input data](#input-data)
+  - [WTS](#wts)
+    - [bcbio-nextgen](#bcbio-nextgen)
+    - [Dragen RNA](#dragen-rna)
+  - [WGS](#wgs)
+- [Usage](#usage)
+  - [Arguments](#arguments)
+  - [Run via AWS-Batch](#run-via-aws-batch)
+  - [Examples](#examples)
+    - [1. WTS data only](#1-wts-data-only)
+      - [bcbio-nextgen](#bcbio-nextgen-1)
+      - [Dragen RNA](#dragen-rna-1)
+    - [2. WTS and WGS data](#2-wts-and-wgs-data)
+      - [bcbio-nextgen](#bcbio-nextgen-2)
+      - [Dragen RNA](#dragen-rna-2)
+    - [3. WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
+      - [bcbio-nextgen](#bcbio-nextgen-3)
+      - [Dragen RNA](#dragen-rna-3)
+  - [Output](#output)
+    - [Report](#report)
+    - [Results](#results)
 
 <!-- vim-markdown-toc -->
-
 
 ## Installation
 
@@ -35,7 +43,7 @@ Run the following to create a directory "rnasum" and install into it
 ```
 mkdir rnasum
 cd rnasum
-source <(curl -s https://raw.githubusercontent.com/umccr/RNAseq-Analysis-Report/master/install.sh)
+source <(curl -s https://raw.githubusercontent.com/umccr/RNAsum/master/install.sh)
 ```
 
 It will generate `load_rnasum.sh` script that can be sourced to load the `rnasum` environment:
@@ -43,6 +51,22 @@ It will generate `load_rnasum.sh` script that can be sourced to load the `rnasum
 ```
 source load_rnasum.sh
 ```
+
+## Docker
+
+ - Pull ready to run docker image from DockerHub
+
+ `docker pull umccr/rnasum:0.3.2`
+ 
+ - An example command to use this pulled docker container is:
+
+ ```
+ docker run --rm -v /path/to/RNAseq-report/RNAseq-Analysis-Report/envm/wts-report-wrapper.sh:/work/test.sh -v /path/to/RNAseq-report/RNAseq-Analysis-Report/data:/work c18db89d3093 /work/test.sh
+ ```
+ 
+ - Assumptions
+
+ 	- You are running the RNAsum container against the [RNAsum code](https://github.com/umccr/RNAsum/) and  [test/reference data](https://github.com/umccr/RNAsum/tree/master/data/)
 
 
 ## Workflow
@@ -76,7 +100,7 @@ In order to explore expression changes in queried sample we have built a high-qu
 
 Depending on the tissue from which the patient's sample was taken, one of **33 cancer datasets** from [TCGA](https://tcga-data.nci.nih.gov/) can be used as a reference cohort for comparing expression changes in genes of interest in investigated sample. Additionally, 10 samples from each of the 33 datasets were combined to create **[Pan-Cancer dataset](./TCGA_projects_summary.md#pan-cancer-dataset)**, and for some cohorts **[extended sets](./TCGA_projects_summary.md#extended-datasets)** are also available. All available datasets are listed in **[TCGA projects summary table](./TCGA_projects_summary.md)**. These datasets have been processed using methods described in [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data) repository. The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section). 
 
-###### Note
+**Note**
 
 Each dataset was **cleaned** based on the quality metrics provided in the *Merged Sample Quality Annotations* file **[merged_sample_quality_annotations.tsv](http://api.gdc.cancer.gov/data/1a7d7be8-675d-4e60-a105-19d4121bdebf)** from [TCGA PanCanAtlas initiative webpage](https://gdc.cancer.gov/about-data/publications/pancanatlas) (see [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/tree/master/expression/README.md#data-clean-up) repository for more details, including sample inclusion criteria).
 
@@ -87,7 +111,7 @@ The publically available TCGA datasets are expected to demonstrate prominent [ba
 
 This internal reference set of **40 pancreatic cancer samples** is based on WTS data generated at **[UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)** and processed with **[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)** pipeline to minimise potential batch effects between investigated samples and the reference cohort and to make sure the data are comparable. The internal reference cohort assembly is summarised in [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house) repository.
 
-###### Note
+**Note**
 
 The are two rationales for using the internal reference cohort:
 
@@ -132,21 +156,21 @@ These files are expected to be organised following the folder structure below
     |____fusions.tsv
 ```
 
-###### Note
+**Note**
 
 [Fusion genes](./fusions) detected by [pizzly](https://github.com/pmelsted/pizzly) are expected to be listed in the [flat table](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
 
 
 #### Dragen RNA
 
-The **read counts** are provided within quantification file from [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) (see example *[TEST.quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* file and its [description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)). The per-transcript abundances are reported in *estimated counts* (`NumReads `) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`TPM `), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** can be provided (see example *[TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final)*). 
+The **read counts** are provided within quantification file from [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) (see example *[TEST.quant.sf](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.quant.sf)* file and its [description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)). The per-transcript abundances are reported in *estimated counts* (`NumReads `) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`TPM `), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** can be provided (see example *[TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.fusion_candidates.final)*). 
 
 Table below lists all input data accepted in the pipeline:
 
 Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
-Quantified **abundances** of transcripts | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) | [TEST.quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf) | **Yes**
-List of detected **fusion genes** | [Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS/TEST.fusion_candidates.final) | No
+Quantified **abundances** of transcripts | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) | [TEST.quant.sf](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.quant.sf) | **Yes**
+List of detected **fusion genes** | [Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.fusion_candidates.final) | No
 
 <br />
 
@@ -234,10 +258,29 @@ Argument | Description | Required
 
 **Packages**: required packages are listed in [environment.yaml](envm/environment.yaml) file.
 
-###### Note
+**Note**
 
 Human reference genome ***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)*** (*Ensembl* based annotation version ***86***) is used for genes annotation as default. Alternatively, human reference genome [GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/) (*Ensembl* based annotation version *75*) is used when argument `grch_version` is set to `37`.
 
+### Run via AWS-Batch
+
+We run RNAsum on patients data in production via [AWS-batch](https://aws.amazon.com/batch/). Before running, collate the following information:
+
+- S3 path to samples' umccrise results.
+- S3 path to samples' WTS data results (bcbio).
+- [Reference dataset](https://github.com/umccr/RNAsum/blob/master/TCGA_projects_summary.md) to use for the sample. This info is mentioned on Trello card.
+
+Now, follow the following steps.
+
+1. Configure [AWS-SSO](https://github.com/umccr/wiki/blob/master/computing/cloud/amazon/aws_cli.md#configuration) locally to access data on S3.
+2. Run AWS lambda invoke command. An example looks like:
+
+```
+aws lambda invoke --region ap-southeast-2 --function-name wts_report_trigger_lambda_prod --cli-binary-format raw-in-base64-out --payload '{"dataDirWGS":"Scott-SFRC/SBJ0000/WGS/2021-11-24/umccrised/SBJ0000__SB0000_something", "dataDirWTS":"Scott-SFRC/SBJ0000/WTS/2021-11-07/final/SBJ0000_something","refDataset":"UCEC"}' /tmp/lambda.output
+```
+
+RNAsum for this sample will be created in `umccr-primary-data-prod` bucket, under `Scott-SFRC/SBJ0000/WTS/2021-11-07/RNAsum`.
+To use primary data from a different S3 bucket, use `"dataBucket":"a-different-bucket"` in lambda invoke command. Also set `resultBucket` accordingly.
 
 ### Examples
 
@@ -247,18 +290,18 @@ Below are command line use examples for generating *Patient Transcriptome Summar
 2. **[WTS and WGS data](#2-wts-and-wgs-data)**
 3. [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
 
-###### Note
+**Note**
 
 * make sure that the created *conda* environment (see [Installation](#installation) section) is  activated
 
 ```
-conda activate rnasum
+conda activate ./miniconda/envs/rnasum
 ```
 
 * *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see the beginning of [Usage](#usage) section) should be executed from [rmd_files](./rmd_files) folder
 
 ```
-cd rmd_files
+cd RNAsum/rmd_files
 ```
 
 * example data is provided in [data/test_data](./data/test_data) folder
@@ -283,10 +326,14 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
+
+Note:
+
+Test data for Dragen versions older than 3.9.3 is provided under `$(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.7.5`
 
 
 #### 2. WTS and WGS data
@@ -306,10 +353,10 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
 
 
 #### 3. WTS WGS and clinical data
@@ -327,10 +374,10 @@ Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
 
 ### Output
 
@@ -372,18 +419,3 @@ Detailed description of the **[report structure](report_structure.md)**, includi
 
 The `results` folder contains intermediate files, including plots and tables that are presented in the [report](#report).
 
-## Docker
-
- - Pull ready to run docker image from DockerHub
-
- `docker pull umccr/rnasum:0.3.2`
- 
- - An example command to use this pulled docker container is:
-
- ```
- docker run --rm -v /path/to/RNAseq-report/RNAseq-Analysis-Report/envm/wts-report-wrapper.sh:/work/test.sh -v /path/to/RNAseq-report/RNAseq-Analysis-Report/data:/work c18db89d3093 /work/test.sh
- ```
- 
- - Assumptions
-
- 	- You are running the RNAsum container against the [RNAsum code](https://github.com/umccr/RNAsum/) and  [test/reference data](https://github.com/umccr/RNAsum/tree/master/data/)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ### Clone the repo
-git clone https://github.com/umccr/RNAseq-Analysis-Report
+git clone https://github.com/umccr/RNAsum
 
 ### Install conda
 unset PYTHONPATH
@@ -12,13 +12,13 @@ export PATH=$(pwd)/miniconda/bin:$PATH
 conda update conda
 
 ### Install environments
-ENV_NAME=rnaseq-report
-conda env create -p $(pwd)/miniconda/envs/${ENV_NAME} --file envm/environment.yaml
+ENV_NAME=rnasum
+conda env create -p $(pwd)/miniconda/envs/${ENV_NAME} --file RNAsum/envm/environment.yaml
 export PATH=$(pwd)/miniconda/envs/${ENV_NAME}/bin:$PATH
 
 ### Create the loader script
-ENV_NAME=rnaseq-report
-cat <<EOT > load_rnaseq-report.sh
+ENV_NAME=rnasum
+cat <<EOT > load_rnasum.sh
 unset PYTHONPATH
 unset PERL5LIB
 export PATH=$(pwd)/miniconda/envs/${ENV_NAME}/bin:$(pwd)/miniconda/bin:\$PATH
