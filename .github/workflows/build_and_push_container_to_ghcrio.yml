@@ -143,27 +143,37 @@ jobs:
     needs: [ get_parameters, tag_manifest ]
     runs-on: ubuntu-latest
     steps:
+      # Install jq (for querying branch name)
+      - name: install jq
+        id: install_jq
+        shell: bash
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install jq -y
+      # Get branch name from event path
+      - name: get branch name
+        id: get_branch_name
+        shell: bash
+        run: |
+          # Get reference
+          ref="$( \
+                 jq --raw-output \
+                   'if .head_ref != null then 
+                      .head_ref 
+                    else .base_ref 
+                    end' \
+                   < "${GITHUB_EVENT_PATH}" \
+               )"
+          # Set output
+          echo "::set-output name=branch_name::${ref%refs/heads/}"
       # Not so standard checkout step
-      # But according to https://github.com/EndBug/add-and-commit#faqs
       # Need to checkout PR
       - name: Checkout code
         id: git_checkout
         uses: actions/checkout@v3
         with:
-            # Otherwise just in a detached head state
-            fetch-depth: 0
-            ref: ${{ github.ref }}
-      # Checkout tag
-      - name: Checkout tag
-        id: checkout_tag
-        shell: bash
-        run: |
-          # Get tag
-          tag_name="$(basename ${{ github.ref }})"
-          # Get branch linked to tag
-          branch_name="$(basename "$(git branch --contains "tags/${tag_name}" --format "%(refname)")")"
-          # Checkout branch
-          git checkout "${branch_name}"
+          # Otherwise just in a detached head state
+          ref: ${{ steps.get_branch_name.outputs.branch_name }}
       # Update renv.lock with that generated inside the docker image created
       - name: Update renv lock file
         id: update_renv_lock_file
@@ -173,8 +183,8 @@ jobs:
             "ghcr.io/${{ needs.get_parameters.outputs.repo_name }}:${{ needs.get_parameters.outputs.tag_name }}" \
               cat /rmd_files/renv.lock > rmd_files/renv.lock
       # Commit and push configuration files
-      - name: Commit catalogue files
-        id: commit_catalogue_files
+      - name: Commit renv file
+        id: commit_renv_file
         uses: EndBug/add-and-commit@v9
         with:
           # Add just the renv lock file
@@ -187,3 +197,11 @@ jobs:
           push: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Fast forward tag
+      - name: Fast Forward tag
+        id: fast_forward_tag
+        shell: bash
+        run: |
+          # Fast forwarding tag
+          git tag --force "${{ github.ref_name }}"
+          git push --tags --force
