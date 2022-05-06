@@ -146,25 +146,41 @@ jobs:
       # DEBUG
       - uses: hmarr/debug-action@v2
       # END DEBUG
+      # Install jq
+      - name: install jq
+        id: install_jq
+        shell: bash
+        run: |
+          apt-get update -y
+          apt-get install jq -y
+      # Get branch name
+      - name: get branch name
+        id: get_branch_name
+        shell: bash
+        run: |
+          # Get reference
+          ref="$( \
+                 jq --raw-output \
+                   'if .head_ref != null then 
+                      .head_ref 
+                    else .base_ref 
+                    end' \
+                   < "${{ github.env['GITHUB_EVENT_PATH'} }}" \
+               )"
+          # Set output
+          echo "::set-output name=branch_name::${ref%refs/heads/}"
       # Not so standard checkout step
       # But according to https://github.com/EndBug/add-and-commit#faqs
       # Need to checkout PR
-      - name: Checkout code 1
-        id: git_checkout_1
+      - name: Checkout code
+        id: git_checkout
         uses: actions/checkout@v3
-        if: ${{ github.env.base_ref != null }}
         with:
             # Otherwise just in a detached head state
             fetch-depth: 0
-            ref: ${{ github.env.base_ref }}
-      # Need to checkout if not PR?
-      - name: Checkout code 2
-        id: git_checkout_2
-        uses: actions/checkout@v3
-        if: ${{ github.env.base_ref == null }}
-        with:
-          # Otherwise just in a detached head state
-          fetch-depth: 0
+            ref: ${{ steps.get_branch_name.outputs.branch_name }}
+      # DEBUG
+      - uses: hmarr/debug-action@v2
       # Checkout tag
       - name: Checkout tag
         id: checkout_tag
