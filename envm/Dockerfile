@@ -277,6 +277,15 @@ RUN ( \
                   renv::snapshot()"; \
     )  
 
+# Update r installation with snapshot of tools needing version controlling
+# rapportools due to bug at https://github.com/Rapporter/rapportools/issues/4
+RUN ( \
+      cd "/rmd_files" && \
+      Rscript -e "options(repos=BiocManager::repositories()); \
+                  renv::install(c(\"rapportools@1.0\")); \
+                  renv::snapshot()"; \
+    )
+
 # Add non-root user
 RUN echo "Adding user $USER:$GROUP" 1>&2 && \
       addgroup \
