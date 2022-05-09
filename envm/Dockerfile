@@ -223,11 +223,13 @@ RUN echo "Install Renv and BiocManager packages though R" 1>&2 && \
                   install.packages(c( "BiocManager", "renv", "yaml"), \
                                    quiet=TRUE)'
 
-# Biocmanager pacakges that need to be installed prior to renv being activated
+# Biocmanager packages that need to be installed prior to renv being activated
+# renv appears to have trouble installing them
 # See https://github.com/rstudio/renv/issues/934 for more details
-# We've also added in rmd_files/renv_required_libraries.R
-# To make sure that libraries that aren't auto downloaded by renv are added to the list
-RUN echo "Install Bioconductor packages thorugh R" 1>&2 && \
+# We've also added files in rmd_files/renv_required_libraries.R
+# To make sure that libraries that aren't auto downloaded as project
+# dependencies by renv are added to the list
+RUN echo "Install Bioconductor packages through R" 1>&2 && \
       Rscript -e 'options(repos=BiocManager::repositories()); \
                   BiocManager::install(ask=FALSE, pkgs=c( \
                                                          "EDASeq", \
