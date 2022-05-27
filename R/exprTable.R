@@ -1,4 +1,32 @@
 ##### Generate table with coloured cells indicating expression values for selected genes
+#' Generates table with coloured cells indicating expression values for selected genes
+#'
+#' @param genes Selected genes.
+#' @param keep_all keep all rows
+#' @param data Input data.
+#' @param cn_data Copy number data.
+#' @param sv_data SV data.
+#' @param cn_decrease Order of the CN data.
+#' @param targets Target groups.
+#' @param sampleName Sample name.
+#' @param int_cancer Internal cancer group.
+#' @param ext_cancer External cancer group.
+#' @param comp_cancer Complete cancer group.
+#' @param add_cancer Additonal cancer type.
+#' @param genes_annot Geners annotation.
+#' @param oncokb_annot OncoKb annotation.
+#' @param cancer_genes Cancer genes.
+#' @param mut_annot Mutation annotation.
+#' @param fusion_genes Fusion genes.
+#' @param ext_links External links.
+#' @param type Type.
+#' @param scaling Scaling
+#'
+#' @importFrom magrittr %>%
+#' @return Table with coloured cells indicating expression values for selected genes
+#' @export
+#'
+
 exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, genes_annot = NULL, oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
 
   ##### Check which of the selected genes are not present in the expression data
@@ -52,7 +80,7 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
   }
 
   ##### Compute Z-scores sd for each gene across groups
-  group.z <- cbind(group.z, round(rowSds(as.matrix(group.z)), digits = 2))
+  group.z <- cbind(group.z, round(matrixStats::rowSds(as.matrix(group.z)), digits = 2))
   names(group.z)[ncol(group.z)] <- "SD"
 
   ##### Calculate Z-score differneces between investigated sample and median values in the cancer group of interest
@@ -99,7 +127,7 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
   colnames(clrs.q) <- targets.list
 
   for ( group in c(targets.list, "Diff") ) {
-    brks.q[[group]] <- quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
+    brks.q[[group]] <- stats::quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
 
     clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]])/2 + 1.5), 0) %>%
       {paste0("rgb(255,", ., ",", ., ")")}
@@ -118,7 +146,7 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
     #### keep only varaints that has the lowest tier value. Multiple varaints detected in same gene but with higher tier will be added to additional column "CONSEQUENCE_OTHER". Applies to the ones that may have multiple mutations and hence tiers
     ##### First, create a list of genes to store multiple variants
     mut_consequence <- vector("list", length(unique(mut_annot$SYMBOL)))
-    mut_consequence  <- setNames(mut_consequence,  unique(mut_annot$SYMBOL) )
+    mut_consequence  <- stats::setNames(mut_consequence,  unique(mut_annot$SYMBOL) )
 
     ##### Record all varaints detected in individual genes
     if ( nrow(mut_annot) > 0 ) {
@@ -157,12 +185,12 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
 
     ##### Now place the CN data after the "Diff" column
     if ( length(genes) > 0 ) {
-      group.z <- add_column(group.z, round(cn_data[ group.z$Gene, "CN"], digits=2), .after = col_idx)
+      group.z <- tibble::add_column(group.z, round(cn_data[ group.z$Gene, "CN"], digits=2), .after = col_idx)
       colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
       cn_range <- base::range(group.z[ ,"Patient (CN)" ], na.rm = TRUE)
 
     } else {
-      group.z <- add_column(group.z, "", .after = col_idx)
+      group.z <- tibble::add_column(group.z, "", .after = col_idx)
       colnames(group.z)[ col_idx+1 ] <- "Patient (CN)"
       cn_range <- 0
     }
@@ -196,7 +224,7 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
     ##### Place the external links after the "Diff" column
     ##### Get the position of "Diff" column
     col_idx <- grep("Diff", names(group.z), fixed = TRUE)
-    group.z <- add_column(group.z, NA, .after = col_idx)
+    group.z <- tibble::add_column(group.z, NA, .after = col_idx)
     names(group.z)[ col_idx+1 ] <- "ext_links"
 
     for ( gene in genes ) {

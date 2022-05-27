@@ -1,8 +1,19 @@
 ##### Combine sample expression profile with reference datasets. This function outputs a vector with first element containing the merged data and second element containing merged targets info
+#' Combine sample expression profile with reference datasets.
+#'
+#' @param sample_name Sample name.
+#' @param sample_counts Sample counts.
+#' @param ref_data Reference data.
+#' @param report_dir Report directory.
+#' @param dataset Sample expression profile.
+#'
+#' @return Combined sample expression profile with reference datasets.
+#' @export
+#'
 combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, dataset) {
 
   ##### Extract info about target file for the external reference dataset
-  target.ext <- read.table(ref_data[["ext_ref"]][2], sep="\t", as.is=TRUE, header=TRUE)
+  target.ext <- utils::read.table(ref_data[["ext_ref"]][2], sep="\t", as.is=TRUE, header=TRUE)
   target.ext <- cbind(target.ext, rep(ref_data[["ext_ref"]][3], nrow(target.ext)))
   colnames(target.ext)[ncol(target.ext)] <- "Dataset"
 
@@ -11,7 +22,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, da
   target.ext <- target.ext[, -1]
 
   ##### Extract info about target file for the internal reference dataset
-  target.int <- read.table(ref_data[["int_ref"]][2], sep="\t", as.is=TRUE, header=TRUE)
+  target.int <- utils::read.table(ref_data[["int_ref"]][2], sep="\t", as.is=TRUE, header=TRUE)
   target.int <- cbind(target.int, rep(ref_data[["int_ref"]][3], nrow(target.int)))
   colnames(target.int)[ncol(target.int)] <- "Dataset"
 
@@ -40,7 +51,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, da
   ##### Loop through the expression data from different datasets and merge them into one matrix
   for ( i in 1:length(ref_data) ) {
 
-    dataset.counts <- as.data.frame( read.table(gzfile(ref_data[[i]][1]), header=TRUE, sep="\t", row.names=NULL) )
+    dataset.counts <- as.data.frame( utils::read.table(gzfile(ref_data[[i]][1]), header=TRUE, sep="\t", row.names=NULL) )
 
     ##### Add prexit to sample names
     colnames(dataset.counts) <- paste(unique(target.comb[,"Dataset"])[i], colnames(dataset.counts), sep = ".")
@@ -71,7 +82,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, da
 
   ##### Write list of missing genes into a file
   if ( length(gene_list.missing) > 0 ) {
-    write.table(prepare2write(gene_list.missing), file = paste0(report_dir, "/", sample_name, ".RNAseq_report.missing_genes.txt"), sep="\t", quote=FALSE, row.names=TRUE, append = FALSE )
+    utils::write.table(prepare2write(gene_list.missing), file = paste0(report_dir, "/", sample_name, ".RNAseq_report.missing_genes.txt"), sep="\t", quote=FALSE, row.names=TRUE, append = FALSE )
   }
 
   ##### Clean the space and return output

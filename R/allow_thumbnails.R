@@ -1,10 +1,10 @@
 ##### Function to generate a full-resolution pdf image before generating a small image in the chunk (from https://stackoverflow.com/questions/37834053/what-is-a-simple-way-to-thumbnail-some-plots-in-r-markdown-knitr )
 #' Generate a full-resolution pdf image before generating a smaller image
 #'
-#' @param x A pdf image
-#' @param options
+#' @param x A pdf image.
+#' @param options Additional settings.
 #'
-#' @return A full resolution pdf image
+#' @return A full resolution pdf image.
 #' @export
 #'
 

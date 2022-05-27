@@ -1,11 +1,18 @@
 ##### Define function for generating spider web plots to present immunogram genes (code from http://www.statisticstoproveanything.com/2013/11/spider-web-plots-in-r.html)
-# data - data.frame or matrix
-# data.row - row of data to plot (if NULL uses row 1)
-# y.cols - columns of interest (if NULL it selects all numeric columns)
-# main - title of plot (if NULL then rowname of data)
-# add - whether the plot should be added to an existing plot
-# col - color of the data line
-# lty - lty of the data line
+#' Generate spider web plots to present immunogram genes
+#'
+#' @param data Dataframe or matrix.
+#' @param data.row Row of data to plot (if NULL uses row 1).
+#' @param y.cols Columns of interest (if NULL it selects all numeric columns).
+#' @param main Title of plot (if NULL then rowname of data).
+#' @param add Whether the plot should be added to an existing plot.
+#' @param col Color of the data line
+#' @param lty Lty of the data line
+#' @param scale Scale.
+#'
+#' @return Spider web plots to present immunogram genes
+#' @export
+#'
 
 webplot = function(data, data.row = NULL, y.cols = NULL, main = NULL, add = F,
                    col = "red", lty = 1, scale = T) {
@@ -38,16 +45,16 @@ webplot = function(data, data.row = NULL, y.cols = NULL, main = NULL, add = F,
   polar.vals = (90 + seq(0, 360, length.out = n.y + 1)) * pi/180
 
   if (add == F) {
-    plot(0, xlim = c(-2.2, 2.2), ylim = c(-2.2, 2.2), type = "n", axes = F,
+    graphics::plot(0, xlim = c(-2.2, 2.2), ylim = c(-2.2, 2.2), type = "n", axes = F,
          xlab = "", ylab = "")
-    title(main)
-    lapply(polar.vals, function(x) lines(c(0, 2 * cos(x)), c(0, 2 * sin(x))))
+    graphics::title(main)
+    lapply(polar.vals, function(x) graphics::lines(c(0, 2 * cos(x)), c(0, 2 * sin(x))))
     lapply(1:n.y, function(x) text(2.15 * cos(polar.vals[x]), 2.15 * sin(polar.vals[x]),
                                    y.cols[x], cex = 0.8))
 
-    lapply(seq(0.5, 2, 0.5), function(x) lines(x * cos(seq(0, 2 * pi, length.out = 100)),
+    lapply(seq(0.5, 2, 0.5), function(x) graphics::lines(x * cos(seq(0, 2 * pi, length.out = 100)),
                                                x * sin(seq(0, 2 * pi, length.out = 100)), lwd = 0.5, lty = 2, col = "gray60"))
-    lines(cos(seq(0, 2 * pi, length.out = 100)), sin(seq(0, 2 * pi, length.out = 100)),
+    graphics::lines(cos(seq(0, 2 * pi, length.out = 100)), sin(seq(0, 2 * pi, length.out = 100)),
           lwd = 1.2, col = "gray50")
   }
 
@@ -56,8 +63,8 @@ webplot = function(data, data.row = NULL, y.cols = NULL, main = NULL, add = F,
   ys = r * sin(polar.vals)
   xs = c(xs, xs[1])
   ys = c(ys, ys[1])
-  lines(xs, ys, col = col, lwd = 2, lty = lty)
+  graphics::lines(xs, ys, col = col, lwd = 2, lty = lty)
 
   #### Clear plots to free up some memory
-  if(!is.null(dev.list())) invisible(dev.off())
+  if(!is.null(grDevices::dev.list())) invisible(grDevices::dev.off())
 }

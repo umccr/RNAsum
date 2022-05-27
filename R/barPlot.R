@@ -1,5 +1,24 @@
-##### Generate box-plot for selected genes, highlighting samples of interest
+##### Generate bar-plot for selected genes, highlighting samples of interest
+#' Generates bar-plot for selected genes.
+#'
+#' @param gene User defined gene.
+#' @param data Input data.
+#' @param targets Targets.
+#' @param y_title Title for y-axis.
+#' @param sampleName Sample name.
+#' @param ext_cancer External cancer group.
+#' @param int_cancer Internal cancer group.
+#' @param comp_cancer Complete cancer group.
+#' @param add_cancer Used for reordering groups.
+#'
+#' @importFrom magrittr %>%
+#' @return Bar-plot for selected genes, highlighting samples of interest.
+#' @export
+#'
 barPlot <- function(gene, data, targets, y_title = "Counts", sampleName,  ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = NULL ) {
+
+  ##### Assign null value to variables to avoid no visible binding issue for global variables
+  #ext_cancer_group <- int_cancer_group <- comp_cancer_group <- NULL
 
   ##### Used data for user-defined genes
   data <- data[ gene, ,drop=FALSE]
@@ -21,8 +40,8 @@ barPlot <- function(gene, data, targets, y_title = "Counts", sampleName,  ext_ca
 
   ##### The default order will be alphabetized unless specified as below
   data.df$Sample <- factor(data.df$Sample, levels = data.df[["Sample"]])
-  p <- plot_ly(data.df, x = ~Sample, y = ~Data, color = ~Group, type = 'bar', colors = group.colours, width = 750, height = 200) %>%
-    layout(title = "", xaxis = list( title = "", showticklabels = FALSE), yaxis = list(title = y_title), autosize = F, legend = list(orientation = 'h', y = 1.2), showlegend=TRUE)
+  p <- plotly::plot_ly(data.df, x = ~Sample, y = ~Data, color = ~Group, type = 'bar', colors = group.colours, width = 750, height = 200) %>%
+    plotly::layout(title = "", xaxis = list( title = "", showticklabels = FALSE), yaxis = list(title = y_title), autosize = F, legend = list(orientation = 'h', y = 1.2), showlegend=TRUE)
 
   return( p )
 
@@ -30,5 +49,5 @@ barPlot <- function(gene, data, targets, y_title = "Counts", sampleName,  ext_ca
   rm(list = ls(pattern='^data*'))
 
   #### Clear plots to free up some memory
-  if(!is.null(dev.list())) invisible(dev.off())
+  if(!is.null(grDevices::dev.list())) invisible(grDevices::dev.off())
 }

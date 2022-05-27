@@ -1,4 +1,18 @@
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
+#' Generates scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
+#'
+#' @param data Input data.
+#' @param alt_data Boolean (Generates scatterplot with per-gene expression values (y-axis)).
+#' @param cn_bottom Bottom value for copy number.
+#' @param cn_top Top value for copy number.
+#' @param comp_cancer Complete cancer group.
+#' @param type Type.
+#' @param report_dir Report directory.
+#'
+#' @importFrom magrittr %>%
+#' @return Scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided.
+#' @export
+#'
 mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer, type = "z", report_dir) {
 
   ##### Extract info for genes to be annotated on the plot
@@ -19,9 +33,9 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
 
   ##### Generate scatterplot with per-gene expression values (y-axis) (difference between Patient's and [comp_cancer] data), CN values (x-axis) and mutation status info (colours)
   if ( alt_data ) {
-    p <- plot_ly(type='scatter', mode = "markers", width = 800, height = 600, showlegend = FALSE) %>%
+    p <- plotly::plot_ly(type='scatter', mode = "markers", width = 800, height = 600, showlegend = FALSE) %>%
 
-      add_markers(data = data, y = ~Expr, x = ~CN,
+      plotly::add_markers(data = data, y = ~Expr, x = ~CN,
                   name = ~Gene,
                   text = paste0("Gene: ", data$Gene,  "\nAlterations: ", data$Alterations),
                   mode = 'markers',
@@ -31,26 +45,26 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
                   legendtitle=TRUE,
                   inherit = FALSE) %>%
 
-      add_annotations( data = data[ data$CN >= cn_top | data$CN <= cn_bottom ,], text=genes2annot,
+      plotly::add_annotations( data = data[ data$CN >= cn_top | data$CN <= cn_bottom ,], text=genes2annot,
                        x=~CN, xanchor="left",
                        y=~Expr, yanchor="top",
                        font = list(color = "Grey", size = 10),
                        legendtitle=TRUE, showarrow=FALSE ) %>%
 
-      layout( xaxis = list(title = "CN value"), yaxis = list(title = y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
+      plotly::layout( xaxis = list(title = "CN value"), yaxis = list(title = y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', x=1, y=0.97, yanchor="top"), showlegend=TRUE)
 
     ##### Generate scatterplot with per-gene expression values (y-axis) and CN values (x-axis)
   } else {
-    p <- plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, color = ~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
+    p <- plotly::plot_ly(data, x = ~CN, y = ~Expr, text=~Gene, color = ~Gene, type='scatter', mode = "markers", marker = list(size=10, symbol="circle"), width = 800, height = 600) %>%
 
-      add_annotations( data = data[ data$CN >= cn_top | data$CN <= cn_bottom ,], text=~Gene,
+      plotly::add_annotations( data = data[ data$CN >= cn_top | data$CN <= cn_bottom ,], text=~Gene,
                        x=~CN, xanchor="left",
                        y=~Expr, yanchor="top",
                        font = list(color = "Grey",
                                    size = 10),
                        legendtitle=TRUE, showarrow=FALSE ) %>%
 
-      layout( xaxis = list(title = "CN value"), yaxis = list(title =  y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
+      plotly::layout( xaxis = list(title = "CN value"), yaxis = list(title =  y_title), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = F, legend = list( orientation = 'v', y=0.8, yanchor="top"), showlegend=TRUE)
   }
 
   ##### Create directory for the plots
@@ -68,5 +82,5 @@ mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top 
   rm(data, alt_data, genes2annot, y_title)
 
   #### Clear plots to free up some memory
-  if(!is.null(dev.list())) invisible(dev.off())
+  if(!is.null(grDevices::dev.list())) invisible(grDevices::dev.off())
 }

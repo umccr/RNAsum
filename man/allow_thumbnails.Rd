@@ -7,12 +7,12 @@
 allow_thumbnails(x, options)
 }
 \arguments{
-\item{x}{A pdf image}
+\item{x}{A pdf image.}
 
-\item{options}{}
+\item{options}{Additional settings.}
 }
 \value{
-A full resolution pdf image
+A full resolution pdf image.
 }
 \description{
 Generate a full-resolution pdf image before generating a smaller image

@@ -11,8 +11,8 @@ sv_prioritize_short <- function(sv_file) {
                       sep = '\\|', convert = TRUE) %>% # Unpack annotation columns %>%
       dplyr::mutate(start = format(start, big.mark = ',', trim = T),
                     end = format(end, big.mark = ',', trim = T)) %>%
-      dplyr::mutate(Location = str_c(chrom, ':', start, sep = ''),
-                    Location = ifelse(is.na(end), Location, str_c(Location))) %>%
+      dplyr::mutate(Location = stringr::str_c(chrom, ':', start, sep = ''),
+                    Location = ifelse(is.na(end), Location, stringr::str_c(Location))) %>%
       dplyr::mutate(SR = split_read_support, PR = paired_support_PR) %>%
       dplyr::select(Location, Gene, Priority, Tier, Annotation, Event, SR, PR) %>%
       dplyr::distinct()

@@ -1,4 +1,25 @@
 ##### Generate boxplot presenting expression profiles for selected set of genes
+#' Generates boxplot presenting expression profiles for selected set of genes
+#'
+#' @param genes Genes of interest.
+#' @param data Input data.
+#' @param targets Target groups.
+#' @param sampleName Sample name.
+#' @param int_cancer Internal cancer group.
+#' @param ext_cancer External cancer group.
+#' @param comp_cancer Complete cancer group.
+#' @param add_cancer Addtional cancer type.
+#' @param hexcode Hexcode.
+#' @param type Type for expression values.
+#' @param sort Sort order.
+#' @param scaling Scaling type.
+#' @param report_dir Reprot directory.
+#'
+#' @importFrom magrittr %>%
+#' @return Boxplot presenting expression profiles for selected set of genes.
+#' @export
+#'
+
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, hexcode, type = "z", sort = "diff", scaling = "gene-wise", report_dir) {
 
   if ( comp_cancer != int_cancer ) {
@@ -35,7 +56,7 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   ##### Genes sorting for visualisation
   ##### Sort genes by the greatest difference between the patient and the "comp_cancer" cohort
   if ( sort == "diff" ) {
-    comp_cancer.medians <- rowMedians( data.z[ genes ,targets$Target==comp_cancer ] )
+    comp_cancer.medians <- matrixStats::rowMedians( data.z[ genes ,targets$Target==comp_cancer ] )
     names(comp_cancer.medians) <- genes
     comp_cancer.medians.diff <- comp_cancer.medians - data.z[ genes ,targets$Target=="Patient" ]
     genes <- genes[ order(comp_cancer.medians.diff) ]
@@ -63,10 +84,10 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     group.colours <- c(I("black"), "red", "cornflowerblue")
   }
 
-  p <- plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = group.colours, opacity=0.3, showlegend = TRUE, width = 800, height = 400 ) %>%
-    add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
+  p <- plotly::plot_ly( gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = group.colours, opacity=0.3, showlegend = TRUE, width = 800, height = 400 ) %>%
+    plotly::add_markers(x = ~Gene[ gene.expr.df$Group %in% "Patient" ], y = ~Expression[ gene.expr.df$Group %in% "Patient" ], color = ~Group[ gene.expr.df$Group %in% "Patient" ], marker = list(size = 7), opacity=1, showlegend = FALSE) %>%
 
-    layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = y_title), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
+    plotly::layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = y_title), legend = list( orientation = 'h', y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
 
   ##### Create directory for "at glance" plots
   PlotsDir <- paste(report_dir, "glanceExprPlots", sep = "/")
@@ -84,5 +105,5 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
   rm(targets, data, sampleName, data.z, y_title, genes, comp_cancer.medians, comp_cancer.medians.diff, gene.expr.df, group.colours)
 
   #### Clear plots to free up some memory
-  if(!is.null(dev.list())) invisible(dev.off())
+  if(!is.null(grDevices::dev.list())) invisible(grDevices::dev.off())
 }

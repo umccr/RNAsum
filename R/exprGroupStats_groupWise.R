@@ -1,4 +1,14 @@
 ##### Calculate group-wise median, sd, quantiles and cumulative fractions for expression data from specific sample group
+#' Calculate group-wise median, standard deviation, quantiles and cumulative fractions.
+#'
+#' @param data Input data.
+#' @param targets Target groups.
+#' @param target Defined biological group.
+#'
+#' @return Group-wise median, standard deviation, quantiles and cumulative fractions for expression data from specific sample group.
+#' @export
+#'
+
 exprGroupStats_groupWise <- function(data, targets, target) {
 
   ##### Subset data for defined biological group
@@ -7,10 +17,10 @@ exprGroupStats_groupWise <- function(data, targets, target) {
   ##### For groups with > 1 sample get the median and standard deviation for each gene
   if ( !is.null(ncol(data.group)) )  {
 
-    data.group.median <- rowMedians(data.group)
+    data.group.median <- matrixStats::rowMedians(data.group)
     names(data.group.median) <- rownames(data.group)
     data.group.median <- sort(data.group.median)
-    data.group.sd <- rowSds(data.group)
+    data.group.sd <- matrixStats::rowSds(data.group)
 
   } else {
     data.group.median <- sort(data.group)

@@ -1,12 +1,24 @@
 ##### Generate table with drugs targeting selected set of genes using info from CIViC database (https://civicdb.org/)
+#' Generate table with drugs targeting selected set of genes.
+#'
+#' @param genes Genes of interest.
+#' @param civic_var_summaries CIViC variant summaries.
+#' @param civic_clin_evid CIViC clinical evidence.
+#' @param evid_type Evidence type.
+#' @param var_type Variant type.
+#'
+#' @importFrom magrittr %>%
+#' @return Table with drugs targeting selected set of genes.
+#' @export
+#'
 civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive", var_type = NULL) {
 
   ##### Initialize data frame to the about drug-target info from CIViC
-  drug.info <- setNames(data.frame(matrix(ncol = 18, nrow = 0)), c("Gene", "Variant", "variant_types", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "civic_actionability_score", "Disease", "phenotypes", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
+  drug.info <- stats::setNames(data.frame(matrix(ncol = 18, nrow = 0)), c("Gene", "Variant", "variant_types", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "civic_actionability_score", "Disease", "phenotypes", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
 
   evid_levels <- list("A" = "A: Validated association", "B" = "B: Clinical evidence", "C" = "C: Case study", "D" = "D: Preclinical evidence", "E" = "E: Inferential association")
 
-  ##### Loop thourgh each gene and check if they are druggable
+  ##### Loop through each gene and check if they are druggable
   for ( gene in genes) {
     ##### Get summary info about druggable genes
     if ( gene %in% civic_clin_evid$gene ) {
@@ -38,7 +50,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
 
         ##### Provide link to ClinicalTrials.gov variants summary based on NCT IDs
         for ( nct_id in clin.evid.info$nct_ids ) {
-          if ( !is.empty(nct_id) ) {
+          if ( !rapportools::is.empty(nct_id) ) {
 
             ##### Deal with multiple NCT IDs (separated by comma)
             nct_id_url <- gsub(" '" , "'", paste(gsub("/ " , "/", paste("<a href='https://clinicaltrials.gov/ct2/show/", unlist(strsplit(nct_id, split=",", fixed=TRUE)) , "' target='_blank'>", unlist(strsplit(nct_id, split=",", fixed=TRUE)), "</a>")), collapse = ", "))

@@ -1,4 +1,22 @@
 ##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
+#' Generates cumulative distribution function (CDF) plot for selected gene.
+#'
+#' @param gene Gene of interest.
+#' @param data Input data.
+#' @param targets Target data set.
+#' @param sampleName Sample name.
+#' @param int_cancer Internal cancer group.
+#' @param ext_cancer External cancer group.
+#' @param comp_cancer Complete cancer group.
+#' @param add_cancer Used for reordering groups.
+#' @param addBoxPlot Add boc plot (boolean).
+#' @param scaling Gene-wise or sample-wise.
+#' @param report_dir Output directory.
+#'
+#' @importFrom magrittr %>%
+#' @return Cumulative distribution function (CDF) plot for selected gene.
+#' @export
+#'
 cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, addBoxPlot = FALSE, scaling = "gene-wise", report_dir) {
 
   ##### Remove the internal reference cohort data if the patient samples origins from other tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
@@ -80,110 +98,110 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
       group.colours <- c("cornflowerblue", "red", "black")
     }
 
-    p2 <- plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = group.colours, opacity = 0.5, orientation = 'h', width = 800, height = 400, showlegend=FALSE)
+    p2 <- plotly::plot_ly(gene.expr.df, x= ~Expression, color = ~Group, type = 'box', jitter = 0.3, pointpos = 0, boxpoints = 'all', colors = group.colours, opacity = 0.5, orientation = 'h', width = 800, height = 400, showlegend=FALSE)
   }
 
   ##### Generate interactive CDF plot with plotly
   ##### Include the internal reference cohort in the plot
   if ( comp_cancer == int_cancer ) {
-    p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black"), width = 700, height = 200) %>%
+    p1 <- plotly::plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black"), width = 700, height = 200) %>%
 
       ##### Add sample data
-      add_markers(y = group.z.gene[[ sampleName ]]$quantile, x = group.z.gene[[ sampleName ]]$z,
+      plotly::add_markers(y = group.z.gene[[ sampleName ]]$quantile, x = group.z.gene[[ sampleName ]]$z,
                   text = rownames(group.z.gene[[ sampleName ]] ),
                   name = "Patient",
                   marker = list(size = 12, color = "black"),
                   showlegend = TRUE) %>%
 
-      add_lines(y = group.z[[ sampleName ]]$quantile, x = group.z[[ sampleName ]]$z,
+      plotly::add_lines(y = group.z[[ sampleName ]]$quantile, x = group.z[[ sampleName ]]$z,
                 line = list(color = "grey"),
                 text = rownames( group.z[[ sampleName ]] ),
                 name = "Patient", showlegend = FALSE) %>%
 
       ##### Add int_cancer data
-      add_markers(y = group.z.gene[[ int_cancer ]]$quantile, x =  group.z.gene[[ int_cancer ]]$z,
+      plotly::add_markers(y = group.z.gene[[ int_cancer ]]$quantile, x =  group.z.gene[[ int_cancer ]]$z,
                   text = rownames( group.z.gene[[ int_cancer ]]),
                   name = int_cancer,
                   marker = list(size = 12, opacity = 0.5, color = "red"),
                   showlegend = TRUE) %>%
 
-      add_lines(y = group.z[[ int_cancer ]]$quantile, x = group.z[[ int_cancer ]]$z, opacity = 0.5,
+      plotly::add_lines(y = group.z[[ int_cancer ]]$quantile, x = group.z[[ int_cancer ]]$z, opacity = 0.5,
                 line = list(color = "red", dash = "dash"),
                 text = rownames( group.z[[ int_cancer ]] ),
                 name = int_cancer, showlegend = FALSE) %>%
 
       ##### Add ext_cancer data
-      add_markers(y = group.z.gene[[ ext_cancer ]]$quantile, x =  group.z.gene[[ ext_cancer ]]$z,
+      plotly::add_markers(y = group.z.gene[[ ext_cancer ]]$quantile, x =  group.z.gene[[ ext_cancer ]]$z,
                   text = rownames( group.z.gene[[ ext_cancer ]] ),
                   name = ext_cancer,
                   marker = list(size = 12, opacity = 0.5, color = "cornflowerblue"),
                   showlegend = TRUE) %>%
 
-      add_lines(y = group.z[[ ext_cancer ]]$quantile, x = group.z[[ ext_cancer ]]$z, opacity = 0.5,
+      plotly::add_lines(y = group.z[[ ext_cancer ]]$quantile, x = group.z[[ ext_cancer ]]$z, opacity = 0.5,
                 line = list(color = "cornflowerblue", dash = "dash"),
                 text = rownames( group.z[[ ext_cancer ]] ),
                 name = ext_cancer, showlegend = FALSE) %>%
 
       ##### Add quantile lines
-      add_lines(y = seq(0,100,10), x = rep(quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,100,10), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q1", showlegend = FALSE) %>%
 
-      add_lines(y = seq(0,100,10), x = rep(quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,100,10), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q2", showlegend = FALSE) %>%
 
-      add_lines(y = seq(0,100,10), x = rep(quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,100,10), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q3", showlegend = FALSE) %>%
 
-      layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[ sampleName ]]$z)-1.5, max(group.z[[ sampleName ]]$z)+1.5)),
+      plotly::layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[ sampleName ]]$z)-1.5, max(group.z[[ sampleName ]]$z)+1.5)),
              yaxis = list(title = "Percentile"),
              legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white")
       )
 
     ##### Skip the internal reference cohort in the plot
   } else {
-    p1 <- plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black"), width = 700, height = 200) %>%
+    p1 <- plotly::plot_ly(group.z[[ sampleName ]], x = ~z, color = I("black"), width = 700, height = 200) %>%
 
       ##### Add sample data
-      add_markers(y = group.z.gene[[ sampleName ]]$quantile, x = group.z.gene[[ sampleName ]]$z,
+      plotly::add_markers(y = group.z.gene[[ sampleName ]]$quantile, x = group.z.gene[[ sampleName ]]$z,
                   text = rownames(group.z.gene[[ sampleName ]] ),
                   name = "Patient",
                   marker = list(size = 12, color = "black"),
                   showlegend = TRUE) %>%
 
-      add_lines(y = group.z[[ sampleName ]]$quantile, x = group.z[[ sampleName ]]$z,
+      plotly::add_lines(y = group.z[[ sampleName ]]$quantile, x = group.z[[ sampleName ]]$z,
                 line = list(color = "grey"),
                 text = rownames( group.z[[ sampleName ]] ),
                 name = "Patient", showlegend = FALSE) %>%
 
       ##### Add ext_cancer data
-      add_markers(y = group.z.gene[[ ext_cancer ]]$quantile, x =  group.z.gene[[ ext_cancer ]]$z,
+      plotly::add_markers(y = group.z.gene[[ ext_cancer ]]$quantile, x =  group.z.gene[[ ext_cancer ]]$z,
                   text = rownames( group.z.gene[[ ext_cancer ]] ),
                   name = ext_cancer,
                   marker = list(size = 12, opacity = 0.5, color = "cornflowerblue"),
                   showlegend = TRUE) %>%
 
-      add_lines(y = group.z[[ ext_cancer ]]$quantile, x = group.z[[ ext_cancer ]]$z, opacity = 0.5,
+      plotly::add_lines(y = group.z[[ ext_cancer ]]$quantile, x = group.z[[ ext_cancer ]]$z, opacity = 0.5,
                 line = list(color = "cornflowerblue", dash = "dash"),
                 text = rownames( group.z[[ ext_cancer ]] ),
                 name = ext_cancer, showlegend = FALSE) %>%
 
       ##### Add quantile lines
-      add_lines(y = seq(0,1,0.1), x = rep(quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,1,0.1), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q1", showlegend = FALSE) %>%
 
-      add_lines(y = seq(0,1,0.1), x = rep(quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,1,0.1), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q2", showlegend = FALSE) %>%
 
-      add_lines(y = seq(0,1,0.1), x = rep(quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,1,0.1), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q3", showlegend = FALSE) %>%
 
-      layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[ sampleName ]]$z)-1.5, max(group.z[[ sampleName ]]$z)+1.5)),
+      plotly::layout(title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[ sampleName ]]$z)-1.5, max(group.z[[ sampleName ]]$z)+1.5)),
              yaxis = list(title = "Percentile"),
              legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white")
       )
@@ -191,8 +209,8 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
 
   ##### Combine CDF plot with boxplot if this option is selected
   if ( addBoxPlot ) {
-    p1_2 <- subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE, heights = c(0.7, 0.3)) %>%
-      layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[ sampleName ]]$z)-1.5, max(group.z[[ sampleName ]]$z)+1.5)),
+    p1_2 <- plotly::subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE, heights = c(0.7, 0.3)) %>%
+      plotly::layout(xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[ sampleName ]]$z)-1.5, max(group.z[[ sampleName ]]$z)+1.5)),
              yaxis = list(title = "Percentile"),
              legend = list(orientation = 'v', x = 0.02, y = 1, bgcolor = "white"),
              yaxis2 = list( title =""), xaxis2 = list(title = paste0(gene, " mRNA expression (Z-score)")), margin = list(l=50, r=50, b=50, t=50, pad=4), autosize = FALSE,
@@ -207,5 +225,5 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   rm(gene, targets, data, sampleName, targets.list, group.z, group.z.gene, gene.data, gene.stats, data.z, gene.expr.df, group.colours)
 
   #### Clear plots to free up some memory
-  if(!is.null(dev.list())) invisible(dev.off())
+  if(!is.null(grDevices::dev.list())) invisible(grDevices::dev.off())
 }

@@ -1,4 +1,12 @@
 ##### Assign colours to different elements
+#' Assign colours to different elements
+#'
+#' @param elements Elements of interest.
+#'
+#' @return Colour assignment to different elements
+#' @export
+#'
+
 getColours <- function(elements) {
 
   ##### Predefined selection of colours for elements
@@ -7,7 +15,7 @@ getColours <- function(elements) {
   } else if ( length(unique(elements)) == 4 ) {
     elements.colours <- c("powderblue", "forestgreen", "red", "gray50")
   } else {
-    elements.colours <- rainbow(length(elements))
+    elements.colours <- grDevices::rainbow(length(elements))
   }
 
   f.elements <- factor(elements, levels = unique(elements))
