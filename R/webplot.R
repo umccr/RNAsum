@@ -49,7 +49,7 @@ webplot = function(data, data.row = NULL, y.cols = NULL, main = NULL, add = F,
          xlab = "", ylab = "")
     graphics::title(main)
     lapply(polar.vals, function(x) graphics::lines(c(0, 2 * cos(x)), c(0, 2 * sin(x))))
-    lapply(1:n.y, function(x) text(2.15 * cos(polar.vals[x]), 2.15 * sin(polar.vals[x]),
+    lapply(1:n.y, function(x) graphics::text(2.15 * cos(polar.vals[x]), 2.15 * sin(polar.vals[x]),
                                    y.cols[x], cex = 0.8))
 
     lapply(seq(0.5, 2, 0.5), function(x) graphics::lines(x * cos(seq(0, 2 * pi, length.out = 100)),

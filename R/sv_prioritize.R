@@ -109,7 +109,7 @@ sv_prioritize <- function(sv_file) {
 }
 
 subset_genes = function(genes, ind) {
-  genes %>% stringr::str_split('&') %>% purrr::map(~ .[ind] %>% replace("", NA) %>% .[!is.na(.)]) %>% purrr::map_chr(~ ifelse(length(.) > 0, stringr::str_c(., collapse = '&'), ""))
+  genes %>% stringr::str_split('&') %>% purrr::map(~ .[ind] %>% base::replace("", NA) %>% .[!is.na(.)]) %>% purrr::map_chr(~ ifelse(length(.) > 0, stringr::str_c(., collapse = '&'), ""))
 }
 
 format_val = function(val, is_pct = F) {

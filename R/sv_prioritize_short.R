@@ -1,9 +1,16 @@
 ##### Code from UMCCRISE to prioritise SV events (version for "-sv-prioritize-manta-pass.tsv" files, https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd)
+#' Prioritize structural variants events
+#'
+#' @param sv_file Input file.
+#'
+#' @return Prioritized variant calls.
+#' @export
+#'
 sv_prioritize_short <- function(sv_file) {
 
   sv_all = NULL
 
-  if (length(readLines(con = sv_file, n = 2)) > 1) {
+  if (base::length(base::readLines(con = sv_file, n = 2)) > 1) {
     sv_all <- readr::read_tsv(sv_file, col_names = TRUE) %>%
       tidyr::unnest(annotation = strsplit(annotation, ',')) %>% # Unpack multiple annotations per region
       tidyr::separate(annotation,
