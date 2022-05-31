@@ -13,7 +13,7 @@ cumsum_ordered <- function(x) {
   standarised <- standardization(x)
 
   ##### Sort and cumsum values
-  sorted_cumsum <- base::cumsum(BiocGenerics::sort(standarised))
+  sorted_cumsum <- base::cumsum(base::sort(standarised))
 
   ##### Restore the original elements order
   ordered_cumsum <- sorted_cumsum[ base::names(standarised) ]

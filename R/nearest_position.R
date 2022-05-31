@@ -9,7 +9,7 @@
 #'
 nearest_position <- function(vector, x) {
 
-  y <- BiocGenerics::which.min(abs(vector - x))
+  y <- base::which.min(abs(vector - x))
 
   ##### Clean the space and return output
   rm(vector, x)

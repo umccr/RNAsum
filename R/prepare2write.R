@@ -8,8 +8,8 @@
 #'
 prepare2write <- function (x) {
 
-  x2write <- BiocGenerics::cbind(BiocGenerics::rownames(x), x)
-  colnames(x2write) <- c("",BiocGenerics::colnames(x))
+  x2write <- base::cbind(base::rownames(x), x)
+  colnames(x2write) <- c("",base::colnames(x))
 
   ##### Clean the space and return output
   rm(x)

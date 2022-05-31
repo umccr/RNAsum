@@ -7,5 +7,5 @@
 #' @export
 #'
 perc_rank <- function(x) {
-  base::trunc(BiocGenerics::rank(x))*100/base::length(x)
+  base::trunc(base::rank(x))*100/base::length(x)
 }
