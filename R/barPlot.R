@@ -1,4 +1,3 @@
-
 #' Generate bar-plot for selected genes
 #'
 #' Generates bar-plot for selected genes, highlighting samples of interest.
@@ -10,16 +9,12 @@
 #' @param sampleName Sample name.
 #' @param ext_cancer External cancer group.
 #' @param int_cancer Internal cancer group.
-#' @param comp_cancer Complete cancer group.
 #' @param add_cancer Used for reordering groups.
 #'
 #' @importFrom magrittr %>%
 #' @return Bar-plot for selected genes, highlighting samples of interest.
 #' @export
-barPlot <- function(gene, data, targets, y_title = "Counts", sampleName,  ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = NULL ) {
-
-  ##### Assign null value to variables to avoid no visible binding issue for global variables
-  #ext_cancer_group <- int_cancer_group <- comp_cancer_group <- NULL
+barPlot <- function(gene, data, targets, y_title = "Counts", sampleName,  ext_cancer, int_cancer, add_cancer = NULL) {
 
   ##### Used data for user-defined genes
   data <- data[ gene, ,drop=FALSE]

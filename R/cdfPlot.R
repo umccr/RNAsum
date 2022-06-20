@@ -146,15 +146,15 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
                 name = ext_cancer, showlegend = FALSE) %>%
 
       ##### Add quantile lines
-      plotly::add_lines(y = seq(0,100,10), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,100,10), x = rep(stats::quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q1", showlegend = FALSE) %>%
 
-      plotly::add_lines(y = seq(0,100,10), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,100,10), x = rep(stats::quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q2", showlegend = FALSE) %>%
 
-      plotly::add_lines(y = seq(0,100,10), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,100,10), x = rep(stats::quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q3", showlegend = FALSE) %>%
 
@@ -192,15 +192,15 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
                 name = ext_cancer, showlegend = FALSE) %>%
 
       ##### Add quantile lines
-      plotly::add_lines(y = seq(0,1,0.1), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,1,0.1), x = rep(stats::quantile(group.z[[ sampleName ]]$z)[2], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q1", showlegend = FALSE) %>%
 
-      plotly::add_lines(y = seq(0,1,0.1), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,1,0.1), x = rep(stats::quantile(group.z[[ sampleName ]]$z)[3], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q2", showlegend = FALSE) %>%
 
-      plotly::add_lines(y = seq(0,1,0.1), x = rep(stat::quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
+      plotly::add_lines(y = seq(0,1,0.1), x = rep(stats::quantile(group.z[[ sampleName ]]$z)[4], 11), opacity = 0.5,
                 line = list(color = "gray", dash = "dash"),
                 name = "Q3", showlegend = FALSE) %>%
 

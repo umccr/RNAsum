@@ -12,16 +12,16 @@ sv_prioritize_short <- function(sv_file) {
 
   if (base::length(base::readLines(con = sv_file, n = 2)) > 1) {
     sv_all <- readr::read_tsv(sv_file, col_names = TRUE) %>%
-      tidyr::unnest(annotation = strsplit(annotation, ',')) %>% # Unpack multiple annotations per region
-      tidyr::separate(annotation,
+      tidyr::unnest(annotation = strsplit(.data$annotation, ',')) %>% # Unpack multiple annotations per region
+      tidyr::separate(.data$annotation,
                       c('Event', 'Annotation', 'Gene', 'Transcript', 'Priority', 'Tier'),
                       sep = '\\|', convert = TRUE) %>% # Unpack annotation columns %>%
-      dplyr::mutate(start = format(start, big.mark = ',', trim = T),
-                    end = format(end, big.mark = ',', trim = T)) %>%
-      dplyr::mutate(Location = stringr::str_c(chrom, ':', start, sep = ''),
-                    Location = ifelse(is.na(end), Location, stringr::str_c(Location))) %>%
-      dplyr::mutate(SR = split_read_support, PR = paired_support_PR) %>%
-      dplyr::select(Location, Gene, Priority, Tier, Annotation, Event, SR, PR) %>%
+      dplyr::mutate(start = format(.data$start, big.mark = ',', trim = T),
+                    end = format(.data$end, big.mark = ',', trim = T)) %>%
+      dplyr::mutate(Location = stringr::str_c(.data$chrom, ':', .data$start, sep = ''),
+                    Location = ifelse(is.na(.data$end), .data$Location, stringr::str_c(.data$Location))) %>%
+      dplyr::mutate(SR = .data$split_read_support, PR = .data$paired_support_PR) %>%
+      dplyr::select(.data$Location, .data$Gene, .data$Priority, .data$Tier, .data$Annotation, .data$Event, .data$SR, .data$PR) %>%
       dplyr::distinct()
     # dplyr::mutate(Chrom = factor(Chrom, levels = c(1:22, "X", "Y", "MT")))
   } else {

@@ -7,11 +7,11 @@
 saveWidgetFix(widget, file, ...)
 }
 \arguments{
-\item{widget}{Input widget}
+\item{widget}{Input widget.}
 
-\item{file}{Input file}
+\item{file}{Input file.}
 
-\item{...}{}
+\item{...}{Additional arguments passed to \link[htmlwidgets:saveWidget]{htmlwidgets::saveWidget}.}
 }
 \value{
 Change work dir to compensate for saveWidget bug

@@ -14,7 +14,7 @@
 pca <- function(data, targets, title = "", report_dir, suffix = "" ) {
 
   ##### Keep only genes with variance > 0 across all samples
-  rsd <- apply(data,1,sd)
+  rsd <- apply(data,1, stats::sd)
   data.subset <- data[rsd>0,]
 
   ##### Perform PCA
@@ -67,7 +67,7 @@ pca <- function(data, targets, title = "", report_dir, suffix = "" ) {
   return( list(pca.list, pca_plot, scree_plot) )
 
   ##### Clean the space
-  rm(data, targets, rsd, data.subset, data.subset_pca, importance_pca, data.subset_pca.df, targets.colour, datasets.colour, pca.list, data.subset_scree.df, PlotsDir)
+  rm(data, targets, rsd, data.subset, data.subset_pca, importance_pca, data.subset_pca.df, targets.colour, datasets.colour, pca.list, data.subset_scree.df)
 
   #### Clear plots to free up some memory
   if(!is.null(grDevices::dev.list())) invisible(grDevices::dev.off())

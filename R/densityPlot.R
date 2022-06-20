@@ -50,7 +50,7 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
     ##### Generate y-values to mirror distributions of interest
     ##### Generate y-values for normal distribution. Useful resource https://stats.idre.ucla.edu/r/modules/probabilities-and-distributions/
     if ( "normal" %in% tolower(distributions) ) {
-      data.y <- stats::dnorm(data.x, mean = mean(data.x), sd = (max(data.x)-mean(data.x))/5)
+      data.y <- stats::dnorm(data.x, mean = base::mean(data.x), sd = (max(data.x) - base::mean(data.x))/5)
       data.df.dist <- rbind(data.df.dist, data.frame(gene="Normal distribution", sample = colnames(data.z)[order(data.z)], expr=data.x, dens=density2freq(data.y)))
     }
 
@@ -69,15 +69,15 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
 
     ##### Draw n/2 samples from a normal distributions with one median and another n/2 samples from a second normal distribution with a different median. Useful link                  https://stats.stackexchange.com/questions/355344/simulating-a-bimodal-distribution-in-the-range-of-15-in-r
     if ( "bimodal" %in% tolower(distributions) ){
-      data.x1 <- seq(min(expr.sorted), rapportools::median(expr.sorted), length.out = ncol(data.z)/2)
-      data.x2 <- seq(rapportools::median(expr.sorted), max(expr.sorted), length.out = ncol(data.z)/2)
+      data.x1 <- seq(base::min(expr.sorted), stats::median(expr.sorted), length.out = ncol(data.z)/2)
+      data.x2 <- seq(stats::median(expr.sorted), base::max(expr.sorted), length.out = ncol(data.z)/2)
 
       ##### Combine both normal distributions to generate a bimodal distribution. Make sure the the length of this vector is equal to the number samples in the data
       data.x <- c(data.x1, data.x2)
       data.x <- data.x[1:ncol(data.z)]
 
       ##### Generate y-values for bimodal distribution
-      data.y <- c(stats::dnorm(data.x1, mean = mean(data.x1), sd = (max(data.x1)-mean(data.x1))/3), stats::dnorm(data.x2, mean = mean(data.x2), sd = (max(data.x2)-mean(data.x2))/3))
+      data.y <- c(stats::dnorm(data.x1, mean = base::mean(data.x1), sd = (base::max(data.x1) - base::mean(data.x1))/3), stats::dnorm(data.x2, mean = base::mean(data.x2), sd = (max(data.x2) - base::mean(data.x2))/3))
       data.y <- data.y[1:ncol(data.z)]
 
       ##### Add bimodal dist values to the distribution dataframe

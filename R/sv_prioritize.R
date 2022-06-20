@@ -17,86 +17,101 @@ sv_prioritize <- function(sv_file) {
     if ( all(c("AF_BPI", "AF_PURPLE", "CN_PURPLE", "CN_change_PURPLE", "Ploidy_PURPLE") %in% names(readr::read_tsv(sv_file, col_names = TRUE))) ) {
 
       sv_all <- readr::read_tsv(sv_file, col_names = TRUE) %>%
-        dplyr::select(-caller, -sample) %>%
-        split_sv_field(AF_BPI, is_pct = T) %>%
-        split_sv_field(AF_PURPLE, is_pct = T) %>%
-        split_sv_field(CN_PURPLE) %>%
-        split_sv_field(CN_change_PURPLE) %>%
+        dplyr::select(-.data$caller, -.data$sample) %>%
+        split_sv_field(.data$AF_BPI, is_pct = T) %>%
+        split_sv_field(.data$AF_PURPLE, is_pct = T) %>%
+        split_sv_field(.data$CN_PURPLE) %>%
+        split_sv_field(.data$CN_change_PURPLE) %>%
         dplyr::mutate(
-          Ploidy_PURPLE = as.double(Ploidy_PURPLE),
-          Ploidy_PURPLE = format(Ploidy_PURPLE, nsmall = 2)
+          Ploidy_PURPLE = as.double(.data$Ploidy_PURPLE),
+          Ploidy_PURPLE = format(.data$Ploidy_PURPLE, nsmall = 2)
         ) %>%
-        tidyr::separate(split_read_support, c("SR (ref)", "SR (alt)"), ",") %>%
-        dplyr::mutate(SR = as.integer(`SR (alt)`)) %>%
-        tidyr::separate(paired_support_PR, c("PR (ref)", "PR (alt)"), ",") %>%
-        dplyr::mutate(PR = as.integer(`PR (alt)`)) %>%
-        tidyr::separate(paired_support_PE, c("PE (ref)", "PE (alt)"), ",") %>%
-        dplyr::mutate(PE = as.integer(`PE (alt)`)) %>%
-
-        dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
-        tidyr::unnest(annotation = strsplit(annotation, ',')) %>%  # Unpack multiple annotations per region
-        tidyr::separate(annotation,
+        tidyr::separate(.data$split_read_support, c("SR (ref)", "SR (alt)"), ",") %>%
+        dplyr::mutate(SR = as.integer(.data$`SR (alt)`)) %>%
+        tidyr::separate(.data$paired_support_PR, c("PR (ref)", "PR (alt)"), ",") %>%
+        dplyr::mutate(PR = as.integer(.data$`PR (alt)`)) %>%
+        tidyr::separate(.data$paired_support_PE, c("PE (ref)", "PE (alt)"), ",") %>%
+        dplyr::mutate(PE = as.integer(.data$`PE (alt)`)) %>%
+        dplyr::filter(.data$svtype != 'BND' | is.na(.data$SR) | .data$PR > .data$SR) %>%  # remove BND with split read support higher than paired
+        tidyr::unnest(annotation = strsplit(.data$annotation, ',')) %>%  # Unpack multiple annotations per region
+        tidyr::separate(.data$annotation,
                         c('Event', 'Effect', 'Genes', 'Transcript', 'Detail', 'Tier'),
                         sep = '\\|', convert = TRUE) %>%  # Unpack annotation columns
-        dplyr::mutate(start = format(start, big.mark = ',', trim = T),
-                      end = format(end, big.mark = ',', trim = T)) %>%
-        dplyr::mutate(location = stringr::str_c(chrom, ':', start, sep = ''),
-                      location = ifelse(is.na(end), location, stringr::str_c(location))) %>%
-        dplyr::arrange(Tier, Effect, dplyr::desc(AF_PURPLE), Genes) %>%
-        dplyr::mutate(Gene = subset_genes(Genes, c(1, 2)),
-                      Gene = ifelse((stringr::str_split(Genes, '&') %>% purrr::map_int(length)) > 2,
-                                    stringr::str_c(Gene, '...', sep = ', '),
-                                    Gene),
-                      `Other affected genes` = subset_genes(Genes, -c(1,2)) %>% stringr::str_replace_all('&', ', '),
-                      Gene = ifelse(stringr::str_detect(Effect, "gene_fusion"),
-                                    Gene,
-                                    Gene %>% stringr::str_replace_all('&', ', '))
+        dplyr::mutate(start = format(.data$start, big.mark = ',', trim = T),
+                      end = format(.data$end, big.mark = ',', trim = T)) %>%
+        dplyr::mutate(location = stringr::str_c(.data$chrom, ':', .data$start, sep = ''),
+                      location = ifelse(is.na(.data$end), .data$location, stringr::str_c(.data$location))) %>%
+        dplyr::arrange(.data$Tier, .data$Effect, dplyr::desc(.data$AF_PURPLE), .data$Genes) %>%
+        dplyr::mutate(Gene = subset_genes(.data$Genes, c(1, 2)),
+                      Gene = ifelse((stringr::str_split(.data$Genes, '&') %>% purrr::map_int(length)) > 2,
+                                    stringr::str_c(.data$Gene, '...', sep = ', '),
+                                    .data$Gene),
+                      `Other affected genes` = subset_genes(.data$Genes, -c(1,2)) %>% stringr::str_replace_all('&', ', '),
+                      Gene = ifelse(stringr::str_detect(.data$Effect, "gene_fusion"),
+                                    .data$Gene,
+                                    .data$Gene %>% stringr::str_replace_all('&', ', '))
         ) %>%
-        tidyr::separate(Effect, c("Effect", "Other effects"), sep = '&') %>%
-        dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = Detail, Location = location, AF = AF_PURPLE, `CN chg` = CN_change_PURPLE, SR, PR, CN = CN_PURPLE, Ploidy = Ploidy_PURPLE, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = Transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF_PURPLE1, `AF at breakpoint 2` = AF_PURPLE2, `CN at breakpoint 1` = CN_PURPLE1, `CN at breakpoint 2` = CN_PURPLE2, `CN change at breakpoint 1` = CN_change_PURPLE1, `CN change at breakpoint 2` = CN_change_PURPLE2, `AF before adjustment, bp 1` = AF_BPI1, `AF before adjustment, bp 2` = AF_BPI2
+        tidyr::separate(.data$Effect, c("Effect", "Other effects"), sep = '&') %>%
+        dplyr::select(Tier = .data$tier, Event = .data$svtype, .data$Gene, .data$Effect,
+                      .data$Detail, Location = .data$location, AF = .data$AF_PURPLE,
+                      `CN chg` = .data$CN_change_PURPLE, .data$SR, .data$PR, CN = .data$CN_PURPLE,
+                      Ploidy = .data$Ploidy_PURPLE, .data$PURPLE_status, .data$`SR (ref)`, .data$`PR (ref)`,
+                      .data$PE, .data$`PE (ref)`, `Somatic score` = .data$somaticscore, .data$Transcript, .data$`Other effects`,
+                      .data$`Other affected genes`, `AF at breakpoint 1` = .data$AF_PURPLE1, `AF at breakpoint 2` = .data$AF_PURPLE2,
+                      `CN at breakpoint 1` = .data$CN_PURPLE1, `CN at breakpoint 2` = .data$CN_PURPLE2,
+                      `CN change at breakpoint 1` = .data$CN_change_PURPLE1, `CN change at breakpoint 2` = .data$CN_change_PURPLE2,
+                      `AF before adjustment, bp 1` = .data$AF_BPI1, `AF before adjustment, bp 2` = .data$AF_BPI2
         ) %>%
         dplyr::distinct()
       # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%
 
     } else {
       sv_all <- readr::read_tsv(sv_file, col_names = TRUE) %>%
-        dplyr::select(-caller, -sample) %>%
-        split_sv_field(BPI_AF, is_pct = T) %>%
-        split_sv_field(AF, is_pct = T) %>%
-        split_sv_field(CN) %>%
-        split_sv_field(CN_change) %>%
+        dplyr::select(-.data$caller, -.data$sample) %>%
+        split_sv_field(.data$BPI_AF, is_pct = T) %>%
+        split_sv_field(.data$AF, is_pct = T) %>%
+        split_sv_field(.data$CN) %>%
+        split_sv_field(.data$CN_change) %>%
         dplyr::mutate(
-          Ploidy = as.double(Ploidy),
-          Ploidy = format(Ploidy, nsmall = 2)
+          Ploidy = as.double(.data$Ploidy),
+          Ploidy = format(.data$Ploidy, nsmall = 2)
         ) %>%
-        tidyr::separate(split_read_support, c("SR (ref)", "SR (alt)"), ",") %>%
-        dplyr::mutate(SR = as.integer(`SR (alt)`)) %>%
-        tidyr::separate(paired_support_PR, c("PR (ref)", "PR (alt)"), ",") %>%
-        dplyr::mutate(PR = as.integer(`PR (alt)`)) %>%
-        tidyr::separate(paired_support_PE, c("PE (ref)", "PE (alt)"), ",") %>%
-        dplyr::mutate(PE = as.integer(`PE (alt)`)) %>%
+        tidyr::separate(.data$split_read_support, c("SR (ref)", "SR (alt)"), ",") %>%
+        dplyr::mutate(SR = as.integer(.data$`SR (alt)`)) %>%
+        tidyr::separate(.data$paired_support_PR, c("PR (ref)", "PR (alt)"), ",") %>%
+        dplyr::mutate(PR = as.integer(.data$`PR (alt)`)) %>%
+        tidyr::separate(.data$paired_support_PE, c("PE (ref)", "PE (alt)"), ",") %>%
+        dplyr::mutate(PE = as.integer(.data$`PE (alt)`)) %>%
 
-        dplyr::filter(svtype != 'BND' | is.na(SR) | PR>SR) %>%  # remove BND with split read support higher than paired
-        tidyr::unnest(annotation = strsplit(annotation, ',')) %>%  # Unpack multiple annotations per region
-        tidyr::separate(annotation,
+        dplyr::filter(.data$svtype != 'BND' | is.na(.data$SR) | .data$PR > .data$SR) %>%  # remove BND with split read support higher than paired
+        tidyr::unnest(annotation = strsplit(.data$annotation, ',')) %>%  # Unpack multiple annotations per region
+        tidyr::separate(.data$annotation,
                         c('Event', 'Effect', 'Genes', 'Transcript', 'Detail', 'Tier'),
                         sep = '\\|', convert = TRUE) %>%  # Unpack annotation columns
-        dplyr::mutate(start = format(start, big.mark = ',', trim = T),
-                      end = format(end, big.mark = ',', trim = T)) %>%
-        dplyr::mutate(location = stringr::str_c(chrom, ':', start, sep = ''),
-                      location = ifelse(is.na(end), location, stringr::str_c(location))) %>%
-        dplyr::arrange(Tier, Effect, dplyr::desc(AF), Genes) %>%
-        dplyr::mutate(Gene = subset_genes(Genes, c(1, 2)),
-                      Gene = ifelse((stringr::str_split(Genes, '&') %>% purrr::map_int(length)) > 2,
-                                    stringr::str_c(Gene, '...', sep = ', '),
-                                    Gene),
-                      `Other affected genes` = subset_genes(Genes, -c(1,2)) %>% stringr::str_replace_all('&', ', '),
-                      Gene = ifelse(stringr::str_detect(Effect, "gene_fusion"),
-                                    Gene,
-                                    Gene %>% stringr::str_replace_all('&', ', '))
+        dplyr::mutate(start = format(.data$start, big.mark = ',', trim = T),
+                      end = format(.data$end, big.mark = ',', trim = T)) %>%
+        dplyr::mutate(location = stringr::str_c(.data$chrom, ':', .data$start, sep = ''),
+                      location = ifelse(is.na(.data$end), .data$location, stringr::str_c(.data$location))) %>%
+        dplyr::arrange(.data$Tier, .data$Effect, dplyr::desc(.data$AF), .data$Genes) %>%
+        dplyr::mutate(Gene = subset_genes(.data$Genes, c(1, 2)),
+                      Gene = ifelse((stringr::str_split(.data$Genes, '&') %>% purrr::map_int(length)) > 2,
+                                    stringr::str_c(.data$Gene, '...', sep = ', '),
+                                    .data$Gene),
+                      `Other affected genes` = subset_genes(.data$Genes, -c(1,2)) %>% stringr::str_replace_all('&', ', '),
+                      Gene = ifelse(stringr::str_detect(.data$Effect, "gene_fusion"),
+                                    .data$Gene,
+                                    .data$Gene %>% stringr::str_replace_all('&', ', '))
         ) %>%
-        tidyr::separate(Effect, c("Effect", "Other effects"), sep = '&') %>%
-        dplyr::select(Tier = tier, Event = svtype, Gene, Effect = Effect, Detail = Detail, Location = location, AF, `CN chg` = CN_change, SR, PR, CN, Ploidy, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = Transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF1, `AF at breakpoint 2` = AF2, `CN at breakpoint 1` = CN1, `CN at breakpoint 2` = CN2, `CN change at breakpoint 1` = CN_change1, `CN change at breakpoint 2` = CN_change2, `AF before adjustment, bp 1` = BPI_AF1, `AF before adjustment, bp 2` = BPI_AF2
+        tidyr::separate(.data$Effect, c("Effect", "Other effects"), sep = '&') %>%
+        dplyr::select(Tier = .data$tier, Event = .data$svtype, .data$Gene, .data$Effect, .data$Detail,
+                      Location = .data$location, .data$AF, `CN chg` = .data$CN_change, .data$SR, .data$PR,
+                      .data$CN, .data$Ploidy, .data$PURPLE_status, .data$`SR (ref)`, .data$`PR (ref)`, .data$PE,
+                      .data$`PE (ref)`, `Somatic score` = .data$somaticscore, .data$Transcript,
+                      .data$`Other effects`, .data$`Other affected genes`, `AF at breakpoint 1` = .data$AF1,
+                      `AF at breakpoint 2` = .data$AF2, `CN at breakpoint 1` = .data$CN1,
+                      `CN at breakpoint 2` = .data$CN2, `CN change at breakpoint 1` = .data$CN_change1,
+                      `CN change at breakpoint 2` = .data$CN_change2, `AF before adjustment, bp 1` = .data$BPI_AF1,
+                      `AF before adjustment, bp 2` = .data$BPI_AF2
         ) %>%
         dplyr::distinct()
       # dplyr::mutate(chr = factor(chr, levels = c(1:22, "X", "Y", "MT"))) %>%

@@ -51,7 +51,7 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
 
         ##### Provide link to ClinicalTrials.gov variants summary based on NCT IDs
         for ( nct_id in clin.evid.info$nct_ids ) {
-          if ( !rapportools::is.empty(nct_id) ) {
+          if ( !is.empty(nct_id) ) {
 
             ##### Deal with multiple NCT IDs (separated by comma)
             nct_id_url <- gsub(" '" , "'", paste(gsub("/ " , "/", paste("<a href='https://clinicaltrials.gov/ct2/show/", unlist(strsplit(nct_id, split=",", fixed=TRUE)) , "' target='_blank'>", unlist(strsplit(nct_id, split=",", fixed=TRUE)), "</a>")), collapse = ", "))

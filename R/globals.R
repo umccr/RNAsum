@@ -1,16 +1,1 @@
 utils::globalVariables(c("."))
-#"caner_genes_annot.list",
-#"ext_cancer_group",
-#"int_cancer_group",
-#"comp_cancer_group",
-#"PlotsDir",
-#"sd",
-#"caller",
-#"AF_BPI",
-#"AF_PURPLE", "CN_PURPLE", "CN_change_PURPLE", "Ploidy_PURPLE", "split_read_support", "SR (alt)", "paired_support_PR", "paired_support_PE",
-#"PE (alt)", "svtype", "SR", "PR", "annotation", "start", "end", "chrom", "location", "Tier", "Effect", "Genes", "Gene", "tier", "Detail",
-#"PURPLE_status", "SR (ref)", "PR (ref)", "PR (alt)", "PE", "PE (ref)", "somaticscore", "Transcript", "Other effects", "Other affected genes",
-#"AF_PURPLE1",
-#"AF_PURPLE2", "CN_PURPLE1", "CN_PURPLE2", "CN_change_PURPLE1", "CN_change_PURPLE2", "AF_BPI1", "AF_BPI2", "BPI_AF", "BPI_AF1", "BPI_AF2", "AF",
-#"CN", "CN_change", "Ploidy", "AF1", "AF2", "CN1", "CN2", "CN_change1", "CN_change2", "annotation", "start", "end", "chrom", "Location",
-#"split_read_support", "paired_support_PR", "Gene", "Priority", "Tier", "Annotation", "Event", "SR", "PR"

@@ -24,7 +24,8 @@ exprTable(
   fusion_genes = NULL,
   ext_links = FALSE,
   type = "z",
-  scaling = "gene-wise"
+  scaling = "gene-wise",
+  caner_genes_annot.list
 )
 }
 \arguments{
@@ -67,6 +68,8 @@ exprTable(
 \item{type}{Type.}
 
 \item{scaling}{Scaling}
+
+\item{caner_genes_annot.list}{The caner_genes_annot.list from the report.}
 }
 \value{
 Table with coloured cells indicating expression values for selected genes

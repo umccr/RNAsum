@@ -49,7 +49,7 @@ exprGroupsStats_geneWise <- function(data, targets) {
 
       ##### Extract the cumulative fraction corresponding to the median Z-score
       ##### First, need to get the position of the Z-score nearest to the median Z-score, and then extract the cumulative value at this position
-      data.z.median_pos <- apply(data.z, 1, nearest_position, rapportools::median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      data.z.median_pos <- apply(data.z, 1, nearest_position, stats::median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ data.z.median_pos ] )
 
       group_stats.list[[group]] <- as.data.frame(group_stats.list[[group]])
@@ -59,20 +59,20 @@ exprGroupsStats_geneWise <- function(data, targets) {
     } else if ( base::sum(c(targets$Target %in% group), na.rm = TRUE) > 1 && nrow(data) == 1 ) {
 
       ##### Extract the median expression values
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rapportools::median(data[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], stats::median(data[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
 
       ##### Extract the expression sd values
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rapportools::sd(data[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], stats::sd(data[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
 
       ##### Extract the median Z-scores
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rapportools::median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], stats::median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
 
       ##### Extract the median percentiles
-      group_stats.list[[group]] <- cbind(group_stats.list[[group]], rapportools::median(data.q[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      group_stats.list[[group]] <- cbind(group_stats.list[[group]], stats::median(data.q[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
 
       ##### Extract the cumulative fraction corresponding to the median Z-score
       ##### First, need to get the position of the Z-score nearest to the median Z-score, and then extract the cumulative value at this position
-      data.z.median_pos <- nearest_position( data.z, median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
+      data.z.median_pos <- nearest_position( data.z, stats::median(data.z[ , colnames(data)[ targets$Target %in% group, drop = FALSE ] ]))
       group_stats.list[[group]] <- cbind(group_stats.list[[group]], data.cum[ data.z.median_pos ] )
 
       group_stats.list[[group]] <- as.data.frame(group_stats.list[[group]])

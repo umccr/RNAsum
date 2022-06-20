@@ -10,9 +10,8 @@ barPlot(
   targets,
   y_title = "Counts",
   sampleName,
-  ext_cancer = ext_cancer_group,
-  int_cancer = int_cancer_group,
-  comp_cancer = comp_cancer_group,
+  ext_cancer,
+  int_cancer,
   add_cancer = NULL
 )
 }
@@ -30,8 +29,6 @@ barPlot(
 \item{ext_cancer}{External cancer group.}
 
 \item{int_cancer}{Internal cancer group.}
-
-\item{comp_cancer}{Complete cancer group.}
 
 \item{add_cancer}{Used for reordering groups.}
 }
