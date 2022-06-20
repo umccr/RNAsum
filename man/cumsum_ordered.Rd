@@ -7,11 +7,11 @@
 cumsum_ordered(x)
 }
 \arguments{
-\item{x}{Input}
+\item{x}{Input.}
 }
 \value{
-Cumulative sum while keeping the order of input data
+Cumulative sum while keeping the order of input data.
 }
 \description{
-Calculate cumulative sum
+Calculating cumulative sum while keeping the original data order.
 }

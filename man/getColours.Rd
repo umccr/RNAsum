@@ -13,5 +13,5 @@ getColours(elements)
 Colour assignment to different elements
 }
 \description{
-Assign colours to different elements
+Assigns colours to different elements.
 }

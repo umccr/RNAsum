@@ -2,7 +2,7 @@
 % Please edit documentation in R/cdfPlot.R
 \name{cdfPlot}
 \alias{cdfPlot}
-\title{Generates cumulative distribution function (CDF) plot for selected gene.}
+\title{Generate CDF plot for selected gene}
 \usage{
 cdfPlot(
   gene,
@@ -46,4 +46,6 @@ Cumulative distribution function (CDF) plot for selected gene.
 }
 \description{
 Generates cumulative distribution function (CDF) plot for selected gene.
+If option "addBoxPlot" = TRUE, then generate additional boxplot
+below to show the data variance for selected gene in individual groups
 }

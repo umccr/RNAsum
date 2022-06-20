@@ -37,4 +37,5 @@ Spider web plots to present immunogram genes
 }
 \description{
 Generate spider web plots to present immunogram genes
+(from http://www.statisticstoproveanything.com/2013/11/spider-web-plots-in-r.html).
 }

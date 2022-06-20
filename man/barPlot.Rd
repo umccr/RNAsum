@@ -2,7 +2,7 @@
 % Please edit documentation in R/barPlot.R
 \name{barPlot}
 \alias{barPlot}
-\title{Generates bar-plot for selected genes.}
+\title{Generate bar-plot for selected genes}
 \usage{
 barPlot(
   gene,
@@ -39,5 +39,5 @@ barPlot(
 Bar-plot for selected genes, highlighting samples of interest.
 }
 \description{
-Generates bar-plot for selected genes.
+Generates bar-plot for selected genes, highlighting samples of interest.
 }

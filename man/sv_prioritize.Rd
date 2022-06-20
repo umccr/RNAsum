@@ -13,5 +13,5 @@ sv_prioritize(sv_file)
 Prioritized variants list.
 }
 \description{
-Prioritize SV events
+Code from umccrise to prioritise SV events (version for "-manta.tsv" files)
 }

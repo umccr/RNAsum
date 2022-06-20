@@ -17,5 +17,6 @@ saveWidgetFix(widget, file, ...)
 Change work dir to compensate for saveWidget bug
 }
 \description{
-Wrapper for saveWidget bug fix
+A wrapper to saveWidget which compensates for arguable BUG in saveWidget which requires
+\code{file} to be in current working directory (see https://github.com/ramnathv/htmlwidgets/issues/299).
 }

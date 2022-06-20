@@ -2,7 +2,7 @@
 % Please edit documentation in R/civicDrugTable.R
 \name{civicDrugTable}
 \alias{civicDrugTable}
-\title{Generate table with drugs targeting selected set of genes.}
+\title{Generate table with drugs targeting selected set of genes}
 \usage{
 civicDrugTable(
   genes,
@@ -27,5 +27,6 @@ civicDrugTable(
 Table with drugs targeting selected set of genes.
 }
 \description{
-Generate table with drugs targeting selected set of genes.
+Generates table with drugs targeting selected set of genes using info from
+CIViC database (https://civicdb.org/).
 }

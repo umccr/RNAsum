@@ -15,5 +15,5 @@ nearest_position(vector, x)
 Nearest value in a vector
 }
 \description{
-Check for nearest value in a vector
+Check for nearest value in a vector.
 }

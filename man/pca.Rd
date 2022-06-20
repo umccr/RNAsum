@@ -2,7 +2,7 @@
 % Please edit documentation in R/pca.R
 \name{pca}
 \alias{pca}
-\title{Performs PCA.}
+\title{Perform PCA}
 \usage{
 pca(data, targets, title = "", report_dir, suffix = "")
 }
@@ -21,5 +21,5 @@ pca(data, targets, title = "", report_dir, suffix = "")
 Outputs a list with data frame and samples colouring info ready for plotting.
 }
 \description{
-Performs PCA.
+Perform PCA. Outputs a list with dataframe and samples colouring info ready for plotting.
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/exprTable.R
 \name{exprTable}
 \alias{exprTable}
-\title{Generates table with coloured cells indicating expression values for selected genes}
+\title{Generate table with coloured cells indicating expression values for selected genes}
 \usage{
 exprTable(
   genes,
@@ -72,5 +72,5 @@ exprTable(
 Table with coloured cells indicating expression values for selected genes
 }
 \description{
-Generates table with coloured cells indicating expression values for selected genes
+Generates table with coloured cells indicating expression values for selected genes.
 }

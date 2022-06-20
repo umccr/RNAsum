@@ -2,7 +2,7 @@
 % Please edit documentation in R/glanceExprPlot.R
 \name{glanceExprPlot}
 \alias{glanceExprPlot}
-\title{Generates boxplot presenting expression profiles for selected set of genes}
+\title{Generate boxplot presenting expression profiles for selected set of genes}
 \usage{
 glanceExprPlot(
   genes,
@@ -51,5 +51,5 @@ glanceExprPlot(
 Boxplot presenting expression profiles for selected set of genes.
 }
 \description{
-Generates boxplot presenting expression profiles for selected set of genes
+Generates boxplot presenting expression profiles for selected set of genes.
 }

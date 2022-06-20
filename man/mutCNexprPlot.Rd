@@ -2,7 +2,7 @@
 % Please edit documentation in R/mutCNexprPlot.R
 \name{mutCNexprPlot}
 \alias{mutCNexprPlot}
-\title{Generates scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided}
+\title{Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided}
 \usage{
 mutCNexprPlot(
   data,

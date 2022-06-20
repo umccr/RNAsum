@@ -13,5 +13,5 @@ sv_prioritize_short(sv_file)
 Prioritized variant calls.
 }
 \description{
-Prioritize structural variants events
+Code from umccrise to prioritise SV events (version for "-sv-prioritize-manta-pass.tsv" files)
 }

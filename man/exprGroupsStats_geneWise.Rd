@@ -2,7 +2,7 @@
 % Please edit documentation in R/exprGroupsStats_geneWise.R
 \name{exprGroupsStats_geneWise}
 \alias{exprGroupsStats_geneWise}
-\title{Calculate gene-wise median, standard deviation, quantiles and cumulative fractions for expression data}
+\title{Calculate gene-wise median, sd, quantiles and cumulative fractions for expression data}
 \usage{
 exprGroupsStats_geneWise(data, targets)
 }
@@ -12,8 +12,8 @@ exprGroupsStats_geneWise(data, targets)
 \item{targets}{Target groups}
 }
 \value{
-Gene-wise median, standard deviation, quantiles and cumulative fractions for expression data
+Gene-wise median, standard deviation, quantiles and cumulative fractions for expression data.
 }
 \description{
-Calculate gene-wise median, standard deviation, quantiles and cumulative fractions for expression data
+Calculates gene-wise median, sd, quantiles and cumulative fractions for expression data.
 }

@@ -17,5 +17,6 @@ exprGroupStats_groupWise(data, targets, target)
 Group-wise median, standard deviation, quantiles and cumulative fractions for expression data from specific sample group.
 }
 \description{
-Calculate group-wise median, standard deviation, quantiles and cumulative fractions.
+Calculates group-wise median, sd, quantiles and cumulative
+fractions for expression data from specific sample group.
 }

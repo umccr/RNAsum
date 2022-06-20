@@ -15,5 +15,6 @@ allow_thumbnails(x, options)
 A full resolution pdf image.
 }
 \description{
-Generate a full-resolution pdf image before generating a smaller image
+Generates a full-resolution pdf image before generating a smaller image
+in the chunk (from https://stackoverflow.com/questions/37834053/what-is-a-simple-way-to-thumbnail-some-plots-in-r-markdown-knitr).
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/arriba_plots.R
 \name{arriba_plots}
 \alias{arriba_plots}
-\title{Fusion output visualization}
+\title{Fusion visualisation}
 \usage{
 arriba_plots(arriba_file, arriba_results, results_dir)
 }
@@ -17,5 +17,5 @@ arriba_plots(arriba_file, arriba_results, results_dir)
 PNG images.
 }
 \description{
-Fusion output visualization
+Fusion output visualisation.
 }

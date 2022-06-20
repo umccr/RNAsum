@@ -2,16 +2,16 @@
 % Please edit documentation in R/CapStr.R
 \name{CapStr}
 \alias{CapStr}
-\title{Capitalize input string}
+\title{Capitalise input string}
 \usage{
-CapStr(y)
+CapStr(x)
 }
 \arguments{
-\item{y}{Input}
+\item{x}{Input string.}
 }
 \value{
-Capitalized string.
+Capitalised string.
 }
 \description{
-Capitalize input string
+Capitalises input string.
 }

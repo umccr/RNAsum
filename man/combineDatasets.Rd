@@ -2,7 +2,7 @@
 % Please edit documentation in R/combineDatasets.R
 \name{combineDatasets}
 \alias{combineDatasets}
-\title{Combine sample expression profile with reference datasets.}
+\title{Combine sample expression profile with reference datasets}
 \usage{
 combineDatasets(sample_name, sample_counts, ref_data, report_dir, dataset)
 }
@@ -21,5 +21,7 @@ combineDatasets(sample_name, sample_counts, ref_data, report_dir, dataset)
 Combined sample expression profile with reference datasets.
 }
 \description{
-Combine sample expression profile with reference datasets.
+Combines sample expression profile with reference datasets. Outputs a vector
+with first element containing the merged data and second element containing
+merged targets info
 }
