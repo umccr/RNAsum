@@ -1,5 +1,8 @@
-##### Generate cumulative distribution function (CDF) plot for selected gene. If option "addBoxPlot" = TRUE, then generate additional boxplot below to show the data variance for selected gene in individual groups
+#' Generate CDF plot for selected gene
+#'
 #' Generates cumulative distribution function (CDF) plot for selected gene.
+#' If option "addBoxPlot" = TRUE, then generate additional boxplot
+#' below to show the data variance for selected gene in individual groups
 #'
 #' @param gene Gene of interest.
 #' @param data Input data.

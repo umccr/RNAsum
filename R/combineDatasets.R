@@ -1,5 +1,8 @@
-##### Combine sample expression profile with reference datasets. This function outputs a vector with first element containing the merged data and second element containing merged targets info
-#' Combine sample expression profile with reference datasets.
+#' Combine sample expression profile with reference datasets
+#'
+#' Combines sample expression profile with reference datasets. Outputs a vector
+#' with first element containing the merged data and second element containing 
+#' merged targets info
 #'
 #' @param sample_name Sample name.
 #' @param sample_counts Sample counts.
@@ -9,7 +12,6 @@
 #'
 #' @return Combined sample expression profile with reference datasets.
 #' @export
-#'
 combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir, dataset) {
 
   ##### Extract info about target file for the external reference dataset

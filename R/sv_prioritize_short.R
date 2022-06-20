@@ -1,11 +1,11 @@
-##### Code from UMCCRISE to prioritise SV events (version for "-sv-prioritize-manta-pass.tsv" files, https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd)
 #' Prioritize structural variants events
+#'
+#' Code from umccrise to prioritise SV events (version for "-sv-prioritize-manta-pass.tsv" files)
 #'
 #' @param sv_file Input file.
 #'
 #' @return Prioritized variant calls.
 #' @export
-#'
 sv_prioritize_short <- function(sv_file) {
 
   sv_all = NULL

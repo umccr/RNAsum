@@ -1,5 +1,6 @@
-##### Generate boxplot presenting expression profiles for selected set of genes
-#' Generates boxplot presenting expression profiles for selected set of genes
+#' Generate boxplot presenting expression profiles for selected set of genes
+#'
+#' Generates boxplot presenting expression profiles for selected set of genes.
 #'
 #' @param genes Genes of interest.
 #' @param data Input data.
@@ -18,8 +19,6 @@
 #' @importFrom magrittr %>%
 #' @return Boxplot presenting expression profiles for selected set of genes.
 #' @export
-#'
-
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, hexcode, type = "z", sort = "diff", scaling = "gene-wise", report_dir) {
 
   if ( comp_cancer != int_cancer ) {

@@ -1,13 +1,14 @@
-##### Capitalize input string
-#' Capitalize input string
+#' Capitalise input string
 #'
-#' @param y Input
+#' Capitalises input string.
 #'
-#' @return Capitalized string.
+#' @param x Input string.
+#'
+#' @return Capitalised string.
 #' @export
 #'
-CapStr <- function(y) {
-  c <- base::strsplit(y, " ")[[1]]
-  paste(toupper(base::substring(c, 1,1)), base::substring(c, 2),
+CapStr <- function(x) {
+  c <- base::strsplit(x, " ")[[1]]
+  paste(base::toupper(base::substring(c, 1,1)), base::substring(c, 2),
         sep="", collapse=" ")
 }

@@ -1,13 +1,12 @@
 #' Prioritize SV events
 #'
+#' Code from umccrise to prioritise SV events (version for "-manta.tsv" files)
 #' @param sv_file Input structural variants files.
 #'
 #' @importFrom magrittr %>%
 #' @importFrom rlang :=
 #' @return Prioritized variants list.
 #' @export
-#'
-##### Code from UMCCRISE to prioritise SV events (version for "-manta.tsv" files https://github.com/umccr/umccrise/blob/master/umccrise/rmd_files/index.Rmd
 sv_prioritize <- function(sv_file) {
 
   sv_all = NULL

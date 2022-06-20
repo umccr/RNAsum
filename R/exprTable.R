@@ -1,5 +1,6 @@
-##### Generate table with coloured cells indicating expression values for selected genes
-#' Generates table with coloured cells indicating expression values for selected genes
+#' Generate table with coloured cells indicating expression values for selected genes
+#'
+#' Generates table with coloured cells indicating expression values for selected genes.
 #'
 #' @param genes Selected genes.
 #' @param keep_all keep all rows
@@ -25,8 +26,6 @@
 #' @importFrom magrittr %>%
 #' @return Table with coloured cells indicating expression values for selected genes
 #' @export
-#'
-
 exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, genes_annot = NULL, oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
 
   ##### Check which of the selected genes are not present in the expression data

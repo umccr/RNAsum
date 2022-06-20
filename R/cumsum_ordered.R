@@ -1,12 +1,10 @@
-##### Calculating cumulative sum for while keeping the original data order
 #' Calculate cumulative sum
 #'
-#' @param x Input
+#' Calculating cumulative sum while keeping the original data order.
 #'
-#' @return Cumulative sum while keeping the order of input data
+#' @param x Input.
+#' @return Cumulative sum while keeping the order of input data.
 #' @export
-#'
-
 cumsum_ordered <- function(x) {
 
   ##### Perform range standardization between 0 and 1, otherwise the negative values are summed up

@@ -1,5 +1,7 @@
-##### Generate bar-plot for selected genes, highlighting samples of interest
-#' Generates bar-plot for selected genes.
+
+#' Generate bar-plot for selected genes
+#'
+#' Generates bar-plot for selected genes, highlighting samples of interest.
 #'
 #' @param gene User defined gene.
 #' @param data Input data.
@@ -14,7 +16,6 @@
 #' @importFrom magrittr %>%
 #' @return Bar-plot for selected genes, highlighting samples of interest.
 #' @export
-#'
 barPlot <- function(gene, data, targets, y_title = "Counts", sampleName,  ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = NULL ) {
 
   ##### Assign null value to variables to avoid no visible binding issue for global variables

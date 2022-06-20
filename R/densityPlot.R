@@ -1,5 +1,6 @@
-##### Generate density and expression distribution plots for selected gene, highlighting samples of interest
-#' Title Generate density and expression distribution plots for selected gene, highlighting samples of interest.
+#' Generate density and expression distribution plots for selected gene
+#'
+#' Generate density and expression distribution plots for selected gene, highlighting samples of interest.
 #'
 #' @param gene Selected gene.
 #' @param data Input data.
@@ -12,14 +13,6 @@
 #' @importFrom magrittr %>%
 #' @return Density and expression distribution plots for selected gene.
 #' @export
-#'
-
-##### Convert density to counts
-density2freq <- function(density) {
-  freq = length(density)/base::sum(density) * density
-  return(freq)
-}
-
 densityPlot <- function(gene, data, main_title, x_title, sampleName, distributions = NULL, scaling = "gene-wise") {
 
   if ( scaling == "gene-wise" ) {
@@ -30,6 +23,13 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
 
   ##### Used data for user-defined genes
   data.z <- data.z[ gene, ,drop=FALSE]
+
+  ##### Convert density to counts
+  density2freq <- function(density) {
+    freq = length(density)/base::sum(density) * density
+    return(freq)
+  }
+
 
   ##### Create data frame and fill it with expression and density values for each sample for selected gene
   data.df <- data.frame(gene = "Observed distribution", sample = colnames(data.z)[order(data.z)], expr = sort(data.z), dens = density2freq(stats::density(data.z, n=ncol(data.z))$y))

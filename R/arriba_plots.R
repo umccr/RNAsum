@@ -1,5 +1,6 @@
-##### Fusion visualization
-#' Fusion output visualization
+#' Fusion visualisation
+#'
+#' Fusion output visualisation.
 #'
 #' @param arriba_file Output fusions from Arriba.
 #' @param arriba_results PDF files.
@@ -7,10 +8,9 @@
 #'
 #' @return PNG images.
 #' @export
-#'
 arriba_plots <- function(arriba_file, arriba_results, results_dir) {
 
-  ##### Get path to fusion visualization  pdf file
+  ##### Get path to fusion visualisation  pdf file
   arriba_dir <- unlist(strsplit(arriba_file, split='/', fixed=TRUE))
   arriba_plots.pdf <- list.files(paste(arriba_dir[1:length(arriba_dir)-1], collapse = "/"), pattern="\\.pdf$")
   arriba_dir <- paste(arriba_dir[1:length(arriba_dir)-1], collapse = "/")

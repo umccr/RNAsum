@@ -1,12 +1,11 @@
-##### Assign colours to different elements
 #' Assign colours to different elements
+#'
+#' Assigns colours to different elements.
 #'
 #' @param elements Elements of interest.
 #'
 #' @return Colour assignment to different elements
 #' @export
-#'
-
 getColours <- function(elements) {
 
   ##### Predefined selection of colours for elements

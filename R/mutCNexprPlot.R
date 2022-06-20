@@ -1,4 +1,5 @@
-##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
+#' Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
+#'
 #' Generates scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided
 #'
 #' @param data Input data.
@@ -12,7 +13,6 @@
 #' @importFrom magrittr %>%
 #' @return Scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours), if provided.
 #' @export
-#'
 mutCNexprPlot <- function(data, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer, type = "z", report_dir) {
 
   ##### Extract info for genes to be annotated on the plot

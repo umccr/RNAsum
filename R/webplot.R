@@ -1,5 +1,7 @@
-##### Define function for generating spider web plots to present immunogram genes (code from http://www.statisticstoproveanything.com/2013/11/spider-web-plots-in-r.html)
 #' Generate spider web plots to present immunogram genes
+#'
+#' Generate spider web plots to present immunogram genes
+#' (from http://www.statisticstoproveanything.com/2013/11/spider-web-plots-in-r.html).
 #'
 #' @param data Dataframe or matrix.
 #' @param data.row Row of data to plot (if NULL uses row 1).
@@ -12,8 +14,6 @@
 #'
 #' @return Spider web plots to present immunogram genes
 #' @export
-#'
-
 webplot = function(data, data.row = NULL, y.cols = NULL, main = NULL, add = F,
                    col = "red", lty = 1, scale = T) {
   if (!is.matrix(data) & !is.data.frame(data))

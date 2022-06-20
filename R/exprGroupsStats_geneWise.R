@@ -1,13 +1,12 @@
-##### Calculate gene-wise median, sd, quantiles and cumulative fractions for expression data
-#' Calculate gene-wise median, standard deviation, quantiles and cumulative fractions for expression data
+#' Calculate gene-wise median, sd, quantiles and cumulative fractions for expression data
+#'
+#' Calculates gene-wise median, sd, quantiles and cumulative fractions for expression data.
 #'
 #' @param data input data.
 #' @param targets Target groups
 #'
-#' @return Gene-wise median, standard deviation, quantiles and cumulative fractions for expression data
+#' @return Gene-wise median, standard deviation, quantiles and cumulative fractions for expression data.
 #' @export
-#'
-
 exprGroupsStats_geneWise <- function(data, targets) {
 
   ##### Perform Z-score transformation of the expression values

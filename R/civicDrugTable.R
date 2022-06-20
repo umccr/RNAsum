@@ -1,5 +1,7 @@
-##### Generate table with drugs targeting selected set of genes using info from CIViC database (https://civicdb.org/)
-#' Generate table with drugs targeting selected set of genes.
+#' Generate table with drugs targeting selected set of genes
+#'
+#' Generates table with drugs targeting selected set of genes using info from
+#' CIViC database (https://civicdb.org/).
 #'
 #' @param genes Genes of interest.
 #' @param civic_var_summaries CIViC variant summaries.
@@ -10,7 +12,6 @@
 #' @importFrom magrittr %>%
 #' @return Table with drugs targeting selected set of genes.
 #' @export
-#'
 civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive", var_type = NULL) {
 
   ##### Initialize data frame to the about drug-target info from CIViC

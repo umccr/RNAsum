@@ -1,5 +1,6 @@
-##### Perform PCA. This function outputs a list with dataframe and samples colouring info ready for plotting
-#' Performs PCA.
+#' Perform PCA
+#'
+#' Perform PCA. Outputs a list with dataframe and samples colouring info ready for plotting.
 #'
 #' @param data Input data.
 #' @param targets Target group.
@@ -10,8 +11,6 @@
 #' @importFrom magrittr %>%
 #' @return Outputs a list with data frame and samples colouring info ready for plotting.
 #' @export
-#'
-
 pca <- function(data, targets, title = "", report_dir, suffix = "" ) {
 
   ##### Keep only genes with variance > 0 across all samples
