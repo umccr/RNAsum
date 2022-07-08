@@ -77,7 +77,7 @@ The pipeline consist of five main components illustrated and briefly described b
 
 <br/>
 
-1. Collect patient sample WTS data from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline including per-gene **[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and **[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)**.
+1. Collect patient sample WTS data from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline including per-gene **[read counts](./inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and **[gene fusions](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv)**.
 
 2. Add expression data from [reference cohorts](#reference-data) to get an idea about expression levels of genes of interest in other cancer [patient cohorts](#reference-data). The read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
 
@@ -130,15 +130,15 @@ The only required WTS input data are **read counts** provided in quantification 
 
 #### bcbio-nextgen
 
-The **read counts** are provided within quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) (see example *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* file and its [description](https://pachterlab.github.io/kallisto/starting#results)). The per-transcript abundances are reported in *estimated counts* (`est_counts`) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`tpm`), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** detected by [arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly) can be provided (see example *[fusions.tsv](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* and *[test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)*). 
+The **read counts** are provided within quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) (see example *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* file and its [description](https://pachterlab.github.io/kallisto/starting#results)). The per-transcript abundances are reported in *estimated counts* (`est_counts`) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`tpm`), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** detected by [arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly) can be provided (see example *[fusions.tsv](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv)* and *[test_sample_WTS-flat.tsv](./inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)*). 
 
 Table below lists all input data accepted in the pipeline:
 
 Input file | Tool | Example | Required
 ------------ | ------------ | ------------ | ------------
-Quantified **abundances** of transcripts | [kallisto](https://pachterlab.github.io/kallisto/about) | [abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv) | **Yes**
-List of detected **fusion genes** | [arriba](https://arriba.readthedocs.io/en/latest/) </br> [pizzly](https://github.com/pmelsted/pizzly) | [fusions.tsv](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv) </br> [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
-Plots of detected **fusion genes** using [arriba](https://arriba.readthedocs.io/en/latest/) | [arriba](https://arriba.readthedocs.io/en/latest/) | [fusions.pdf](./data/test_data/final/test_sample_WTS/arriba/fusions.pdf) | No
+Quantified **abundances** of transcripts | [kallisto](https://pachterlab.github.io/kallisto/about) | [abundance.tsv](./inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv) | **Yes**
+List of detected **fusion genes** | [arriba](https://arriba.readthedocs.io/en/latest/) </br> [pizzly](https://github.com/pmelsted/pizzly) | [fusions.tsv](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv) </br> [test_sample_WTS-flat.tsv](./inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
+Plots of detected **fusion genes** using [arriba](https://arriba.readthedocs.io/en/latest/) | [arriba](https://arriba.readthedocs.io/en/latest/) | [fusions.pdf](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.pdf) | No
 
 <br />
 
@@ -158,7 +158,7 @@ These files are expected to be organised following the folder structure below
 
 **Note**
 
-[Fusion genes](./fusions) detected by [pizzly](https://github.com/pmelsted/pizzly) are expected to be listed in the [flat table](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./data/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
+[Fusion genes](./fusions) detected by [pizzly](https://github.com/pmelsted/pizzly) are expected to be listed in the [flat table](./inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
 
 
 #### Dragen RNA
@@ -318,22 +318,18 @@ The input files are expected to be organised following the folder structure desc
 ##### bcbio-nextgen
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
 
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
-
-Note:
-
-Test data for Dragen versions older than 3.9.3 is provided under `$(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.7.5`
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/dragen/RNAsum` folder.
 
 
 #### 2. WTS and WGS data
@@ -345,18 +341,18 @@ The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to
 ##### bcbio-nextgen
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
 
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/dragen/RNAsum` folder.
 
 
 #### 3. WTS WGS and clinical data
@@ -366,18 +362,18 @@ For samples derived from subjects, for which clinical information is available, 
 ##### bcbio-nextgen
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../rawdata/test_data/test_clinical_data.xlsx --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/final/test_sample_WTS/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
 
 ##### Dragen RNA
 
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum  --umccrise $(pwd)/../data/test_data/umccrised/test_subject__test_sample_WGS  --clinical_info $(pwd)/../data/test_data/test_clinical_data.xlsx  --save_tables FALSE
+Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS  --save_tables FALSE --clinical_info $(pwd)/../rawdata/test_data/test_clinical_data.xlsx --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
+>The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
 
 ### Output
 
