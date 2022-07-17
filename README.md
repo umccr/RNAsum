@@ -48,7 +48,7 @@ remotes::install_github("umccr/RNAsum#123") # PR 123
 conda install r-rnasum==0.0.X -c umccr -c conda-forge -c bioconda
 ```
 
--   **Docker** image is available at the [GitHub Container
+-   **Docker** image is available from the [GitHub Container
     Registy](https://github.com/umccr/RNAsum/pkgs/container/rnasum):
 
 ``` bash
@@ -122,17 +122,6 @@ using methods described in the
 repository. The dataset of interest can be specified by using one of the
 TCGA project IDs for the `RNAsum` `--dataset` argument (see
 [Arguments](./README.md#arguments)).
-
-**Note**
-
-Each dataset was **cleaned** based on the quality metrics provided in
-the *Merged Sample Quality Annotations* file (download the TSV from
-[here](http://api.gdc.cancer.gov/data/1a7d7be8-675d-4e60-a105-19d4121bdebf)),
-linked to from the [TCGA PanCanAtlas initiative
-webpage](https://gdc.cancer.gov/about-data/publications/pancanatlas)
-(see the
-[TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/tree/master/expression/README.md#data-clean-up)
-repository for more details, including sample inclusion criteria).
 
 ### Internal reference cohort
 
