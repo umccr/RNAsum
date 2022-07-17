@@ -1,9 +1,9 @@
 ---
-title: "TCGA project summary"
+title: "TCGA Projects"
 output: rmarkdown::html_vignette
 date: "`r Sys.Date()`"
 vignette: >
-  %\VignetteIndexEntry{TCGA project summary}
+  %\VignetteIndexEntry{TCGA Projects}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
