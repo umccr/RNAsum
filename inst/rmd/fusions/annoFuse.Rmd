@@ -37,20 +37,20 @@ If we decide not to add FusionAnnotator annotation, we can simply add a column "
 
 ```{r pre-processing, warning = FALSE}
 Arribainputfile <- read_tsv(here("../data/fusions/arriba/SBJ00051_MDX190040_SFRC01112_T_RNA_L1900448/fusions.tsv"), col_types = cols())
-#arriba output file has a # in the first coloumn. Removing it, otherwise the first column name becomes "#gene1" instead of "gene"
-names(Arribainputfile)[names(Arribainputfile) == "#gene1"] <- "gene1" 
+# arriba output file has a # in the first coloumn. Removing it, otherwise the first column name becomes "#gene1" instead of "gene"
+names(Arribainputfile)[names(Arribainputfile) == "#gene1"] <- "gene1"
 
 Fusionannfile <- read_tsv(here("../data/fusions/arriba/SBJ00051_MDX190040_SFRC01112_T_RNA_L1900448/fusionsAnno.tsv"), col_types = cols(), col_names = FALSE)
 colnames(Fusionannfile) <- c("fusion", "ann")
 
-#pre-processing - adding "Sample", "Caller" and "annots" coloumn using FusionAnnotator's output.
+# pre-processing - adding "Sample", "Caller" and "annots" coloumn using FusionAnnotator's output.
 Arribainputfile$Sample <- "SFRC01112"
 Arribainputfile$Caller <- "Arriba"
 Arribainputfile$annots <- Fusionannfile$ann
 
-#the input looks like
-df <- ldply (Arribainputfile, data.frame) %>%
-  unstack(form=X..i..~.id)
+# the input looks like
+df <- ldply(Arribainputfile, data.frame) %>%
+  unstack(form = X..i.. ~ .id)
 
 kable(df) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), fixed_thead = T) %>%
@@ -63,9 +63,9 @@ Standardize calls from fusion callers to retain information regarding fused gene
 
 
 ```{r standardize-calls, warning = FALSE}
-standardizedArriba <- fusion_standardization(fusion_calls = Arribainputfile,caller = "ARRIBA")
+standardizedArriba <- fusion_standardization(fusion_calls = Arribainputfile, caller = "ARRIBA")
 
-#the standardized Arriba output looks like
+# the standardized Arriba output looks like
 kable(standardizedArriba) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), fixed_thead = T) %>%
   scroll_box(width = "100%", height = "200px")
@@ -79,11 +79,13 @@ Filter standardized fusion calls to remove false positives with low read support
 If not using FusionAnnotator annots column for filtering,  only filter using cutoff for junction and spanning read support and readthrough fusion.
 
 ```{r filter-calls, warning = FALSE}
-fusionQCarriba <- fusion_filtering_QC(standardFusioncalls=standardizedArriba,
-                                    readingFrameFilter="in-frame|frameshift|other", artifactFilter="none", junctionReadCountFilter=1,
-                                    spanningFragCountFilter=10, readthroughFilter=TRUE)
+fusionQCarriba <- fusion_filtering_QC(
+  standardFusioncalls = standardizedArriba,
+  readingFrameFilter = "in-frame|frameshift|other", artifactFilter = "none", junctionReadCountFilter = 1,
+  spanningFragCountFilter = 10, readthroughFilter = TRUE
+)
 
-#T=the filtered calls look like
+# T=the filtered calls look like
 kable(fusionQCarriba) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), fixed_thead = T) %>%
   scroll_box(width = "100%", height = "200px")
@@ -94,16 +96,18 @@ kable(fusionQCarriba) %>%
 Annotation is performed using useful biological features of interest eg. Kinase, Tumor suppressor etc. AND Annotate genes in standardized and filtered fusion calls with useful biological features of interest eg. Kinase, Tumor suppressor etc.
 
 ```{r annotate-calls, warning = FALSE}
-#the geneListReferenceDataTab and fusionReferenceDataTab are available with the package
-geneListReferenceDataTab <- read.delim(system.file("extdata", "genelistreference.txt", package="annoFuse"),stringsAsFactors = FALSE)
-fusionReferenceDataTab <- read.delim(system.file("extdata", "fusionreference.txt", package="annoFuse"),stringsAsFactors = FALSE)
+# the geneListReferenceDataTab and fusionReferenceDataTab are available with the package
+geneListReferenceDataTab <- read.delim(system.file("extdata", "genelistreference.txt", package = "annoFuse"), stringsAsFactors = FALSE)
+fusionReferenceDataTab <- read.delim(system.file("extdata", "fusionreference.txt", package = "annoFuse"), stringsAsFactors = FALSE)
 
-#annotation of filtered fusion calls
-filteredFusionAnnotated <- annotate_fusion_calls(standardFusioncalls=fusionQCarriba,
-                                               geneListReferenceDataTab=geneListReferenceDataTab,
-                                               fusionReferenceDataTab=fusionReferenceDataTab)
+# annotation of filtered fusion calls
+filteredFusionAnnotated <- annotate_fusion_calls(
+  standardFusioncalls = fusionQCarriba,
+  geneListReferenceDataTab = geneListReferenceDataTab,
+  fusionReferenceDataTab = fusionReferenceDataTab
+)
 
-#annotated calls look like
+# annotated calls look like
 kable(filteredFusionAnnotated) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), fixed_thead = T) %>%
   scroll_box(width = "100%", height = "200px")
@@ -115,13 +119,19 @@ The following is the quick peice of code to prepare Arriba's input fusions calls
 
 ```{r prepare-FA-input, warning = FALSE, eval = FALSE}
 Arribainputfile %>%
-    dplyr::mutate(gene1 = gsub("\\..*", "", gene1),
-                  gene2 = gsub("\\..*", "", gene2)) %>%
-    dplyr::mutate(gene1 = gsub("\\-.*", "", gene1),
-                  gene2 = gsub("\\-.*", "", gene2)) %>%
-    dplyr::mutate(FusionName = paste0(gene1, "--", gene2, sep = '')) %>%
-    dplyr::select(FusionName) %>%
-    write.table(file = here("../arriba/SBJ00051/fusionsFA"), sep = "\t", 
-                col.names = FALSE, row.names = FALSE, quote = FALSE)
+  dplyr::mutate(
+    gene1 = gsub("\\..*", "", gene1),
+    gene2 = gsub("\\..*", "", gene2)
+  ) %>%
+  dplyr::mutate(
+    gene1 = gsub("\\-.*", "", gene1),
+    gene2 = gsub("\\-.*", "", gene2)
+  ) %>%
+  dplyr::mutate(FusionName = paste0(gene1, "--", gene2, sep = "")) %>%
+  dplyr::select(FusionName) %>%
+  write.table(
+    file = here("../arriba/SBJ00051/fusionsFA"), sep = "\t",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
 ```
 
