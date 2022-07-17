@@ -1,150 +1,221 @@
-# RNAsum <!-- omit in toc -->
 
-RNA-seq reporting workflow designed to post-process, summarise and visualise an output from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipelines. Its main application is to complement genome-based findings from [umccrise](https://github.com/umccr/umccrise) pipeline and to provide additional evidence for detected alterations.
+-   <a href="#rnasum" id="toc-rnasum">RNAsum</a>
+    -   <a href="#installation" id="toc-installation">Installation</a>
+    -   <a href="#workflow" id="toc-workflow">Workflow</a>
+    -   <a href="#reference-data" id="toc-reference-data">Reference data</a>
+        -   <a href="#external-reference-cohorts"
+            id="toc-external-reference-cohorts">External reference cohorts</a>
+        -   <a href="#internal-reference-cohort"
+            id="toc-internal-reference-cohort">Internal reference cohort</a>
+    -   <a href="#input-data" id="toc-input-data">Input data</a>
+        -   <a href="#wts" id="toc-wts">WTS</a>
+        -   <a href="#wgs" id="toc-wgs">WGS</a>
+    -   <a href="#usage" id="toc-usage">Usage</a>
+        -   <a href="#run-via-aws-batch" id="toc-run-via-aws-batch">Run via
+            AWS-Batch</a>
+        -   <a href="#examples" id="toc-examples">Examples</a>
+        -   <a href="#output" id="toc-output">Output</a>
 
+<!-- README.md is generated from README.Rmd. Please edit that file -->
 
-## Table of contents <!-- omit in toc -->
+# RNAsum
 
-<!-- vim-markdown-toc GFM -->
-- [Installation](#installation)
-- [Docker](#docker)
-- [Workflow](#workflow)
-- [Reference data](#reference-data)
-  - [External reference cohorts](#external-reference-cohorts)
-  - [Internal reference cohort](#internal-reference-cohort)
-- [Input data](#input-data)
-  - [WTS](#wts)
-    - [bcbio-nextgen](#bcbio-nextgen)
-    - [Dragen RNA](#dragen-rna)
-  - [WGS](#wgs)
-- [Usage](#usage)
-  - [Arguments](#arguments)
-  - [Run via AWS-Batch](#run-via-aws-batch)
-  - [Examples](#examples)
-    - [1. WTS data only](#1-wts-data-only)
-      - [bcbio-nextgen](#bcbio-nextgen-1)
-      - [Dragen RNA](#dragen-rna-1)
-    - [2. WTS and WGS data](#2-wts-and-wgs-data)
-      - [bcbio-nextgen](#bcbio-nextgen-2)
-      - [Dragen RNA](#dragen-rna-2)
-    - [3. WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
-      - [bcbio-nextgen](#bcbio-nextgen-3)
-      - [Dragen RNA](#dragen-rna-3)
-  - [Output](#output)
-    - [Report](#report)
-    - [Results](#results)
-
-<!-- vim-markdown-toc -->
+`RNAsum` is an R package that can post-process, summarise and visualise
+outputs from [DRAGEN
+RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)
+or [bcbio-nextgen
+RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)
+pipelines. Its main application is to complement genome-based findings
+from the [umccrise](https://github.com/umccr/umccrise) pipeline and to
+provide additional evidence for detected alterations.
 
 ## Installation
 
-Run the following to create a directory "rnasum" and install into it
+-   **R** package can be installed directly from the [GitHub
+    source](https://github.com/umccr/RNAsum):
 
-```
-mkdir rnasum
-cd rnasum
-source <(curl -s https://raw.githubusercontent.com/umccr/RNAsum/master/install.sh)
-```
-
-It will generate `load_rnasum.sh` script that can be sourced to load the `rnasum` environment:
-
-```
-source load_rnasum.sh
+``` r
+remotes::install_github("umccr/RNAsum") # latest master commit
+remotes::install_github("umccr/RNAsum@v0.0.X") # version 0.0.X
+remotes::install_github("umccr/RNAsum@abcde") # commit abcde
+remotes::install_github("umccr/RNAsum#123") # PR 123
 ```
 
-## Docker
+-   **Conda** package is available from the Anaconda [umccr
+    channel](https://anaconda.org/umccr/r-rnasum):
 
- - Pull ready to run docker image from DockerHub
+``` bash
+conda install r-rnasum==0.0.X -c umccr -c conda-forge -c bioconda
+```
 
- `docker pull umccr/rnasum:0.3.2`
- 
- - An example command to use this pulled docker container is:
+-   **Docker** image is available at the [GitHub Container
+    Registy](https://github.com/umccr/RNAsum/pkgs/container/rnasum):
 
- ```
- docker run --rm -v /path/to/RNAseq-report/RNAseq-Analysis-Report/envm/wts-report-wrapper.sh:/work/test.sh -v /path/to/RNAseq-report/RNAseq-Analysis-Report/data:/work c18db89d3093 /work/test.sh
- ```
- 
- - Assumptions
-
- 	- You are running the RNAsum container against the [RNAsum code](https://github.com/umccr/RNAsum/) and  [test/reference data](https://github.com/umccr/RNAsum/tree/master/data/)
-
+``` bash
+docker pull ghcr.io/umccr/rnasum:latest
+```
 
 ## Workflow
 
-The pipeline consist of five main components illustrated and briefly described below. See the [workflow.md](workflow.md) for the complete description of the **[data processing workflow](workflow.md)**.
+The pipeline consists of five main components illustrated and briefly
+described below. For more details, see [workflow.md](/workflow.md).
 
-<img src="img/RNAsum_workflow.png" width="100%"> 
+<img src="img/RNAsum_workflow.png" width="100%">
 
-<br/>
+1.  Collect patient **WTS data** from the `DRAGEN RNA` or
+    `bcbio-nextgen RNA-seq` pipeline including per-gene [read
+    counts](./inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv)
+    and [gene
+    fusions](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv).
 
-1. Collect patient sample WTS data from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline including per-gene **[read counts](./inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** and **[gene fusions](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv)**.
+2.  Add expression data from **[reference cohorts](#reference-data)** to
+    get an idea about the expression levels of genes of interest in
+    other cancer patient cohorts. The read counts are [normalised,
+    transformed](img/counts_post-processing_scheme.png) and
+    [converted](img/Z-score_transformation_gene_wise.png) into a scale
+    that allows to present the patient’s expression measurements in the
+    context of the reference cohorts.
 
-2. Add expression data from [reference cohorts](#reference-data) to get an idea about expression levels of genes of interest in other cancer [patient cohorts](#reference-data). The read counts are [normalised, transformed](img/counts_post-processing_scheme.png) and [converted](img/Z-score_transformation_gene_wise.png) into a scale that allows to present the sample's expression measurements in the context of the [reference cohorts](#reference-data).
+3.  Supply **genome-based findings** from whole-genome sequencing (WGS)
+    data to focus on genes of interest and to provide additional
+    evidence for dysregulation of mutated genes, or genes located within
+    detected structural variants (SVs) or copy-number (CN) altered
+    regions. `RNAsum` is designed to be compatible with WGS patient
+    outputs generated from `umccrise`.
 
-3. Feed in **genome-based findings** from whole-genome sequencing (WGS) data to focus on genes of interest and provide additional evidence for dysregulation of mutated genes, or genes located within detected structural variants (SVs) or copy-number (CN) altered regions. The ***RNAsum*** pipeline is designed to be compatible with WGS patient report based on ***[umccrise](https://github.com/umccr/umccrise)*** pipeline output.
+4.  Collate results with knowledge derived from in-house resources and
+    public databases to provide additional sources of evidence for
+    clinical significance of altered genes e.g. to flag variants with
+    clinical significance or potential druggable targets.
 
-
-4. Collate results with knowledge derived from in-house resources and public **databases** to provide additional source of evidence for clinical significance of altered genes, e.g. to flag variants with clinical significance or potential druggable targets.
-
-5. The final product is a html-based **interactive report** with searchable tables and plots presenting expression levels of the genes of interest genes. The report consist of several sections described in [report_structure.md](report_structure.md).
-
+5.  The final product is an interactive HTML report with searchable
+    tables and plots presenting expression levels of the genes of
+    interest. The report consists of several sections described
+    [here](./report_structure.md).
 
 ## Reference data
 
-The reference expression data is availbale for **33 cancer types** and were derived from [external](#external-reference-cohorts) ([TCGA](https://tcga-data.nci.nih.gov/)) and [internal](#internal-reference-cohort) ([UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)) resources.
-
+The reference expression data are available for **33 cancer types** and
+were derived from [external](#external-reference-cohorts)
+([TCGA](https://tcga-data.nci.nih.gov/)) and
+[internal](#internal-reference-cohort)
+([UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group))
+resources.
 
 ### External reference cohorts
 
-In order to explore expression changes in queried sample we have built a high-quality pancreatic cancer reference cohort. 
+In order to explore expression changes in the patient, we have built a
+high-quality pancreatic cancer reference cohort.
 
-Depending on the tissue from which the patient's sample was taken, one of **33 cancer datasets** from [TCGA](https://tcga-data.nci.nih.gov/) can be used as a reference cohort for comparing expression changes in genes of interest in investigated sample. Additionally, 10 samples from each of the 33 datasets were combined to create **[Pan-Cancer dataset](./TCGA_projects_summary.md#pan-cancer-dataset)**, and for some cohorts **[extended sets](./TCGA_projects_summary.md#extended-datasets)** are also available. All available datasets are listed in **[TCGA projects summary table](./TCGA_projects_summary.md)**. These datasets have been processed using methods described in [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data) repository. The dataset of interest can be specified by using one of the [TCGA](https://portal.gdc.cancer.gov/) project IDs (`Project` column) for the `--dataset` argument in *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see [Arguments](./README.md#arguments) section). 
+Depending on the tissue from which the patient’s sample was taken, one
+of **33 cancer datasets** from TCGA can be used as a reference cohort
+for comparing expression changes in genes of interest of the patient.
+Additionally, 10 samples from each of the 33 TCGA datasets were combined
+to create the **[Pan-Cancer
+dataset](./TCGA_projects_summary.md#pan-cancer-dataset)**, and for some
+cohorts **[extended
+sets](./TCGA_projects_summary.md#extended-datasets)** are also
+available. All available datasets are listed in **[TCGA projects summary
+table](./TCGA_projects_summary.md)**. These datasets have been processed
+using methods described in the
+[TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data)
+repository. The dataset of interest can be specified by using one of the
+TCGA project IDs for the `RNAsum` `--dataset` argument (see
+[Arguments](./README.md#arguments)).
 
 **Note**
 
-Each dataset was **cleaned** based on the quality metrics provided in the *Merged Sample Quality Annotations* file **[merged_sample_quality_annotations.tsv](http://api.gdc.cancer.gov/data/1a7d7be8-675d-4e60-a105-19d4121bdebf)** from [TCGA PanCanAtlas initiative webpage](https://gdc.cancer.gov/about-data/publications/pancanatlas) (see [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/tree/master/expression/README.md#data-clean-up) repository for more details, including sample inclusion criteria).
-
+Each dataset was **cleaned** based on the quality metrics provided in
+the *Merged Sample Quality Annotations* file (download the TSV from
+[here](http://api.gdc.cancer.gov/data/1a7d7be8-675d-4e60-a105-19d4121bdebf)),
+linked to from the [TCGA PanCanAtlas initiative
+webpage](https://gdc.cancer.gov/about-data/publications/pancanatlas)
+(see the
+[TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/tree/master/expression/README.md#data-clean-up)
+repository for more details, including sample inclusion criteria).
 
 ### Internal reference cohort
 
-The publically available TCGA datasets are expected to demonstrate prominent [batch effects](https://www.ncbi.nlm.nih.gov/pubmed/20838408) when compared to the in-house WTS data due to differences in applied experimental procedures and analytical pipelines. Moreover, TCGA data may include samples from tissue material of lower quality and cellularity compared to samples processed using local protocols. To address these issues, we have built a high-quality internal reference cohort processed using the same pipelines as input data (see [Data pre-processing](./workflow.md#data-pre-processing) section on the [workflow](./workflow.md) page). 
+The publicly available TCGA datasets are expected to demonstrate
+prominent [batch effects](https://www.ncbi.nlm.nih.gov/pubmed/20838408)
+when compared to the in-house WTS data due to differences in applied
+experimental procedures and analytical pipelines. Moreover, TCGA data
+may include samples from tissue material of lower quality and
+cellularity compared to samples processed using local protocols. To
+address these issues, we have built a high-quality internal reference
+cohort processed using the same pipelines as input data (see [data
+pre-processing](./workflow.md#data-pre-processing)).
 
-This internal reference set of **40 pancreatic cancer samples** is based on WTS data generated at **[UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)** and processed with **[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)** pipeline to minimise potential batch effects between investigated samples and the reference cohort and to make sure the data are comparable. The internal reference cohort assembly is summarised in [Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house) repository.
+This internal reference set of **40 pancreatic cancer samples** is based
+on WTS data generated at
+**[UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)**
+and processed with the **bcbio-nextgen RNA-seq** pipeline to minimise
+potential batch effects between investigated samples and the reference
+cohort and to make sure the data are comparable. The internal reference
+cohort assembly is summarised in the
+[Pancreatic-data-harmonization](https://github.com/umccr/Pancreatic-data-harmonization/tree/master/expression/in-house)
+repository.
 
 **Note**
 
 The are two rationales for using the internal reference cohort:
 
-1. In case of **pancreatic cancer samples** this cohort is used (I) in ***batch effects correction***, as well as (II) as a reference point for ***comparing per-gene expression levels*** observed in the investigated single-subject data and data from other pancreatic cancer patients.
-
-2. In case of samples from **any cancer type** the data from the internal reference cohort is used in ***batch effects correction*** procedure performed to minimise technical-related variation in the data.
+1.  In case of **pancreatic cancer samples** this cohort is used:
+    -   in ***batch effects correction***
+    -   as a reference point for ***comparing per-gene expression
+        levels*** observed in the data of the patient of interest and
+        data from other pancreatic cancer patients.
+2.  In case of samples from **any cancer type** the data from the
+    internal reference cohort is used in the ***batch effects
+    correction*** procedure performed to minimise technical-related
+    variation in the data.
 
 ## Input data
 
-The pipeline accepts [WTS](#wts) data processed by *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)*  pipeline. Additionally, the WTS data can be integrated with [WGS](#wgs)-based data processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline. In the latter case, the genome-based findings from corresponding sample are incorporated into the report and are used as a primary source for expression profiles prioritisation.
+`RNAsum` accepts [WTS](#wts) data processed by the `DRAGEN RNA` or
+`bcbio-nextgen RNA-seq` pipeline. Additionally, the WTS data can be
+integrated with [WGS](#wgs)-based data processed using the `umccrise`
+pipeline. In the latter case, the genome-based findings from the
+corresponding patient sample are incorporated into the report and are
+used as a primary source for expression profile prioritisation.
 
+### WTS
 
-### WTS 
+The only required WTS input data are **read counts** provided in a
+quantification file from either the `DRAGEN RNA` or
+`bcbio-nextgen RNA-seq` pipeline.
 
-The only required WTS input data are **read counts** provided in quantification file from either *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
+#### DRAGEN RNA
 
-#### bcbio-nextgen
+The table below lists all input data accepted in `RNAsum`:
 
-The **read counts** are provided within quantification file from [kallisto](https://pachterlab.github.io/kallisto/about) (see example *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* file and its [description](https://pachterlab.github.io/kallisto/starting#results)). The per-transcript abundances are reported in *estimated counts* (`est_counts`) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`tpm`), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** detected by [arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly) can be provided (see example *[fusions.tsv](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv)* and *[test_sample_WTS-flat.tsv](./inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)*). 
+| Input file                           | Tool                                                                                                                                                 | Example                                                                                                | Required |
+|--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|----------|
+| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [TEST.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf)                                          | **Yes**  |
+| **Fusion gene** list                 | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No       |
 
-Table below lists all input data accepted in the pipeline:
+These files are expected to be organised in the following structure:
 
-Input file | Tool | Example | Required
------------- | ------------ | ------------ | ------------
-Quantified **abundances** of transcripts | [kallisto](https://pachterlab.github.io/kallisto/about) | [abundance.tsv](./inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv) | **Yes**
-List of detected **fusion genes** | [arriba](https://arriba.readthedocs.io/en/latest/) </br> [pizzly](https://github.com/pmelsted/pizzly) | [fusions.tsv](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv) </br> [test_sample_WTS-flat.tsv](./inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No
-Plots of detected **fusion genes** using [arriba](https://arriba.readthedocs.io/en/latest/) | [arriba](https://arriba.readthedocs.io/en/latest/) | [fusions.pdf](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.pdf) | No
-
-<br />
-
-These files are expected to be organised following the folder structure below
-
+``` text
+|
+|____<SampleName>
+  |____<SampleName>quant.sf
+  |____<SampleName>.fusion_candidates.final
 ```
+
+#### bcbio-nextgen (legacy)
+
+The table below lists all input data accepted in `RNAsum`:
+
+| Input file                           | Tool                                                                                                                            | Example                                                                                                                                                                                    | Required |
+|--------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| Quantified transcript **abundances** | [kallisto](https://pachterlab.github.io/kallisto/about) ([description](https://pachterlab.github.io/kallisto/starting#results)) | [abundance.tsv](/inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv), [Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)         | **Yes**  |
+| **Fusion gene** list                 | [arriba](https://arriba.readthedocs.io/en/latest), [pizzly](https://github.com/pmelsted/pizzly)                                 | [fusions.tsv](/inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv), [test_sample_WTS-flat.tsv](/inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv) | No       |
+| **Fusion gene** plots                | [arriba plot](https://arriba.readthedocs.io/en/latest/visualization/)                                                           | [fusions.pdf](/inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.pdf)                                                                                                            | No       |
+
+These files are expected to be organised in the following structure:
+
+``` text
 |
 |____<SampleName>
   |____kallisto
@@ -158,50 +229,30 @@ These files are expected to be organised following the folder structure below
 
 **Note**
 
-[Fusion genes](./fusions) detected by [pizzly](https://github.com/pmelsted/pizzly) are expected to be listed in the [flat table](./inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv). By default two output tables are provided: (1) *\<sample_name\>-flat.tsv* listing all gene fusion candidates and (2) *\<sample_name\>-flat-filtered.tsv* listing only gene fusions remaining after filtering step. However, this workflow makes use of gene fusions listed in the **unfiltered** [pizzly](https://github.com/pmelsted/pizzly) output file (see example [test_sample_WTS-flat.tsv](./inst/rawdata/test_data/final/test_sample_WTS/pizzly/test_sample_WTS-flat.tsv)) since it was noted that some genuine fusions (based on WGS data and curation efforts) are excluded in the filtered [pizzly](https://github.com/pmelsted/pizzly) output file.
+`pizzly` outputs two [fusion gene](./fusions) files by default: -
+*\<sample_name\>-flat.tsv* lists all (**unfiltered**) the gene fusions -
+*\<sample_name\>-flat-filtered.tsv* lists **filtered** gene fusions
 
-
-#### Dragen RNA
-
-The **read counts** are provided within quantification file from [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) (see example *[TEST.quant.sf](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.quant.sf)* file and its [description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)). The per-transcript abundances are reported in *estimated counts* (`NumReads `) and in *[Transcripts Per Million](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)* (`TPM `), which are then converted to per-gene estimates. Additionally, a list of **[fusion genes](./fusions)** can be provided (see example *[TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.fusion_candidates.final)*). 
-
-Table below lists all input data accepted in the pipeline:
-
-Input file | Tool | Example | Required
------------- | ------------ | ------------ | ------------
-Quantified **abundances** of transcripts | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) | [TEST.quant.sf](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.quant.sf) | **Yes**
-List of detected **fusion genes** | [Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](./data/test_data/stratus/test_sample_WTS_dragen_v3.9.3/TEST.fusion_candidates.final) | No
-
-<br />
-
-These files are expected to be organised following the folder structure below
-
-```
-|
-|____<SampleName>
-  |____<SampleName>quant.sf
-  |____<SampleName>.fusion_candidates.final
-```
-
-
-<br />
+`RNAsum` makes use of gene fusions listed in the **unfiltered** file
+since it was noted that some genuine fusions (based on WGS data and
+curation efforts) get filtered out.
 
 ### WGS
 
-The following *[umccrise](https://github.com/umccr/umccrise)* output files are accepted as input data in the pipeline:
+`RNAsum` is designed to be compatible with WGS outputs generated from
+`umccrise`.
 
-Input file | Tool | Example | Required
------------- | ------------ | ------------ | ------------
-List of detected and annotated single-nucleotide variants (**SNVs**) and indels | [PCGR](https://github.com/sigven/pcgr) | [test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv](./data/test_data/umccrised/test_subject__test_sample_WGS/pcgr/test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv) | No
-List of genes involved in **CN** altered regions | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) | [test_subject__test_sample_WGS.purple.gene.cnv](./data/test_data/umccrised/test_subject__test_sample_WGS/purple/test_subject__test_sample_WGS.purple.gene.cnv) | No
-List of genes involved in **SV** regions | [Manta](https://github.com/Illumina/manta) | [test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv](./data/test_data/umccrised/test_subject__test_sample_WGS/structural/test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv) | No
+The table below lists all input data accepted in `RNAsum`:
 
-<br />
+| Input file      | Tool                                                                    | Example                                                                                                                   | Required |
+|-----------------|-------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
+| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr)                                  | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No       |
+| **CNVs**        | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv)                           | No       |
+| **SVs**         | [Manta](https://github.com/Illumina/manta)                              | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv)           | No       |
 
+These files are expected to be organised in the following structure:
 
-These files are expected to be organised following the folder structure below
-
-```
+``` text
 |
 |____umccrised
   |____<SampleName>
@@ -213,205 +264,253 @@ These files are expected to be organised following the folder structure below
       |____<SampleName>-manta.tsv
 ```
 
-
 ## Usage
 
-To run the pipeline execure the *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script. This script catches the arguments from the command line and passes them to the *[RNAseq_report.Rmd](./rmd_files/RNAseq_report.Rmd)* script to produce the interactive HTML report.
+``` bash
+rnasum_cli=$(Rscript -e 'x = system.file("cli", package = "RNAsum"); cat(x, "\n")' | xargs)
+export PATH="${rnasum_cli}:${PATH}"
+```
 
-### Arguments
+    $ rnasum.R --version
+    rnasum.R x.x.x
 
-Argument | Description | Required
------------- | ------------ | ------------
---sample_name | The name of the sample to be analysed and reported | **Yes**
---bcbio_rnaseq | Location of the results folder from *[bcbio-nextgen](https://github.com/bcbio/bcbio-nextgen)* *[RNA-seq pipeline](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* | **Yes***
---dragen_rnaseq | Location of the results folder from *[Dragen RNA pipeline](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* | **Yes***
---report_dir | Desired location for the report | **Yes**
---dataset | Dataset to be used as external reference cohort. Available options are [TCGA](https://tcga-data.nci.nih.gov/) project IDs listed in [TCGA projects summary table](./TCGA_projects_summary.md) `Project` column (default is `PANCAN`) | No
---transform | Transformation method for converting read counts. Available options are: `CPM` (default) and `TPM` | No
---norm | Normalisation method. Available options are: `TMM` (default), `TMMwzp`, `RLE`, `upperquartile` or `none` for *CPM-transformed* data, and `quantile` (default) or `none` for *TPM-transformed* data | No
---batch_rm | Remove batch-associated effects between datasets. Available options are: `TRUE` (default) and `FALSE`  | No
---filter | Filtering out low expressed genes. Available options are: `TRUE` (default) and `FALSE` | No
---log | Log (base 2) transform data before normalisation. Available options are: `TRUE` (default) and `FALSE` | No
---scaling | Apply [`gene-wise`](img/Z-score_transformation_gene_wise.png) (default) or [`group-wise`](img/Z-score_transformation_group_wise.png) data scaling. Available options are: `TRUE` (default) and `FALSE` | No
---drugs | Include drug matching section in the report. Available options are: `TRUE` and `FALSE` (default) | No
---immunogram | Include immunogram in the report. Available options are: `TRUE` and `FALSE` (default) | No
---umccrise | Location of the corresponding *[umccrise](https://github.com/umccr/umccrise)* output (including [PCGR](https://github.com/sigven/pcgr) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/pcgr/test_subject__test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)), [Manta](https://github.com/Illumina/manta) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/structural/test_subject__test_sample_WGS-sv-prioritize-manta-pass.tsv)) and [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) (see [example](./data/test_data/umccrised/test_subject__test_sample_WGS/purple/test_subject__test_sample_WGS.purple.gene.cnv)) output files) from genome-based data | No
---pcgr_tier | [Tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) threshold for reporting variants reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available, default is `4`) | No
---pcgr_splice_vars | Include non-coding `splice_region_variant`s reported in [PCGR](https://github.com/sigven/pcgr) (if [PCGR](https://github.com/sigven/pcgr) results are available). Available options are: `TRUE` (default) and `FALSE` | No
---cn_loss | CN threshold value to classify genes within lost regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `5th percentile` of all CN values) | No
---cn_gain | CN threshold value to classify genes within gained regions (if CN results from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) are available, default is `95th percentile` of all CN values) | No
---clinical_info | Location of *xslx* file with clinical information (see [example](./data/test_data/test_clinical_data.xlsx) ) | No
---clinical_id | ID required to match sample with the subject clinical information (if available) | No
---subject_id | Subject ID. Note, if `umccrise` is specified (flag `--umccrise`) then subject ID is extracted from `umccrise` output files and used to overwrite this argument | No
---sample_source | Source of investigated sample (e.g. fresh frozen tissue, organoid; for annotation purposes only) | No
---sample_name_mysql | Desired sample name for MySQL insert command. By default value in `--sample_name` is used | No
---project | Project name (for annotation purposes only) | No
---top_genes | The number of top ranked genes to be presented (default is `5`) | No
---dataset_name_incl | Include dataset in the report name. Available options are: `TRUE` and `FALSE` (default) | No
---save_tables | Save interactive summary tables as HTML files. Available options are: `TRUE` (default) and `FALSE` | No
---hide_code_btn | Hide the *Code* button allowing to show/hide code chunks in the final HTML report. Available options are: `TRUE` (default) and `FALSE` | No
---grch_version | Human reference genome version used for genes annotation. Available options: `37` and `38` (default) | No
-
-<br />
-
-\* Location of the results folder from either *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline is required.
-
-**Packages**: required packages are listed in [environment.yaml](envm/environment.yaml) file.
+    $ rnasum.R --help
+    bash: line 8: rnasum.R: command not found
 
 **Note**
 
-Human reference genome ***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)*** (*Ensembl* based annotation version ***86***) is used for genes annotation as default. Alternatively, human reference genome [GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/) (*Ensembl* based annotation version *75*) is used when argument `grch_version` is set to `37`.
+Human reference genome
+***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)***
+(*Ensembl* based annotation version ***86***) is used for gene
+annotation by default. Alternatively, human reference genome
+[GRCh37](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13/)
+(*Ensembl* based annotation version *75*) is used when argument
+`grch_version` is set to `37`.
 
 ### Run via AWS-Batch
 
-We run RNAsum on patients data in production via [AWS-batch](https://aws.amazon.com/batch/). Before running, collate the following information:
+At UMCCR we run `RNAsum` in production via
+[AWS-batch](https://aws.amazon.com/batch/). Before running, collate the
+following information:
 
-- S3 path to samples' umccrise results.
-- S3 path to samples' WTS data results (bcbio).
-- [Reference dataset](https://github.com/umccr/RNAsum/blob/master/TCGA_projects_summary.md) to use for the sample. This info is mentioned on Trello card.
+-   S3 path to umccrise results.
+-   S3 path to WTS data results (bcbio).
+-   [Reference
+    dataset](https://github.com/umccr/RNAsum/blob/master/TCGA_projects_summary.md)
+    to use for the sample.
 
-Now, follow the following steps.
+Next, follow these steps:
 
-1. Configure [AWS-SSO](https://github.com/umccr/wiki/blob/master/computing/cloud/amazon/aws_cli.md#configuration) locally to access data on S3.
-2. Run AWS lambda invoke command. An example looks like:
+1.  Configure the AWS CLI to access data on S3 (for the UMCCR account
+    see our
+    [wiki](https://github.com/umccr/wiki/blob/master/computing/cloud/amazon/aws_cli.md#configuration)).
+2.  Run the `aws lambda invoke` command, based on the example below:
 
+``` bash
+aws lambda invoke \
+  --region ap-southeast-2 \
+  --function-name wts_report_trigger_lambda_prod \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"dataDirWGS":"Scott-SFRC/SBJ0000/WGS/2021-11-24/umccrised/SBJ0000__SB0000_something", "dataDirWTS":"Scott-SFRC/SBJ0000/WTS/2021-11-07/final/SBJ0000_something", "refDataset":"UCEC"}' \
+  /tmp/lambda.output
 ```
-aws lambda invoke --region ap-southeast-2 --function-name wts_report_trigger_lambda_prod --cli-binary-format raw-in-base64-out --payload '{"dataDirWGS":"Scott-SFRC/SBJ0000/WGS/2021-11-24/umccrised/SBJ0000__SB0000_something", "dataDirWTS":"Scott-SFRC/SBJ0000/WTS/2021-11-07/final/SBJ0000_something","refDataset":"UCEC"}' /tmp/lambda.output
-```
 
-RNAsum for this sample will be created in `umccr-primary-data-prod` bucket, under `Scott-SFRC/SBJ0000/WTS/2021-11-07/RNAsum`.
-To use primary data from a different S3 bucket, use `"dataBucket":"a-different-bucket"` in lambda invoke command. Also set `resultBucket` accordingly.
+The `RNAsum` HTML report for this sample will be created in the
+`umccr-primary-data-prod` S3 bucket, under
+`Scott-SFRC/SBJ0000/WTS/2021-11-07/RNAsum`. To use primary data from a
+different S3 bucket, use `"dataBucket":"a-different-bucket"` in the
+`aws lambda invoke` command. Also set `resultBucket` accordingly.
 
 ### Examples
 
-Below are command line use examples for generating *Patient Transcriptome Summary* report using:
+Below are `RNAsum` CLI commands for generating HTML reports under
+different data availability scenarios:
 
-1. [WTS data only](#1-wts-data-only)
-2. **[WTS and WGS data](#2-wts-and-wgs-data)**
-3. [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
+1.  [WTS data only](#1-wts-data-only)
+2.  [WTS and WGS data](#2-wts-and-wgs-data)
+3.  [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
 
 **Note**
 
-* make sure that the created *conda* environment (see [Installation](#installation) section) is  activated
-
-```
-conda activate ./miniconda/envs/rnasum
-```
-
-* *[RNAseq_report.R](./rmd_files/RNAseq_report.R)* script (see the beginning of [Usage](#usage) section) should be executed from [rmd_files](./rmd_files) folder
-
-```
-cd RNAsum/rmd_files
-```
-
-* example data is provided in [data/test_data](./data/test_data) folder
-* Usually the data processing and report generation would take less than **20 minutes** using **16GB RAM** memory and **1 CPU**
-
+-   Example data is provided in the </inst/rawdata/test_data> folder.
+-   The `RNAsum` runtime should be less than **20 minutes** using **16GB
+    RAM** memory and **1 CPU**.
 
 #### 1. WTS data only
 
-In this scenario, only [WTS](#wts) data will be used and only expression levels of key **[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**, **`Fusion genes`**, **`Immune markers`** and homologous recombination deficiency genes (**`HRD genes`**) will be reported. Moreover, gene fusions reported in `Fusion genes` section will not contain inforamation about evidence from genome-based data. A subset of the [TCGA](https://tcga-data.nci.nih.gov/) pancreatic adenocarcinoma dataset is used as reference cohort (`--dataset TEST `).
+In this scenario, only [WTS](#wts) data will be used and only expression
+levels of key
+**[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**,
+**`Fusion genes`**, **`Immune markers`** and homologous recombination
+deficiency genes (**`HRD genes`**) will be reported. Moreover, gene
+fusions reported in the `Fusion genes` report section will not contain
+information about evidence from genome-based data. A subset of the TCGA
+pancreatic adenocarcinoma dataset is used as the reference cohort
+(`--dataset TEST`).
 
-The input files are expected to be organised following the folder structure described in [Input data:WTS](#wts) section.
+##### DRAGEN RNA
 
-
-##### bcbio-nextgen
-
+``` bash
+rnasum.R \
+  --sample_name test_sample_WTS \
+  --dataset TEST \
+  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen \
+  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum \
+  --save_tables FALSE
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum  --save_tables FALSE
+
+The HTML report `test_sample_WTS.RNAsum.html` will be created in the
+`../rawdata/test_data/dragen/RNAsum` folder.
+
+##### bcbio-nextgen (legacy)
+
+``` bash
+rnasum.R \
+  --sample_name test_sample_WTS \
+  --dataset TEST \
+  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS \
+  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum \
+  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
-
-##### Dragen RNA
-
-```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum  --save_tables FALSE
-```
-
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/dragen/RNAsum` folder.
-
+The HTML report `test_sample_WTS.RNAsum.html` will be created in the
+`../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
 
 #### 2. WTS and WGS data
 
-This is the **most frequent and preferred case**, in which the [WGS](#wgs)-based findings will be used as a primary source for expression profiles prioritisation. The genome-based results can be incorporated into the report by specifying location of the corresponding ***[umccrise](https://github.com/umccr/umccrise)*** output files (including results from [PCGR](https://github.com/sigven/pcgr), [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator) and [Manta](https://github.com/Illumina/manta)) using `--umccrise` argument. The **`Mutated genes`**, **`Structural variants`** and **`CN altered genes`** sections will contain information about expression levels of the mutated genes, genes located within detected structural variants (SVs) and copy-number (CN) altered regions, respectively. The results in the **`Fusion genes`** section will be ordered based on the evidence from genome-based data. A subset of the [TCGA](https://tcga-data.nci.nih.gov/) pancreatic adenocarcinoma dataset is used as reference cohort (`--dataset TEST `).
+This is the **most frequent and preferred case**, in which the
+[WGS](#wgs)-based findings will be used as a primary source for
+expression profile prioritisation. The genome-based results can be
+incorporated into the report by specifying the location of the
+corresponding `umccrise` output files (including results from `PCGR`,
+`PURPLE`, and `Manta`) using the `--umccrise` argument. The
+**`Mutated genes`**, **`Structural variants`** and
+**`CN altered genes`** report sections will contain information about
+expression levels of the mutated genes, genes located within detected
+SVs and CN altered regions, respectively. The results in the
+**`Fusion genes`** section will be ordered based on the evidence from
+genome-based data. A subset of the TCGA pancreatic adenocarcinoma
+dataset is used as reference cohort (`--dataset TEST`).
 
-The *[umccrise](https://github.com/umccr/umccrise)* output files are expected to be organised following the folder structure described in [Input data:WGS](#wgs) section.
+##### DRAGEN RNA
 
-##### bcbio-nextgen
-
+``` bash
+rnasum.R \
+  --sample_name test_sample_WTS \
+  --dataset TEST \
+  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen \
+  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum \
+  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS \
+  --save_tables FALSE
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS  --save_tables FALSE
+
+The HTML report `test_sample_WTS.RNAsum.html` will be created in the
+`../rawdata/test_data/dragen/RNAsum` folder.
+
+##### bcbio-nextgen (legacy)
+
+``` bash
+rnasum.R \
+  --sample_name test_sample_WTS \
+  --dataset TEST \
+  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS \
+  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum \
+  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS \
+  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
-
-##### Dragen RNA
-
-```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS  --save_tables FALSE
-```
-
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/dragen/RNAsum` folder.
-
+The HTML report `test_sample_WTS.RNAsum.html` will be created in the
+`../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
 
 #### 3. WTS WGS and clinical data
 
-For samples derived from subjects, for which clinical information is available, a treatment regimen timeline can be added to the *Patient Transcriptome Summary* report. This can be added by specifying location of a relevant excel spreadsheet (see example [test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx)) using the `--clinical_info` argument. In this spreadsheet, at least one of the following columns is expected: `NEOADJUVANT REGIMEN`, `ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or `THIRD LINE REGIMEN`, along with `START` and `STOP` dates of corresponding treatments. A subset of the [TCGA](https://tcga-data.nci.nih.gov/) pancreatic adenocarcinoma dataset is used as reference cohort (`--dataset TEST `).
+For samples derived from subjects, for which clinical information is
+available, a treatment regimen timeline can be added to the HTML report.
+This can be added by specifying the location of a relevant excel
+spreadsheet (see example
+[test_clinical_data.xlsx](./data/test_data/test_clinical_data.xlsx))
+using the `--clinical_info` argument. In this spreadsheet, at least one
+of the following columns is expected: `NEOADJUVANT REGIMEN`,
+`ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or
+`THIRD LINE REGIMEN`, along with `START` and `STOP` dates of
+corresponding treatments. A subset of the TCGA pancreatic adenocarcinoma
+dataset is used as the reference cohort (`--dataset TEST`).
 
-##### bcbio-nextgen
+##### DRAGEN RNA
 
+``` bash
+rnasum.R \
+  --sample_name test_sample_WTS \
+  --dataset TEST \
+  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen \
+  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum \
+  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS \
+  --save_tables FALSE \
+  --clinical_info $(pwd)/../rawdata/test_data/test_clinical_data.xlsx \
+  --save_tables FALSE
 ```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS  --clinical_info $(pwd)/../rawdata/test_data/test_clinical_data.xlsx --save_tables FALSE
+
+The HTML report `test_sample_WTS.RNAsum.html` will be created in the
+`../rawdata/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum`
+folder.
+
+##### bcbio-nextgen (legacy)
+
+``` bash
+rnasum.R \
+  --sample_name test_sample_WTS \
+  --dataset TEST \
+  --bcbio_rnaseq $(pwd)/../rawdata/test_data/final/test_sample_WTS \
+  --report_dir $(pwd)/../rawdata/test_data/final/test_sample_WTS/RNAsum \
+  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS \
+  --clinical_info $(pwd)/../rawdata/test_data/test_clinical_data.xlsx \
+  --save_tables FALSE
 ```
 
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
-
-##### Dragen RNA
-
-```
-Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset TEST  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS  --save_tables FALSE --clinical_info $(pwd)/../rawdata/test_data/test_clinical_data.xlsx --save_tables FALSE
-```
-
->The interactive HTML report named `test_sample_WTS.RNAsum.html` will be created in `../rawdata/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum` folder.
+The HTML report `test_sample_WTS.RNAsum.html` will be created in the
+`../rawdata/test_data/final/test_sample_WTS/RNAsum` folder.
 
 ### Output
 
-The pipeline generates html-based ***Patient Transcriptome Summary*** **[report](#report)** and [results](#results) folder within user-defined `output` folder:
+The pipeline generates a HTML ***Patient Transcriptome Summary***
+**[report](#report)** and a [results](#results) folder:
 
-```
-|
-|____<output>
-  |____<SampleName>.<output>.html
-  |____results
-    |____exprTables
-    |____glanceExprPlots
-    |____...
-```
+    |
+    |____<output>
+      |____<SampleName>.<output>.html
+      |____results
+        |____exprTables
+        |____glanceExprPlots
+        |____...
 
 #### Report
 
-The generated html-based ***Patient Transcriptome Summary*** **report** includes searchable tables and interactive plots presenting expression levels of altered genes, as well as links to public resources describing the genes of interest. The report consist of several sections, including:
+The generated HTML report includes searchable tables and interactive
+plots presenting expression levels of altered genes, as well as links to
+public resources describing the genes of interest. The report consists
+of several sections, including:
 
-* [Input data](report_structure.md#input-data)
-* [Clinical information\*](report_structure.md#clinical-information)
-* [Findings summary](report_structure.md#findings-summary)
-* [Mutated genes\**](report_structure.md#mutated-genes)
-* [Fusion genes](report_structure.md#fusion-genes)
-* [Structural variants\**](report_structure.md#structural-variants)
-* [CN altered genes\**](report_structure.md#cn-altered-genes)
-* [Immune markers](report_structure.md#immune-markers)
-* [HRD genes](report_structure.md#hrd-genes)
-* [Cancer genes](report_structure.md#cancer-genes)
-* [Drug matching](report_structure.md#drug-matching)
-* [Addendum](report_structure.md#addendum)
+-   Input data
+-   Clinical information\*
+-   Findings summary
+-   Mutated genes\*\*
+-   Fusion genes
+-   Structural variants\*\*
+-   CN altered genes\*\*
+-   Immune markers
+-   HRD genes
+-   Cancer genes
+-   Drug matching
 
-\* if clinical information is available; see `--clinical_info` [argument](#arguments) <br />
-\** if genome-based results are available; see `--umccrise` [argument](#arguments)
+\* if clinical information is available; see `--clinical_info` argument
+<br /> \*\* if genome-based results are available; see `--umccrise`
+argument
 
-Detailed description of the **[report structure](report_structure.md)**, including **[results prioritisation](report_structure.md)** and **[visualisation](report_structure.md)** is available in [report_structure.md](report_structure.md).
- 
+Detailed description of the report structure, including result
+prioritisation and visualisation is available
+[here](report_structure.md).
+
 #### Results
 
-The `results` folder contains intermediate files, including plots and tables that are presented in the [report](#report).
-
+The `results` folder contains intermediate files, including plots and
+tables that are presented in the HTML report.
