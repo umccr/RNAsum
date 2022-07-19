@@ -29,6 +29,8 @@ pipelines. Its main application is to complement genome-based findings
 from the [umccrise](https://github.com/umccr/umccrise) pipeline and to
 provide additional evidence for detected alterations.
 
+**DOCS**: <https://umccr.github.io/rnasum>
+
 ## Installation
 
 -   **R** package can be installed directly from the [GitHub
@@ -60,21 +62,22 @@ docker pull ghcr.io/umccr/rnasum:latest
 The pipeline consists of five main components illustrated and briefly
 described below. For more details, see [workflow.md](/workflow.md).
 
-<img src="img/RNAsum_workflow.png" width="100%">
+<img src="vignettes/img/RNAsum_workflow.png" width="100%">
 
 1.  Collect patient **WTS data** from the `DRAGEN RNA` or
     `bcbio-nextgen RNA-seq` pipeline including per-gene [read
-    counts](./inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv)
+    counts](/inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv)
     and [gene
-    fusions](./inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv).
+    fusions](/inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv).
 
 2.  Add expression data from **[reference cohorts](#reference-data)** to
     get an idea about the expression levels of genes of interest in
-    other cancer patient cohorts. The read counts are [normalised,
-    transformed](img/counts_post-processing_scheme.png) and
-    [converted](img/Z-score_transformation_gene_wise.png) into a scale
-    that allows to present the patient’s expression measurements in the
-    context of the reference cohorts.
+    other cancer patient cohorts. The read counts are normalised,
+    transformed and converted into a scale that allows to present the
+    patient’s expression measurements in the context of the reference
+    cohorts (see figures
+    [here](vignettes/img/counts_post-processing_scheme.png) and
+    [here](vignettes/img/Z-score_transformation_gene_wise.png)).
 
 3.  Supply **genome-based findings** from whole-genome sequencing (WGS)
     data to focus on genes of interest and to provide additional
@@ -321,7 +324,8 @@ different data availability scenarios:
 
 **Note**
 
--   Example data is provided in the </inst/rawdata/test_data> folder.
+-   Example data is provided in the `/inst/rawdata/test_data` folder of
+    the GitHub [repo](https://github.com/umccr/RNAsum).
 -   The `RNAsum` runtime should be less than **20 minutes** using **16GB
     RAM** memory and **1 CPU**.
 
