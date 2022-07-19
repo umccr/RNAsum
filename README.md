@@ -65,19 +65,15 @@ described below. For more details, see [workflow.md](/workflow.md).
 <img src="vignettes/img/RNAsum_workflow.png" width="100%">
 
 1.  Collect patient **WTS data** from the `DRAGEN RNA` or
-    `bcbio-nextgen RNA-seq` pipeline including per-gene [read
-    counts](/inst/rawdata/test_data/final/test_sample_WTS/kallisto/abundance.tsv)
-    and [gene
-    fusions](/inst/rawdata/test_data/final/test_sample_WTS/arriba/fusions.tsv).
+    `bcbio-nextgen RNA-seq` pipeline including per-gene read counts and
+    gene fusions.
 
 2.  Add expression data from **[reference cohorts](#reference-data)** to
     get an idea about the expression levels of genes of interest in
     other cancer patient cohorts. The read counts are normalised,
     transformed and converted into a scale that allows to present the
     patient’s expression measurements in the context of the reference
-    cohorts (see figures
-    [here](vignettes/img/counts_post-processing_scheme.png) and
-    [here](vignettes/img/Z-score_transformation_gene_wise.png)).
+    cohorts.
 
 3.  Supply **genome-based findings** from whole-genome sequencing (WGS)
     data to focus on genes of interest and to provide additional
