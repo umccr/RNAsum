@@ -14,12 +14,12 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  sample_name: 'test_sample_WTS'
-  dataset: 'TEST'
-  bcbio_rnaseq: '../data/test_data/final/test_sample_WTS'
-  dragen_rnaseq: NULL
-  arriba_rnaseq: NULL
-  report_dir: '../data/test_data/final/test_sample_WTS/RNAsum'
+  sample_name: 'SBJ00238_MDX190231_L1901028'
+  dataset: 'PAAD'
+  bcbio_rnaseq: NULL
+  dragen_rnaseq: '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ00238_MDX190231_L1901028/dragen'
+  arriba_rnaseq: '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ00238_MDX190231_L1901028/dragen/arriba'
+  report_dir: '/Users/kanwals/UMCCR/data/wts/RNAsum/reports/SBJ00238_MDX190231_L1901028'
   ref_data_dir: '../data'
   transform: 'CPM'
   filter: TRUE
@@ -29,7 +29,7 @@ params:
   scaling: 'gene-wise'
   drugs: FALSE
   immunogram: FALSE
-  umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
+  umccrise: '/Users/kanwals/UMCCR/data/wts/RNAsum/umccrised/SBJ00238__SBJ00238_MDX190230_L1901041'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   clinical_id: 'test_subject'
   subject_id: ''
@@ -59,8 +59,6 @@ params:
   cancer_biomarkers_trans: 'cancer_biomarkers_database/cancer_genes_upon_trans.tsv'
   FusionGDB: 'FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt'
 ---
-
-Transcriptome summary for patient sample **`r paste0(params$sample_name, params$dataset_name_incl)`**.
 
 
 ```{r script_description, eval=FALSE}
@@ -2155,9 +2153,20 @@ if ( dataset == "PAAD" || dataset == "PAAD-IPMN" || dataset == "PAAD-NET" || dat
   comp_cancer_group <- ext_cancer_group
 }
 
+##### Read in Dragen's mapping metrics file (if exists) to extract number of reads
+dragen_mapping_metrics <- paste(params$dragen_rnaseq, list.files(params$dragen_rnaseq, pattern="\\.mapping_metrics.csv$"), sep = "/")
+if ( file.exists(dragen_mapping_metrics) ) {
+  dragen_mapping_metrics_file <- read.csv(file = dragen_mapping_metrics, header = FALSE, strip.white = TRUE) %>%
+    setNames(c("summary", "sequence", "description", "value", "percentage"))
+  total_input_reads <- dragen_mapping_metrics_file$value[dragen_mapping_metrics_file$description=="Total input reads"]
+  total_input_reads_millions <- round(total_input_reads/1e6,1)
+}
+
 ##### Clean the space
 rm(counts, tx2ensembl)
 ```
+
+Transcriptome summary for patient sample **`r if ( file.exists(dragen_mapping_metrics) ) {paste0(params$sample_name, params$dataset_name_incl, ", Library size ",total_input_reads_millions)} else {paste0(params$sample_name, params$dataset_name_incl)}`**.
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
 ##### Initiate MySQL command to populate RNA-seq data portal
