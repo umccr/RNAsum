@@ -8,6 +8,14 @@
 \description{
 RNA-seq reporting workflow designed to post-process, summarise and visualise an output from bcbio-nextgen RNA-seq or Dragen RNA pipelines. Its main application is to complement genome-based findings and provide additional evidence for detected alterations.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://umccr.github.io/rnasum/}
+  \item \url{https://github.com/umccr/RNAsum}
+}
+
+}
 \author{
 \strong{Maintainer}: Sehrish Kanwal \email{kanwals@unimelb.edu.au} (\href{https://orcid.org/0000-0002-5044-4692}{ORCID})
 
