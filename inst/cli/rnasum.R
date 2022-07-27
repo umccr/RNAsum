@@ -43,69 +43,65 @@ suppressMessages(library(glue))
 # ===============================================================================
 
 option_list <- list(
-  make_option("--sample_name",
-    action = "store", default = NA, type = "character",
-    help = "Desired sample name to be presented in the report"
-  ),
-  make_option("--dataset",
-    action = "store", default = "PANCAN", type = "character",
-    help = "Dataset to be used as external reference cohort"
-  ),
-  make_option("--bcbio_rnaseq",
-    action = "store", default = NULL, type = "character",
-    help = "Location of the results folder from bcbio RNA-seq pipeline"
-  ),
-  make_option("--dragen_rnaseq",
-    action = "store", default = NULL, type = "character",
-    help = "Location of the results folder from Dragen RNA-seq pipeline"
-  ),
   make_option("--arriba_rnaseq",
     action = "store", default = NULL, type = "character",
     help = "Location of the results folder from Arriba RNA-seq pipeline"
-  ),
-  make_option("--report_dir",
-    action = "store", default = NA, type = "character",
-    help = "Desired location for the report"
-  ),
-  make_option("--ref_data_dir",
-    action = "store", default = "../data", type = "character",
-    help = "Location of the reference and annotation files"
-  ),
-  make_option("--transform",
-    action = "store", default = "CPM", type = "character",
-    help = "Transformation method to be used when converting read counts"
-  ),
-  make_option("--norm",
-    action = "store", default = NA, type = "character",
-    help = "Normalisation method"
   ),
   make_option("--batch_rm",
     action = "store", default = TRUE, type = "logical",
     help = "Remove batch-associated effects between datasets"
   ),
-  make_option("--filter",
-    action = "store", default = TRUE, type = "logical",
-    help = "Filtering out low expressed genes"
+  make_option("--clinical_id",
+    action = "store", default = NA, type = "character",
+    help = "ID required to match sample with the subject clinical information"
   ),
-  make_option("--log",
-    action = "store", default = TRUE, type = "logical",
-    help = "Log (base 2) transform data before normalisation"
+  make_option("--clinical_info",
+    action = "store", default = NA, type = "character",
+    help = "Location of xslx file with clinical information"
   ),
-  make_option("--scaling",
-    action = "store", default = "gene-wise", type = "character",
-    help = "Scaling for z-score transformation (gene-wise or group-wise"
+  make_option("--cn_gain",
+    action = "store", default = 95, type = "integer",
+    help = "CN threshold value to classify genes within gained regions"
+  ),
+  make_option("--cn_loss",
+    action = "store", default = 5, type = "integer",
+    help = "CN threshold value to classify genes within lost regions"
+  ),
+  make_option("--dataset",
+    action = "store", default = "PANCAN", type = "character",
+    help = "Dataset to be used as external reference cohort"
+  ),
+  make_option("--dataset_name_incl",
+    action = "store", default = NA, type = "character",
+    help = "Include dataset in the report name"
+  ),
+  make_option("--dragen_rnaseq",
+    action = "store", default = NULL, type = "character",
+    help = "Location of the results folder from Dragen RNA-seq pipeline"
   ),
   make_option("--drugs",
     action = "store", default = FALSE, type = "logical",
     help = "Include drug matching section in the report"
   ),
-  make_option("--immunogram",
-    action = "store", default = FALSE, type = "logical",
-    help = "Include immunogram in the report"
+  make_option("--filter",
+    action = "store", default = TRUE, type = "logical",
+    help = "Filtering out low expressed genes"
   ),
-  make_option("--umccrise",
-    action = "store", default = NULL, type = "character",
-    help = "Location of the corresponding WGS-related data"
+  make_option("--grch_version",
+    action = "store", default = NA, type = "integer",
+    help = "human reference genome version used for genes annotation"
+  ),
+  make_option("--hide_code_btn",
+    action = "store", default = TRUE, type = "logical",
+    help = "Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report"
+  ),
+  make_option("--log",
+    action = "store", default = TRUE, type = "logical",
+    help = "Log (base 2) transform data before normalisation"
+  ),
+  make_option("--norm",
+    action = "store", default = NA, type = "character",
+    help = "Normalisation method"
   ),
   make_option("--pcgr_tier",
     action = "store", default = 4, type = "integer",
@@ -115,53 +111,53 @@ option_list <- list(
     action = "store", default = TRUE, type = "logical",
     help = "Include non-coding splice region variants reported in PCGR"
   ),
-  make_option("--cn_loss",
-    action = "store", default = 5, type = "integer",
-    help = "CN threshold value to classify genes within lost regions"
+  make_option("--project",
+    action = "store", default = "-", type = "character",
+    help = "Project name"
   ),
-  make_option("--cn_gain",
-    action = "store", default = 95, type = "integer",
-    help = "CN threshold value to classify genes within gained regions"
+  make_option("--ref_data_dir",
+    action = "store", default = "../data", type = "character",
+    help = "Location of the reference and annotation files"
   ),
-  make_option("--clinical_info",
+  make_option("--report_dir",
     action = "store", default = NA, type = "character",
-    help = "Location of xslx file with clinical information"
+    help = "Desired location for the report"
   ),
-  make_option("--clinical_id",
+  make_option("--sample_name",
     action = "store", default = NA, type = "character",
-    help = "ID required to match sample with the subject clinical information"
+    help = "Desired sample name to be presented in the report"
   ),
-  make_option("--subject_id",
-    action = "store", default = NA, type = "character",
-    help = "Subject ID"
+  make_option("--scaling",
+    action = "store", default = "gene-wise", type = "character",
+    help = "Scaling for z-score transformation (gene-wise or group-wise"
+  ),
+  make_option("--immunogram",
+    action = "store", default = FALSE, type = "logical",
+    help = "Include immunogram in the report"
   ),
   make_option("--sample_source",
     action = "store", default = "-", type = "character",
     help = "Type of investigated sample"
   ),
-  make_option("--dataset_name_incl",
-    action = "store", default = NA, type = "character",
-    help = "Include dataset in the report name"
+  make_option("--save_tables",
+    action = "store", default = TRUE, type = "logical",
+    help = "Save interactive summary tables as HTML"
   ),
-  make_option("--project",
-    action = "store", default = "-", type = "character",
-    help = "Project name"
+  make_option("--subject_id",
+    action = "store", default = NA, type = "character",
+    help = "Subject ID"
   ),
   make_option("--top_genes",
     action = "store", default = 5, type = "integer",
     help = "The number of top ranked genes to be presented"
   ),
-  make_option("--save_tables",
-    action = "store", default = TRUE, type = "logical",
-    help = "Save interactive summary tables as HTML"
+  make_option("--transform",
+    action = "store", default = "CPM", type = "character",
+    help = "Transformation method to be used when converting read counts"
   ),
-  make_option("--hide_code_btn",
-    action = "store", default = TRUE, type = "logical",
-    help = "Hide the \"Code\" button allowing to show/hide code chunks in the final HTML report"
-  ),
-  make_option("--grch_version",
-    action = "store", default = NA, type = "integer",
-    help = "human reference genome version used for genes annotation"
+  make_option("--umccrise",
+    action = "store", default = NULL, type = "character",
+    help = "Location of the corresponding WGS-related data"
   )
 )
 

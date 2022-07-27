@@ -14,38 +14,37 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  sample_name: 'test_sample_WTS'
-  dataset: 'TEST'
-  dragen_dir: NULL
   arriba_rnaseq: NULL
-  report_dir: ''
-  ref_data_dir: ''
-  transform: 'CPM'
-  filter: TRUE
-  norm: 'TMM'
   batch_rm: TRUE
-  log: TRUE
-  scaling: 'gene-wise'
-  drugs: FALSE
-  immunogram: FALSE
-  umccrise: ''
-  clinical_info: ''
   clinical_id: 'test_subject'
-  subject_id: ''
-  sample_source: "-"
+  clinical_info: ''
+  cn_gain: 95
+  cn_loss: 5
+  dataset: 'TEST'
   dataset_name_incl: ''
-  project: "-"
-  top_genes: 5
-  save_tables: TRUE
+  dragen_rnaseq: NULL
+  drugs: FALSE
+  filter: TRUE
+  grch_version: 38
   hide_code_btn: TRUE
+  log: TRUE
+  norm: 'TMM'
   pcgr_tier: 4
   pcgr_splice_vars: TRUE
-  cn_loss: 5
-  cn_gain: 95
-  grch_version: 38
+  project: "-"
+  ref_data_dir: ''
+  report_dir: ''
+  sample_name: 'test_sample_WTS'
+  scaling: 'gene-wise'
+  immunogram: FALSE
+  sample_source: "-"
+  save_tables: TRUE
+  subject_id: ''
+  top_genes: 5
+  transform: 'CPM'
+  umccrise: ''
   ensembl_version: 86
   ucsc_genome_assembly: 38
-  annot_file: 'genes/tx2gene.ensembl.v95.csv'
   genes_cancer: ''
   genes_immunogram: ''
   genes_immune_markers: ''
@@ -65,7 +64,7 @@ require(here)
 p <- list(
   sample_name = "test_sample_WTS",
   dataset = "TEST",
-  dragen_dir = here("inst/rawdata/test_data/dragen"),
+  dragen_rnaseq = here("inst/rawdata/test_data/dragen"),
   arriba_rnaseq = NULL,
   report_dir = here("nogit/rnasum"),
   ref_data_dir = here("inst/rawdata"),
@@ -94,7 +93,6 @@ p <- list(
   grch_version = 38,
   ensembl_version = 86,
   ucsc_genome_assembly = 38,
-  annot_file = here("inst/rawdata/genes/tx2gene.ensembl.v95.csv"),
   genes_cancer = here("inst/rawdata/genes/umccr_cancer_genes.2019-03-20.tsv"),
   genes_immunogram = here("inst/rawdata/genes/Genes_immunogram.txt"),
   genes_immune_markers = here("inst/rawdata/genes/Genes_immune_markers.txt"),
@@ -130,34 +128,6 @@ Transcriptome summary for patient sample **`r paste0(params$sample_name, params$
 # Then... code chunks involving data processing
 # Then... code chunks calling the processed data to produce tables / plots / data summary
 # Finish with Session info in Addendum section
-
-##### "ref_dataset.list": processed data with following elements:
-# 01. [[dataset]][["combined_data"]] = combined read count data (ref + sample datasets) ("combineDatasets" output in chunk "load_ref_data")
-# 02. [[dataset]][["sample_annot"]] = combined data samples annotation ("combineDatasets()" output in chunk "load_ref_data")
-# 03. [[dataset]][["clinical_info"]] = clinical (survival + treatment) info
-# 04. [[dataset]][["combined_data_processed"]] = transformed, filtered and normalised data (chunks "data_transformation" and "data_normalisation")
-# 05. [[dataset]][["batch_effect_corrected"]] = transformed, filtered, normalised and batch effect corrected data (chunk "batch_effect_correction")
-# 06. [[dataset]][["pca_combined_data_processed"]] = PCA results for combined data
-# 07. [[dataset]][["pca_batch_effect_corrected"]] = PCA results for batch-effect corrected data
-# 08. [[dataset]][["rle_combined_data_processed"]] = RLE plot for combined data
-# 09. [[dataset]][["rle_batch_effect_corrected"]] = RLE plot for batch-effect corrected data
-# 10. [[dataset]][["data_to_report"]] = fully combined and processed data for reporting
-# 11. [[dataset]][["gene_annot_all"]] = gene annotation for combined read count data, containing all input genes. Includes SYMBOL, GENEBIOTYPE, ENSEMBL, SEQNAME, GENESEQSTART, and GENESEQEND. ENSEMBL is used for rownames.
-# 12. [[dataset]][["gene_annot"]] = gene annotation for transformed, filtered and normalised data. Includes SYMBOL, GENEBIOTYPE, ENSEMBL, SEQNAME, GENESEQSTART, GENESEQEND. SYMBOL is used for rownames.
-# 13. [[dataset]][["expr_mut_cn_data_all"]] = combined expression, mutation and CN data.
-# 14. [[dataset]][["expr_mut_cn_data"]] = combined expression, mutation and CN data limited to cancer genes that meet user-defined CN values threshold.
-
-##### "ref_genes.list": Genes of interest with following gene sets:
-# 01. [["genes_cancer"]] = list of cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and OncoKB portal (http://oncokb.org/#/cancerGenes)
-# 02. [["genes_oncokb"]] = list of cancer genes derived from OncoKB only (although genes present in the UMCCR panel are also flagged)
-# 03. [["genes_immune"]] = list of immune reponse markers provided in the "An Immunogram for the Cancer-Immunity Cycle" paper by Karasaki at al (2017) (https://www.ncbi.nlm.nih.gov/pubmed/28088513) and OmniSeq report (https://www.omniseq.com/)
-# 04. [["genes_hrd"]] = list of hrd genes
-# 05. [["pcgr"]] = list and PCGR annotation of indels
-# 06. [["purple"]] = list and PURPLE annotation of CN altered genes
-# 07. [["manta"]] = list and Manta annotation of SVs
-# 08. [["arriba"]] = list and Arriba annotation of gene fusion events
-# 09. [["pizzly"]] = list and Pizzly annotation of gene fusion events
-# 10. [["summary"]] = summary of above-mentioned gene lists, also used for expression summary tables and plots.
 ```
 
 ```{r prep, echo = FALSE}
@@ -234,8 +204,8 @@ ref_genes.list <- purrr::set_names(vector("list", length(g1)), g1)
 cancer_genes_annot.list <- purrr::set_names(vector("list", length(g2)), g2)
 subjectID <- dplyr::if_else(!is.na(params$subject_id), params$subject_id, "")
 
-salmon_counts <- function(dragen_dir, tx2ensembl) {
-  quant_file <- list.files(dragen_dir, pattern = ".quant.sf$", full.names = TRUE)
+salmon_counts <- function(dragen_rnaseq, tx2ensembl) {
+  quant_file <- list.files(dragen_rnaseq, pattern = ".quant.sf$", full.names = TRUE)
   assertthat::assert_that(file.exists(quant_file),
     msg = glue::glue("File {quant_file} does not exist!")
   )
@@ -245,7 +215,7 @@ salmon_counts <- function(dragen_dir, tx2ensembl) {
   counts
 }
 
-counts <- salmon_counts(dragen_dir = params$dragen_dir, tx2ensembl = tx2ensembl)
+counts <- salmon_counts(dragen_rnaseq = params$dragen_rnaseq, tx2ensembl = tx2ensembl)
 results_dir <- file.path(params$report_dir, paste0(params$sample_name, params$dataset_name_incl, ".results"))
 RNAsum::mkdir(results_dir)
 
@@ -276,7 +246,7 @@ if (params$immunogram) {
 }
 
 # Read in sample gene fusion data
-arribaDir <- dplyr::if_else(is.null(params$arriba_rnaseq), file.path(params$dragen_dir, "arriba"), params$arriba_rnaseq)
+arribaDir <- dplyr::if_else(is.null(params$arriba_rnaseq), file.path(params$dragen_rnaseq, "arriba"), params$arriba_rnaseq)
 arriba_file <- file.path(arribaDir, "fusions.tsv")
 arriba_pdf <- file.path(arribaDir, "fusions.pdf")
 runArribaChunk <- FALSE
