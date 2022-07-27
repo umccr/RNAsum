@@ -2,7 +2,7 @@
 
 # File R/arriba_plots.R: @testexamples
 
-test_that("Function arriba_tsv_read() @ L14", {
+test_that("Function arriba_tsv_read() @ L13", {
   
   x <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
   (a <- arriba_tsv_read(x))

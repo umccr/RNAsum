@@ -9,7 +9,6 @@
 #' (a <- arriba_tsv_read(x))
 #' @testexamples
 #' expect_equal(colnames(a)[ncol(a)], "read_identifiers")
-#'
 #' @export
 arriba_tsv_read <- function(x) {
   x |>
