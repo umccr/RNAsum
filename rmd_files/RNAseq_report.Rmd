@@ -2154,12 +2154,14 @@ if ( dataset == "PAAD" || dataset == "PAAD-IPMN" || dataset == "PAAD-NET" || dat
 }
 
 ##### Read in Dragen's mapping metrics file (if exists) to extract number of reads
-dragen_mapping_metrics <- paste(params$dragen_rnaseq, list.files(params$dragen_rnaseq, pattern="\\.mapping_metrics.csv$"), sep = "/")
-if ( file.exists(dragen_mapping_metrics) ) {
+if ( !is.null(params$dragen_rnaseq) ) {
+  dragen_mapping_metrics <- list.files(params$dragen_rnaseq, pattern="\\.mapping_metrics.csv$", full.names = TRUE)
+  if ( file.exists(dragen_mapping_metrics) ) {
   dragen_mapping_metrics_file <- read.csv(file = dragen_mapping_metrics, header = FALSE, strip.white = TRUE) %>%
     setNames(c("summary", "sequence", "description", "value", "percentage"))
   total_input_reads <- dragen_mapping_metrics_file$value[dragen_mapping_metrics_file$description=="Total input reads"]
   total_input_reads_millions <- round(total_input_reads/1e6,1)
+  }
 }
 
 ##### Clean the space
