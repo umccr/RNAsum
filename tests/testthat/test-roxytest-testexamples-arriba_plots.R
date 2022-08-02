@@ -2,10 +2,20 @@
 
 # File R/arriba_plots.R: @testexamples
 
-test_that("Function arriba_tsv_read() @ L13", {
+test_that("Function arriba_read_tsv() @ L13", {
   
   x <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
-  (a <- arriba_tsv_read(x))
+  (a <- arriba_read_tsv(x))
   expect_equal(colnames(a)[ncol(a)], "read_identifiers")
+})
+
+
+test_that("Function arriba_read_pdf() @ L42", {
+  
+  pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum")
+  tsv <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
+  fusions <- arriba_read_tsv(tsv)
+  (pngs <- arriba_read_pdf(pdf, fusions, tempdir()))
+  expect_equal(nrow(pngs), 4)
 })
 

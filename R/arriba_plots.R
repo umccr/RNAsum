@@ -1,16 +1,16 @@
 #' Read Arriba TSV File
 #'
-#' Reads the TSV file output by arriba.
-#' @param x Path to arriba TSV file.
+#' Reads the TSV file output by Arriba.
+#' @param x Path to Arriba TSV file.
 #'
 #' @return A tibble with the contents of the input TSV file.
 #' @examples
 #' x <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
-#' (a <- arriba_tsv_read(x))
+#' (a <- arriba_read_tsv(x))
 #' @testexamples
 #' expect_equal(colnames(a)[ncol(a)], "read_identifiers")
 #' @export
-arriba_tsv_read <- function(x) {
+arriba_read_tsv <- function(x) {
   x |>
     readr::read_tsv(
       col_types = readr::cols(
@@ -22,38 +22,44 @@ arriba_tsv_read <- function(x) {
     dplyr::rename(gene1 = .data$`#gene1`)
 }
 
-#' Fusion visualisation
+#' Read Arriba PDF File
 #'
-#' Fusion output visualisation.
+#' Reads the PDF output by Arriba containing one fusion plot per page and
+#' converts each page to a separate PNG file.
 #'
-#' @param arriba_file Output fusions from Arriba.
-#' @param arriba_results PDF files.
-#' @param results_dir Results directory.
-#'
-#' @return PNG images.
+#' @param pdf Output PDF file from Arriba.
+#' @param fusions Tibble with fusions from Arriba.
+#' @param outdir Directory to write output PNGs to.
+#' @return Single-column tibble with paths to the created PNG images.
+#' @examples
+#' pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum")
+#' tsv <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
+#' fusions <- arriba_read_tsv(tsv)
+#' (pngs <- arriba_read_pdf(pdf, fusions, tempdir()))
+#' @testexamples
+#' expect_equal(nrow(pngs), 4)
 #' @export
-arriba_plots <- function(arriba_file, arriba_results, results_dir) {
-  ##### Get path to fusion visualisation  pdf file
-  arriba_dir <- unlist(strsplit(arriba_file, split = "/", fixed = TRUE))
-  arriba_plots.pdf <- list.files(paste(arriba_dir[1:length(arriba_dir) - 1], collapse = "/"), pattern = "\\.pdf$")
-  arriba_dir <- paste(arriba_dir[1:length(arriba_dir) - 1], collapse = "/")
-  arriba_plots.pdf <- paste(arriba_dir, arriba_plots.pdf, sep = "/")
-
-  ##### Create directory for results
-  if (!file.exists(results_dir)) {
-    dir.create(results_dir, recursive = TRUE)
+arriba_read_pdf <- function(pdf, fusions, outdir) {
+  mkdir(outdir)
+  # construct png filenames
+  clean_fusions <- fusions |>
+    dplyr::select(
+      g1 = .data$gene1, g2 = .data$gene2,
+      bp1 = .data$breakpoint1, bp2 = .data$breakpoint2
+    ) |>
+    dplyr::mutate(
+      nm = glue::glue("{.data$g1}__{.data$g2}_{.data$bp1}_{.data$bp2}.png"),
+      nm = file.path(outdir, make.names(.data$nm))
+    ) |>
+    dplyr::select(.data$nm)
+  # Export pdf images to png
+  for (i in seq_len(nrow(clean_fusions))) {
+    png <- pdftools::pdf_render_page(pdf,
+      page = i, dpi = 300, numeric = TRUE,
+      opw = "", upw = ""
+    )
+    png::writePNG(png, clean_fusions[["nm"]][i])
   }
-
-  ##### Export pdf images to png
-  for (i in 1:nrow(arriba_results)) {
-    arriba_plots.png <- gsub(":", ".", paste0(results_dir, "/", make.names(paste(arriba_results$X.gene1[i], arriba_results$gene2[i], sep = "__")), "_", arriba_results$breakpoint1[i], "-", arriba_results$breakpoint2[i], ".png"))
-    fusion <- pdftools::pdf_render_page(arriba_plots.pdf, page = i, dpi = 300, numeric = TRUE, opw = "", upw = "")
-    png::writePNG(fusion, arriba_plots.png)
-  }
-
-  ##### Clean the space
-  rm(arriba_plots.pdf, arriba_plots.png, fusion)
-
-  #### Clear plots to free up some memory
-  if (!is.null(grDevices::dev.list())) invisible(grDevices::dev.off())
+  # Return paths to PNGs in a tibble
+  return(clean_fusions)
 }
