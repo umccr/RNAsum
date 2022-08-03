@@ -14,7 +14,8 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  arriba_rnaseq: NULL
+  arriba_pdf: NULL
+  arriba_tsv: NULL
   batch_rm: TRUE
   clinical_id: 'test_subject'
   clinical_info: ''
@@ -23,6 +24,7 @@ params:
   dataset: 'TEST'
   dataset_name_incl: ''
   dragen_rnaseq: NULL
+  dragen_fusions: NULL
   drugs: FALSE
   filter: TRUE
   grch_version: 38
@@ -37,6 +39,7 @@ params:
   sample_name: 'test_sample_WTS'
   scaling: 'gene-wise'
   immunogram: FALSE
+  salmon: NULL
   sample_source: "-"
   save_tables: TRUE
   subject_id: ''
@@ -65,7 +68,9 @@ p <- list(
   sample_name = "test_sample_WTS",
   dataset = "TEST",
   dragen_rnaseq = here("inst/rawdata/test_data/dragen"),
-  arriba_rnaseq = NULL,
+  dragen_fusions = NULL,
+  arriba_pdf = NULL,
+  arriba_tsv = NULL,
   report_dir = here("nogit/rnasum"),
   ref_data_dir = here("inst/rawdata"),
   transform = "CPM",
@@ -80,6 +85,7 @@ p <- list(
   clinical_info = here("inst/rawdata/test_data/test_clinical_data.xlsx"),
   clinical_id = "test_subject",
   subject_id = "",
+  salmon = NULL,
   sample_source = "-",
   dataset_name_incl = "",
   project = "-",
@@ -107,6 +113,7 @@ p <- list(
 )
 params <- p
 library(AnnotationDbi)
+library(assertthat)
 library(dplyr)
 library(ensembldb)
 library(glue)
@@ -118,17 +125,6 @@ require(RNAsum)
 ```
 
 Transcriptome summary for patient sample **`r paste0(params$sample_name, params$dataset_name_incl)`**.
-
-
-```{r script_description, eval=FALSE}
-##### We attempt to structure the script in the following way:
-# 1. Defining functions
-# 2. Loading libraries
-# 3. Loading sample data and reference datasets
-# Then... code chunks involving data processing
-# Then... code chunks calling the processed data to produce tables / plots / data summary
-# Finish with Session info in Addendum section
-```
 
 ```{r prep, echo = FALSE}
 # Include/exclude the "Code" button allowing to "show"/"hide" code chunks from the report
@@ -194,30 +190,29 @@ tx2ensembl <- edb |>
   ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
   dplyr::rename(tx_name = .data$TXID, gene_id = .data$GENEID)
 
-# Create ref + gene data lists
+# ref data
 dataset <- toupper(params$dataset)
-g1 <- c("genes_cancer", "genes_oncokb", "genes_immune", "genes_hrd")
-g2 <- c("oncokb_clin_vars", "oncokb_all_vars")
 ref_dataset <- RNAsum::get_refdata(dataset)
 ref_dataset.list <- purrr::set_names(vector("list", length(dataset)), dataset)
+g1 <- c("genes_cancer", "genes_oncokb", "genes_immune", "genes_hrd")
 ref_genes.list <- purrr::set_names(vector("list", length(g1)), g1)
+g2 <- c("oncokb_clin_vars", "oncokb_all_vars")
 cancer_genes_annot.list <- purrr::set_names(vector("list", length(g2)), g2)
+
+# sample data
+# Given a dragen rnaseq dir, create an object with:
+# - path to salmon quant.sf file
+# - path to arriba dir
+# - path to dragen fusion_candidates.final file
+# If any of those do not exist, output NULL in their place
 subjectID <- dplyr::if_else(!is.na(params$subject_id), params$subject_id, "")
-
-salmon_counts <- function(dragen_rnaseq, tx2ensembl) {
-  quant_file <- list.files(dragen_rnaseq, pattern = ".quant.sf$", full.names = TRUE)
-  assertthat::assert_that(file.exists(quant_file),
-    msg = glue::glue("File {quant_file} does not exist!")
-  )
-  txi.salmon <- tximport::tximport(quant_file, type = "salmon", tx2gene = tx2ensembl)
-  counts <- tibble::as_tibble(txi.salmon[["counts"]], rownames = "rowname") %>%
-    dplyr::rename(count = .data$V1)
-  counts
-}
-
-counts <- salmon_counts(dragen_rnaseq = params$dragen_rnaseq, tx2ensembl = tx2ensembl)
-results_dir <- file.path(params$report_dir, paste0(params$sample_name, params$dataset_name_incl, ".results"))
+results_dir <- file.path(
+  params$report_dir,
+  glue::glue("{params$sample_name}{params$dataset_name_incl}.results")
+)
 RNAsum::mkdir(results_dir)
+
+sample_data <- read_sample_data(params, results_dir)
 
 # Check if spreadsheet with clinical information exists
 clinical_info_file <- params$clinical_info
@@ -253,7 +248,7 @@ runArribaChunk <- FALSE
 runFusionChunk <- FALSE
 
 if (file.exists(arriba_file)) {
-  ref_genes.list[["arriba"]] <- read.table(file = arriba_file, header = TRUE, comment.char = "", quote = "")
+  ref_genes.list[["arriba"]] <- RNAsum::arriba_tsv_read(arriba_file)
 
   # Make sure that at least one fusion has been reported by Arriba
   if (nrow(ref_genes.list[["arriba"]]) > 0) {

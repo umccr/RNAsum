@@ -164,7 +164,7 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 ##### Read in argument from command line and check if all were provide by the user
-if ((is.na(opt$sample_name) || is.null(opt$bcbio_rnaseq) || is.na(opt$report_dir)) && is.null(opt$dragen_rnaseq)) {
+if ((is.na(opt$sample_name) || is.na(opt$report_dir)) && is.null(opt$dragen_rnaseq)) {
   cat("\nPlease type in required arguments!\n\n")
   cat("\ncommand example:\n\nRscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --bcbio_rnaseq $(pwd)/../data/test_data/final/test_sample_WTS  --report_dir $(pwd)/../data/test_data/final/test_sample_WTS/RNAseq_report\n\nor\n\n")
   cat("Rscript RNAseq_report.R  --sample_name test_sample_WTS  --dataset PAAD  --dragen_rnaseq $(pwd)/../data/test_data/stratus/test_sample_WTS  --report_dir $(pwd)/../data/test_data/stratus/test_sample_WTS/RNAseq_report\n\n")
