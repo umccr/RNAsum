@@ -14,7 +14,7 @@ arriba_read_pdf(pdf = NULL, fusions = NULL, outdir = NULL)
 \item{outdir}{Directory to write output PNGs to.}
 }
 \value{
-Single-column tibble with paths to the created PNG images.
+Tibble with paths to the created PNG images and their clean names.
 If the PDF (or any of the required params) is NULL, returns NULL.
 }
 \description{

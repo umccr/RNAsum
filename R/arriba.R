@@ -34,7 +34,7 @@ arriba_read_tsv <- function(x = NULL) {
 #' @param pdf Output PDF file from Arriba.
 #' @param fusions Tibble with fusions from Arriba.
 #' @param outdir Directory to write output PNGs to.
-#' @return Single-column tibble with paths to the created PNG images.
+#' @return Tibble with paths to the created PNG images and their clean names.
 #'         If the PDF (or any of the required params) is NULL, returns NULL.
 #' @examples
 #' pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum")
@@ -57,17 +57,38 @@ arriba_read_pdf <- function(pdf = NULL, fusions = NULL, outdir = NULL) {
       bp1 = .data$breakpoint1, bp2 = .data$breakpoint2
     ) |>
     dplyr::mutate(
-      nm = glue::glue("{.data$g1}__{.data$g2}_{.data$bp1}_{.data$bp2}.png"),
-      nm = file.path(outdir, make.names(.data$nm))
+      nm = glue::glue("{.data$g1}__{.data$g2}_{.data$bp1}_{.data$bp2}"),
+      nm = make.names(.data$nm),
+      png = file.path(outdir, glue::glue("{.data$nm}.png")),
     ) |>
-    dplyr::select(.data$nm)
+    dplyr::select(.data$nm, .data$png)
   # Export pdf images to png
   for (i in seq_len(nrow(clean_fusions))) {
     png <- pdftools::pdf_render_page(
-      pdf = NULL, page = i, dpi = 300, numeric = TRUE, opw = "", upw = ""
+      pdf = pdf, page = i, dpi = 300, numeric = TRUE, opw = "", upw = ""
     )
-    png::writePNG(png, clean_fusions[["nm"]][i])
+    png::writePNG(png, clean_fusions[["png"]][i])
   }
   # Return paths to PNGs in a tibble
   return(clean_fusions)
+}
+
+#' Write Arriba Fusion Summary
+#'
+#' Writes Arriba fusion summary information (`gene1__gene2_bp1_bp2`).
+#'
+#' @param x Tibble with Arriba fusions or NULL.
+#' @param file File to write the summary info to.
+#'
+#' @return The input invisibly.
+#' @export
+arriba_write <- function(x, file) {
+  if (is.null(x)) {
+    tibble::tibble(empty = character()) |>
+      readr::write_tsv(file = file, col_names = FALSE)
+    return()
+  }
+  x |>
+    dplyr::select(.data$nm) |>
+    readr::write_tsv(file = file, col_names = FALSE)
 }
