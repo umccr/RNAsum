@@ -23,12 +23,12 @@ params:
   cn_loss: 5
   dataset: 'TEST'
   dataset_name_incl: ''
-  dragen_rnaseq: NULL
   dragen_fusions: NULL
   drugs: FALSE
   filter: TRUE
   grch_version: 38
   hide_code_btn: TRUE
+  immunogram: FALSE
   log: TRUE
   norm: 'TMM'
   pcgr_tier: 4
@@ -38,7 +38,6 @@ params:
   report_dir: ''
   sample_name: 'test_sample_WTS'
   scaling: 'gene-wise'
-  immunogram: FALSE
   salmon: NULL
   sample_source: "-"
   save_tables: TRUE
@@ -67,10 +66,10 @@ require(here)
 p <- list(
   sample_name = "test_sample_WTS",
   dataset = "TEST",
-  dragen_rnaseq = here("inst/rawdata/test_data/dragen"),
-  dragen_fusions = NULL,
-  arriba_pdf = NULL,
-  arriba_tsv = NULL,
+  dragen_fusions = here("inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final"),
+  arriba_pdf = here("inst/rawdata/test_data/dragen/arriba/fusions.pdf"),
+  arriba_tsv = here("inst/rawdata/test_data/dragen/arriba/fusions.tsv"),
+  salmon = here("inst/rawdata/test_data/dragen/TEST.quant.sf"),
   report_dir = here("nogit/rnasum"),
   ref_data_dir = here("inst/rawdata"),
   transform = "CPM",
@@ -85,7 +84,6 @@ p <- list(
   clinical_info = here("inst/rawdata/test_data/test_clinical_data.xlsx"),
   clinical_id = "test_subject",
   subject_id = "",
-  salmon = NULL,
   sample_source = "-",
   dataset_name_incl = "",
   project = "-",
@@ -112,6 +110,8 @@ p <- list(
   FusionGDB = here("inst/rawdata/FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt")
 )
 params <- p
+library(package = paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE)
+library(package = paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)
 library(AnnotationDbi)
 library(assertthat)
 library(dplyr)
@@ -119,8 +119,6 @@ library(ensembldb)
 library(glue)
 library(purrr)
 library(readr)
-library(package = paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE)
-library(package = paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)
 require(RNAsum)
 ```
 
@@ -180,12 +178,17 @@ knitr::knit_hooks$set(plot = allow_thumbnails)
 ```
 
 ```{r load_refdata, comment = NA, message=FALSE, warning=FALSE}
+results_dir <- file.path(
+  params$report_dir,
+  glue::glue("{params$sample_name}{params$dataset_name_incl}.results")
+)
+RNAsum::mkdir(results_dir)
+subjectID <- dplyr::if_else(!is.na(params$subject_id), params$subject_id, "")
 # Define Z-transformation direction
 scaling <- dplyr::if_else(tolower(params$scaling) == "gene-wise", "gene_wise", "group-wise")
 # Annotate transcripts with gene IDs
 edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
 keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
-# Get gene genomic coordinates
 tx2ensembl <- edb |>
   ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
   dplyr::rename(tx_name = .data$TXID, gene_id = .data$GENEID)
@@ -198,154 +201,18 @@ g1 <- c("genes_cancer", "genes_oncokb", "genes_immune", "genes_hrd")
 ref_genes.list <- purrr::set_names(vector("list", length(g1)), g1)
 g2 <- c("oncokb_clin_vars", "oncokb_all_vars")
 cancer_genes_annot.list <- purrr::set_names(vector("list", length(g2)), g2)
+ref_genes.list <- RNAsum::get_refgenes(params)
+sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
+runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
+runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
+runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
+runFusionChunk <- runArribaChunk || runDragenFusionChunk
 
-# sample data
-# Given a dragen rnaseq dir, create an object with:
-# - path to salmon quant.sf file
-# - path to arriba dir
-# - path to dragen fusion_candidates.final file
-# If any of those do not exist, output NULL in their place
-subjectID <- dplyr::if_else(!is.na(params$subject_id), params$subject_id, "")
-results_dir <- file.path(
-  params$report_dir,
-  glue::glue("{params$sample_name}{params$dataset_name_incl}.results")
+arriba_out <- glue::glue(
+  "{params$sample_name}{params$dataset_name_incl}",
+  ".RNAseq_report.arriba_fusions.txt"
 )
-RNAsum::mkdir(results_dir)
-
-sample_data <- read_sample_data(params, results_dir)
-
-# Check if spreadsheet with clinical information exists
-clinical_info_file <- params$clinical_info
-runClinicalChunk <- FALSE
-if (file.exists(clinical_info_file)) {
-  ref_dataset.list[[dataset]][["clinical_info"]] <- openxlsx::read.xlsx(
-    xlsxFile = clinical_info_file, sheet = 1, colNames = TRUE, rowNames = FALSE,
-    detectDates = TRUE, skipEmptyRows = TRUE, skipEmptyCols = TRUE, check.names = TRUE
-  )
-  runClinicalChunk <- TRUE
-}
-
-# Set up genes list
-ref_genes.list[["genes_cancer"]] <- params$genes_cancer |>
-  readr::read_tsv(col_types = readr::cols(.default = "l", driver = "d", n = "i", symbol = "c", sources = "c"))
-ref_genes.list[["genes_oncokb"]] <- params$oncokb_genes |>
-  readr::read_tsv(col_types = readr::cols(.default = "c", "# of occurence within resources" = "i"))
-ref_genes.list[["genes_immune"]]$immune_markers <- params$genes_immune_markers |>
-  readr::read_tsv(col_types = readr::cols(.default = "c"))
-ref_genes.list[["genes_hrd"]] <- params$genes_hrd |>
-  readr::read_tsv(col_types = readr::cols(SYMBOL = "c"))
-
-if (params$immunogram) {
-  ref_genes.list[["genes_immune"]]$immunogram <- params$genes_immunogram |>
-    readr::read_tsv(col_types = readr::cols(.default = "c"))
-}
-
-# Read in sample gene fusion data
-arribaDir <- dplyr::if_else(is.null(params$arriba_rnaseq), file.path(params$dragen_rnaseq, "arriba"), params$arriba_rnaseq)
-arriba_file <- file.path(arribaDir, "fusions.tsv")
-arriba_pdf <- file.path(arribaDir, "fusions.pdf")
-runArribaChunk <- FALSE
-runFusionChunk <- FALSE
-
-if (file.exists(arriba_file)) {
-  ref_genes.list[["arriba"]] <- RNAsum::arriba_tsv_read(arriba_file)
-
-  # Make sure that at least one fusion has been reported by Arriba
-  if (nrow(ref_genes.list[["arriba"]]) > 0) {
-    # Convert Arriba pdf booklet with fusion plots to png images
-    if (file.exists(arriba_pdf)) {
-      RNAsum::arriba_plots(
-        arriba_file = arriba_file,
-        arriba_results = ref_genes.list[["arriba"]],
-        results_dir = file.path(results_dir, "arriba")
-      )
-    }
-
-    # Write list of fusion events for which Arriba plot is available into a file (for PIEdb portal)
-    fusion <- gsub(
-      ":", ".",
-      c(
-        "",
-        paste0(
-          make.names(
-            paste(
-              ref_genes.list[["arriba"]]$X.gene1,
-              ref_genes.list[["arriba"]]$gene2,
-              sep = "__"
-            )
-          ),
-          "_",
-          ref_genes.list[["arriba"]]$breakpoint1,
-          "-",
-          ref_genes.list[["arriba"]]$breakpoint2
-        )
-      )
-    )
-
-    write.table(
-      prepare2write(fusion),
-      file = paste0(results_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"),
-      sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE, append = FALSE
-    )
-
-    runArribaChunk <- TRUE
-    runFusionChunk <- TRUE
-  } else {
-    ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-    write.table(
-      prepare2write(""),
-      file = paste0(results_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"),
-      sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE, append = FALSE
-    )
-  }
-} else {
-  ##### Write list of fusion events for which arriba plot is available into a file (for PIEdb portal)
-  write.table(prepare2write(""), file = paste0(results_dir, "/", params$sample_name, params$dataset_name_incl, ".RNAseq_report.arriba_fusions.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE, append = FALSE)
-}
-
-##### Read in dragen fusion calls
-##### Check if dragen output file exists
-dragen_fusion_file <- paste(dataDir, list.files(dataDir, pattern = "\\.fusion_candidates.final$"), sep = "/")
-runDragenFusionChunk <- FALSE
-
-if (!is.null(params$dragen_rnaseq) && file.exists(dragen_fusion_file)) {
-  ##### Dragen's fusion output file header starts with '#' hence change the comment indicator option to '^' ( https://stackoverflow.com/questions/27196470/reading-a-line-that-starts-with-a-hash-on-a-txt-file )
-
-  dragen_fusion <- read.table(file = dragen_fusion_file[1], header = TRUE, comment.char = "^", quote = "")
-
-  ##### Check Dragen's fusion format version
-  #####  Dragen's fusion format version 3.9.3
-  if (all(c("X.FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "Gene1Location", "Gene2Location", "Gene1Sense", "Gene2Sense", "Gene1Id", "Gene2Id", "NumSplitReads", "NumSoftClippedReads", "NumPairedReads", "ReadNames") %in% colnames(dragen_fusion))) {
-    colnames(dragen_fusion) <- c("FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "Gene1Location", "Gene2Location", "Gene1Sense", "Gene2Sense", "Gene1Id", "Gene2Id", "NumSplitReads", "NumSoftClippedReads", "NumPairedReads", "ReadNames")
-  } else if (all(c("X.FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "ReadNames") %in% colnames(dragen_fusion))) {
-    colnames(dragen_fusion) <- c("FusionGene", "Score", "LeftBreakpoint", "RightBreakpoint", "ReadNames")
-  }
-
-  dragen_fusion_genes <- dragen_fusion %>%
-    tidyr::separate(col = FusionGene, into = c("gene1", "gene2"), sep = "--")
-
-  ref_genes.list[["dragenFusion"]] <- dragen_fusion_genes
-
-  runDragenFusionChunk <- TRUE
-  runFusionChunk <- TRUE
-}
-
-
-##### Read in pizzly fusion calls
-##### Check if pizzly output file exists
-pizzly_file <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat.tsv"), sep = "/")
-pizzly_file_filtered <- paste(dataDir, "pizzly", paste0(params$sample_name, "-flat-filtered.tsv"), sep = "/")
-runPizzlyChunk <- FALSE
-
-if (!is.null(params$bcbio_rnaseq) && file.exists(pizzly_file)) {
-  ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file, header = TRUE, quote = "")
-  runPizzlyChunk <- TRUE
-  runFusionChunk <- TRUE
-} else if (file.exists(pizzly_file_filtered)) {
-  ref_genes.list[["pizzly"]] <- read.table(file = pizzly_file_filtered, header = TRUE, quote = "")
-  runPizzlyChunk <- TRUE
-  runFusionChunk <- TRUE
-}
+RNAsum::arriba_write(sample_data.list[["arriba_pdf"]], file = file.path(results_dir, arriba_out))
 
 ##### Read in mutation data for investigate sample
 ##### Get the genomic output data from umccrise
