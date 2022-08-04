@@ -4,19 +4,21 @@
 \alias{dragen_fusions_read}
 \title{Read DRAGEN Fusions}
 \usage{
-dragen_fusions_read(x)
+dragen_fusions_read(x = NULL)
 }
 \arguments{
 \item{x}{Path to the \code{fusion_candidates.final} file.}
 }
 \value{
-A tibble with the contents of the input TSV file.
+A tibble with the contents of the input TSV file, or NULL if input is NULL.
 }
 \description{
 Reads the \code{fusion_candidates.final} file output by DRAGEN.
 }
 \examples{
 x <- system.file("rawdata/test_data/dragen",
-                 "test_sample_WTS.fusion_candidates.final", package = "RNAsum")
+  "test_sample_WTS.fusion_candidates.final",
+  package = "RNAsum"
+)
 (a <- dragen_fusions_read(x))
 }

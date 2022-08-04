@@ -1,55 +1,43 @@
 #' Read Sample Data
 #'
-#' Reads sample data, including Arriba fusions, Arriba plot, Salmon counts, and
+#' Reads sample data, including Arriba fusions, Arriba plots, Salmon counts, and
 #' DRAGEN fusions.
+#'
 #' @param p RNAsum params list.
 #' @param results_dir Directory to output extracted Arriba PNGs to (created
-#' automatically if it does not already exist).
+#'        automatically if it does not already exist).
+#' @param tx2gene data.frame with tx_name and gene_id columns. Required for salmon.
+#'        See [tximport::tximport].
 #'
 #' @return A list of the input sample data.
-#'
-#'
 #' @examples
+#' p <- list(
+#'   dragen_rnaseq = system.file("rawdata/test_data/dragen", package = "RNAsum"),
+#'   arriba_pdf = system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum"),
+#'   arriba_tsv = system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum"),
+#'   salmon = NULL,
+#'   dragen_fusions = system.file(
+#'     "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
+#'     package = "RNAsum"
+#'   )
+#' )
+#' res <- read_sample_data(p, tempdir())
+#' @testexamples
+#' expect_equal(length(res), 4)
+#' expect_null(res$salmon)
 #' @export
-read_sample_data <- function(p, results_dir) {
+read_sample_data <- function(p, results_dir, tx2gene = NULL) {
   assertthat::assert_that(
     all(c("arriba_pdf", "arriba_tsv", "salmon", "dragen_fusions") %in% names(p))
   )
 
-  # if the param hasn't been provided, check inside the dragen
-  # directory for the file pattern and return it, else return NULL.
-  .find_file <- function(x, pat, d) {
-    if (is.null(x)) {
-      x <- list.files(d, pattern = pat, full.names = TRUE, recursive = TRUE)
-      if (length(x) == 1) {
-        return(x)
-      }
-    } else {
-      # Not NULL
-      if (file.exists(x)) {
-        return(x)
-      }
-    }
-    return(NULL) # catch-all
-  } # .find_file end
-
-  .read_file <- function(x, pat, d, func, ...) {
-    f <- .find_file(x, pat, d)
-    if (!is.null(f)) {
-      return(func(f, ...))
-    }
-    return(NULL)
-  }
-
-  d <- p[["dragen_rnaseq"]]
-  # returns a tibble with fusions
-  arriba_tsv <- .read_file(p[["arriba_tsv"]], "^fusions\\.tsv$", d, RNAsum::arriba_read_tsv)
-  # returns a tibble with paths to individual png plots
-  arriba_pdf <- .read_file(p[["arriba_pdf"]], "^fusions\\.pdf$", d, RNAsum::arriba_read_pdf, arriba_tsv, file.path(results_dir, "arriba"))
-  # returns a tibble with counts
-  salmon <- .read_file(p[["salmon"]], "\\.quant\\.sf$", d, RNAsum::salmon_counts, tx2gene = tx2ensembl)
-  # returns a tibble with fusions
-  dragen_fusions <- .read_file(p[["dragen_fusions"]], "\\.fusion_candidates\\.final$", d, RNAsum::dragen_fusions_read)
+  arriba_tsv <- arriba_read_tsv(p[["arriba_tsv"]])
+  arriba_pdf <- arriba_read_pdf(p[["arriba_pdf"]],
+    fusions = arriba_tsv,
+    outdir = file.path(results_dir, "arriba")
+  )
+  salmon <- salmon_counts(p[["salmon"]], tx2gene = tx2gene)
+  dragen_fusions <- dragen_fusions_read(p[["dragen_fusions"]])
   list(
     arriba_tsv = arriba_tsv,
     arriba_pdf = arriba_pdf,

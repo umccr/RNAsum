@@ -4,7 +4,7 @@
 \alias{arriba_read_pdf}
 \title{Read Arriba PDF File}
 \usage{
-arriba_read_pdf(pdf, fusions, outdir)
+arriba_read_pdf(pdf = NULL, fusions = NULL, outdir = NULL)
 }
 \arguments{
 \item{pdf}{Output PDF file from Arriba.}
@@ -15,6 +15,7 @@ arriba_read_pdf(pdf, fusions, outdir)
 }
 \value{
 Single-column tibble with paths to the created PNG images.
+If the PDF (or any of the required params) is NULL, returns NULL.
 }
 \description{
 Reads the PDF output by Arriba containing one fusion plot per page and

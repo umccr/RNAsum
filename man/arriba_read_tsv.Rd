@@ -4,13 +4,13 @@
 \alias{arriba_read_tsv}
 \title{Read Arriba TSV File}
 \usage{
-arriba_read_tsv(x)
+arriba_read_tsv(x = NULL)
 }
 \arguments{
 \item{x}{Path to Arriba TSV file.}
 }
 \value{
-A tibble with the contents of the input TSV file.
+A tibble with the contents of the input TSV file, or NULL if x is NULL.
 }
 \description{
 Reads the TSV file output by Arriba.

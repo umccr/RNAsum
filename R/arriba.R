@@ -2,15 +2,19 @@
 #'
 #' Reads the TSV file output by Arriba.
 #' @param x Path to Arriba TSV file.
+#' @return A tibble with the contents of the input TSV file, or NULL if x is NULL.
 #'
-#' @return A tibble with the contents of the input TSV file.
 #' @examples
 #' x <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
 #' (a <- arriba_read_tsv(x))
 #' @testexamples
 #' expect_equal(colnames(a)[ncol(a)], "read_identifiers")
+#' expect_null(arriba_read_tsv(x = NULL))
 #' @export
-arriba_read_tsv <- function(x) {
+arriba_read_tsv <- function(x = NULL) {
+  if (is.null(x)) {
+    return(NULL)
+  }
   x |>
     readr::read_tsv(
       col_types = readr::cols(
@@ -31,6 +35,7 @@ arriba_read_tsv <- function(x) {
 #' @param fusions Tibble with fusions from Arriba.
 #' @param outdir Directory to write output PNGs to.
 #' @return Single-column tibble with paths to the created PNG images.
+#'         If the PDF (or any of the required params) is NULL, returns NULL.
 #' @examples
 #' pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum")
 #' tsv <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
@@ -38,8 +43,12 @@ arriba_read_tsv <- function(x) {
 #' (pngs <- arriba_read_pdf(pdf, fusions, tempdir()))
 #' @testexamples
 #' expect_equal(nrow(pngs), 4)
+#' expect_null(arriba_read_pdf(pdf = NULL))
 #' @export
-arriba_read_pdf <- function(pdf, fusions, outdir) {
+arriba_read_pdf <- function(pdf = NULL, fusions = NULL, outdir = NULL) {
+  if (is.null(pdf) || is.null(fusions) || is.null(outdir)) {
+    return(NULL)
+  }
   mkdir(outdir)
   # construct png filenames
   clean_fusions <- fusions |>
@@ -54,9 +63,8 @@ arriba_read_pdf <- function(pdf, fusions, outdir) {
     dplyr::select(.data$nm)
   # Export pdf images to png
   for (i in seq_len(nrow(clean_fusions))) {
-    png <- pdftools::pdf_render_page(pdf,
-      page = i, dpi = 300, numeric = TRUE,
-      opw = "", upw = ""
+    png <- pdftools::pdf_render_page(
+      pdf = NULL, page = i, dpi = 300, numeric = TRUE, opw = "", upw = ""
     )
     png::writePNG(png, clean_fusions[["nm"]][i])
   }
