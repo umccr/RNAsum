@@ -19,15 +19,14 @@ See \link[tximport:tximport]{tximport::tximport}.}
 A list of the input sample data.
 }
 \description{
-Reads sample data, including Arriba fusions, Arriba plots, Salmon counts, and
-DRAGEN fusions.
+Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
+DRAGEN fusions, and clinical info.
 }
 \examples{
 p <- list(
   dragen_rnaseq = system.file("rawdata/test_data/dragen", package = "RNAsum"),
   arriba_pdf = system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum"),
   arriba_tsv = system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum"),
-  salmon = NULL,
   dragen_fusions = system.file(
     "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
     package = "RNAsum"
