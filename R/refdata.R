@@ -38,29 +38,42 @@ get_refdata <- function(dataset) {
 #' p <- list(
 #'   genes_cancer = system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv", package = "RNAsum"),
 #'   genes_oncokb = system.file("rawdata/OncoKB/CancerGenesList.txt", package = "RNAsum"),
-#'   genes_immune_markers = system.file("rawdata/genes/Genes_immune_markers.txt", package = "RNAsum"),
-#'   genes_hrd = system.file("rawdata/genes/Genes_HRD.txt", package = "RNAsum")
 #' )
 #' x <- get_refgenes(p)
 #' @testexamples
 #' expect_equal(length(x), 4)
-#' expect_null(x$foo)
 #' @export
 get_refgenes <- function(p) {
-  .read <- function(x, ...) {
+  .read <- function(x, backup, ...) {
     if (is.null(x)) {
-      return(NULL)
+      return(backup)
     }
     x |>
       readr::read_tsv(col_types = readr::cols(...))
   }
+  genes_cancer <- system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv", package = "RNAsum")
+  genes_oncokb <- system.file("rawdata/OncoKB/CancerGenesList.txt", package = "RNAsum")
+  genes_immune_markers <- system.file("rawdata/genes/Genes_immune_markers.txt", package = "RNAsum")
+  genes_immunogram <- system.file("rawdata/genes/Genes_immunogram.txt", package = "RNAsum")
+  genes_hrd <- system.file("rawdata/genes/Genes_HRD.txt", package = "RNAsum")
+
+  # oncokb_clin_vars <- system.file("rawdata/OncoKB/allActionableVariants.txt", package = "RNAsum")
+  # oncokb_all_vars <- system.file("rawdata/OncoKB/allAnnotatedVariants.txt", package = "RNAsum")
+  # civic_var_summaries <- system.file("rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv", package = "RNAsum")
+  # civic_clin_evid <- system.file("rawdata/CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv", package = "RNAsum")
+  # cancer_biomarkers_trans <- system.file("rawdata/cancer_biomarkers_database/cancer_genes_upon_trans.tsv", package = "RNAsum")
+  # FusionGDB <- system.file("rawdata/FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt", package = "RNAsum")
+
   genes_cancer <- p[["genes_cancer"]] |>
-    .read(.default = "l", driver = "d", n = "i", symbol = "c", sources = "c")
+    .read(backup = genes_cancer, .default = "l", driver = "d", n = "i", symbol = "c", sources = "c")
   genes_oncokb <- p[["genes_oncokb"]] |>
-    .read(.default = "c", "# of occurence within resources" = "i")
-  genes_hrd <- .read(p[["genes_hrd"]], SYMBOL = "c")
-  genes_immune_markers <- .read(p[["genes_immune_markers"]], .default = "c")
-  genes_immunogram <- .read(p[["genes_immunogram"]], .default = "c")
+    .read(backup = genes_oncokb, .default = "c", "# of occurence within resources" = "i")
+  genes_hrd <- p[["genes_hrd"]] |>
+    .read(backup = genes_hrd, SYMBOL = "c")
+  genes_immune_markers <- p[["genes_immune_markers"]] |>
+    .read(backup = genes_immune_markers, .default = "c")
+  genes_immunogram <- p[["genes_immunogram"]] |>
+    .read(backup = genes_immunogram, .default = "c")
 
   list(
     genes_cancer = genes_cancer,
