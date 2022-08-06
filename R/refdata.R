@@ -11,6 +11,7 @@
 #' x <- get_refdata(dataset = "TEST")
 #' @export
 get_refdata <- function(dataset) {
+  assertthat::assert_that(dataset %in% REFERENCE_DATASETS)
   refdata_dir <- system.file("rawdata", package = "RNAsum")
   d_clean <- base::strsplit(dataset, split = "-", fixed = TRUE)[[1]][1]
   list(
@@ -71,3 +72,11 @@ get_refgenes <- function(p) {
     )
   )
 }
+
+#' RNAsum Reference Datasets
+#'
+#' Reference datasets available in RNAsum.
+#'
+#' @format A list of lists with the project abbreviation code, name,
+#'         tissue code and number of samples for each of the 40 datasets.
+"REFERENCE_DATASETS"
