@@ -19,7 +19,7 @@ option_list <- list(
   make_option("--cn_loss", default = 5, type = "integer", help = "CN threshold value to classify genes within lost regions [def: %default]"),
   make_option("--dataset", default = "PANCAN", type = "character", help = "Dataset to be used as external reference cohort [def: %default]"),
   make_option("--dataset_name_incl", default = FALSE, type = "logical", help = "Include dataset in report name? [def: %default]"),
-  make_option("--dragen_rnaseq", type = "character", help = "Directory path to DRAGEN RNA-seq pipeline output"),
+  make_option("--dragen_fusions", type = "character", help = "File path to DRAGEN RNA-seq 'fusion_candidates.final' output"),
   make_option("--drugs", default = FALSE, type = "logical", help = "Include drug matching section in report? [def: %default]"),
   make_option("--filter", default = TRUE, type = "logical", help = "Filter out low expressed genes? [def: %default]"),
   make_option("--grch_version", default = 38, type = "integer", help = "Human reference genome version used for gene annotation [def: %default]"),
@@ -31,6 +31,7 @@ option_list <- list(
   make_option("--pcgr_splice_vars", default = TRUE, type = "logical", help = "Include non-coding splice region variants reported in PCGR? [def: %default]"),
   make_option("--project", type = "character", help = "Project name"),
   make_option("--report_dir", type = "character", help = "Directory path to output report"),
+  make_option("--salmon", type = "character", help = "File path to salmon 'quant.sf' output"),
   make_option("--sample_name", type = "character", help = "Sample name to be presented in report"),
   make_option("--sample_source", default = "-", type = "character", help = "Type of investigated sample [def: %default]"),
   make_option("--save_tables", default = TRUE, type = "logical", help = "Save interactive summary tables as HTML? [def: %default]"),
@@ -46,8 +47,8 @@ opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list, fo
 
 ##### Check required args
 stopifnot(
-  "'--dragen_rnaseq', '--sample_name' and '--report_dir' are required" =
-    !is.null(opt$dragen_rnaseq) && !is.null(opt$sample_name) && !is.null(opt$report_dir)
+  "'--sample_name' and '--report_dir' are required" =
+    !is.null(opt$sample_name) && !is.null(opt$report_dir)
 )
 cond <- !is.null(opt$clinical_info) && (!is.null(opt$clinical_id) || !is.null(opt$subject_id) || !is.null(opt$umccrise))
 stopifnot("'--clinical_info' requires at least one of '--clinical_id', '--subject_id', or '--umccrise'" = cond)
@@ -104,7 +105,7 @@ param_list <- list(
   cn_loss = opt$cn_loss,
   dataset = toupper(opt$dataset),
   dataset_name_incl = dataset_name_incl,
-  dragen_rnaseq = opt$dragen_rnaseq,
+  dragen_fusions = opt$dragen_fusions,
   drugs = opt$drugs,
   filter = opt$filter,
   grch_version = as.numeric(opt$grch_version),
@@ -116,6 +117,7 @@ param_list <- list(
   pcgr_splice_vars = opt$pcgr_splice_vars,
   project = opt$project,
   report_dir = opt$report_dir,
+  salmon = opt$salmon,
   sample_name = opt$sample_name,
   sample_source = opt$sample_source,
   save_tables = opt$save_tables,
