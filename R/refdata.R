@@ -11,7 +11,7 @@
 #' x <- get_refdata(dataset = "TEST")
 #' @export
 get_refdata <- function(dataset) {
-  assertthat::assert_that(dataset %in% REFERENCE_DATASETS)
+  assertthat::assert_that(dataset %in% names(REFERENCE_DATASETS))
   refdata_dir <- system.file("rawdata", package = "RNAsum")
   d_clean <- base::strsplit(dataset, split = "-", fixed = TRUE)[[1]][1]
   list(
@@ -38,15 +38,16 @@ get_refdata <- function(dataset) {
 #' p <- list(
 #'   genes_cancer = system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv", package = "RNAsum"),
 #'   genes_oncokb = system.file("rawdata/OncoKB/CancerGenesList.txt", package = "RNAsum"),
+#'   civic_var_summaries = system.file("rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv", package = "RNAsum")
 #' )
 #' x <- get_refgenes(p)
 #' @testexamples
-#' expect_equal(length(x), 4)
+#' expect_equal(nrow(x[["genes_cancer"]]), 1248)
 #' @export
 get_refgenes <- function(p) {
   .read <- function(x, backup, ...) {
     if (is.null(x)) {
-      return(backup)
+      x <- backup
     }
     x |>
       readr::read_tsv(col_types = readr::cols(...))
@@ -56,13 +57,12 @@ get_refgenes <- function(p) {
   genes_immune_markers <- system.file("rawdata/genes/Genes_immune_markers.txt", package = "RNAsum")
   genes_immunogram <- system.file("rawdata/genes/Genes_immunogram.txt", package = "RNAsum")
   genes_hrd <- system.file("rawdata/genes/Genes_HRD.txt", package = "RNAsum")
-
-  # oncokb_clin_vars <- system.file("rawdata/OncoKB/allActionableVariants.txt", package = "RNAsum")
-  # oncokb_all_vars <- system.file("rawdata/OncoKB/allAnnotatedVariants.txt", package = "RNAsum")
-  # civic_var_summaries <- system.file("rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv", package = "RNAsum")
-  # civic_clin_evid <- system.file("rawdata/CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv", package = "RNAsum")
-  # cancer_biomarkers_trans <- system.file("rawdata/cancer_biomarkers_database/cancer_genes_upon_trans.tsv", package = "RNAsum")
-  # FusionGDB <- system.file("rawdata/FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt", package = "RNAsum")
+  oncokb_clin_vars <- system.file("rawdata/OncoKB/allActionableVariants.txt", package = "RNAsum")
+  oncokb_all_vars <- system.file("rawdata/OncoKB/allAnnotatedVariants.txt", package = "RNAsum")
+  civic_var_summaries <- system.file("rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv", package = "RNAsum")
+  civic_clin_evid <- system.file("rawdata/CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv", package = "RNAsum")
+  cancer_biomarkers_trans <- system.file("rawdata/cancer_biomarkers_database/cancer_genes_upon_trans.tsv", package = "RNAsum")
+  FusionGDB <- system.file("rawdata/FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt", package = "RNAsum")
 
   genes_cancer <- p[["genes_cancer"]] |>
     .read(backup = genes_cancer, .default = "l", driver = "d", n = "i", symbol = "c", sources = "c")
@@ -74,6 +74,27 @@ get_refgenes <- function(p) {
     .read(backup = genes_immune_markers, .default = "c")
   genes_immunogram <- p[["genes_immunogram"]] |>
     .read(backup = genes_immunogram, .default = "c")
+  oncokb_clin_vars <- p[["oncokb_clin_vars"]] |>
+    .read(backup = oncokb_clin_vars, .default = "c")
+  oncokb_all_vars <- p[["oncokb_all_vars"]] |>
+    .read(backup = oncokb_all_vars, .default = "c")
+  civic_var_summaries <- p[["civic_var_summaries"]] |>
+    .read(
+      backup = civic_var_summaries, .default = "c",
+      start = "i", stop = "i", start2 = "i", stop2 = "i"
+    )
+  civic_clin_evid <- p[["civic_clin_evid"]] |>
+    .read(
+      backup = civic_clin_evid, .default = "c",
+      start = "i", stop = "i", start2 = "i", stop2 = "i"
+    )
+  cancer_biomarkers_trans <- p[["cancer_biomarkers_trans"]] |>
+    .read(backup = cancer_biomarkers_trans, .default = "c")
+  FusionGDB <- FusionGDB |>
+    readr::read_tsv(
+      col_names = c("Hgene", "HgeneID", "Tgene", "TgeneID", "FGname", "FGID"),
+      col_types = readr::cols(.default = "c")
+    )
 
   list(
     genes_cancer = genes_cancer,
@@ -82,7 +103,13 @@ get_refgenes <- function(p) {
     genes_immune = list(
       genes_immune_markers = genes_immune_markers,
       genes_immunogram = genes_immunogram
-    )
+    ),
+    oncokb_clin_vars = oncokb_clin_vars,
+    oncokb_all_vars = oncokb_all_vars,
+    civic_var_summaries = civic_var_summaries,
+    civic_clin_evid = civic_clin_evid,
+    cancer_biomarkers_trans = cancer_biomarkers_trans,
+    FusionGDB = FusionGDB
   )
 }
 
