@@ -6,12 +6,12 @@
 #'
 #' @examples
 #' x <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
-#' (a <- arriba_read_tsv(x))
+#' (a <- arriba_tsv_read(x))
 #' @testexamples
 #' expect_equal(colnames(a)[ncol(a)], "read_identifiers")
-#' expect_null(arriba_read_tsv(x = NULL))
+#' expect_null(arriba_tsv_read(x = NULL))
 #' @export
-arriba_read_tsv <- function(x = NULL) {
+arriba_tsv_read <- function(x = NULL) {
   if (is.null(x)) {
     return(NULL)
   }
@@ -39,13 +39,13 @@ arriba_read_tsv <- function(x = NULL) {
 #' @examples
 #' pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum")
 #' tsv <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
-#' fusions <- arriba_read_tsv(tsv)
-#' (pngs <- arriba_read_pdf(pdf, fusions, tempdir()))
+#' fusions <- arriba_tsv_read(tsv)
+#' (pngs <- arriba_pdf_read(pdf, fusions, tempdir()))
 #' @testexamples
 #' expect_equal(nrow(pngs), 4)
-#' expect_null(arriba_read_pdf(pdf = NULL))
+#' expect_null(arriba_pdf_read(pdf = NULL))
 #' @export
-arriba_read_pdf <- function(pdf = NULL, fusions = NULL, outdir = NULL) {
+arriba_pdf_read <- function(pdf = NULL, fusions = NULL, outdir = NULL) {
   if (is.null(pdf) || is.null(fusions) || is.null(outdir)) {
     return(NULL)
   }
@@ -82,7 +82,7 @@ arriba_read_pdf <- function(pdf = NULL, fusions = NULL, outdir = NULL) {
 #'
 #' @return The input invisibly.
 #' @export
-arriba_write <- function(x, file) {
+arriba_summary_write <- function(x, file) {
   if (is.null(x)) {
     tibble::tibble(empty = character()) |>
       readr::write_tsv(file = file, col_names = FALSE)

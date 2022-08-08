@@ -11,7 +11,7 @@ RNA-seq reporting workflow designed to post-process, summarise and visualise an 
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://umccr.github.io/rnasum/}
+  \item \url{https://umccr.github.io/RNAsum/}
   \item \url{https://github.com/umccr/RNAsum}
 }
 

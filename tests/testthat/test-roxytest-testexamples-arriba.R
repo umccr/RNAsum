@@ -2,22 +2,22 @@
 
 # File R/arriba.R: @testexamples
 
-test_that("Function arriba_read_tsv() @ L14", {
+test_that("Function arriba_tsv_read() @ L14", {
   
   x <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
-  (a <- arriba_read_tsv(x))
+  (a <- arriba_tsv_read(x))
   expect_equal(colnames(a)[ncol(a)], "read_identifiers")
-  expect_null(arriba_read_tsv(x = NULL))
+  expect_null(arriba_tsv_read(x = NULL))
 })
 
 
-test_that("Function arriba_read_pdf() @ L48", {
+test_that("Function arriba_pdf_read() @ L48", {
   
   pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum")
   tsv <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
-  fusions <- arriba_read_tsv(tsv)
-  (pngs <- arriba_read_pdf(pdf, fusions, tempdir()))
+  fusions <- arriba_tsv_read(tsv)
+  (pngs <- arriba_pdf_read(pdf, fusions, tempdir()))
   expect_equal(nrow(pngs), 4)
-  expect_null(arriba_read_pdf(pdf = NULL))
+  expect_null(arriba_pdf_read(pdf = NULL))
 })
 

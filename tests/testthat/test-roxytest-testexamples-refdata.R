@@ -2,16 +2,16 @@
 
 # File R/refdata.R: @testexamples
 
-test_that("Function get_refgenes() @ L48", {
+test_that("Function get_refgenes() @ L49", {
   
   p <- list(
-    genes_cancer = system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv", package = "RNAsum"),
+    genes_cancer = system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv",
+                               package = "RNAsum"),
     genes_oncokb = system.file("rawdata/OncoKB/CancerGenesList.txt", package = "RNAsum"),
-    genes_immune_markers = system.file("rawdata/genes/Genes_immune_markers.txt", package = "RNAsum"),
-    genes_hrd = system.file("rawdata/genes/Genes_HRD.txt", package = "RNAsum")
+    civic_var_summaries = system.file("rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv",
+                                      package = "RNAsum")
   )
   x <- get_refgenes(p)
-  expect_equal(length(x), 4)
-  expect_null(x$foo)
+  expect_equal(nrow(x[["genes_cancer"]]), 1248)
 })
 
