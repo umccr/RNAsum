@@ -2,7 +2,7 @@
 
 # File R/sample_data.R: @testexamples
 
-test_that("Function read_sample_data() @ L28", {
+test_that("Function read_sample_data() @ L36", {
   
   p <- list(
     dragen_rnaseq = system.file("rawdata/test_data/dragen", package = "RNAsum"),
@@ -11,10 +11,37 @@ test_that("Function read_sample_data() @ L28", {
     dragen_fusions = system.file(
       "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
       package = "RNAsum"
+    ),
+    umccrise = system.file(
+      "rawdata/test_data/umccrised/test_sample_WGS",
+      package = "RNAsum"
+    ),
+    manta_tsv = system.file(
+      "rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv",
+      package = "RNAsum"
     )
   )
   res <- read_sample_data(p, tempdir())
-  expect_equal(length(res), 5)
+  expect_equal(length(res), 6)
   expect_null(res$salmon)
+})
+
+
+test_that("Function read_wgs_data() @ L80", {
+  
+  p <- list(
+    umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),
+    pcgr_tiers_tsv = system.file(
+      "rawdata/test_data/umccrised/test_sample_WGS/small_variants",
+      "pcgr.snvs_indels.tiers.tsv",
+      package = "RNAsum"
+    ),
+    manta_tsv = system.file(
+      "rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv",
+      package = "RNAsum"
+    )
+  )
+  (res <- read_wgs_data(p))
+  expect_equal(length(res), 3)
 })
 

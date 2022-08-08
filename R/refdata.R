@@ -11,7 +11,7 @@
 #' x <- get_refdata(dataset = "TEST")
 #' @export
 get_refdata <- function(dataset) {
-  assertthat::assert_that(dataset %in% names(REFERENCE_DATASETS))
+  assertthat::assert_that(dataset %in% names(RNAsum::REFERENCE_DATASETS))
   refdata_dir <- system.file("rawdata", package = "RNAsum")
   d_clean <- base::strsplit(dataset, split = "-", fixed = TRUE)[[1]][1]
   list(
@@ -36,9 +36,17 @@ get_refdata <- function(dataset) {
 #'
 #' @examples
 #' p <- list(
-#'   genes_cancer = system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv", package = "RNAsum"),
-#'   genes_oncokb = system.file("rawdata/OncoKB/CancerGenesList.txt", package = "RNAsum"),
-#'   civic_var_summaries = system.file("rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv", package = "RNAsum")
+#'   genes_cancer = system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv",
+#'     package = "RNAsum"
+#'   ),
+#'   genes_oncokb = system.file(
+#'     "rawdata/OncoKB/CancerGenesList.txt",
+#'     package = "RNAsum"
+#'   ),
+#'   civic_var_summaries = system.file(
+#'     "rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv",
+#'     package = "RNAsum"
+#'   )
 #' )
 #' x <- get_refgenes(p)
 #' @testexamples
@@ -117,6 +125,8 @@ get_refgenes <- function(p) {
 #'
 #' Reference datasets available in RNAsum.
 #'
+#' @usage data(REFERENCE_DATASETS)
+#' @docType data
 #' @format A list of lists with the project abbreviation code, name,
 #'         tissue code and number of samples for each of the 40 datasets.
 "REFERENCE_DATASETS"

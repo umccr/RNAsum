@@ -30,6 +30,14 @@ p <- list(
   dragen_fusions = system.file(
     "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
     package = "RNAsum"
+  ),
+  umccrise = system.file(
+    "rawdata/test_data/umccrised/test_sample_WGS",
+    package = "RNAsum"
+  ),
+  manta_tsv = system.file(
+    "rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv",
+    package = "RNAsum"
   )
 )
 res <- read_sample_data(p, tempdir())
