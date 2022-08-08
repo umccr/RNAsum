@@ -116,7 +116,7 @@ read_wgs_data <- function(p) {
 
   manta_tsv <- .read(
     subdir = "structural", pat = "manta\\.tsv$",
-    nm = "manta_tsv", func = gpgr::umccrise_read_sv_tsv
+    nm = "manta_tsv", func = gpgr::process_sv
   )
 
   list(

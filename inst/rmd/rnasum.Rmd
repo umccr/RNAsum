@@ -30,10 +30,13 @@ params:
   hide_code_btn: TRUE
   immunogram: FALSE
   log: TRUE
+  manta_tsv: NULL
   norm: NULL
-  pcgr_tier: 4
   pcgr_splice_vars: TRUE
+  pcgr_tier: 4
+  pcgr_tiers_tsv: NULL
   project: NULL
+  purple_gene_tsv: NULL
   report_dir: NULL
   salmon: NULL
   sample_name: NULL
@@ -44,8 +47,6 @@ params:
   top_genes: 5
   transform: 'CPM'
   umccrise: NULL
-  ensembl_version: 86
-  ucsc_genome_assembly: 38
 ---
 
 ```{r}
@@ -68,10 +69,13 @@ p <- list(
   hide_code_btn = TRUE,
   immunogram = FALSE,
   log = TRUE,
+  manta_tsv = here("inst/rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv"),
   norm = "TMM",
-  pcgr_tier = 4,
   pcgr_splice_vars = TRUE,
+  pcgr_tier = 4,
+  pcgr_tiers_tsv = NULL,
   project = "-",
+  purple_gene_tsv = NULL,
   report_dir = here("nogit/rnasum"),
   salmon = here("inst/rawdata/test_data/dragen/TEST.quant.sf"),
   sample_name = "test_sample_WTS",
@@ -81,11 +85,12 @@ p <- list(
   subject_id = NULL,
   top_genes = 5,
   transform = "CPM",
-  umccrise = here("inst/rawdata/test_data/umccrised/test_sample_WGS"),
-  ensembl_version = 86,
-  ucsc_genome_assembly = 38
+  umccrise = here("inst/rawdata/test_data/umccrised/test_sample_WGS")
 )
 params <- p
+
+ucsc_genome_assembly <- dplyr::if_else(params$grch_version == 38, 38L, 19L)
+ensembl_version <- dplyr::if_else(params$grch_version == 38, 86L, 75L)
 library(package = paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE)
 library(package = paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)
 library(AnnotationDbi)
@@ -96,8 +101,6 @@ library(purrr)
 library(readr)
 require(RNAsum)
 ```
-
-Transcriptome summary for patient sample **`r paste0(params$sample_name, params$dataset_name_incl)`**.
 
 ```{r prep, echo = FALSE}
 # Include/exclude the "Code" button allowing to "show"/"hide" code chunks from the report
@@ -153,14 +156,21 @@ knitr::knit_hooks$set(plot = allow_thumbnails)
 ```
 
 ```{r load_refdata, comment = NA, message=FALSE, warning=FALSE}
+dataset <- toupper(params$dataset)
+dataset_name_incl <- dplyr::if_else(params$dataset_name_incl, glue::glue("_{params$dataset}"), "")
+##### Grab umccrise SBJ for MySQL insert command.
+##### Will overwrite argument passed to "--clinical_id" flag
+# TODO: revisit subjectID
+subjectID <- dplyr::if_else(is.null(params$subject_id), "", params$subject_id)
+subjectID <- dplyr::if_else(is.null(params$umccrise), subjectID, basename(params$umccrise))
+sample_name <- dplyr::if_else(dataset_name_incl == "", params$sample_name,
+  as.character(glue::glue("{params$sample_name}_{dataset}"))
+)
 results_dir <- file.path(
   params$report_dir,
-  glue::glue("{params$sample_name}{params$dataset_name_incl}.results")
+  glue::glue("{params$sample_name}{dataset_name_incl}.results")
 )
 RNAsum::mkdir(results_dir)
-subjectID <- dplyr::if_else(is.null(params$subject_id), "", params$subject_id)
-# Define Z-transformation direction
-scaling <- dplyr::if_else(tolower(params$scaling) == "gene-wise", "gene_wise", "group-wise")
 # Annotate transcripts with gene IDs
 edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
 keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
@@ -169,118 +179,40 @@ tx2ensembl <- edb |>
   dplyr::rename(tx_name = .data$TXID, gene_id = .data$GENEID)
 
 # ref data
-dataset <- toupper(params$dataset)
 ref_dataset <- RNAsum::get_refdata(dataset)
 ref_dataset.list <- purrr::set_names(vector("list", length(dataset)), dataset)
-g1 <- c("genes_cancer", "genes_oncokb", "genes_immune", "genes_hrd")
-ref_genes.list <- purrr::set_names(vector("list", length(g1)), g1)
-g2 <- c("oncokb_clin_vars", "oncokb_all_vars")
-cancer_genes_annot.list <- purrr::set_names(vector("list", length(g2)), g2)
+# TODO: merge all together
 ref_genes.list <- RNAsum::get_refgenes(params)
+# Sample WTS (and WGS) data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
 runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
 runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
 runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
 runFusionChunk <- runArribaChunk || runDragenFusionChunk
+runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
+runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
+runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
+  nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
 
-arriba_out <- glue::glue(
-  "{params$sample_name}{params$dataset_name_incl}",
-  ".RNAseq_report.arriba_fusions.txt"
+arriba_summary_out <-
+  glue::glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
+RNAsum::arriba_summary_write(
+  sample_data.list[["arriba_pdf"]],
+  file = file.path(results_dir, arriba_summary_out)
 )
-RNAsum::arriba_write(sample_data.list[["arriba_pdf"]], file = file.path(results_dir, arriba_out))
 
-
-
-##### Read in sample WGS data
-if (!is.null(params$umccrise)) {
-  umccrise <- unlist(strsplit(params$umccrise, split = "/", fixed = TRUE))
-  umccrise <- umccrise[length(umccrise)]
-
-  ##### Check if PCGR (mutation) output file exists
-  runPcgrChunk <- TRUE
-
-  if (file.exists(paste(params$umccrise, "small_variants", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/"))) {
-    pcgr_file <- paste(params$umccrise, "small_variants", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
-  } else if (file.exists(paste(params$umccrise, "..", "work", umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/"))) {
-    pcgr_file <- paste(params$umccrise, "..", "work", umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
-  } else if (file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/"))) {
-    pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
-  } else if (file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/"))) {
-    pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
-  } else {
-    runPcgrChunk <- FALSE
-  }
-
-  if (runPcgrChunk) {
-    ref_genes.list[["pcgr"]] <- read.table(pcgr_file, sep = "\t", as.is = TRUE, header = TRUE, row.names = NULL, fill = TRUE, quote = "")
-
-    ##### Simplify the variants types
-    ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_variant", "", ref_genes.list[["pcgr"]]$CONSEQUENCE)
-    ref_genes.list[["pcgr"]]$CONSEQUENCE <- gsub("_", " ", ref_genes.list[["pcgr"]]$CONSEQUENCE)
-
-    ##### Simplify tiers' annotations and AFs
-    ref_genes.list[["pcgr"]]$TIER <- gsub("TIER ", "", ref_genes.list[["pcgr"]]$TIER)
-    ref_genes.list[["pcgr"]]$AF_TUMOR <- round(ref_genes.list[["pcgr"]]$AF_TUMOR, digits = 2)
-  } else {
-    ref_genes.list[["pcgr"]] <- NULL
-  }
-
-  ##### Check if purple (CN) output file exists
-  purple_file_1 <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.gene.cnv"), sep = "/")
-  purple_file_2 <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.cnv.gene.tsv"), sep = "/")
-  runPurpleChunk <- TRUE
-
-  if (file.exists(purple_file_1)) {
-    ref_genes.list[["purple"]] <- read.table(purple_file_1, sep = "\t", as.is = TRUE, header = TRUE, row.names = NULL, fill = TRUE, quote = "")
-  } else if (file.exists(purple_file_2)) {
-    ref_genes.list[["purple"]] <- read.table(purple_file_2, sep = "\t", as.is = TRUE, header = TRUE, row.names = NULL, fill = TRUE, quote = "")
-    colnames(ref_genes.list[["purple"]]) <- sapply(colnames(ref_genes.list[["purple"]]), CapStr)
-  } else {
-    ref_genes.list[["purple"]] <- NULL
-    runPurpleChunk <- FALSE
-  }
-
-  ##### Check if manta (structural variants (SVs)) file exists
-  sv_file_1 <- paste(params$umccrise, "structural", paste0(umccrise, "-sv-prioritize-manta-pass.tsv"), sep = "/")
-  sv_file_2 <- paste(params$umccrise, "structural", paste0(umccrise, "-manta.tsv"), sep = "/")
-  runSVsChunk <- TRUE
-
-  if (file.exists(sv_file_1)) {
-    ref_genes.list[["manta"]] <- sv_prioritize_short(sv_file_1)
-  } else if (file.exists(sv_file_2)) {
-    ref_genes.list[["manta"]] <- sv_prioritize(sv_file_2)
-    ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][, c("Tier", "Event", "Gene", "Effect", "Detail", "Location", "AF", "CN chg", "SR", "PR", "CN", "Ploidy", "Transcript", "Other effects")]
-
-    ##### Check if there are any SVs
-    if (!is.null(ref_genes.list[["manta"]])) {
-      ##### Omit SVs without assigned gene
-      ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][ref_genes.list[["manta"]]$Gene != "", ]
-    } else {
-      ##### Create empty dataframe
-      ref_genes.list[["manta"]] <- data.frame(matrix(ncol = 14, nrow = 0))
-      colnames(ref_genes.list[["manta"]]) <- c("Tier", "Event", "Gene", "Effect", "Detail", "Location", "AF", "CN chg", "SR", "PR", "CN", "Ploidy", "Transcript", "Other effects")
-    }
-  } else {
-    ref_genes.list[["manta"]] <- NULL
-    runSVsChunk <- FALSE
-  }
-
-  ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command. This will overwrite argument passed to "--clinical_id" flag
-  subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split = "/", fixed = TRUE)), n = 1), split = "__", fixed = TRUE))[1]
-} else {
-  runPcgrChunk <- FALSE
-  runPurpleChunk <- FALSE
-  runSVsChunk <- FALSE
+if (runSVsChunk) {
+  manta <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
+    dplyr::select(
+      dplyr::contains("tier"),
+      Event, Genes, Effect, Detail, Start, End, AF_BPI, CNC, CN,
+      SR_alt, PR_alt, Ploidy, Transcript
+    )
+  # TODO: Check if 'dplyr::filter(Genes != "")' makes sense
 }
 
-##### Add refenence cohort name to the sample name
-if (params$dataset_name_incl != "") {
-  sample_name <- paste0(params$sample_name, "_", params$dataset)
-} else {
-  sample_name <- params$sample_name
-}
-
-##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
+##### Read in reference datasets and merge them with sample data.
+# This part outputs a vector with first element containing the merged data and second element containing merged targets info.
 ref_dataset.list[[dataset]] <- combineDatasets(sample_name = sample_name, sample_counts = counts, ref_data = ref_dataset, report_dir = results_dir, dataset = dataset)
 names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
@@ -1248,6 +1180,8 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
+# Define Z-transformation direction
+scaling <- dplyr::if_else(tolower(params$scaling) == "gene-wise", "gene_wise", "group-wise")
 genes.expr.perc <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
 
 ##### Z-scores
