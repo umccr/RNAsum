@@ -21,10 +21,12 @@ p <- list(
     package = "RNAsum"
   ),
   genes_oncokb = system.file(
-    "rawdata/OncoKB/CancerGenesList.txt", package = "RNAsum"
+    "rawdata/OncoKB/CancerGenesList.txt",
+    package = "RNAsum"
   ),
   civic_var_summaries = system.file(
-    "rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv", package = "RNAsum"
+    "rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv",
+    package = "RNAsum"
   )
 )
 x <- get_refgenes(p)

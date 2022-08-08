@@ -2,17 +2,19 @@
 
 # File R/refdata.R: @testexamples
 
-test_that("Function get_refgenes() @ L53", {
+test_that("Function get_refgenes() @ L55", {
   
   p <- list(
     genes_cancer = system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv",
       package = "RNAsum"
     ),
     genes_oncokb = system.file(
-      "rawdata/OncoKB/CancerGenesList.txt", package = "RNAsum"
+      "rawdata/OncoKB/CancerGenesList.txt",
+      package = "RNAsum"
     ),
     civic_var_summaries = system.file(
-      "rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv", package = "RNAsum"
+      "rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv",
+      package = "RNAsum"
     )
   )
   x <- get_refgenes(p)

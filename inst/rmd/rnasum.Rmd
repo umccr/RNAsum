@@ -46,13 +46,6 @@ params:
   umccrise: NULL
   ensembl_version: 86
   ucsc_genome_assembly: 38
-
-  #oncokb_clin_vars: 'OncoKB/allActionableVariants.txt'
-  #oncokb_all_vars: 'OncoKB/allAnnotatedVariants.txt'
-  #civic_var_summaries: 'CIViC/01-Oct-2018-VariantSummaries.tsv'
-  #civic_clin_evid: 'CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv'
-  #cancer_biomarkers_trans: 'cancer_biomarkers_database/cancer_genes_upon_trans.tsv'
-  #FusionGDB: 'FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt'
 ---
 
 ```{r}
@@ -67,7 +60,7 @@ p <- list(
   cn_gain = 95,
   cn_loss = 5,
   dataset = "TEST",
-  dataset_name_incl = "",
+  dataset_name_incl = FALSE,
   dragen_fusions = here("inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final"),
   drugs = FALSE,
   filter = TRUE,
@@ -85,19 +78,12 @@ p <- list(
   sample_source = "-",
   save_tables = TRUE,
   scaling = "gene-wise",
-  subject_id = "",
+  subject_id = NULL,
   top_genes = 5,
   transform = "CPM",
   umccrise = here("inst/rawdata/test_data/umccrised/test_sample_WGS"),
   ensembl_version = 86,
-  ucsc_genome_assembly = 38,
-
-  # oncokb_clin_vars = here("inst/rawdata/OncoKB/allActionableVariants.txt"),
-  # oncokb_all_vars = here("inst/rawdata/OncoKB/allAnnotatedVariants.txt"),
-  # civic_var_summaries = here("inst/rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv"),
-  # civic_clin_evid = here("inst/rawdata/CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv"),
-  # cancer_biomarkers_trans = here("inst/rawdata/cancer_biomarkers_database/cancer_genes_upon_trans.tsv"),
-  # FusionGDB = here("inst/rawdata/FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt")
+  ucsc_genome_assembly = 38
 )
 params <- p
 library(package = paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE)
@@ -172,7 +158,7 @@ results_dir <- file.path(
   glue::glue("{params$sample_name}{params$dataset_name_incl}.results")
 )
 RNAsum::mkdir(results_dir)
-subjectID <- dplyr::if_else(!is.na(params$subject_id), params$subject_id, "")
+subjectID <- dplyr::if_else(is.null(params$subject_id), "", params$subject_id)
 # Define Z-transformation direction
 scaling <- dplyr::if_else(tolower(params$scaling) == "gene-wise", "gene_wise", "group-wise")
 # Annotate transcripts with gene IDs
@@ -203,8 +189,9 @@ arriba_out <- glue::glue(
 )
 RNAsum::arriba_write(sample_data.list[["arriba_pdf"]], file = file.path(results_dir, arriba_out))
 
-##### Read in mutation data for investigate sample
-##### Get the genomic output data from umccrise
+
+
+##### Read in sample WGS data
 if (!is.null(params$umccrise)) {
   umccrise <- unlist(strsplit(params$umccrise, split = "/", fixed = TRUE))
   umccrise <- umccrise[length(umccrise)]
@@ -285,22 +272,6 @@ if (!is.null(params$umccrise)) {
   runPurpleChunk <- FALSE
   runSVsChunk <- FALSE
 }
-
-##### Read in OncoKB (http://oncokb.org) annotations
-cancer_genes_annot.list[["oncokb_clin_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_clin_vars, sep = "/"), sep = "\t", as.is = TRUE, header = TRUE, row.names = NULL, quote = "")
-cancer_genes_annot.list[["oncokb_all_vars"]] <- read.table(paste(params$ref_data_dir, params$oncokb_all_vars, sep = "/"), sep = "\t", as.is = TRUE, header = TRUE, row.names = NULL, quote = "", fill = TRUE)
-
-##### Read in CIViC (https://civicdb.org/) annotations
-cancer_genes_annot.list[["civic_var_summaries"]] <- read.table(paste(params$ref_data_dir, params$civic_var_summaries, sep = "/"), sep = "\t", as.is = TRUE, header = TRUE, row.names = NULL, quote = "", fill = TRUE)
-cancer_genes_annot.list[["civic_clin_evid"]] <- read.table(paste(params$ref_data_dir, params$civic_clin_evid, sep = "/"), sep = "\t", as.is = TRUE, header = TRUE, row.names = NULL, quote = "", fill = TRUE)
-
-##### Read in Cancer Biomarkers database (https://www.cancergenomeinterpreter.org/biomarkers) annotations. This is mainly used to annotate reported fusion events
-cancer_genes_annot.list[["cancer_biomarkers_trans"]] <- read.table(paste(params$ref_data_dir, params$cancer_biomarkers_trans, sep = "/"), sep = "\t", as.is = TRUE, header = TRUE, row.names = NULL, quote = "", fill = TRUE)
-
-##### Read in FusionGDB database (https://ccsm.uth.edu/FusionGDB/) used to annotate reported fusion events, with info about head and tail genes.
-cancer_genes_annot.list[["FusionGDB"]] <- read.table(paste(params$ref_data_dir, params$FusionGDB, sep = "/"), sep = "\t", as.is = TRUE, header = FALSE, row.names = NULL, quote = "", fill = TRUE)
-names(cancer_genes_annot.list[["FusionGDB"]]) <- c("Hgene", "HgeneID", "Tgene", "TgeneID", "FGname", "FGID")
-
 
 ##### Add refenence cohort name to the sample name
 if (params$dataset_name_incl != "") {
