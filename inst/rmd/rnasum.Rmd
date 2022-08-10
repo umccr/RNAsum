@@ -91,8 +91,8 @@ params <- p
 
 ucsc_genome_assembly <- dplyr::if_else(params$grch_version == 38, 38L, 19L)
 ensembl_version <- dplyr::if_else(params$grch_version == 38, 86L, 75L)
-library(package = paste0("EnsDb.Hsapiens.v", params$ensembl_version), character.only = TRUE)
-library(package = paste0("BSgenome.Hsapiens.UCSC.hg", params$ucsc_genome_assembly), character.only = TRUE)
+library(package = paste0("EnsDb.Hsapiens.v", ensembl_version), character.only = TRUE)
+library(package = paste0("BSgenome.Hsapiens.UCSC.hg", ucsc_genome_assembly), character.only = TRUE)
 library(AnnotationDbi)
 library(dplyr)
 library(ensembldb)
@@ -163,16 +163,15 @@ dataset_name_incl <- dplyr::if_else(params$dataset_name_incl, glue::glue("_{para
 # TODO: revisit subjectID
 subjectID <- dplyr::if_else(is.null(params$subject_id), "", params$subject_id)
 subjectID <- dplyr::if_else(is.null(params$umccrise), subjectID, basename(params$umccrise))
-sample_name <- dplyr::if_else(dataset_name_incl == "", params$sample_name,
-  as.character(glue::glue("{params$sample_name}_{dataset}"))
+sample_name <- paste0(
+  params$sample_name,
+  dplyr::if_else(dataset_name_incl == "", "", paste0("_", dataset))
 )
-results_dir <- file.path(
-  params$report_dir,
-  glue::glue("{params$sample_name}{dataset_name_incl}.results")
-)
+results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
 RNAsum::mkdir(results_dir)
 # Annotate transcripts with gene IDs
-edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", params$ensembl_version)))
+# These could probably go into refdata
+edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", ensembl_version)))
 keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
 tx2ensembl <- edb |>
   ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
@@ -183,8 +182,9 @@ ref_dataset <- RNAsum::get_refdata(dataset)
 ref_dataset.list <- purrr::set_names(vector("list", length(dataset)), dataset)
 # TODO: merge all together
 ref_genes.list <- RNAsum::get_refgenes(params)
-# Sample WTS (and WGS) data
+# Sample WTS/WGS data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
+# TODO: put all chunks inside a function
 runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
 runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
 runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
@@ -213,12 +213,17 @@ if (runSVsChunk) {
 
 ##### Read in reference datasets and merge them with sample data.
 # This part outputs a vector with first element containing the merged data and second element containing merged targets info.
-ref_dataset.list[[dataset]] <- combineDatasets(sample_name = sample_name, sample_counts = counts, ref_data = ref_dataset, report_dir = results_dir, dataset = dataset)
+ref_dataset.list[[dataset]] <- combineDatasets(
+  sample_name = sample_name,
+  sample_counts = sample_data.list[["salmon"]],
+  ref_data = ref_dataset,
+  report_dir = results_dir
+)
 names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Define internal, external and addition cancer group names based on the targets definition
-int_cancer_group <- ref_dataset$int_ref[3]
-ext_cancer_group <- ref_dataset$ext_ref[3]
+int_cancer_group <- ref_dataset[["int_ref"]][["dataset"]]
+ext_cancer_group <- ref_dataset[["ext_ref"]][["dataset"]]
 
 if (length(unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)) > 3) {
   add_cancer_group <- unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)[2]
@@ -232,14 +237,15 @@ if (dataset == "PAAD" || dataset == "PAAD-IPMN" || dataset == "PAAD-NET" || data
 } else {
   comp_cancer_group <- ext_cancer_group
 }
-
-##### Clean the space
-rm(counts, tx2ensembl)
 ```
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
 ##### Initiate MySQL command to populate RNA-seq data portal
-mysql_populate <- paste0("### MySQL command to insert data for sample \"", sample_name, "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Source, Project, Report, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\"")
+mysql_populate <- paste0(
+  "### MySQL command to insert data for sample \"",
+  sample_name,
+  "\"\nuse piedb;\nINSERT INTO RNAseq_reports ( ID ,Platform, PatientID, SampleID, Cancer, Source, Project, Report, PMID, Analysis, Summary, Date ) VALUES ( 1000000, \"RNA_seq\""
+)
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
 
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -250,23 +256,23 @@ mysql_populate_update <- paste0(mysql_populate_update, ", PatientID=\"", subject
 ```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
 ##### Prapare data for the treatment timeline plot
 ##### Search for row with clinical info for investigated patient
-if (!is.na(params$clinical_id)) {
-  sampleID.col <- grep(params$clinical_id, ref_dataset.list[[dataset]][["clinical_info"]])
-} else if (!is.na(params$subject_id)) {
-  sampleID.col <- grep(params$subject_id, ref_dataset.list[[dataset]][["clinical_info"]])
-} else if (!is.na(subjectID)) {
-  sampleID.col <- grep(subjectID, ref_dataset.list[[dataset]][["clinical_info"]])
+if (!is.null(params$clinical_id)) {
+  sampleID.col <- grep(params$clinical_id, sample_data.list[[dataset]][["clinical_info"]])
+} else if (!is.null(params$subject_id)) {
+  sampleID.col <- grep(params$subject_id, sample_data.list[[dataset]][["clinical_info"]])
+} else if (!is.null(subjectID)) {
+  sampleID.col <- grep(subjectID, sample_data.list[[dataset]][["clinical_info"]])
 }
 
 runClinicalChunk <- FALSE
 
 if (length(sampleID.col) > 0) {
   ##### Identify column and row with patients details
-  if (!is.na(params$clinical_id)) {
+  if (!is.null(params$clinical_id)) {
     sampleID.row <- grep(params$clinical_id, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
-  } else if (!is.na(params$subject_id)) {
+  } else if (!is.null(params$subject_id)) {
     sampleID.row <- grep(params$subject_id, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
-  } else if (!is.na(subjectID)) {
+  } else if (!is.null(subjectID)) {
     sampleID.row <- grep(subjectID, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
   }
 
@@ -2770,8 +2776,8 @@ if (nrow(fusion_annot_top) > 0) {
   }
 
   ##### Prepare object for RCircos
-  eval(parse(text = paste0("data(UCSC.HG", params$ucsc_genome_assembly, ".Human.CytoBandIdeogram)")))
-  cyto.info <- eval(parse(text = paste0("UCSC.HG", params$ucsc_genome_assembly, ".Human.CytoBandIdeogram")))
+  eval(parse(text = paste0("data(UCSC.HG", ucsc_genome_assembly, ".Human.CytoBandIdeogram)")))
+  cyto.info <- eval(parse(text = paste0("UCSC.HG", ucsc_genome_assembly, ".Human.CytoBandIdeogram")))
 
   ##### Check if all driver genes are located in standard chromosomes
   fusion_annot_top <- fusion_annot_top[paste0("chr", fusion_annot_top$SEQNAME) %in% cyto.info$Chromosome, ]
