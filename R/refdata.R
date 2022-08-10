@@ -14,18 +14,20 @@ get_refdata <- function(dataset) {
   assertthat::assert_that(dataset %in% names(RNAsum::REFERENCE_DATASETS))
   refdata_dir <- system.file("rawdata", package = "RNAsum")
   d_clean <- base::strsplit(dataset, split = "-", fixed = TRUE)[[1]][1]
-  list(
-    "ext_ref" = c(
-      file.path(refdata_dir, "ref_data", paste0("TCGA_", d_clean, "_Counts.exp.gz")),
-      file.path(refdata_dir, "ref_data", paste0("TCGA_", dataset, "_Target.txt")),
-      paste0(d_clean, " (TCGA)")
+
+  fn <- list(
+    "ext_ref" = list(
+      counts = file.path(refdata_dir, "ref_data", paste0("TCGA_", d_clean, "_Counts.exp.gz")),
+      target = file.path(refdata_dir, "ref_data", paste0("TCGA_", dataset, "_Target.txt")),
+      dataset = paste0(d_clean, " (TCGA)")
     ),
-    "int_ref" = c(
-      file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Counts.exp.gz"),
-      file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Target.txt"),
-      "PAAD (UMCCR)"
+    "int_ref" = list(
+      counts = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Counts.exp.gz"),
+      target = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Target.txt"),
+      dataset = "PAAD (UMCCR)"
     )
   )
+  fn
 }
 
 #' Get Reference Genes

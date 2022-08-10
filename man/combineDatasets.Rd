@@ -4,7 +4,7 @@
 \alias{combineDatasets}
 \title{Combine sample expression profile with reference datasets}
 \usage{
-combineDatasets(sample_name, sample_counts, ref_data, report_dir, dataset)
+combineDatasets(sample_name, sample_counts, ref_data, report_dir)
 }
 \arguments{
 \item{sample_name}{Sample name.}
@@ -14,8 +14,6 @@ combineDatasets(sample_name, sample_counts, ref_data, report_dir, dataset)
 \item{ref_data}{Reference data.}
 
 \item{report_dir}{Report directory.}
-
-\item{dataset}{Sample expression profile.}
 }
 \value{
 Combined sample expression profile with reference datasets.
