@@ -26,10 +26,13 @@ option_list <- list(
   make_option("--hide_code_btn", default = TRUE, type = "logical", help = "Hide \"Code\" button above code chunks in report? [def: %default]"),
   make_option("--immunogram", default = FALSE, type = "logical", help = "Include immunogram in report? [def: %default]"),
   make_option("--log", default = TRUE, type = "logical", help = "Log2 transform data before normalisation? [def: %default]"),
+  make_option("--manta_tsv", type = "character", help = "File path to umccrise 'manta.tsv' output"),
   make_option("--norm", type = "character", help = "Normalisation method"),
-  make_option("--pcgr_tier", default = 4, type = "integer", help = "Tier threshold for reporting variants reported in PCGR [def: %default]"),
   make_option("--pcgr_splice_vars", default = TRUE, type = "logical", help = "Include non-coding splice region variants reported in PCGR? [def: %default]"),
+  make_option("--pcgr_tier", default = 4, type = "integer", help = "Tier threshold for reporting variants reported in PCGR [def: %default]"),
+  make_option("--pcgr_tiers_tsv", type = "character", help = "File path to PCGR 'snvs_indels.tiers.tsv' output"),
   make_option("--project", type = "character", help = "Project name"),
+  make_option("--purple_gene_tsv", type = "character", help = "File path to PURPLE 'purple.cnv.gene.tsv' output"),
   make_option("--report_dir", type = "character", help = "Directory path to output report"),
   make_option("--salmon", type = "character", help = "File path to salmon 'quant.sf' output"),
   make_option("--sample_name", type = "character", help = "Sample name to be presented in report"),
@@ -44,25 +47,20 @@ option_list <- list(
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list, formatter = optparse::TitledHelpFormatter))
 
-
 ##### Check required args
 stopifnot(
   "'--sample_name' and '--report_dir' are required" =
     !is.null(opt$sample_name) && !is.null(opt$report_dir)
 )
-cond <- !is.null(opt$clinical_info) && (!is.null(opt$clinical_id) || !is.null(opt$subject_id) || !is.null(opt$umccrise))
-stopifnot("'--clinical_info' requires at least one of '--clinical_id', '--subject_id', or '--umccrise'" = cond)
-
+stopifnot(
+  "'--clinical_info' requires at least one of '--clinical_id', '--subject_id', or '--umccrise'" =
+    !is.null(opt$clinical_info) && (!is.null(opt$clinical_id) || !is.null(opt$subject_id) || !is.null(opt$umccrise))
+)
 stopifnot("'--grch_version' must be 38 or 37" = opt$grch_version %in% c(37, 38))
-ucsc_genome_assembly <- dplyr::if_else(opt$grch_version == 38, 38L, 19L)
-ensembl_version <- dplyr::if_else(opt$grch_version == 38, 86L, 75L)
-
 stopifnot(
   "Invalid '--dataset'. Please see https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html" =
     toupper(opt$dataset) %in% names(RNAsum::REFERENCE_DATASETS)
 )
-
-dataset_name_incl <- dplyr::if_else(opt$dataset_name_incl, glue::glue("_{opt$dataset}"), "")
 
 ##### Make sure that TMM, TMMwzp, RLE or upperquartile normalisation is used for
 ##### CPM-tansformed data and quantile normalisation is used for TPM-tansformed data
@@ -94,50 +92,15 @@ if (opt$transform == "TPM" && !(opt$norm %in% c("quantile", "none"))) {
 
 RNAsum::mkdir(opt$report_dir)
 
-##### Collect parameters
-param_list <- list(
-  arriba_pdf = opt$arriba_pdf,
-  arriba_tsv = opt$arriba_tsv,
-  batch_rm = opt$batch_rm,
-  clinical_id = opt$clinical_id,
-  clinical_info = opt$clinical_info,
-  cn_gain = opt$cn_gain,
-  cn_loss = opt$cn_loss,
-  dataset = toupper(opt$dataset),
-  dataset_name_incl = dataset_name_incl,
-  dragen_fusions = opt$dragen_fusions,
-  drugs = opt$drugs,
-  filter = opt$filter,
-  grch_version = as.numeric(opt$grch_version),
-  hide_code_btn = opt$hide_code_btn,
-  immunogram = opt$immunogram,
-  log = opt$log,
-  norm = opt$norm,
-  pcgr_tier = opt$pcgr_tier,
-  pcgr_splice_vars = opt$pcgr_splice_vars,
-  project = opt$project,
-  report_dir = opt$report_dir,
-  salmon = opt$salmon,
-  sample_name = opt$sample_name,
-  sample_source = opt$sample_source,
-  save_tables = opt$save_tables,
-  scaling = opt$scaling,
-  subject_id = opt$subject_id,
-  top_genes = opt$top_genes,
-  transform = opt$transform,
-  umccrise = opt$umccrise,
-  ensembl_version = ensembl_version,
-  ucsc_genome_assembly = ucsc_genome_assembly
-)
-
 # Render Rmd report with above parameters
 rmd_file <- system.file("rmd/rnasum.Rmd", package = "RNAsum")
+dataset_name_incl <- ifelse(opt$dataset_name_incl, glue::glue("_{opt$dataset}"), "")
 out_file_base <- glue::glue("{opt$sample_name}{toupper(dataset_name_incl)}.RNAseq_report")
 rmarkdown::render(
   input = rmd_file,
   output_file = glue::glue("{out_file_base}.html"),
   output_dir = opt$report_dir,
-  params = param_list
+  params = opt
 )
 
 ##### Remove the associated MD file and the redundant folder with plots that are imbedded in the HTML report
