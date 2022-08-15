@@ -6,12 +6,9 @@
 #'
 #' @return Object for writing to a file.
 #' @export
-prepare2write <- function (x) {
-
+prepare2write <- function(x) {
   x2write <- base::cbind(base::rownames(x), x)
-  colnames(x2write) <- c("",base::colnames(x))
+  colnames(x2write) <- c("", base::colnames(x))
 
-  ##### Clean the space and return output
-  rm(x)
   return(x2write)
 }
