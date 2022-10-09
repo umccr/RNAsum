@@ -14,11 +14,11 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  sample_name: 'SBJ02805_PRJ222043'
-  dataset: 'UCEC'
+  sample_name: 'PRJ211057'
+  dataset: 'PANCAN'
   bcbio_rnaseq: NULL
-  dragen_rnaseq: '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ02805_PRJ222043_L2201319/dragen'
-  arriba_rnaseq: '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ02805_PRJ222043_L2201319/dragen/arriba'
+  dragen_rnaseq: '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ01010_PRJ211057_L2101524/dragen'
+  arriba_rnaseq: '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ01010_PRJ211057_L2101524/dragen/arriba'
   report_dir: '/Users/kanwals/UMCCR/data/wts/RNAsum/reports'
   ref_data_dir: '../data'
   transform: 'CPM'
@@ -29,7 +29,7 @@ params:
   scaling: 'gene-wise'
   drugs: FALSE
   immunogram: FALSE
-  umccrise: '?users/kanwals/UMCCR/data/wts/RNAsum/umccrised/SBJ02805__PRJ222043'
+  umccrise: '/Users/kanwals/UMCCR/data/wts/RNAsum/umccrised/SBJ01010__PRJ210838'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   clinical_id: 'test_subject'
   subject_id: ''
@@ -1901,15 +1901,18 @@ if ( !is.null(params$bcbio_rnaseq) ) {
   dataDir <- params$dragen_rnaseq
   
   ##### Use salmon's gene quantification output
-  counts_salmon <- read.table(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.genes.sf$")), sep="\t", as.is=TRUE, header=TRUE) %>%
+  if ( file.exists(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.genes.sf$"))) ) {
+    counts_salmon <- read.table(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.genes.sf$")), sep="\t", as.is=TRUE, header=TRUE) %>%
     dplyr::select(Name, NumReads)
+  } else {
+    txi.salmon <- tximport(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.sf$")), type = "salmon", tx2gene = tx2ensembl)
   
-  txi.salmon <- tximport(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.sf$")), type = "salmon", tx2gene = tx2ensembl)
+    ##### Extract salmon counts to prepare dataframe
+    counts <- as.data.frame(txi.salmon$counts) %>%
+      tibble::rownames_to_column() %>%
+      dplyr::rename(count = V1)
+  }
   
-  ##### Extract salmon counts to prepare dataframe
-  counts <- as.data.frame(txi.salmon$counts) %>%
-    tibble::rownames_to_column() %>%
-    dplyr::rename(count = V1)
 }
 
 ##### Create directory for results
@@ -2135,7 +2138,12 @@ if ( params$dataset_name_incl != "" ) {
 }
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts_salmon, ref_data=ref_dataset, report_dir = results_dir, dataset = dataset)
+if ( exists("counts_salmon") ){
+  ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts_salmon, ref_data=ref_dataset, report_dir = results_dir, dataset = dataset)
+} else if ( exists("counts") ){
+  ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts, ref_data=ref_dataset, report_dir = results_dir, dataset = dataset)
+}
+
 names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Define internal, external and addition cancer group names based on the targets definition
