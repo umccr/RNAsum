@@ -1908,7 +1908,7 @@ if ( !is.null(params$bcbio_rnaseq) ) {
     txi.salmon <- tximport(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.sf$")), type = "salmon", tx2gene = tx2ensembl)
   
     ##### Extract salmon counts to prepare dataframe
-    counts <- as.data.frame(txi.salmon$counts) %>%
+    counts_txi <- as.data.frame(txi.salmon$counts) %>%
       tibble::rownames_to_column() %>%
       dplyr::rename(count = V1)
   }
@@ -2138,10 +2138,21 @@ if ( params$dataset_name_incl != "" ) {
 }
 
 ##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
-if ( exists("counts_salmon") ){
-  ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts_salmon, ref_data=ref_dataset, report_dir = results_dir, dataset = dataset)
-} else if ( exists("counts") ){
-  ref_dataset.list[[dataset]] <- combineDatasets(sample_name=sample_name, sample_counts=counts, ref_data=ref_dataset, report_dir = results_dir, dataset = dataset)
+counts1 <- if (exists("counts_salmon")) {
+  counts_salmon
+  } else if (exists("counts_txi")) {
+  counts
+  } else {
+  NULL
+  }
+
+if (!is.null(counts1)) {
+ref_dataset.list[[dataset]] <- combineDatasets(
+  sample_name=sample_name, 
+  sample_counts=counts1,
+  ref_data=ref_dataset, 
+  report_dir = results_dir,
+  dataset = dataset)
 }
 
 names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
