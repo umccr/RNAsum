@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 ################################################################################
 #   Authors: Jacek Marzec ( jacek.marzec@unimelb.edu.au ), Sehrish Kanwal, Lavinia Gordon
 #   University of Melbourne Centre for Cancer Research,
