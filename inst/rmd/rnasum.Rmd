@@ -178,7 +178,7 @@ tx2ensembl <- edb |>
 
 # ref data
 ref_dataset <- RNAsum::get_refdata(dataset)
-ref_dataset.list <- purrr::set_names(vector("list", length(dataset)), dataset)
+ref_dataset.list <- vector("list", length(dataset)) |> purrr::set_names(dataset)
 # TODO: merge all together
 ref_genes.list <- RNAsum::get_refgenes(params)
 # Sample WTS/WGS data
@@ -193,8 +193,7 @@ runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
 runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
   nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
 
-arriba_summary_out <-
-  glue::glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
+arriba_summary_out <- glue::glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
 RNAsum::arriba_summary_write(
   sample_data.list[["arriba_pdf"]],
   file = file.path(results_dir, arriba_summary_out)
@@ -204,14 +203,15 @@ if (runSVsChunk) {
   manta <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
     dplyr::select(
       dplyr::contains("tier"),
-      Event, Genes, Effect, Detail, Start, End, AF_BPI, CNC, CN,
-      SR_alt, PR_alt, Ploidy, Transcript
+      "Event", "Genes", "Effect", "Detail", "Start", "End", "AF_BPI", "CNC", "CN",
+      "SR_alt", "PR_alt", "Ploidy", "Transcript"
     )
   # TODO: Check if 'dplyr::filter(Genes != "")' makes sense
 }
 
 ##### Read in reference datasets and merge them with sample data.
-# This part outputs a vector with first element containing the merged data and second element containing merged targets info.
+# This part outputs a vector with first element containing the merged data and
+# second element containing merged targets info.
 ref_dataset.list[[dataset]] <- combineDatasets(
   sample_name = sample_name,
   sample_counts = sample_data.list[["salmon"]],
@@ -224,17 +224,15 @@ names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 int_cancer_group <- ref_dataset[["int_ref"]][["dataset"]]
 ext_cancer_group <- ref_dataset[["ext_ref"]][["dataset"]]
 
+add_cancer_group <- NULL
 if (length(unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)) > 3) {
   add_cancer_group <- unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)[2]
-} else {
-  add_cancer_group <- NULL
 }
 
 ##### Define the cancer group to be used to compare per-gene expression values and report in the summary tables
-if (dataset == "PAAD" || dataset == "PAAD-IPMN" || dataset == "PAAD-NET" || dataset == "PAAD-ACC") {
+comp_cancer_group <- ext_cancer_group
+if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
   comp_cancer_group <- int_cancer_group
-} else {
-  comp_cancer_group <- ext_cancer_group
 }
 ```
 
@@ -247,13 +245,31 @@ mysql_populate <- paste0(
 )
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
 
-##### Update MySQL commend to populate RNA-seq data portal
-mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", sample_name, "\", \"", params$dataset, "\", \"", params$sample_source, "\", \"", params$project, "\", \"", paste0(sample_name, ".RNAseq_report.html"), "\", \"", sample_name, "\", \"")
-mysql_populate_update <- paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", sample_name, "\", Cancer=\"", params$dataset, "\", Source=\"", params$sample_source, "\", Project=\"", params$project, "\", Report=\"", paste0(sample_name, ".RNAseq_report.html"), "\", PMID=\"", sample_name, "\", Analysis=\"")
+##### Update MySQL command to populate RNA-seq data portal
+mysql_populate <- paste0(
+  mysql_populate, ", \"",
+  subjectID, "\", \"",
+  sample_name, "\", \"",
+  params$dataset, "\", \"",
+  params$sample_source, "\", \"",
+  params$project, "\", \"",
+  paste0(sample_name, ".RNAseq_report.html"), "\", \"",
+  sample_name, "\", \""
+)
+mysql_populate_update <- paste0(
+  mysql_populate_update,
+  ", PatientID=\"", subjectID,
+  "\", SampleID=\"", sample_name,
+  "\", Cancer=\"", params$dataset,
+  "\", Source=\"", params$sample_source,
+  "\", Project=\"", params$project,
+  "\", Report=\"", paste0(sample_name, ".RNAseq_report.html"),
+  "\", PMID=\"", sample_name, "\", Analysis=\""
+)
 ```
 
 ```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
-##### Prapare data for the treatment timeline plot
+##### Prepare data for the treatment timeline plot
 ##### Search for row with clinical info for investigated patient
 if (!is.null(params$clinical_id)) {
   sampleID.col <- grep(params$clinical_id, sample_data.list[[dataset]][["clinical_info"]])
