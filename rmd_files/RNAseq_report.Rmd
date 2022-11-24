@@ -1194,7 +1194,7 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
   if( !is.null(mut_annot) && "TIER" %in% colnames(mut_annot) && length(genes) > 0 ) {
     mut_annot <- mut_annot[mut_annot$SYMBOL %in% genes,]
     
-    #### keep only varaints that has the lowest tier value. Multiple varaints detected in same gene but with higher tier will be added to additional column "CONSEQUENCE_OTHER". Applies to the ones that may have multiple mutations and hence tiers
+    #### keep only varaints that has the lowest tier value. Multiple variants detected in same gene but with higher tier will be added to additional column "CONSEQUENCE_OTHER". Applies to the ones that may have multiple mutations and hence tiers
     ##### First, create a list of genes to store multiple variants
     mut_consequence <- vector("list", length(unique(mut_annot$SYMBOL)))
     mut_consequence  <- setNames(mut_consequence,  unique(mut_annot$SYMBOL) )
@@ -1301,7 +1301,7 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
   ##### Attach links to GeneCards and Ensembl (if provided). Here we assume that gene names are
   for ( gene in genes ) {
     if ( "ENSEMBL" %in% names(group.z) ) {
-        if ( !is.na(group.z$ENSEMBL[ group.z$Gene==gene ]) ) {
+        if ( isTRUE(group.z$ENSEMBL[ group.z$Gene==gene ]) ) {
           
           group.z$ENSEMBL[ group.z$Gene==gene ] <- paste0("<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=", group.z$ENSEMBL[ group.z$Gene==gene], "' target='_blank'>", group.z$ENSEMBL[ group.z$Gene == gene ], "</a>")
       }
@@ -2140,10 +2140,12 @@ if ( params$dataset_name_incl != "" ) {
   sample_name <- params$sample_name
 }
 
-##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info
+##### Read in reference datasets and merge them with sample data. This part outputs a vector with first element containing the merged data and second element containing merged targets info. Check which counts file is provided as an input. counts_salmon is salmon gene qunatification output (*.gene.sf), counts_txi is salmon transcript quantification output process via txi and counts in kallisto output processed via txi
 counts1 <- if ( exists("counts_salmon") ) {
   counts_salmon
   } else if ( exists("counts_txi") ) {
+  counts
+  } else if ( exists("counts") ) {
   counts
   } else {
   NULL
@@ -3469,7 +3471,7 @@ for ( i in 1:nrow(fusions) ) {
     ##### Flag if any of the genes are effector gene
     if ( geneA %in% known_translocations$effector_gene  ) {
       fusions$effector_gene[i] <- geneA
-    } else if ( geneB == known_translocations$effector_gene  ) {
+    } else if ( geneB %in% known_translocations$effector_gene  ) {
       fusions$effector_gene[i] <- geneB
     }
   }
@@ -3782,7 +3784,7 @@ if ( nrow(pizzly.fusion.candidates) > 0 ) {
       ##### Flag if any of the genes are effector gene
       if ( geneA %in% known_translocations$effector_gene  ) {
         pizzly.fusions$effector_gene[i] <- geneA
-      } else if ( geneB == known_translocations$effector_gene  ) {
+      } else if ( geneB %in% known_translocations$effector_gene  ) {
         pizzly.fusions$effector_gene[i] <- geneB
       }
     }
@@ -4146,7 +4148,7 @@ if ( !file.exists(summaryPlotsDir) ) {
 ##### Save interactive plot as html file
 saveWidgetFix(sunburst_plot[[1]], file = paste(summaryPlotsDir, "sunburst_plot_all.html", sep = "/"))
 
-if ( !is.na(sunburst_plot[[2]]) ) {
+if ( !is.na(sunburst_plot[[2]]["x"]) ) {
   saveWidgetFix(sunburst_plot[[2]], file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
 }
 
@@ -4354,9 +4356,9 @@ treatment_timeline
 
 ### Per-alteration plot
 
-`r if ( !is.na(sunburst_plot[[2]]) ) { c("**Genes** listed **in at least two sections** of this report") } else { c("**All altered genes**")  }` are summarised in the plot below. `r if ( !is.na(sunburst_plot[[2]]) ) { c("These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources.")  }` The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically.
+`r if ( !is.na(sunburst_plot[[2]]["x"]) ) { c("**Genes** listed **in at least two sections** of this report") } else { c("**All altered genes**")  }` are summarised in the plot below. `r if ( !is.na(sunburst_plot[[2]])["x"] ) { c("These genes may be of particular interest given that the evidence for their alteration is derived from multiple sources.")  }` The number next to each gene indicates the number of times it appears across the following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. That number is also reflected by the *width* of corresponding branches. Click on the category of interest to expand corresponding branches. Genes within each category are ordered by the number of report sections in which they appear and then alphabetically.
 
-`r if ( is.na(sunburst_plot[[2]]) ) { c("<span style=\"color:#ff0000\">NOTE</span>, no genes are listed in more then one section.") }`
+`r if ( is.na(sunburst_plot[[2]])["x"] ) { c("<span style=\"color:#ff0000\">NOTE</span>, no genes are listed in more then one section.") }`
   
 ```{r findings_summary_plot, comment = NA, message=TRUE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -4364,7 +4366,7 @@ mysql_populate <- paste0(mysql_populate, "Findings summary")
 mysql_populate_update <- paste0(mysql_populate_update, "Findings summary")
 
 ##### Present per-alteration findings summary sunburst plot for all altered genes
-if ( !is.na(sunburst_plot[[2]]) ) {
+if ( !is.na(sunburst_plot[[2]])["x"] ) {
   sunburst_plot[[2]]
 } else {
   sunburst_plot[[1]]
@@ -4374,11 +4376,11 @@ if ( !is.na(sunburst_plot[[2]]) ) {
 if(!is.null(dev.list())) invisible(dev.off())
 ```
 
-`r if ( !is.na(sunburst_plot[[2]]) ) { c("<details>\n<summary>Show all altered genes</summary>") }`
+`r if ( !is.na(sunburst_plot[[2]])["x"] ) { c("<details>\n<summary>Show all altered genes</summary>") }`
 
 ```{r findings_summary_all_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 6 }
 ##### Present per-alteration findings summary sunburst plot for altered genes listed in at least two report sections
-if ( !is.na(sunburst_plot[[2]]) ) {
+if ( !is.na(sunburst_plot[[2]])["x"] ) {
   sunburst_plot[[1]]
 }
 
@@ -4386,7 +4388,7 @@ if ( !is.na(sunburst_plot[[2]]) ) {
 if(!is.null(dev.list())) invisible(dev.off())
 ```
 
-`r if ( !is.na(sunburst_plot[[2]]) ) { c("</details>") }`
+`r if ( !is.na(sunburst_plot[[2]])["x"] ) { c("</details>") }`
 
 ```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
 rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered, data_nonnormalised, data_normalised, treatment_timeline, data.annot)
@@ -4398,7 +4400,7 @@ rm(counts_vs_transformed, data_transformation_nonfiltered, data_transformation_f
 
 Table summarising **all altered genes** listed across following report sections: `r if ( runPcgrChunk ) { c("[Mutated genes], ") }` `r if ( runFusionChunk ) { c("[Fusion genes] (supported by genomic data or reported in FusionGDB), ") }` `r if ( runSVsChunk ) { c("[Structural variants], ") }` `r if ( runPurpleChunk ) { paste0("[CN altered genes] (CN values =< ", cn_bottom, " or >= ", cn_top, " and reported as cancer genes)") }` [Immune markers] or [HRD genes]. The *Resources* column contains links to databases that may provide additional source of evidence for the altered genes' clinical significance. Genes ordered by the number of report sections they appear in (*Count* column) and then alphabetically.
 
-`r if ( is.na(sunburst_plot[[2]]) ) { c("<span style=\"color:#ff0000\">NOTE</span>, no genes are listed in more then one section.") }`
+`r if ( is.na(sunburst_plot[[2]])["x"] ) { c("<span style=\"color:#ff0000\">NOTE</span>, no genes are listed in more then one section.") }`
 
 ```{r findings_summary_table, comment = NA, message=FALSE, warning=FALSE }
 ##### Present per-gene findings summary table
