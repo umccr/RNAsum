@@ -17,7 +17,6 @@ params:
   sample_name: 'test_sample_WTS'
   dataset: 'TEST'
   wts_dir : '../data/test_data/final/test_sample_WTS'
-  dragen_rnaseq: NULL
   arriba_rnaseq: NULL
   report_dir: '../data/test_data/final/test_sample_WTS/RNAsum'
   ref_data_dir: '../data'
@@ -1985,7 +1984,7 @@ if ( file.exists(arriba_file) ) {
 dragen_fusion_file <- paste(dataDir, list.files(dataDir, pattern="\\.fusion_candidates.final$"), sep = "/")
 runDragenFusionChunk <- FALSE
 
-if ( !is.null(params$dragen_rnaseq) && file.exists(dragen_fusion_file) ) {
+if ( !is.null(params$wts_dir) && file.exists(dragen_fusion_file) ) {
   
   ##### Dragen's fusion output file header starts with '#' hence change the comment indicator option to '^' ( https://stackoverflow.com/questions/27196470/reading-a-line-that-starts-with-a-hash-on-a-txt-file )
   
@@ -2158,8 +2157,8 @@ if ( dataset == "PAAD" || dataset == "PAAD-IPMN" || dataset == "PAAD-NET" || dat
 }
 
 ##### Read in Dragen's mapping metrics file (if exists) to extract number of reads
-if ( !is.null(params$dragen_rnaseq) ) {
-  dragen_mapping_metrics <- list.files(params$dragen_rnaseq, pattern="\\.mapping_metrics.csv$", full.names = TRUE)
+if ( !is.null(params$wts_dir) ) {
+  dragen_mapping_metrics <- list.files(params$wts_dir, pattern="\\.mapping_metrics.csv$", full.names = TRUE)
   if ( length(dragen_mapping_metrics) == 1 ) {
   dragen_mapping_metrics_file <- read.csv(file = dragen_mapping_metrics, header = FALSE, strip.white = TRUE) %>%
     setNames(c("summary", "sequence", "description", "value", "percentage"))
@@ -2172,7 +2171,7 @@ if ( !is.null(params$dragen_rnaseq) ) {
 rm(counts, tx2ensembl)
 ```
 
-Transcriptome summary for patient sample **`r if ( !is.null(params$dragen_rnaseq) && length(dragen_mapping_metrics) == 1 ) {paste0(params$sample_name, params$dataset_name_incl, ", Library size ",total_input_reads_millions)} else {paste0(params$sample_name, params$dataset_name_incl)}`**.
+Transcriptome summary for patient sample **`r if ( !is.null(params$wts_dir) && length(dragen_mapping_metrics) == 1 ) {paste0(params$sample_name, params$dataset_name_incl, ", Library size ",total_input_reads_millions)} else {paste0(params$sample_name, params$dataset_name_incl)}`**.
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
 ##### Initiate MySQL command to populate RNA-seq data portal
