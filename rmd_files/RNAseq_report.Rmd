@@ -29,7 +29,7 @@ params:
   scaling: 'gene-wise'
   drugs: FALSE
   immunogram: FALSE
-  umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
+  wgs_dir: '../data/test_data/umccrised/test_subject__test_sample_WGS'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   clinical_id: 'test_subject'
   subject_id: ''
@@ -2024,21 +2024,21 @@ if ( !is.null(params$bcbio_rnaseq) &&  file.exists(pizzly_file) ) {
 
 ##### Read in mutation data for investigate sample
 ##### Get the genomic output data from umccrise
-if ( !is.null(params$umccrise) ) {
-  umccrise <- unlist(strsplit(params$umccrise, split='/', fixed=TRUE))
-  umccrise <- umccrise[length(umccrise)]
+if ( !is.null(params$wgs_dir) ) {
+  wgs_dir <- unlist(strsplit(params$wgs_dir, split='/', fixed=TRUE))
+  wgs_dir <- wgs_dir[length(wgs_dir)]
   
   ##### Check if PCGR (mutation) output file exists
   runPcgrChunk <- TRUE
   
-  if ( file.exists(paste(params$umccrise, "small_variants", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
-    pcgr_file <- paste(params$umccrise, "small_variants", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
-  } else if ( file.exists(paste(params$umccrise, "..", "work", umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
-    pcgr_file <- paste(params$umccrise, "..", "work", umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
-  } else if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
-    pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
-  } else if ( file.exists(paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
-    pcgr_file <- paste(params$umccrise, "pcgr", paste0(umccrise, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
+  if ( file.exists(paste(params$wgs_dir, "small_variants", paste0(wgs_dir, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
+    pcgr_file <- paste(params$wgs_dir, "small_variants", paste0(wgs_dir, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+  } else if ( file.exists(paste(params$wgs_dir, "..", "work", wgs_dir, "pcgr", paste0(wgs_dir, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
+    pcgr_file <- paste(params$wgs_dir, "..", "work", wgs_dir, "pcgr", paste0(wgs_dir, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+  } else if ( file.exists(paste(params$wgs_dir, "pcgr", paste0(wgs_dir, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")) ) {
+    pcgr_file <- paste(params$wgs_dir, "pcgr", paste0(wgs_dir, "-somatic.pcgr.snvs_indels.tiers.tsv"), sep = "/")
+  } else if ( file.exists(paste(params$wgs_dir, "pcgr", paste0(wgs_dir, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")) ) {
+    pcgr_file <- paste(params$wgs_dir, "pcgr", paste0(wgs_dir, "-somatic.pcgr_acmg.grch37.snvs_indels.tiers.tsv"), sep = "/")
   } else {
     runPcgrChunk <- FALSE
   }
@@ -2058,8 +2058,8 @@ if ( !is.null(params$umccrise) ) {
   }
   
   ##### Check if purple (CN) output file exists
-  purple_file_1 <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.gene.cnv"), sep = "/")
-  purple_file_2 <- paste(params$umccrise, "purple", paste0(umccrise, ".purple.cnv.gene.tsv"), sep = "/")
+  purple_file_1 <- paste(params$wgs_dir, "purple", paste0(wgs_dir, ".purple.gene.cnv"), sep = "/")
+  purple_file_2 <- paste(params$wgs_dir, "purple", paste0(wgs_dir, ".purple.cnv.gene.tsv"), sep = "/")
   runPurpleChunk <- TRUE
   
   if ( file.exists(purple_file_1) ) {
@@ -2073,8 +2073,8 @@ if ( !is.null(params$umccrise) ) {
   }
   
   ##### Check if manta (structural variants (SVs)) file exists
-  sv_file_1 <- paste(params$umccrise, "structural", paste0(umccrise, "-sv-prioritize-manta-pass.tsv"), sep = "/")
-  sv_file_2 <- paste(params$umccrise, "structural", paste0(umccrise, "-manta.tsv"), sep = "/")
+  sv_file_1 <- paste(params$wgs_dir, "structural", paste0(wgs_dir, "-sv-prioritize-manta-pass.tsv"), sep = "/")
+  sv_file_2 <- paste(params$wgs_dir, "structural", paste0(wgs_dir, "-manta.tsv"), sep = "/")
   runSVsChunk <- TRUE
   
   if ( file.exists(sv_file_1) ) {
@@ -2100,7 +2100,7 @@ if ( !is.null(params$umccrise) ) {
   }
   
   ##### Extract subject ID (part of the umccrise output folder name) and add it to the MySQL insert command. This will overwrite argument passed to "--clinical_id" flag
-  subjectID <- unlist(strsplit(tail(unlist(strsplit(params$umccrise, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
+  subjectID <- unlist(strsplit(tail(unlist(strsplit(params$wgs_dir, split='/', fixed=TRUE)), n=1), split='__', fixed=TRUE))[1]
   
 } else {
   runPcgrChunk <- FALSE
