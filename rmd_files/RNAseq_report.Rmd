@@ -15,10 +15,10 @@ output:
     highlight: kate
 params:
   sample_name: 'test_sample_WTS'
-  dataset: 'TEST'
-  wts_dir : '../data/test_data/final/test_sample_WTS'
+  dataset: 'PAAD'
+  wts_dir : '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ01010_PRJ211057_L2101524/wts'
   arriba_rnaseq: NULL
-  report_dir: '../data/test_data/final/test_sample_WTS/RNAsum'
+  report_dir: '../data/test_data/final/test_params/RNAsum'
   ref_data_dir: '../data'
   transform: 'CPM'
   filter: TRUE
@@ -28,7 +28,7 @@ params:
   scaling: 'gene-wise'
   drugs: FALSE
   immunogram: FALSE
-  wgs_dir: '../data/test_data/umccrised/test_subject__test_sample_WGS'
+  wgs_dir: '/Users/kanwals/UMCCR/data/wts/RNAsum/umccrised/SBJ01010__PRJ210838/wgs'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   clinical_id: 'test_subject'
   subject_id: ''
@@ -1894,14 +1894,14 @@ if ( !is.null(params$wts_dir) ) {
       dplyr::rename(count = V1)
   } else if ( dir.exists(paste0(dataDir, "/salmon")) ) {
     ##### Use salmon's quantification output
-    salmon_gene_quant_output <- paste0(dataDir, "/salmon/", list.files(dataDir, pattern=".quant.genes.sf$"))
-    salmon_transcript_quant_output <- paste0(dataDir, "/", list.files(dataDir, pattern=".quant.sf$"))
+    salmon_gene_quant_output <- paste0(dataDir, "/salmon/", list.files(paste0(dataDir, "/salmon/"), pattern=".quant.genes.sf$"))
+    salmon_transcript_quant_output <- paste0(dataDir, "/", list.files(paste0(dataDir, "/salmon/"), pattern=".quant.sf$"))
     
     if ( file.exists(salmon_gene_quant_output) ) {
-      counts_salmon <- read.table(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.genes.sf$")), sep="\t", as.is=TRUE, header=TRUE) %>%
+      counts_salmon <- read.table(paste0(dataDir, "/salmon/", list.files(paste0(dataDir, "/salmon/"), pattern=".quant.genes.sf$")), sep="\t", as.is=TRUE, header=TRUE) %>%
         dplyr::select(Name, NumReads)
     } else if ( file.exists(salmon_transcript_quant_output) ) {
-      txi.salmon <- tximport(paste0(dataDir, "/", list.files(dataDir, pattern=".quant.sf$")), type = "salmon", tx2gene = tx2ensembl)
+      txi.salmon <- tximport(paste0(dataDir, "/salmon/", list.files(paste0(dataDir, "/salmon/"), pattern=".quant.sf$")), type = "salmon", tx2gene = tx2ensembl)
       
       ##### Extract salmon counts to prepare dataframe
       counts_txi <- as.data.frame(txi.salmon$counts) %>%
