@@ -2041,13 +2041,13 @@ if ( !is.null(params$wgs_dir) ) {
   }
   
   ##### Check if purple (CN) output file exists
-  purple_file_1 <- paste(params$wgs_dir, "purple", paste0(wgs_dir, ".purple.gene.cnv"), sep = "/")
-  purple_file_2 <- paste(params$wgs_dir, "purple", paste0(wgs_dir, ".purple.cnv.gene.tsv"), sep = "/")
+  purple_file_1 <- paste0(params$wgs_dir, "/purple/", list.files(paste0(params$wgs_dir, "/purple/"), pattern=".purple.gene.cnv$"))
+  purple_file_2 <- paste0(params$wgs_dir, "/purple/", list.files(paste0(params$wgs_dir, "/purple/"), pattern=".purple.cnv.gene.tsv$"))
   runPurpleChunk <- TRUE
   
-  if ( file.exists(purple_file_1) ) {
+  if ( length(list.files(paste0(params$wgs_dir, "/purple/"), pattern=".purple.gene.cnv$")) && file.exists(purple_file_1) ) {
     ref_genes.list[["purple"]] <- read.table(purple_file_1, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE, quote = "")
-  } else if ( file.exists(purple_file_2) ) {
+  } else if ( length(list.files(paste0(params$wgs_dir, "/purple/"), pattern=".purple.cnv.gene.tsv$")) && file.exists(purple_file_2) ) {
     ref_genes.list[["purple"]] <- read.table(purple_file_2, sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, fill = TRUE, quote = "")
     colnames(ref_genes.list[["purple"]]) <- sapply(colnames(ref_genes.list[["purple"]]), CapStr)
   } else {
@@ -2056,13 +2056,13 @@ if ( !is.null(params$wgs_dir) ) {
   }
   
   ##### Check if manta (structural variants (SVs)) file exists
-  sv_file_1 <- paste(params$wgs_dir, "structural", paste0(wgs_dir, "-sv-prioritize-manta-pass.tsv"), sep = "/")
-  sv_file_2 <- paste(params$wgs_dir, "structural", paste0(wgs_dir, "-manta.tsv"), sep = "/")
+  sv_file_1 <- paste0(params$wgs_dir, "/structural/", list.files(paste0(params$wgs_dir, "/structural/"), pattern="-sv-prioritize-manta-pass.tsv$"))
+  sv_file_2 <- paste0(params$wgs_dir, "/structural/", list.files(paste0(params$wgs_dir, "/structural/"), pattern="-manta.tsv$"))
   runSVsChunk <- TRUE
   
-  if ( file.exists(sv_file_1) ) {
+  if ( file.exists(sv_file_1) && !dir.exists(sv_file_1) ) {
     ref_genes.list[["manta"]] <- sv_prioritize_short(sv_file_1)
-  } else if ( file.exists(sv_file_2) ) {
+  } else if ( file.exists(sv_file_2) && !dir.exists(sv_file_2) ) {
     ref_genes.list[["manta"]] <- sv_prioritize(sv_file_2)
     ref_genes.list[["manta"]] <- ref_genes.list[["manta"]][, c("Tier", "Event", "Gene", "Effect", "Detail", "Location", "AF", "CN chg", "SR", "PR", "CN", "Ploidy", "Transcript", "Other effects")]
     
@@ -3137,7 +3137,7 @@ rm(data, data.df, gene_info)
 ```
 
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
-##### Save the entire expression data for all genes measured in patient's sample with cancer genes annotaiton as a data table html file
+##### Save the entire expression data for all genes measured in patient's sample with cancer genes annotaition as a data table html file
 ##### Generate expression summary table for mutated genes
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
