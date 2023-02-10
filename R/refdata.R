@@ -56,9 +56,7 @@ get_refdata <- function(dataset) {
 #' @export
 get_refgenes <- function(p) {
   .read <- function(x, backup, ...) {
-    if (is.null(x)) {
-      x <- backup
-    }
+    x <- x %||% backup
     x |>
       readr::read_tsv(col_types = readr::cols(...))
   }
@@ -77,7 +75,8 @@ get_refgenes <- function(p) {
   genes_cancer <- p[["genes_cancer"]] |>
     .read(backup = genes_cancer, .default = "l", driver = "d", n = "i", symbol = "c", sources = "c")
   genes_oncokb <- p[["genes_oncokb"]] |>
-    .read(backup = genes_oncokb, .default = "c", "# of occurence within resources" = "i")
+    .read(backup = genes_oncokb, .default = "c", "# of occurence within resources" = "i") |>
+    dplyr::rename(Hugo_Symbol = `Hugo Symbol`)
   genes_hrd <- p[["genes_hrd"]] |>
     .read(backup = genes_hrd, SYMBOL = "c")
   genes_immune_markers <- p[["genes_immune_markers"]] |>
