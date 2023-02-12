@@ -413,17 +413,27 @@ for (gene in ref_genes.list[["genes_cancer"]][["symbol"]]) {
   }
 }
 
-
-##### Make the data frame to look nicer
-# rownames(genes_cancer) <- genes_cancer[["Hugo_Symbol"]]
-names(tmpg) <- c("Gene", "Gene panels no.", "OncoKB", "Oncogene (OncoKB)", "TSG (OncoKB)", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "UMCCR", "Oncogene", "TSG", "Fusion", "Germline")
-genes_cancer <- genes_cancer[, c("Oncogene", "TSG", "Fusion", "Germline", "Gene panels no.", "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC")]
-genes_cancer[genes_cancer == "No"] <- "-"
-genes_cancer[genes_cancer == ""] <- "-"
-ref_genes.list[["genes_cancer"]] <- genes_cancer
-ref_genes.list[["genes_oncokb"]] <- genes_cancer[rownames(genes_cancer) %in% ref_genes.list[["genes_oncokb"]]$Hugo_Symbol, ]
+##### Make the data frame look nicer
+colnames(tmpg) <- c(
+  "Gene", "Gene panels no.", "OncoKB", "Oncogene (OncoKB)", "TSG (OncoKB)",
+  "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme",
+  "Vogelstein", "Sanger CGC", "UMCCR", "Oncogene", "TSG", "Fusion", "Germline"
+)
+tmpg <- tmpg |>
+  dplyr::select(
+    "Gene", "Oncogene", "TSG", "Fusion", "Germline", "Gene panels no.",
+    "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One",
+    "Foundation One Heme", "Vogelstein", "Sanger CGC"
+  )
+tmpg[tmpg == "No"] <- "-"
+tmpg[tmpg == ""] <- "-"
+ref_genes.list[["genes_cancer"]] <- tmpg |>
+  dplyr::select(-c("Gene"))
+ref_genes.list[["genes_oncokb"]] <- tmpg |>
+  dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]]$Hugo_Symbol) |>
+  dplyr::select(-c("Gene"))
 ##### Clean the space
-rm(genes_cancer)
+rm(tmpg)
 ```
 
 
