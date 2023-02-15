@@ -26,7 +26,6 @@ params:
   dragen_fusions: NULL
   drugs: FALSE
   filter: TRUE
-  grch_version: 38
   hide_code_btn: TRUE
   immunogram: FALSE
   log: TRUE
@@ -65,7 +64,6 @@ p <- list(
   dragen_fusions = here("inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final"),
   drugs = FALSE,
   filter = TRUE,
-  grch_version = 38,
   hide_code_btn = TRUE,
   immunogram = FALSE,
   log = TRUE,
@@ -89,8 +87,9 @@ p <- list(
 )
 params <- p
 
-ucsc_genome_assembly <- dplyr::if_else(params$grch_version == 38, 38L, 19L)
-ensembl_version <- dplyr::if_else(params$grch_version == 38, 86L, 75L)
+# only support GRCh38
+ucsc_genome_assembly <- 38L
+ensembl_version <- 86L
 library(package = paste0("EnsDb.Hsapiens.v", ensembl_version), character.only = TRUE)
 library(package = paste0("BSgenome.Hsapiens.UCSC.hg", ucsc_genome_assembly), character.only = TRUE)
 library(AnnotationDbi)
@@ -99,7 +98,7 @@ library(ensembldb)
 library(glue)
 library(purrr)
 library(readr)
-require(RNAsum)
+library(RNAsum)
 ```
 
 ```{r prep, echo = FALSE}
@@ -161,28 +160,27 @@ dataset_name_incl <- dplyr::if_else(params$dataset_name_incl, glue::glue("_{para
 ##### Grab umccrise SBJ for MySQL insert command.
 ##### Will overwrite argument passed to "--clinical_id" flag
 # TODO: revisit subjectID
-subjectID <- dplyr::if_else(is.null(params$subject_id), "", params$subject_id)
-subjectID <- dplyr::if_else(is.null(params$umccrise), subjectID, basename(params$umccrise))
+subjectID <- params$subject_id %||% ""
+subjectID <- ifelse(is.null(params$umccrise), subjectID, basename(params$umccrise))
 sample_name <- paste0(
   params$sample_name,
   dplyr::if_else(dataset_name_incl == "", "", paste0("_", dataset))
 )
 results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
-RNAsum::mkdir(results_dir)
+RNAsum::mkdir(results_dir) # there is also fs::dir_create
 # Annotate transcripts with gene IDs
 # These could probably go into refdata
 edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", ensembl_version)))
 keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
 tx2ensembl <- edb |>
   ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
-  dplyr::rename(tx_name = .data$TXID, gene_id = .data$GENEID)
+  dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
 
-# ref data
-ref_dataset <- RNAsum::get_refdata(dataset)
-ref_dataset.list <- purrr::set_names(vector("list", length(dataset)), dataset)
-# TODO: merge all together
+# reference data
+ref_dataset_filepaths <- RNAsum::get_refdata(dataset)
+ref_dataset.list <- vector("list", length(dataset)) |> purrr::set_names(dataset)
 ref_genes.list <- RNAsum::get_refgenes(params)
-# Sample WTS/WGS data
+# sample WTS/WGS data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
 # TODO: put all chunks inside a function
 runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
@@ -194,8 +192,7 @@ runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
 runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
   nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
 
-arriba_summary_out <-
-  glue::glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
+arriba_summary_out <- glue::glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
 RNAsum::arriba_summary_write(
   sample_data.list[["arriba_pdf"]],
   file = file.path(results_dir, arriba_summary_out)
@@ -205,37 +202,36 @@ if (runSVsChunk) {
   manta <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
     dplyr::select(
       dplyr::contains("tier"),
-      Event, Genes, Effect, Detail, Start, End, AF_BPI, CNC, CN,
-      SR_alt, PR_alt, Ploidy, Transcript
+      "Event", "Genes", "Effect", "Detail", "Start", "End", "AF_BPI", "CNC", "CN",
+      "SR_alt", "PR_alt", "Ploidy", "Transcript"
     )
   # TODO: Check if 'dplyr::filter(Genes != "")' makes sense
 }
 
 ##### Read in reference datasets and merge them with sample data.
-# This part outputs a vector with first element containing the merged data and second element containing merged targets info.
+# This part outputs a vector with first element containing the merged data and
+# second element containing merged targets info.
 ref_dataset.list[[dataset]] <- combineDatasets(
   sample_name = sample_name,
   sample_counts = sample_data.list[["salmon"]],
-  ref_data = ref_dataset,
+  ref_data = ref_dataset_filepaths,
   report_dir = results_dir
 )
 names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Define internal, external and addition cancer group names based on the targets definition
-int_cancer_group <- ref_dataset[["int_ref"]][["dataset"]]
-ext_cancer_group <- ref_dataset[["ext_ref"]][["dataset"]]
+int_cancer_group <- ref_dataset_filepaths[["int_ref"]][["dataset"]]
+ext_cancer_group <- ref_dataset_filepaths[["ext_ref"]][["dataset"]]
 
+add_cancer_group <- NULL
 if (length(unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)) > 3) {
   add_cancer_group <- unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)[2]
-} else {
-  add_cancer_group <- NULL
 }
 
 ##### Define the cancer group to be used to compare per-gene expression values and report in the summary tables
-if (dataset == "PAAD" || dataset == "PAAD-IPMN" || dataset == "PAAD-NET" || dataset == "PAAD-ACC") {
+comp_cancer_group <- ext_cancer_group
+if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
   comp_cancer_group <- int_cancer_group
-} else {
-  comp_cancer_group <- ext_cancer_group
 }
 ```
 
@@ -248,13 +244,31 @@ mysql_populate <- paste0(
 )
 mysql_populate_update <- "ON DUPLICATE KEY UPDATE ID=1000000 ,Platform=\"RNA_seq\""
 
-##### Update MySQL commend to populate RNA-seq data portal
-mysql_populate <- paste0(mysql_populate, ", \"", subjectID, "\", \"", sample_name, "\", \"", params$dataset, "\", \"", params$sample_source, "\", \"", params$project, "\", \"", paste0(sample_name, ".RNAseq_report.html"), "\", \"", sample_name, "\", \"")
-mysql_populate_update <- paste0(mysql_populate_update, ", PatientID=\"", subjectID, "\", SampleID=\"", sample_name, "\", Cancer=\"", params$dataset, "\", Source=\"", params$sample_source, "\", Project=\"", params$project, "\", Report=\"", paste0(sample_name, ".RNAseq_report.html"), "\", PMID=\"", sample_name, "\", Analysis=\"")
+##### Update MySQL command to populate RNA-seq data portal
+mysql_populate <- paste0(
+  mysql_populate, ", \"",
+  subjectID, "\", \"",
+  sample_name, "\", \"",
+  params$dataset, "\", \"",
+  params$sample_source, "\", \"",
+  params$project, "\", \"",
+  paste0(sample_name, ".RNAseq_report.html"), "\", \"",
+  sample_name, "\", \""
+)
+mysql_populate_update <- paste0(
+  mysql_populate_update,
+  ", PatientID=\"", subjectID,
+  "\", SampleID=\"", sample_name,
+  "\", Cancer=\"", params$dataset,
+  "\", Source=\"", params$sample_source,
+  "\", Project=\"", params$project,
+  "\", Report=\"", paste0(sample_name, ".RNAseq_report.html"),
+  "\", PMID=\"", sample_name, "\", Analysis=\""
+)
 ```
 
 ```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
-##### Prapare data for the treatment timeline plot
+##### Prepare data for the treatment timeline plot
 ##### Search for row with clinical info for investigated patient
 if (!is.null(params$clinical_id)) {
   sampleID.col <- grep(params$clinical_id, sample_data.list[[dataset]][["clinical_info"]])
@@ -266,6 +280,7 @@ if (!is.null(params$clinical_id)) {
 
 runClinicalChunk <- FALSE
 
+# TODO: cleanup this clinical info chunk
 if (length(sampleID.col) > 0) {
   ##### Identify column and row with patients details
   if (!is.null(params$clinical_id)) {
@@ -356,64 +371,77 @@ if (length(sampleID.col) > 0) {
 ```
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
-##### Combine UMCCR cancer gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) with OncoKB cancer genes
-genes_cancer <- ref_genes.list[["genes_oncokb"]]
-genes_cancer$UMCCR <- rep("No", nrow(genes_cancer))
-genes_cancer$Oncogene <- rep("-", nrow(genes_cancer))
-genes_cancer$TSG <- rep("-", nrow(genes_cancer))
-genes_cancer$Fusion <- rep("-", nrow(genes_cancer))
-genes_cancer$Germline <- rep("-", nrow(genes_cancer))
+tmpg <- ref_genes.list[["genes_oncokb"]] |>
+  dplyr::mutate(
+    UMCCR = "No", Oncogene = "-", TSG = "-", Fusion = "-", Germline = "-"
+  ) |>
+  dplyr::rename(
+    occurrence_num = "# of occurence within resources"
+  )
+##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
+ref_genes.list[["genes_cancer"]] <- ref_genes.list[["genes_cancer"]] |>
+  dplyr::mutate(
+    germ = dplyr::if_else(.data$germ, "Yes", "-"),
+    fusion = dplyr::if_else(.data$fusion, "Yes", "-"),
+    tumorsuppressor = dplyr::if_else(.data$tumorsuppressor, "Yes", "-"),
+    oncogene = dplyr::if_else(.data$oncogene, "Yes", "-")
+  )
 
-##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-ref_genes.list[["genes_cancer"]]$germ <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$germ)
-ref_genes.list[["genes_cancer"]]$germ <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$germ)
-ref_genes.list[["genes_cancer"]]$fusion <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$fusion)
-ref_genes.list[["genes_cancer"]]$fusion <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$fusion)
-ref_genes.list[["genes_cancer"]]$tumorsuppressor <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$tumorsuppressor)
-ref_genes.list[["genes_cancer"]]$tumorsuppressor <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$tumorsuppressor)
-ref_genes.list[["genes_cancer"]]$oncogene <- gsub("TRUE", "Yes", ref_genes.list[["genes_cancer"]]$oncogene)
-ref_genes.list[["genes_cancer"]]$oncogene <- gsub("FALSE", "-", ref_genes.list[["genes_cancer"]]$oncogene)
-
-for (gene in unlist(ref_genes.list[["genes_cancer"]]$symbol)) {
+for (gene in ref_genes.list[["genes_cancer"]][["symbol"]]) {
   ##### Check if the UMCCR genes is already reported in OncoKB
-  if (gene %in% genes_cancer$Hugo.Symbol) {
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$UMCCR <- "Yes"
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
-
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, 2] <- as.numeric(genes_cancer[genes_cancer$Hugo.Symbol == gene, 2]) + 1
-
-    ##### Add if not present
+  if (gene %in% tmpg$Hugo_Symbol) {
+    tmpg[tmpg$Hugo_Symbol == gene, ]$UMCCR <- "Yes"
+    tmpg[tmpg$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    tmpg[tmpg$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    tmpg[tmpg$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    tmpg[tmpg$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    tmpg[tmpg$Hugo_Symbol == gene, "occurrence_num"] <- as.integer(tmpg[tmpg$Hugo_Symbol == gene, "occurrence_num"]) + 1L
   } else {
-    genes_cancer <- rbind(genes_cancer, c(gene, 1, "No", rep("", 8), "Yes"))
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    genes_cancer[genes_cancer$Hugo.Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    ##### Add if not present
+    r1 <- tibble::tibble(
+      "Hugo_Symbol" = gene, "occurrence_num" = 1L,
+      "OncoKB Annotated" = "No", "OncoKB Oncogene" = "", "OncoKB TSG" = "",
+      "MSK-IMPACT" = "", "MSK-HEME" = "", "Foundation One" = "",
+      "Foundation One Heme" = "", "Vogelstein" = "", "Sanger CGC" = "",
+      "UMCCR" = "Yes", "Oncogene" = "", "TSG" = "", "Fusion" = "", "Germline" = ""
+    )
+    tmpg <- dplyr::bind_rows(tmpg, r1)
+    tmpg[tmpg$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    tmpg[tmpg$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    tmpg[tmpg$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    tmpg[tmpg$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
   }
 }
 
-##### Make the data frame to look nicer
-rownames(genes_cancer) <- genes_cancer$Hugo.Symbol
-names(genes_cancer) <- c("Gene", "Gene panels no.", "OncoKB", "Oncogene (OncoKB)", "TSG (OncoKB)", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC", "UMCCR", "Oncogene", "TSG", "Fusion", "Germline")
-genes_cancer <- genes_cancer[, c("Oncogene", "TSG", "Fusion", "Germline", "Gene panels no.", "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme", "Vogelstein", "Sanger CGC")]
-genes_cancer[genes_cancer == "No"] <- "-"
-genes_cancer[genes_cancer == ""] <- "-"
-
-ref_genes.list[["genes_cancer"]] <- genes_cancer
-ref_genes.list[["genes_oncokb"]] <- genes_cancer[rownames(genes_cancer) %in% ref_genes.list[["genes_oncokb"]]$Hugo.Symbol, ]
-
+##### Make the data frame look nicer
+colnames(tmpg) <- c(
+  "Gene", "Gene panels no.", "OncoKB", "Oncogene (OncoKB)", "TSG (OncoKB)",
+  "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme",
+  "Vogelstein", "Sanger CGC", "UMCCR", "Oncogene", "TSG", "Fusion", "Germline"
+)
+tmpg <- tmpg |>
+  dplyr::select(
+    "Gene", "Oncogene", "TSG", "Fusion", "Germline", "Gene panels no.",
+    "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One",
+    "Foundation One Heme", "Vogelstein", "Sanger CGC"
+  )
+tmpg[tmpg == "No"] <- "-"
+tmpg[tmpg == ""] <- "-"
+ref_genes.list[["genes_cancer"]] <- tmpg |>
+  dplyr::select(-c("Gene"))
+ref_genes.list[["genes_oncokb"]] <- tmpg |>
+  dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]]$Hugo_Symbol) |>
+  dplyr::select(-c("Gene"))
 ##### Clean the space
-rm(genes_cancer)
+rm(tmpg)
 ```
+
 
 ```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Record all genes of interest to make sure that these are not filtered out during read counts data processing
 # PCGR annotation of mutated genes in given patient based on PCGR report, including only those with variants classified according to user-defined tier
 if (runPcgrChunk) {
-  ref_genes.list[["summary"]]$Mutated <- unique(ref_genes.list[["pcgr"]][ref_genes.list[["pcgr"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
+  ref_genes.list[["summary"]]$Mutated <- unique(sample_data.list$wgs[["pcgr_tiers_tsv"]][sample_data.list$wgs[["pcgr_tiers_tsv"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
 
   ##### Include splice region variants
   if (params$pcgr_splice_vars) {

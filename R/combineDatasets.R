@@ -70,6 +70,6 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir) {
   target_all <- as.data.frame(target_all)
   rownames(target_all) <- target_all[["Sample_name"]]
   target_all <- target_all |>
-    dplyr::select(-.data$Sample_name)
+    dplyr::select(-c("Sample_name"))
   return(list(datasets.comb, target_all))
 }

@@ -53,15 +53,15 @@ arriba_pdf_read <- function(pdf = NULL, fusions = NULL, outdir = NULL) {
   # construct png filenames
   clean_fusions <- fusions |>
     dplyr::select(
-      g1 = .data$gene1, g2 = .data$gene2,
-      bp1 = .data$breakpoint1, bp2 = .data$breakpoint2
+      g1 = "gene1", g2 = "gene2",
+      bp1 = "breakpoint1", bp2 = "breakpoint2"
     ) |>
     dplyr::mutate(
       nm = glue::glue("{.data$g1}__{.data$g2}_{.data$bp1}_{.data$bp2}"),
       nm = make.names(.data$nm),
       png = file.path(outdir, glue::glue("{.data$nm}.png")),
     ) |>
-    dplyr::select(.data$nm, .data$png)
+    dplyr::select("nm", "png")
   # Export pdf images to png
   for (i in seq_len(nrow(clean_fusions))) {
     png <- pdftools::pdf_render_page(
@@ -89,6 +89,6 @@ arriba_summary_write <- function(x, file) {
     return()
   }
   x |>
-    dplyr::select(.data$nm) |>
+    dplyr::select("nm") |>
     readr::write_tsv(file = file, col_names = FALSE)
 }

@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 ################################################################################
 #   Authors: Jacek Marzec ( jacek.marzec@unimelb.edu.au ), Sehrish Kanwal, Lavinia Gordon
 #   University of Melbourne Centre for Cancer Research,
@@ -22,7 +24,6 @@ option_list <- list(
   make_option("--dragen_fusions", type = "character", help = "File path to DRAGEN RNA-seq 'fusion_candidates.final' output"),
   make_option("--drugs", default = FALSE, type = "logical", help = "Include drug matching section in report? [def: %default]"),
   make_option("--filter", default = TRUE, type = "logical", help = "Filter out low expressed genes? [def: %default]"),
-  make_option("--grch_version", default = 38, type = "integer", help = "Human reference genome version used for gene annotation [def: %default]"),
   make_option("--hide_code_btn", default = TRUE, type = "logical", help = "Hide \"Code\" button above code chunks in report? [def: %default]"),
   make_option("--immunogram", default = FALSE, type = "logical", help = "Include immunogram in report? [def: %default]"),
   make_option("--log", default = TRUE, type = "logical", help = "Log2 transform data before normalisation? [def: %default]"),
@@ -56,7 +57,6 @@ stopifnot(
   "'--clinical_info' requires at least one of '--clinical_id', '--subject_id', or '--umccrise'" =
     !is.null(opt$clinical_info) && (!is.null(opt$clinical_id) || !is.null(opt$subject_id) || !is.null(opt$umccrise))
 )
-stopifnot("'--grch_version' must be 38 or 37" = opt$grch_version %in% c(37, 38))
 stopifnot(
   "Invalid '--dataset'. Please see https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html" =
     toupper(opt$dataset) %in% names(RNAsum::REFERENCE_DATASETS)

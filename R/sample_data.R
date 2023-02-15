@@ -65,11 +65,11 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
 #'   umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),
 #'   pcgr_tiers_tsv = system.file(
 #'     "rawdata/test_data/umccrised/test_sample_WGS/small_variants",
-#'     "pcgr.snvs_indels.tiers.tsv",
+#'     "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
 #'     package = "RNAsum"
 #'   ),
 #'   manta_tsv = system.file(
-#'     "rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv",
+#'     "rawdata/test_data/umccrised/test_sample_WGS/structural/TEST-prioritize-manta.tsv",
 #'     package = "RNAsum"
 #'   )
 #' )
@@ -79,7 +79,7 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
 #' @export
 read_wgs_data <- function(p) {
   um_dir <- p[["umccrise"]]
-  .read <- function(subdir, pat, nm, func, ...) {
+  .read <- function(p, subdir, pat, nm, func, ...) {
     # - If file nm provided directly in the params:
     #   - If exists, return it.
     #   - If doesn't exist or not provided, check umccrise param
@@ -105,16 +105,19 @@ read_wgs_data <- function(p) {
   }
 
   pcgr_tiers_tsv <- .read(
+    p = p,
     subdir = "small_variants", pat = "pcgr\\.snvs_indels\\.tiers\\.tsv$",
     nm = "pcgr_tiers_tsv", func = pcgr_tiers_tsv_read
   )
 
   purple_gene_tsv <- .read(
+    p = p,
     subdir = "purple", pat = "purple\\.cnv\\.gene\\.tsv$",
     nm = "purple_gene_tsv", func = gpgr::purple_cnv_som_gene_read
   )
 
   manta_tsv <- .read(
+    p = p,
     subdir = "structural", pat = "manta\\.tsv$",
     nm = "manta_tsv", func = gpgr::process_sv
   )
