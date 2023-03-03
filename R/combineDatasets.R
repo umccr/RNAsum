@@ -71,5 +71,6 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir) {
   rownames(target_all) <- target_all[["Sample_name"]]
   target_all <- target_all |>
     dplyr::select(-c("Sample_name"))
-  return(list(datasets.comb, target_all))
+  list(datasets.comb, target_all) |>
+    rlang::set_names(c("combined_data", "sample_annot"))
 }

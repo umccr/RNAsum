@@ -201,7 +201,7 @@ RNAsum::arriba_summary_write(
 if (runSVsChunk) {
   manta <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
     dplyr::select(
-      dplyr::contains("tier"),
+      dplyr::contains("tier", ignore.case = TRUE),
       "Event", "Genes", "Effect", "Detail", "Start", "End", "AF_BPI", "CNC", "CN",
       "SR_alt", "PR_alt", "Ploidy", "Transcript"
     )
@@ -211,13 +211,12 @@ if (runSVsChunk) {
 ##### Read in reference datasets and merge them with sample data.
 # This part outputs a vector with first element containing the merged data and
 # second element containing merged targets info.
-ref_dataset.list[[dataset]] <- combineDatasets(
+ref_dataset.list[[dataset]] <- RNAsum::combineDatasets(
   sample_name = sample_name,
   sample_counts = sample_data.list[["salmon"]],
   ref_data = ref_dataset_filepaths,
   report_dir = results_dir
 )
-names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Define internal, external and addition cancer group names based on the targets definition
 int_cancer_group <- ref_dataset_filepaths[["int_ref"]][["dataset"]]
@@ -425,14 +424,12 @@ tmpg <- tmpg |>
     "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One",
     "Foundation One Heme", "Vogelstein", "Sanger CGC"
   )
-tmpg[tmpg == "No"] <- "-"
-tmpg[tmpg == ""] <- "-"
+tmpg[tmpg == "No" | tmpg == ""] <- "-"
 ref_genes.list[["genes_cancer"]] <- tmpg |>
   dplyr::select(-c("Gene"))
 ref_genes.list[["genes_oncokb"]] <- tmpg |>
-  dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]]$Hugo_Symbol) |>
+  dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]][["Hugo_Symbol"]]) |>
   dplyr::select(-c("Gene"))
-##### Clean the space
 rm(tmpg)
 ```
 
@@ -440,56 +437,28 @@ rm(tmpg)
 ```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Record all genes of interest to make sure that these are not filtered out during read counts data processing
 # PCGR annotation of mutated genes in given patient based on PCGR report, including only those with variants classified according to user-defined tier
+# Also include splice region variants if specified
 if (runPcgrChunk) {
-  ref_genes.list[["summary"]]$Mutated <- unique(sample_data.list$wgs[["pcgr_tiers_tsv"]][sample_data.list$wgs[["pcgr_tiers_tsv"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
-
-  ##### Include splice region variants
-  if (params$pcgr_splice_vars) {
-    ref_genes.list[["summary"]]$Mutated <- unique(c(ref_genes.list[["summary"]]$Mutated, sample_data.list$wgs[["pcgr_tiers_tsv"]][grepl("NONCODING.*splice region", paste0(sample_data.list$wgs[["pcgr_tiers_tsv"]]$TIER, ".", sample_data.list$wgs[["pcgr_tiers_tsv"]]$CONSEQUENCE), fixed = FALSE), ]$SYMBOL))
-  }
-
-  ##### Remove NAs
-  if (length(ref_genes.list[["summary"]]$Mutated) > 0) {
-    ref_genes.list[["summary"]]$Mutated <- ref_genes.list[["summary"]]$Mutated[!(is.na(ref_genes.list[["summary"]]$Mutated))]
-  } else {
-    ref_genes.list[["summary"]]$Mutated <- NULL
-  }
+  ref_genes.list[["summary"]]$Mutated <- RNAsum::genes_pcgr_summary(
+    pcgr_tbl = sample_data.list$wgs[["pcgr_tiers_tsv"]],
+    tiers = 1:params$pcgr_tier,
+    splice_vars = params$pcgr_splice_vars
+  )
 }
 
 # ARRIBA annotation of gene fusion events detected in given patient
 if (runFusionChunk) {
-  if (runArribaChunk) {
-    ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(sample_data.list[["arriba_tsv"]]$gene1), as.character(sample_data.list[["arriba_tsv"]]$gene2)))
-  } else {
-    ref_genes.list[["summary"]]$Fusion <- NULL
-  }
-
-  if (runDragenFusionChunk) {
-    ref_genes.list[["summary"]]$Fusion <- unique(c(ref_genes.list[["summary"]]$Fusion, as.character(sample_data.list[["dragen_fusions"]]$gene1), as.character(sample_data.list[["dragen_fusions"]]$gene2)))
-  }
-
-  ##### Remove NAs
-  if (length(ref_genes.list[["summary"]]$Fusion) > 0) {
-    ref_genes.list[["summary"]]$Fusion <- ref_genes.list[["summary"]]$Fusion[!(is.na(ref_genes.list[["summary"]]$Fusion))]
-  } else {
-    ref_genes.list[["summary"]]$Fusion <- NULL
-  }
+  ref_genes.list[["summary"]]$Fusion <- c(
+    fusions_summary(sample_data.list[["arriba_tsv"]]),
+    fusions_summary(sample_data.list[["dragen_fusions"]])
+  ) |>
+    unique() |>
+    stats::na.omit()
 }
 
 # MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
 if (runSVsChunk) {
-  ref_genes.list[["summary"]]$SV <- sample_data.list$wgs[["manta_tsv"]][["melted"]]
-  ref_genes.list[["summary"]]$SV <- ref_genes.list[["summary"]]$SV[ref_genes.list[["summary"]]$SV$Genes != "", ]$Genes
-  # ...and distinguish classified by MANTA as fusion genes
-
-  ##### Remove NAs
-  if (length(ref_genes.list[["summary"]]$SV) > 0) {
-    #ref_genes.list[["summary"]]$SV <- unique(unlist(strsplit(ref_genes.list[["summary"]]$SV, split = "&", fixed = TRUE)))
-    ref_genes.list[["summary"]]$SV <- unique(unlist(strsplit(ref_genes.list[["summary"]]$SV, split = ",", fixed = TRUE)))
-    ref_genes.list[["summary"]]$SV <- ref_genes.list[["summary"]]$SV[!(is.na(ref_genes.list[["summary"]]$SV))]
-  } else {
-    ref_genes.list[["summary"]]$SV <- NULL
-  }
+  ref_genes.list[["summary"]]$SV <- RNAsum::sv_manta_summary(sample_data.list$wgs[["manta_tsv"]][["melted"]])
 }
 
 # PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results, including only those with CN values meeting user-defined thresholds
@@ -2559,8 +2528,8 @@ if (runFusionChunk) {
       fusions.table <- fusions.table[, names(fusions.table) %!in% "FGID"]
       fusions.table <- fusions.table[, c("geneA", "geneB", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "score", "breakpointA", "breakpointB", "circos")]
       names(fusions.table) <- c("Gene A", "Gene B", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Score", "Breakpoint (A)", "Breakpoint (B)", "Genomic view")
-      }
-}
+    }
+  }
 
   ##### Present gene fusion events in a table
   fusions.summary <- DT::datatable(data = fusions.table, filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"), options = list(pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 490, caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"), escape = FALSE) %>%
@@ -2729,7 +2698,7 @@ if (nrow(fusion_annot_top) > 0) {
     } else {
       fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer")]
     }
-}
+  }
 
   ##### Order fusions based on the genomic location (chrom and start positions)
   chrOrder <- c((1:22), "X", "Y", "M")
@@ -2752,7 +2721,7 @@ if (nrow(fusion_annot_top) > 0) {
     } else {
       names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
     }
-}
+  }
 
   fusions.genomicView <- DT::datatable(data = fusion_annot_top.clean, filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"), options = list(pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318, escape = FALSE) %>%
     DT::formatStyle(columns = names(fusion_annot_top.clean), `font-size` = "12px", "text-align" = "center") %>%

@@ -128,3 +128,82 @@ read_wgs_data <- function(p) {
     manta_tsv = manta_tsv
   )
 }
+
+
+#' Get Mutated Genes from PCGR
+#'
+#' @param pcgr_tbl Parsed PCGR TSV tibble.
+#' @param tiers PCGR tiers to keep. Default: 1, 2, 3, 4.
+#' @param splice_vars Include non-coding splice region variants reported in PCGR?
+#'
+#' @return Character vector of genes.
+#' @export
+genes_pcgr_summary <- function(pcgr_tbl, tiers = c(1:4), splice_vars = TRUE) {
+  assertthat::assert_that(
+    all(tiers %in% 1:4),
+    all(c("TIER", "SYMBOL", "CONSEQUENCE") %in% names(pcgr_tbl)),
+    is.logical(splice_vars)
+  )
+  res1 <- pcgr_tbl |>
+    dplyr::filter(.data$TIER %in% tiers) |>
+    dplyr::pull("SYMBOL")
+  res2 <- NULL
+  if (splice_vars) {
+    res2 <- pcgr_tbl |>
+      dplyr::mutate(tier_csq = glue::glue("{TIER}.{CONSEQUENCE}")) |>
+      dplyr::filter(
+        grepl("NONCODING.*splice region", .data$tier_csq, fixed = FALSE)
+      ) |>
+      dplyr::pull("SYMBOL")
+  }
+  res <- unique(res1, res2) |> stats::na.omit()
+  if (length(res) == 0) {
+    return(NULL)
+  }
+  res
+}
+
+#' Get Arriba/DRAGEN Fusions Summary
+#'
+#' @param tbl Tibble with fusions in columns 'gene1' and 'gene2'.
+#'
+#' @return Character vector of the 'gene1' and 'gene2' genes.
+#' @export
+fusions_summary <- function(tbl = NULL) {
+  if (is.null(tbl)) {
+    return(NULL)
+  }
+  assertthat::assert_that(
+    inherits(tbl, "data.frame"), all(c("gene1", "gene2") %in% names(tbl))
+  )
+  if (nrow(tbl) == 0) {
+    return(NULL)
+  }
+  res <- tbl |>
+    dplyr::select("gene1", "gene2") |>
+    unlist(use.names = FALSE) |>
+    as.character()
+  res
+}
+
+#' Get Manta SV Summary
+#'
+#' @param tbl Tibble with melted SVs from umccrise, containing 'Genes' column.
+#' @return Character vector of Genes.
+#' @export
+sv_manta_summary <- function(tbl) {
+  assertthat::assert_that(
+    inherits(tbl, "data.frame"), (c("Genes") %in% names(tbl))
+  )
+  res <- tbl |>
+    dplyr::filter(.data$Genes != "") |>
+    dplyr::pull("Genes") |>
+    base::strsplit(",") |>
+    base::unlist() |>
+    stats::na.omit()
+
+  if (length(res) == 0) {
+    return(NULL)
+  }
+  res
+}

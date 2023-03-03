@@ -23,6 +23,6 @@ dragen_fusions_read <- function(x = NULL) {
     NumSoftClippedReads = "d", NumPairedReads = "d"
   )
   readr::read_tsv(x, col_types = ctypes) |>
-    dplyr::rename(FusionGene = .data$`#FusionGene`) |>
+    dplyr::rename(FusionGene = "#FusionGene") |>
     tidyr::separate(.data$FusionGene, into = c("gene1", "gene2"), sep = "--")
 }
