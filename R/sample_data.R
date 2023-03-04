@@ -207,3 +207,58 @@ sv_manta_summary <- function(tbl) {
   }
   res
 }
+
+#' Get PURPLE CNV Summary
+#'
+#' @param tbl PURPLE gene CNV tibble
+#' @param cancer_genes_symbol Character vector of gene symbols to filter on.
+#' @param cn_bottom CN threshold value to classify genes within lost regions.
+#' @param cn_top CN threshold value to classify genes within gained regions.
+#'
+#' @return List with genes, top and bottom copy number thresholds.
+#' @export
+purple_cnv_summary <- function(tbl, cancer_genes_symbol, cn_bottom, cn_top) {
+  assertthat::assert_that(
+    inherits(tbl, "data.frame"),
+    "gene" %in% names(tbl),
+    is.character(cancer_genes_symbol)
+  )
+  dat <- tbl |>
+    dplyr::mutate(
+      MeanCopyNumber = base::rowMeans(dplyr::select(tbl, c("minCopyNumber", "maxCopyNumber"))),
+      MeanCopyNumber = dplyr::if_else(.data$MeanCopyNumber < 0, 0, .data$MeanCopyNumber)
+    ) |>
+    # keep only cancer genes
+    dplyr::filter(
+      .data$gene %in% cancer_genes_symbol
+    )
+  quants <- stats::quantile(
+    dat[["MeanCopyNumber"]],
+    probs = seq(0, 1, 0.05), na.rm = TRUE
+  )
+  # Keep only altered genes with CN values below loss threshold
+  # (default 5th percentile) and above gain threshold (default 95th percentile)
+  if (cn_bottom == 5 && cn_top == 95) {
+    cn_bottom <- quants["5%"] |>
+      base::unname() |>
+      base::round(digits = 2)
+    cn_top <- quants["95%"] |>
+      base::unname() |>
+      base::round(digits = 2)
+  }
+  # If their diff is 0 then increase/decrease threshold by 1
+  if (abs(cn_top - cn_bottom) == 0) {
+    cn_top <- cn_top + 1
+    cn_bottom <- cn_bottom - 1
+  }
+  dat <- dat |>
+    dplyr::filter(.data$MeanCopyNumber <= cn_bottom | .data$MeanCopyNumber >= cn_top) |>
+    dplyr::pull("gene") |>
+    base::unique() |>
+    stats::na.omit()
+  list(
+    dat = dat,
+    cn_bottom = cn_bottom,
+    cn_top = cn_top
+  )
+}

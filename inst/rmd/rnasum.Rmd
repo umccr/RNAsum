@@ -96,8 +96,6 @@ library(AnnotationDbi)
 library(dplyr)
 library(ensembldb)
 library(glue)
-library(purrr)
-library(readr)
 library(RNAsum)
 ```
 
@@ -178,7 +176,7 @@ tx2ensembl <- edb |>
 
 # reference data
 ref_dataset_filepaths <- RNAsum::get_refdata(dataset)
-ref_dataset.list <- vector("list", length(dataset)) |> purrr::set_names(dataset)
+ref_dataset.list <- vector("list", length(dataset)) |> rlang::set_names(dataset)
 ref_genes.list <- RNAsum::get_refgenes(params)
 # sample WTS/WGS data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
@@ -425,11 +423,11 @@ tmpg <- tmpg |>
     "Foundation One Heme", "Vogelstein", "Sanger CGC"
   )
 tmpg[tmpg == "No" | tmpg == ""] <- "-"
-ref_genes.list[["genes_cancer"]] <- tmpg |>
-  dplyr::select(-c("Gene"))
+ref_genes.list[["genes_cancer"]] <- tmpg
+# dplyr::select(-c("Gene"))
 ref_genes.list[["genes_oncokb"]] <- tmpg |>
-  dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]][["Hugo_Symbol"]]) |>
-  dplyr::select(-c("Gene"))
+  dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]][["Hugo_Symbol"]])
+# dplyr::select(-c("Gene"))
 rm(tmpg)
 ```
 
@@ -449,8 +447,8 @@ if (runPcgrChunk) {
 # ARRIBA annotation of gene fusion events detected in given patient
 if (runFusionChunk) {
   ref_genes.list[["summary"]]$Fusion <- c(
-    fusions_summary(sample_data.list[["arriba_tsv"]]),
-    fusions_summary(sample_data.list[["dragen_fusions"]])
+    RNAsum::fusions_summary(sample_data.list[["arriba_tsv"]]),
+    RNAsum::fusions_summary(sample_data.list[["dragen_fusions"]])
   ) |>
     unique() |>
     stats::na.omit()
@@ -461,44 +459,18 @@ if (runSVsChunk) {
   ref_genes.list[["summary"]]$SV <- RNAsum::sv_manta_summary(sample_data.list$wgs[["manta_tsv"]][["melted"]])
 }
 
-# PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results, including only those with CN values meeting user-defined thresholds
+# PURPLE annotation of copy-number (CN) altered genes in given patient based on
+# PURPLE results, including only those with CN values meeting user-defined thresholds.
 if (runPurpleChunk) {
-  ref_genes.list[["summary"]]$CN <- sample_data.list$wgs[["purple_gene_tsv"]]
-  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ref_genes.list[["summary"]]$CN %!in% "", ]
-
-  ##### Get the CN mean
-  ref_genes.list[["summary"]]$CN$MeanCopyNumber <- rowMeans(cbind(ref_genes.list[["summary"]]$CN$MinCopyNumber, ref_genes.list[["summary"]]$CN$MaxCopyNumber))
-
-  ##### Deal with negative CN values
-  ref_genes.list[["summary"]]$CN$MeanCopyNumber[ref_genes.list[["summary"]]$CN$MeanCopyNumber < 0] <- 0
-
-  ##### Limit the data to include only cancer genes
-  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ref_genes.list[["summary"]]$CN$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
-
-  ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
-  if (params$cn_loss == 5 && params$cn_gain == 95) {
-    cn_data.all.percent <- quantile(ref_genes.list[["summary"]]$CN$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
-    cn_bottom <- round(cn_data.all.percent[2], digits = 2)
-    cn_top <- round(cn_data.all.percent[20], digits = 2)
-  } else {
-    cn_bottom <- params$cn_loss
-    cn_top <- params$cn_gain
-  }
-
-  ##### If the difference is 0 then increase/decrease threshold by 1
-  if (abs(cn_top - cn_bottom) == 0) {
-    cn_top <- cn_top + 1
-    cn_bottom <- cn_bottom - 1
-  }
-
-  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ref_genes.list[["summary"]]$CN$MeanCopyNumber <= cn_bottom | ref_genes.list[["summary"]]$CN$MeanCopyNumber >= cn_top, ]$Gene)
-
-  ##### Remove NAs
-  if (length(ref_genes.list[["summary"]]$CN) > 0) {
-    ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[!(is.na(ref_genes.list[["summary"]]$CN))]
-  } else {
-    ref_genes.list[["summary"]]$CN <- NULL
-  }
+  purple_summary <- sample_data.list$wgs[["purple_gene_tsv"]] |>
+    RNAsum::purple_cnv_summary(
+      cancer_genes_symbol = ref_genes.list[["genes_cancer"]][["Gene"]],
+      cn_bottom = params$cn_loss,
+      cn_top = params$cn_gain
+    )
+  ref_genes.list[["summary"]]$CN <- purple_summary[["dat"]]
+  cn_bottom <- purple_summary[["cn_bottom"]]
+  cn_top <- purple_summary[["cn_top"]]
 }
 
 # Immune reponse markers
