@@ -256,6 +256,9 @@ purple_cnv_summary <- function(tbl, cancer_genes_symbol, cn_bottom, cn_top) {
     dplyr::pull("gene") |>
     base::unique() |>
     stats::na.omit()
+  if (length(dat) == 0) {
+    dat <- NULL
+  }
   list(
     dat = dat,
     cn_bottom = cn_bottom,
