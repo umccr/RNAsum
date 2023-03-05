@@ -265,3 +265,35 @@ purple_cnv_summary <- function(tbl, cancer_genes_symbol, cn_bottom, cn_top) {
     cn_top = cn_top
   )
 }
+
+#' Get Immune Gene Summary
+#'
+#' @param tbl_imarkers Tibble with immune response marker genes.
+#' @param tbl_igram Tibble with immunogram genes.
+#' @param igram_param Immunogram inclusion TRUE/FALSE parameter.
+#'
+#' @return Character vector of genes.
+#' @export
+immune_summary <- function(tbl_imarkers, tbl_igram = NULL, igram_param = TRUE) {
+  assertthat::assert_that(
+    inherits(tbl_imarkers, "data.frame"),
+    "SYMBOL" %in% names(tbl_imarkers)
+  )
+  if (igram_param) {
+    assertthat::assert_that(
+      !is.null(tbl_igram),
+      inherits(tbl_igram, "data.frame"),
+      "SYMBOL" %in% names(tbl_igram)
+    )
+  }
+  # Immune reponse markers
+  res1 <- tbl_imarkers |>
+    dplyr::pull("SYMBOL")
+
+  res2 <- NULL
+  if (igram_param) {
+    res2 <- tbl_igram[["SYMBOL"]]
+  }
+  res <- unique(res1, res2) |> stats::na.omit()
+  res
+}

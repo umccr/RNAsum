@@ -474,26 +474,22 @@ if (runPurpleChunk) {
 }
 
 # Immune reponse markers
-ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$genes_immune_markers$SYMBOL)
-
-if (params$immunogram) {
-  ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["summary"]]$Immune, ref_genes.list[["genes_immune"]]$immunogram$SYMBOL))
-
-  ##### Remove NAs
-  ref_genes.list[["summary"]]$Immune <- ref_genes.list[["summary"]]$Immune[!(is.na(ref_genes.list[["summary"]]$Immune))]
-}
+ref_genes.list[["summary"]]$Immune <- immune_summary(
+  tbl_imarkers = ref_genes.list[["genes_immune"]][["genes_immune_markers"]],
+  tbl_igram = ref_genes.list[["genes_immune"]][["genes_immunogram"]],
+  igram_param = params$immunogram
+)
 
 # HRD (homologous recombination deficiency) genes
-ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
-
-##### Remove NAs
-ref_genes.list[["summary"]]$HRD <- ref_genes.list[["summary"]]$HRD[!(is.na(ref_genes.list[["summary"]]$HRD))]
+ref_genes.list[["summary"]]$HRD <- ref_genes.list[["genes_hrd"]] |>
+  dplyr::pull("SYMBOL") |>
+  stats::na.omit()
 
 # Cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and from OncoKB portal (http://oncokb.org/#/cancerGenes)
-ref_genes.list[["summary"]]$Cancer <- rownames(ref_genes.list[["genes_cancer"]])
-
-##### Remove NAs
-ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["summary"]]$Cancer[!(is.na(ref_genes.list[["summary"]]$Cancer))]
+ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["genes_cancer"]] |>
+  dplyr::pull("Gene") |>
+  base::unique() |>
+  stats::na.omit()
 
 ##### Record all genes of interest
 genes2keep <- unique(unlist(ref_genes.list[["summary"]]))
@@ -503,12 +499,13 @@ genes2keep <- unique(unlist(ref_genes.list[["summary"]]))
 ##### Get gene symbols for the genes of interest. These genes will not be filtered out due to low/insufficient expression
 
 ##### Get genes genomic coordiantes
-gene_info <- ensembldb::select(edb, keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID")
-names(gene_info) <- gsub("GENEID", "ENSEMBL", names(gene_info))
-names(gene_info) <- gsub("GENENAME", "SYMBOL", names(gene_info))
+gene_info <- edb |>
+  ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
+  dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
 
 ##### Limit genes annotation to the gene of interest
-genes2keep <- gene_info[gene_info$SYMBOL %in% genes2keep, ]
+genes2keep <- gene_info |>
+  dplyr::filter(.data$SYMBOL %in% genes2keep)
 
 ##### Remove rows with duplicated ENSEMBL IDs
 genes2keep <- genes2keep[!duplicated(genes2keep$ENSEMBL), ]
