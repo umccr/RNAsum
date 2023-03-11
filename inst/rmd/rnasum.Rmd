@@ -489,11 +489,11 @@ ref_genes.list[["summary"]]$HRD <- ref_genes.list[["genes_hrd"]] |>
 # Cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and from OncoKB portal (http://oncokb.org/#/cancerGenes)
 ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["genes_cancer"]] |>
   dplyr::pull("Gene") |>
-  base::unique() |>
+  unique() |>
   stats::na.omit()
 
 ##### Record all genes of interest
-genes2keep <- base::unlist(ref_genes.list[["summary"]]) |> base::unique()
+genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
 ```
 
 ```{r goi_annotation, comment = NA, message=FALSE, warning=FALSE}
@@ -527,41 +527,53 @@ rm(edb, keys, gene_info)
 ```
 
 ```{r library_size_plot, message = FALSE, warning = FALSE, echo = TRUE, fig.width = 12, fig.height = 9}
-suppressMessages(library(plotly))
-##### Generate bar-plot for library size. The colours indicate sample groups, as provided in *Target* column in the sample annotation file
-
-data <- ref_dataset.list[[dataset]][["combined_data"]]
-target <- ref_dataset.list[[dataset]][["sample_annot"]]
-target$Target[target$Target == sample_name] <- "Patient"
+# Generate bar-plot for library size. The colours indicate sample groups,
+# as provided in *Target* column in the sample annotation file
+comb_data <- ref_dataset.list[[dataset]][["combined_data"]]
+target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+  dplyr::mutate(Target = dplyr::if_else(.data$Target == sample_name, "Patient", .data$Target))
 rownames(target)[rownames(target) == sample_name] <- "Patient"
 
-##### Change the datasets levels order
+# Change the datasets levels order
 target$Target <- factor(target$Target, levels = unique(target$Target))
 
-##### Assigne colours to targets and datasets
-targets.colour <- getColours(target$Target)
+# Assign colours to targets and datasets
+targets.colour <- RNAsum::getColours(target$Target)
 
-##### Prepare data frame
-data.df <- data.frame(rownames(target), as.numeric(colSums(data) * 1e-6), target$Target)
-colnames(data.df) <- c("Sample", "Library_size", "Target")
+# Prepare data frame
+data.df <- dplyr::tibble(
+  Sample = rownames(target),
+  Library_size = as.numeric(base::colSums(comb_data) * 1e-6),
+  Target = target[["Target"]]
+)
 
-##### The default order will be alphabetized unless specified as below
-data.df$Sample <- factor(data.df$Sample, levels = data.df[["Sample"]])
+# The default order will be alphabetized unless specified as below
+data.df[["Sample"]] <- factor(data.df[["Sample"]], levels = data.df[["Sample"]])
+max_libsize <- max(data.df[["Library_size"]])
+# TODO:
+# - Does this need to be interactive? Its size is fairly big (>3MB for test set)
+# - Does it need to be a barplot?
+# - Should the bars be sorted instead of mixed?
 
-library_size <- plot_ly(data.df, x = ~Sample, y = ~Library_size, color = ~Target, colors = targets.colour[[1]], type = "bar", width = 800, height = 400) %>%
-  layout(title = "", xaxis = list(tickfont = list(size = 10), title = "", showticklabels = FALSE), yaxis = list(title = "Library size (millions)"), margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4), autosize = F, showlegend = TRUE, legend = list(orientation = "h", y = max(data.df$Library_size), bgcolor = "white"))
+library_size <- data.df |>
+  plotly::plot_ly(
+    x = ~Sample, y = ~Library_size, color = ~Target,
+    colors = targets.colour[[1]], type = "bar",
+    width = 800, height = 400
+  ) |>
+  plotly::layout(
+    title = "",
+    xaxis = list(tickfont = list(size = 10), title = "", showticklabels = FALSE),
+    yaxis = list(title = "Library size (millions)"),
+    margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4),
+    autosize = FALSE, showlegend = TRUE,
+    legend = list(orientation = "h", y = max_libsize, bgcolor = "white")
+  )
 
 ##### Create directory for input data plots
-PlotsDir <- paste(results_dir, "InputDataPlots", sep = "/")
-if (!file.exists(PlotsDir)) {
-  dir.create(PlotsDir, recursive = TRUE)
-}
-
-##### Save interactive plot as html file
-saveWidgetFix(library_size, file = paste(PlotsDir, "library_size.html", sep = "/"))
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
+PlotsDir <- file.path(results_dir, "InputDataPlots")
+RNAsum::mkdir(PlotsDir)
+RNAsum::saveWidgetFix(widget = library_size, file = file.path(PlotsDir, "library_size.html"))
 ```
 
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
