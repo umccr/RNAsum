@@ -96,6 +96,7 @@ library(AnnotationDbi)
 library(dplyr)
 library(ensembldb)
 library(glue)
+library(rlang)
 library(RNAsum)
 ```
 
@@ -492,7 +493,7 @@ ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["genes_cancer"]] |>
   stats::na.omit()
 
 ##### Record all genes of interest
-genes2keep <- unique(unlist(ref_genes.list[["summary"]]))
+genes2keep <- base::unlist(ref_genes.list[["summary"]]) |> base::unique()
 ```
 
 ```{r goi_annotation, comment = NA, message=FALSE, warning=FALSE}
@@ -503,17 +504,18 @@ gene_info <- edb |>
   ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
   dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
 
-##### Limit genes annotation to the gene of interest
+##### Limit genes annotation to the gene of interest, then
+##### remove rows with duplicated ENSEMBL IDs
 genes2keep <- gene_info |>
   dplyr::filter(.data$SYMBOL %in% genes2keep)
-
-##### Remove rows with duplicated ENSEMBL IDs
 genes2keep <- genes2keep[!duplicated(genes2keep$ENSEMBL), ]
 rownames(genes2keep) <- genes2keep$ENSEMBL
 
 ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc). Preferably select ENSEMBL ID that is used in the count data
-genes2keep.combined_data <- genes2keep[genes2keep$ENSEMBL %in% rownames(ref_dataset.list[[dataset]]$combined_data), ]
-genes2keep <- genes2keep[genes2keep$SYMBOL %!in% genes2keep.combined_data$SYMBOL, ]
+genes2keep.combined_data <- genes2keep |>
+  dplyr::filter(.data$ENSEMBL %in% rownames(ref_dataset.list[[dataset]][["combined_data"]]))
+genes2keep <- genes2keep |>
+  dplyr::filter(!.data$SYMBOL %in% genes2keep.combined_data$SYMBOL)
 genes2keep <- genes2keep[!duplicated(genes2keep$SYMBOL), ]
 genes2keep <- rbind(genes2keep.combined_data, genes2keep)
 

@@ -294,6 +294,6 @@ immune_summary <- function(tbl_imarkers, tbl_igram = NULL, igram_param = TRUE) {
   if (igram_param) {
     res2 <- tbl_igram[["SYMBOL"]]
   }
-  res <- unique(res1, res2) |> stats::na.omit()
+  res <- base::unique(res1, res2) |> stats::na.omit()
   res
 }
