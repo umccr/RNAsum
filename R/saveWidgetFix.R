@@ -14,15 +14,11 @@
 #' @return Change work dir to compensate for saveWidget bug
 #' @export
 saveWidgetFix <- function(widget, file, selfcontained = TRUE, ...) {
-  assertthat::assert_that(
-    base::inherits(widget, "htmlwidget")
-  )
   file_dir <- base::dirname(file)
   mkdir(file_dir)
   file_bname <- base::basename(file)
   file_bname_noext <- tools::file_path_sans_ext(file_bname)
   dir2del <- file.path(file_dir, glue::glue("{file_bname_noext}_files"))
-  # assertthat::assert_that(dir.exists(dir2del))
   htmlwidgets::saveWidget(widget = widget, file = file, selfcontained = selfcontained, ...)
   base::unlink(dir2del, recursive = TRUE)
 }
