@@ -23,11 +23,11 @@ p <- list(
   umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),
   pcgr_tiers_tsv = system.file(
     "rawdata/test_data/umccrised/test_sample_WGS/small_variants",
-    "pcgr.snvs_indels.tiers.tsv",
+    "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
     package = "RNAsum"
   ),
   manta_tsv = system.file(
-    "rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv",
+    "rawdata/test_data/umccrised/test_sample_WGS/structural/TEST-prioritize-manta.tsv",
     package = "RNAsum"
   )
 )

@@ -96,8 +96,7 @@ library(AnnotationDbi)
 library(dplyr)
 library(ensembldb)
 library(glue)
-library(purrr)
-library(readr)
+library(rlang)
 library(RNAsum)
 ```
 
@@ -178,7 +177,7 @@ tx2ensembl <- edb |>
 
 # reference data
 ref_dataset_filepaths <- RNAsum::get_refdata(dataset)
-ref_dataset.list <- vector("list", length(dataset)) |> purrr::set_names(dataset)
+ref_dataset.list <- vector("list", length(dataset)) |> rlang::set_names(dataset)
 ref_genes.list <- RNAsum::get_refgenes(params)
 # sample WTS/WGS data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
@@ -201,7 +200,7 @@ RNAsum::arriba_summary_write(
 if (runSVsChunk) {
   manta <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
     dplyr::select(
-      dplyr::contains("tier"),
+      dplyr::contains("tier", ignore.case = TRUE),
       "Event", "Genes", "Effect", "Detail", "Start", "End", "AF_BPI", "CNC", "CN",
       "SR_alt", "PR_alt", "Ploidy", "Transcript"
     )
@@ -211,13 +210,12 @@ if (runSVsChunk) {
 ##### Read in reference datasets and merge them with sample data.
 # This part outputs a vector with first element containing the merged data and
 # second element containing merged targets info.
-ref_dataset.list[[dataset]] <- combineDatasets(
+ref_dataset.list[[dataset]] <- RNAsum::combineDatasets(
   sample_name = sample_name,
   sample_counts = sample_data.list[["salmon"]],
   ref_data = ref_dataset_filepaths,
   report_dir = results_dir
 )
-names(ref_dataset.list[[dataset]]) <- c("combined_data", "sample_annot")
 
 ##### Define internal, external and addition cancer group names based on the targets definition
 int_cancer_group <- ref_dataset_filepaths[["int_ref"]][["dataset"]]
@@ -295,54 +293,52 @@ if (length(sampleID.col) > 0) {
 
   ##### Prepare data frame structure for plotting
   ##### Define treatment types
-  treamtent.types <- make.names(c("NEOADJUVANT REGIMEN", "ADJUVANT REGIMEN", "FIRST LINE REGIMEN", "SECOND LINE REGIMEN", "THIRD LINE REGIMEN"))
-  treamtent.types_simple <- c("Neoadjuvant", "Adjuvant", "1st line", "2nd line", "3rd line")
-  treamtent.df <- data.frame(matrix(ncol = 4, nrow = 0))
-  colnames(treamtent.df) <- c("Treatment", "Type", "Start", "End")
+  treatment.types <- make.names(c("NEOADJUVANT REGIMEN", "ADJUVANT REGIMEN", "FIRST LINE REGIMEN", "SECOND LINE REGIMEN", "THIRD LINE REGIMEN"))
+  treatment.types_simple <- c("Neoadjuvant", "Adjuvant", "1st line", "2nd line", "3rd line")
+  treatment.df <- data.frame(matrix(ncol = 4, nrow = 0))
+  colnames(treatment.df) <- c("Treatment", "Type", "Start", "End")
 
-  for (i in 1:length(treamtent.types)) {
+  for (i in 1:length(treatment.types)) {
     ##### Identify treatment column number
-    treamtent.types.col <- grep(paste0("^", treamtent.types[i], "$"), names(clinical_info))
+    treatment.types.col <- grep(paste0("^", treatment.types[i], "$"), names(clinical_info))
 
     ##### Check how many treatments of particular type were used
-    treamtent.types.details <- unlist(strsplit(clinical_info[, treamtent.types.col], split = ",", fixed = TRUE))
+    treatment.types.details <- unlist(strsplit(clinical_info[, treatment.types.col], split = ",", fixed = TRUE))
 
     ##### Add start and end info for each treatment
-    if (any(!is.na(treamtent.types.details), na.rm = FALSE)) {
-      for (treatment in treamtent.types.details) {
-        treamtent.start <- clinical_info[, treamtent.types.col + 1]
-        treamtent.end <- clinical_info[, treamtent.types.col + 2]
+    if (any(!is.na(treatment.types.details), na.rm = FALSE)) {
+      for (treatment in treatment.types.details) {
+        treatment.start <- clinical_info[, treatment.types.col + 1]
+        treatment.end <- clinical_info[, treatment.types.col + 2]
 
         ##### Use current data if treatment is still ongoing
         today <- as.character(Sys.Date())
-        treamtent.end[is.na(treamtent.end)] <- today
-        treamtent.tmp <- data.frame(treatment, treatment, treamtent.types_simple[i], treamtent.start, treamtent.end)
-        treamtent.df <- rbind(treamtent.df, treamtent.tmp)
+        treatment.end[is.na(treatment.end)] <- today
+        treatment.tmp <- data.frame(treatment, treatment, treatment.types_simple[i], treatment.start, treatment.end)
+        treatment.df <- rbind(treatment.df, treatment.tmp)
       }
     }
   }
 
-  if (nrow(treamtent.df) > 0) {
+  if (nrow(treatment.df) > 0) {
     ##### For security reasons (wrt plots that go to PIEdb), change the dates but preserve the duration of the treatments
     ##### Get the earliest treatment date and set it as day 0. Then, create fake start and end dates based on the treatment length
-    day0 <- sort(treamtent.df$treamtent.start, decreasing = FALSE)[1]
-    treamtents.length <- treamtent.df$treamtent.end - treamtent.df$treamtent.start
-    treamtents.reset <- as.Date("2000-01-01") - day0
-    treamtent.df$treamtent.start <- treamtent.df$treamtent.start + treamtents.reset
-    treamtent.df$treamtent.end <- treamtent.df$treamtent.start + treamtents.length
-    names(treamtent.df) <- c("Treatment", "Drug", "Type", "Start", "End")
+    day0 <- sort(treatment.df$treatment.start, decreasing = FALSE)[1]
+    treatments.length <- treatment.df$treatment.end - treatment.df$treatment.start
+    treatments.reset <- as.Date("2000-01-01") - day0
+    treatment.df$treatment.start <- treatment.df$treatment.start + treatments.reset
+    treatment.df$treatment.end <- treatment.df$treatment.start + treatments.length
+    names(treatment.df) <- c("Treatment", "Drug", "Type", "Start", "End")
 
     ##### Create directory for timeline plot
-    PlotsDir <- paste(results_dir, "clinical_info", sep = "/")
-    if (!file.exists(PlotsDir)) {
-      dir.create(PlotsDir, recursive = TRUE)
-    }
+    PlotsDir_clininfo <- file.path(results_dir, "clinical_info")
+    RNAsum::mkdir(PlotsDir_clininfo)
 
     ##### Record the timeline plot. NOTE, the modified dates are used here
-    treatment_timeline <- lares::plot_timeline(event = treamtent.df$Treatment, start = treamtent.df$Start, end = treamtent.df$End, label = NA, group = treamtent.df$Type, title = "", subtitle = "", save = FALSE)
+    treatment_timeline <- lares::plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = FALSE)
 
     ##### Save the plot into png file. NOTE, the modified dates are used here. As default, the plot is saved as "cv_timeline"
-    lares::plot_timeline(event = treamtent.df$Treatment, start = treamtent.df$Start, end = treamtent.df$End, label = NA, group = treamtent.df$Type, title = "", subtitle = "", save = TRUE, subdir = "clinical_info")
+    lares::plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = TRUE, subdir = "clinical_info")
 
     #### Clear plots to free up some memory
     if (!is.null(dev.list())) invisible(dev.off())
@@ -350,8 +346,8 @@ if (length(sampleID.col) > 0) {
     cv_timeline.png <- readPNG("clinical_info/cv_timeline.png", native = FALSE, info = FALSE)
 
     ##### Change the size of the timeline png plot and save it as "treatment_timeline.png"
-    png::writePNG(cv_timeline.png, paste(PlotsDir, "treatment_timeline.png", sep = "/"), dpi = 300)
-    # png(paste(PlotsDir, "treatment_timeline.png", sep="/"), width = 900, height = 600, pointsize = 0.0001, res=300)
+    png::writePNG(cv_timeline.png, file.path(PlotsDir_clininfo, "treatment_timeline.png"), dpi = 300)
+    # png(paste(PlotsDir_clininfo, "treatment_timeline.png", sep="/"), width = 900, height = 600, pointsize = 0.0001, res=300)
     # plot(cv_timeline.png)
     # invisible(dev.off())
 
@@ -365,7 +361,7 @@ if (length(sampleID.col) > 0) {
   }
 
   ##### Clean the space
-  rm(list = ls(pattern = "^treamtent.*"))
+  rm(list = ls(pattern = "^treatment.*"))
   rm(clinical_info, cv_timeline.png)
 }
 ```
@@ -425,14 +421,12 @@ tmpg <- tmpg |>
     "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One",
     "Foundation One Heme", "Vogelstein", "Sanger CGC"
   )
-tmpg[tmpg == "No"] <- "-"
-tmpg[tmpg == ""] <- "-"
-ref_genes.list[["genes_cancer"]] <- tmpg |>
-  dplyr::select(-c("Gene"))
+tmpg[tmpg == "No" | tmpg == ""] <- "-"
+ref_genes.list[["genes_cancer"]] <- tmpg
+# dplyr::select(-c("Gene"))
 ref_genes.list[["genes_oncokb"]] <- tmpg |>
-  dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]]$Hugo_Symbol) |>
-  dplyr::select(-c("Gene"))
-##### Clean the space
+  dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]][["Hugo_Symbol"]])
+# dplyr::select(-c("Gene"))
 rm(tmpg)
 ```
 
@@ -440,142 +434,86 @@ rm(tmpg)
 ```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
 ##### Record all genes of interest to make sure that these are not filtered out during read counts data processing
 # PCGR annotation of mutated genes in given patient based on PCGR report, including only those with variants classified according to user-defined tier
+# Also include splice region variants if specified
 if (runPcgrChunk) {
-  ref_genes.list[["summary"]]$Mutated <- unique(sample_data.list$wgs[["pcgr_tiers_tsv"]][sample_data.list$wgs[["pcgr_tiers_tsv"]]$TIER %in% c(1:params$pcgr_tier), ]$SYMBOL)
-
-  ##### Include splice region variants
-  if (params$pcgr_splice_vars) {
-    ref_genes.list[["summary"]]$Mutated <- unique(c(ref_genes.list[["summary"]]$Mutated, sample_data.list$wgs[["pcgr_tiers_tsv"]][grepl("NONCODING.*splice region", paste0(sample_data.list$wgs[["pcgr_tiers_tsv"]]$TIER, ".", sample_data.list$wgs[["pcgr_tiers_tsv"]]$CONSEQUENCE), fixed = FALSE), ]$SYMBOL))
-  }
-
-  ##### Remove NAs
-  if (length(ref_genes.list[["summary"]]$Mutated) > 0) {
-    ref_genes.list[["summary"]]$Mutated <- ref_genes.list[["summary"]]$Mutated[!(is.na(ref_genes.list[["summary"]]$Mutated))]
-  } else {
-    ref_genes.list[["summary"]]$Mutated <- NULL
-  }
+  ref_genes.list[["summary"]]$Mutated <- RNAsum::genes_pcgr_summary(
+    pcgr_tbl = sample_data.list$wgs[["pcgr_tiers_tsv"]],
+    tiers = 1:params$pcgr_tier,
+    splice_vars = params$pcgr_splice_vars
+  )
 }
 
 # ARRIBA annotation of gene fusion events detected in given patient
 if (runFusionChunk) {
-  if (runArribaChunk) {
-    ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(sample_data.list[["arriba_tsv"]]$gene1), as.character(sample_data.list[["arriba_tsv"]]$gene2)))
-  } else {
-    ref_genes.list[["summary"]]$Fusion <- NULL
-  }
-
-  if (runDragenFusionChunk) {
-    ref_genes.list[["summary"]]$Fusion <- unique(c(ref_genes.list[["summary"]]$Fusion, as.character(sample_data.list[["dragen_fusions"]]$gene1), as.character(sample_data.list[["dragen_fusions"]]$gene2)))
-  }
-
-  ##### Remove NAs
-  if (length(ref_genes.list[["summary"]]$Fusion) > 0) {
-    ref_genes.list[["summary"]]$Fusion <- ref_genes.list[["summary"]]$Fusion[!(is.na(ref_genes.list[["summary"]]$Fusion))]
-  } else {
-    ref_genes.list[["summary"]]$Fusion <- NULL
-  }
+  ref_genes.list[["summary"]]$Fusion <- c(
+    RNAsum::fusions_summary(sample_data.list[["arriba_tsv"]]),
+    RNAsum::fusions_summary(sample_data.list[["dragen_fusions"]])
+  ) |>
+    unique() |>
+    stats::na.omit()
 }
 
 # MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
 if (runSVsChunk) {
-  ref_genes.list[["summary"]]$SV <- sample_data.list$wgs[["manta_tsv"]][["melted"]]
-  ref_genes.list[["summary"]]$SV <- ref_genes.list[["summary"]]$SV[ref_genes.list[["summary"]]$SV$Genes != "", ]$Genes
-  # ...and distinguish classified by MANTA as fusion genes
-
-  ##### Remove NAs
-  if (length(ref_genes.list[["summary"]]$SV) > 0) {
-    #ref_genes.list[["summary"]]$SV <- unique(unlist(strsplit(ref_genes.list[["summary"]]$SV, split = "&", fixed = TRUE)))
-    ref_genes.list[["summary"]]$SV <- unique(unlist(strsplit(ref_genes.list[["summary"]]$SV, split = ",", fixed = TRUE)))
-    ref_genes.list[["summary"]]$SV <- ref_genes.list[["summary"]]$SV[!(is.na(ref_genes.list[["summary"]]$SV))]
-  } else {
-    ref_genes.list[["summary"]]$SV <- NULL
-  }
+  ref_genes.list[["summary"]]$SV <- RNAsum::sv_manta_summary(sample_data.list$wgs[["manta_tsv"]][["melted"]])
 }
 
-# PURPLE annotation of copy-number (CN) altered genes in given patient based on PURPLE results, including only those with CN values meeting user-defined thresholds
+# PURPLE annotation of copy-number (CN) altered genes in given patient based on
+# PURPLE results, including only those with CN values meeting user-defined thresholds.
 if (runPurpleChunk) {
-  ref_genes.list[["summary"]]$CN <- sample_data.list$wgs[["purple_gene_tsv"]]
-  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ref_genes.list[["summary"]]$CN %!in% "", ]
-
-  ##### Get the CN mean
-  ref_genes.list[["summary"]]$CN$MeanCopyNumber <- rowMeans(cbind(ref_genes.list[["summary"]]$CN$MinCopyNumber, ref_genes.list[["summary"]]$CN$MaxCopyNumber))
-
-  ##### Deal with negative CN values
-  ref_genes.list[["summary"]]$CN$MeanCopyNumber[ref_genes.list[["summary"]]$CN$MeanCopyNumber < 0] <- 0
-
-  ##### Limit the data to include only cancer genes
-  ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[ref_genes.list[["summary"]]$CN$Gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
-
-  ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
-  if (params$cn_loss == 5 && params$cn_gain == 95) {
-    cn_data.all.percent <- quantile(ref_genes.list[["summary"]]$CN$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
-    cn_bottom <- round(cn_data.all.percent[2], digits = 2)
-    cn_top <- round(cn_data.all.percent[20], digits = 2)
-  } else {
-    cn_bottom <- params$cn_loss
-    cn_top <- params$cn_gain
-  }
-
-  ##### If the difference is 0 then increase/decrease threshold by 1
-  if (abs(cn_top - cn_bottom) == 0) {
-    cn_top <- cn_top + 1
-    cn_bottom <- cn_bottom - 1
-  }
-
-  ref_genes.list[["summary"]]$CN <- unique(ref_genes.list[["summary"]]$CN[ref_genes.list[["summary"]]$CN$MeanCopyNumber <= cn_bottom | ref_genes.list[["summary"]]$CN$MeanCopyNumber >= cn_top, ]$Gene)
-
-  ##### Remove NAs
-  if (length(ref_genes.list[["summary"]]$CN) > 0) {
-    ref_genes.list[["summary"]]$CN <- ref_genes.list[["summary"]]$CN[!(is.na(ref_genes.list[["summary"]]$CN))]
-  } else {
-    ref_genes.list[["summary"]]$CN <- NULL
-  }
+  purple_summary <- sample_data.list$wgs[["purple_gene_tsv"]] |>
+    RNAsum::purple_cnv_summary(
+      cancer_genes_symbol = ref_genes.list[["genes_cancer"]][["Gene"]],
+      cn_bottom = params$cn_loss,
+      cn_top = params$cn_gain
+    )
+  ref_genes.list[["summary"]]$CN <- purple_summary[["dat"]]
+  cn_bottom <- purple_summary[["cn_bottom"]]
+  cn_top <- purple_summary[["cn_top"]]
 }
 
 # Immune reponse markers
-ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$genes_immune_markers$SYMBOL)
-
-if (params$immunogram) {
-  ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["summary"]]$Immune, ref_genes.list[["genes_immune"]]$immunogram$SYMBOL))
-
-  ##### Remove NAs
-  ref_genes.list[["summary"]]$Immune <- ref_genes.list[["summary"]]$Immune[!(is.na(ref_genes.list[["summary"]]$Immune))]
-}
+ref_genes.list[["summary"]]$Immune <- RNAsum::immune_summary(
+  tbl_imarkers = ref_genes.list[["genes_immune"]][["genes_immune_markers"]],
+  tbl_igram = ref_genes.list[["genes_immune"]][["genes_immunogram"]],
+  igram_param = params$immunogram
+)
 
 # HRD (homologous recombination deficiency) genes
-ref_genes.list[["summary"]]$HRD <- unique(ref_genes.list[["genes_hrd"]]$SYMBOL)
-
-##### Remove NAs
-ref_genes.list[["summary"]]$HRD <- ref_genes.list[["summary"]]$HRD[!(is.na(ref_genes.list[["summary"]]$HRD))]
+ref_genes.list[["summary"]]$HRD <- ref_genes.list[["genes_hrd"]] |>
+  dplyr::pull("SYMBOL") |>
+  stats::na.omit()
 
 # Cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and from OncoKB portal (http://oncokb.org/#/cancerGenes)
-ref_genes.list[["summary"]]$Cancer <- rownames(ref_genes.list[["genes_cancer"]])
-
-##### Remove NAs
-ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["summary"]]$Cancer[!(is.na(ref_genes.list[["summary"]]$Cancer))]
+ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["genes_cancer"]] |>
+  dplyr::pull("Gene") |>
+  unique() |>
+  stats::na.omit()
 
 ##### Record all genes of interest
-genes2keep <- unique(unlist(ref_genes.list[["summary"]]))
+genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
 ```
 
 ```{r goi_annotation, comment = NA, message=FALSE, warning=FALSE}
 ##### Get gene symbols for the genes of interest. These genes will not be filtered out due to low/insufficient expression
 
 ##### Get genes genomic coordiantes
-gene_info <- ensembldb::select(edb, keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID")
-names(gene_info) <- gsub("GENEID", "ENSEMBL", names(gene_info))
-names(gene_info) <- gsub("GENENAME", "SYMBOL", names(gene_info))
+gene_info <- edb |>
+  ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
+  dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
 
-##### Limit genes annotation to the gene of interest
-genes2keep <- gene_info[gene_info$SYMBOL %in% genes2keep, ]
-
-##### Remove rows with duplicated ENSEMBL IDs
+##### Limit genes annotation to the gene of interest, then
+##### remove rows with duplicated ENSEMBL IDs
+genes2keep <- gene_info |>
+  dplyr::filter(.data$SYMBOL %in% genes2keep)
 genes2keep <- genes2keep[!duplicated(genes2keep$ENSEMBL), ]
 rownames(genes2keep) <- genes2keep$ENSEMBL
 
 ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc). Preferably select ENSEMBL ID that is used in the count data
-genes2keep.combined_data <- genes2keep[genes2keep$ENSEMBL %in% rownames(ref_dataset.list[[dataset]]$combined_data), ]
-genes2keep <- genes2keep[genes2keep$SYMBOL %!in% genes2keep.combined_data$SYMBOL, ]
+genes2keep.combined_data <- genes2keep |>
+  dplyr::filter(.data$ENSEMBL %in% rownames(ref_dataset.list[[dataset]][["combined_data"]]))
+genes2keep <- genes2keep |>
+  dplyr::filter(!.data$SYMBOL %in% genes2keep.combined_data$SYMBOL)
 genes2keep <- genes2keep[!duplicated(genes2keep$SYMBOL), ]
 genes2keep <- rbind(genes2keep.combined_data, genes2keep)
 
@@ -587,41 +525,51 @@ rm(edb, keys, gene_info)
 ```
 
 ```{r library_size_plot, message = FALSE, warning = FALSE, echo = TRUE, fig.width = 12, fig.height = 9}
-suppressMessages(library(plotly))
-##### Generate bar-plot for library size. The colours indicate sample groups, as provided in *Target* column in the sample annotation file
-
-data <- ref_dataset.list[[dataset]][["combined_data"]]
-target <- ref_dataset.list[[dataset]][["sample_annot"]]
-target$Target[target$Target == sample_name] <- "Patient"
+# Generate bar-plot for library size. The colours indicate sample groups,
+# as provided in *Target* column in the sample annotation file
+comb_data <- ref_dataset.list[[dataset]][["combined_data"]]
+target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+  dplyr::mutate(Target = dplyr::if_else(.data$Target == sample_name, "Patient", .data$Target))
 rownames(target)[rownames(target) == sample_name] <- "Patient"
 
-##### Change the datasets levels order
+# Change the datasets levels order
 target$Target <- factor(target$Target, levels = unique(target$Target))
 
-##### Assigne colours to targets and datasets
-targets.colour <- getColours(target$Target)
+# Assign colours to targets and datasets
+targets.colour <- RNAsum::getColours(target$Target)
 
-##### Prepare data frame
-data.df <- data.frame(rownames(target), as.numeric(colSums(data) * 1e-6), target$Target)
-colnames(data.df) <- c("Sample", "Library_size", "Target")
+# Prepare data frame
+data.df <- dplyr::tibble(
+  Sample = rownames(target),
+  Library_size = as.numeric(base::colSums(comb_data) * 1e-6),
+  Target = target[["Target"]]
+)
 
-##### The default order will be alphabetized unless specified as below
-data.df$Sample <- factor(data.df$Sample, levels = data.df[["Sample"]])
+# The default order will be alphabetized unless specified as below
+data.df[["Sample"]] <- factor(data.df[["Sample"]], levels = data.df[["Sample"]])
+max_libsize <- max(data.df[["Library_size"]])
+# TODO:
+# - Does this need to be interactive? Its size is fairly big (>3MB for test set)
+# - Does it need to be a barplot?
+# - Should the bars be sorted instead of mixed?
 
-library_size <- plot_ly(data.df, x = ~Sample, y = ~Library_size, color = ~Target, colors = targets.colour[[1]], type = "bar", width = 800, height = 400) %>%
-  layout(title = "", xaxis = list(tickfont = list(size = 10), title = "", showticklabels = FALSE), yaxis = list(title = "Library size (millions)"), margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4), autosize = F, showlegend = TRUE, legend = list(orientation = "h", y = max(data.df$Library_size), bgcolor = "white"))
+library_size <- data.df |>
+  plotly::plot_ly(
+    x = ~Sample, y = ~Library_size, color = ~Target,
+    colors = targets.colour[[1]], type = "bar",
+    width = 800, height = 400
+  ) |>
+  plotly::layout(
+    title = "",
+    xaxis = list(tickfont = list(size = 10), title = "", showticklabels = FALSE),
+    yaxis = list(title = "Library size (millions)"),
+    margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4),
+    autosize = FALSE, showlegend = TRUE,
+    legend = list(orientation = "h", y = max_libsize, bgcolor = "white")
+  )
 
-##### Create directory for input data plots
-PlotsDir <- paste(results_dir, "InputDataPlots", sep = "/")
-if (!file.exists(PlotsDir)) {
-  dir.create(PlotsDir, recursive = TRUE)
-}
-
-##### Save interactive plot as html file
-saveWidgetFix(library_size, file = paste(PlotsDir, "library_size.html", sep = "/"))
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
+PlotsDir <- file.path(results_dir, "InputDataPlots")
+RNAsum::saveWidgetFix(widget = library_size, file = file.path(PlotsDir, "library_size.html"))
 ```
 
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -808,7 +756,7 @@ if (params$filter) {
     layout(title = "", xaxis = list(title = paste0(params$transform, "s")), yaxis = list(title = "Counts"), showlegend = TRUE)
 
   ##### Save interactive plot as html file
-  saveWidgetFix(counts_vs_transformed, file = paste(PlotsDir, "counts_vs_transformed.html", sep = "/"))
+  RNAsum::saveWidgetFix(counts_vs_transformed, file = file.path(PlotsDir, "counts_vs_transformed.html"))
 
   ##### Detach plotly package. Otherwise it clashes with other graphics devices
   detach("package:plotly", unload = FALSE)
@@ -847,7 +795,7 @@ if (params$filter) {
   data_transformation_filtered <- recordPlot()
 
   ##### Save the plot as png file
-  png(paste0(PlotsDir, "/filtering.png"), width = 900, height = 400, pointsize = 14)
+  png(file.path(PlotsDir, "filtering.png"), width = 900, height = 400, pointsize = 14)
   par(mfrow = c(1, 2))
 
   ##### Before filtering
@@ -891,7 +839,7 @@ if (params$filter) {
   if (!is.null(dev.list())) invisible(dev.off())
 
   ##### Save the plot as png file
-  png(paste0(PlotsDir, "/filtering.png"), width = 900, height = 400, pointsize = 14)
+  png(file.path(PlotsDir, "filtering.png"), width = 900, height = 400, pointsize = 14)
   plot(density(y[["comb"]]$transformed[, 1]), lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]), ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "", col = targets.colour[[2]][1])
   title(main = "Transformed data (unfiltered)", xlab = params$transform)
   abline(v = 0, lty = 3)
@@ -989,7 +937,7 @@ legend("topright", legend = legend, fill = targets.colour[[1]], horiz = TRUE, bg
 data_normalised <- recordPlot()
 
 ##### Save the plot as png file
-png(paste0(PlotsDir, "/normalisation.png"), width = 900, height = 700, pointsize = 14)
+png(file.path(PlotsDir, "normalisation.png"), width = 900, height = 700, pointsize = 14)
 par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
 ##### Unnormalised data
@@ -1074,7 +1022,7 @@ for (dataset in names(ref_dataset.list)) {
 
 
     ##### Save the plot as png file
-    png(paste0(PlotsDir, "/rle.png"), width = 900, height = 700, pointsize = 14)
+    png(file.path(PlotsDir, "rle.png"), width = 900, height = 700, pointsize = 14)
     par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
     ##### Before batch-effects correction
@@ -1095,7 +1043,7 @@ for (dataset in names(ref_dataset.list)) {
     ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
 
     ##### Save the plot as png file
-    png(paste0(PlotsDir, "/rle.png"), width = 900, height = 450, pointsize = 14)
+    png(file.path(PlotsDir, "rle.png"), width = 900, height = 450, pointsize = 14)
 
     plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
     title(main = "", ylab = "RLE")
@@ -2559,8 +2507,8 @@ if (runFusionChunk) {
       fusions.table <- fusions.table[, names(fusions.table) %!in% "FGID"]
       fusions.table <- fusions.table[, c("geneA", "geneB", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB", "score", "breakpointA", "breakpointB", "circos")]
       names(fusions.table) <- c("Gene A", "Gene B", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)", "Fusion gene (B)", "Score", "Breakpoint (A)", "Breakpoint (B)", "Genomic view")
-      }
-}
+    }
+  }
 
   ##### Present gene fusion events in a table
   fusions.summary <- DT::datatable(data = fusions.table, filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"), options = list(pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"), scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE), width = 800, height = 490, caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"), escape = FALSE) %>%
@@ -2729,7 +2677,7 @@ if (nrow(fusion_annot_top) > 0) {
     } else {
       fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer")]
     }
-}
+  }
 
   ##### Order fusions based on the genomic location (chrom and start positions)
   chrOrder <- c((1:22), "X", "Y", "M")
@@ -2752,7 +2700,7 @@ if (nrow(fusion_annot_top) > 0) {
     } else {
       names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
     }
-}
+  }
 
   fusions.genomicView <- DT::datatable(data = fusion_annot_top.clean, filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"), options = list(pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318, escape = FALSE) %>%
     DT::formatStyle(columns = names(fusion_annot_top.clean), `font-size` = "12px", "text-align" = "center") %>%

@@ -76,7 +76,7 @@ get_refgenes <- function(p) {
     .read(backup = genes_cancer, .default = "l", driver = "d", n = "i", symbol = "c", sources = "c")
   genes_oncokb <- p[["genes_oncokb"]] |>
     .read(backup = genes_oncokb, .default = "c", "# of occurence within resources" = "i") |>
-    dplyr::rename(Hugo_Symbol = `Hugo Symbol`)
+    dplyr::rename(Hugo_Symbol = "Hugo Symbol")
   genes_hrd <- p[["genes_hrd"]] |>
     .read(backup = genes_hrd, SYMBOL = "c")
   genes_immune_markers <- p[["genes_immune_markers"]] |>
