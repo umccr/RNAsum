@@ -23,7 +23,7 @@ arriba_tsv_read <- function(x = NULL) {
         coverage1 = "d", coverage2 = "d"
       )
     ) |>
-    dplyr::rename(gene1 = .data$`#gene1`)
+    dplyr::rename(gene1 = "#gene1")
 }
 
 #' Read Arriba PDF File

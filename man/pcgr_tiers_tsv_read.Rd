@@ -18,7 +18,7 @@ Reads the \code{snvs_indels.tiers.tsv} file output by PCGR.
 \examples{
 x <- system.file(
   "rawdata/test_data/umccrised/test_sample_WGS/small_variants",
-  "pcgr.snvs_indels.tiers.tsv",
+  "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
   package = "RNAsum"
 )
 (ptsv <- pcgr_tiers_tsv_read(x))
