@@ -22,11 +22,10 @@
 #' @param ext_links External links.
 #' @param type Type.
 #' @param scaling Scaling
-#' @param caner_genes_annot.list The caner_genes_annot.list from the report.
 #' @importFrom magrittr %>%
 #' @return Table with coloured cells indicating expression values for selected genes
 #' @export
-exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, genes_annot = NULL, oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise", caner_genes_annot.list) {
+exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = NULL, cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, genes_annot = NULL, oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL, fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
 
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[ genes %!in% rownames(data) ]
@@ -238,8 +237,8 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
       }
 
       ##### Provide link to CIViC database druggable genes ( https://civicdb.org )
-      if ( gene %in% caner_genes_annot.list[["civic_clin_evid"]]$gene ) {
-        group.z$ext_links[ group.z$Gene==gene ] <- paste( group.z$ext_links[ group.z$Gene==gene ] , paste0("<a href='", unique(caner_genes_annot.list[["civic_clin_evid"]][ caner_genes_annot.list[["civic_clin_evid"]]$gene == gene , "gene_civic_url"]), "' target='_blank'>CIViC</a>"), sep = ", ")
+      if ( gene %in% ref_genes.list$civic_clin_evid$gene ) {
+        group.z$ext_links[ group.z$Gene==gene ] <- paste( group.z$ext_links[ group.z$Gene==gene ] , paste0("<a href='", unique(ref_genes.list[["civic_clin_evid"]][ ref_genes.list[["civic_clin_evid"]]$gene == gene , "gene_civic_url"]), "' target='_blank'>CIViC</a>"), sep = ", ")
       }
     }
 

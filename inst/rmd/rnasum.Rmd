@@ -97,6 +97,7 @@ library(dplyr)
 library(ensembldb)
 library(glue)
 library(rlang)
+library(EDASeq)
 library(RNAsum)
 ```
 
@@ -1066,6 +1067,12 @@ for (dataset in names(ref_dataset.list)) {
   data <- ref_dataset.list[[dataset]][["combined_data"]]
   data.df <- as.data.frame(cbind(rownames(data), data))
   colnames(data.df)[1] <- "ENSEMBL"
+  
+  ##### Get genes annotation and genomic locations
+  edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", ensembl_version)))
+  
+  ##### Get keytypes for gene SYMBOL
+  keys <- keys(edb, keytype="GENEID")
 
   ##### Get genes genomic coordiantes
   gene_info <- ensembldb::select(edb, keys = keys, columns = c("GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME", "GENESEQSTART", "GENESEQEND"), keytype = "GENEID")
@@ -1083,18 +1090,18 @@ for (dataset in names(ref_dataset.list)) {
   gene_info <- gene_info[!duplicated(gene_info$SYMBOL), ]
 
   ##### Add info about immune response markers
-  gene_info.immune_markers <- merge(gene_info, ref_genes.list[["genes_immune"]]$immune_markers, by = "SYMBOL", all.x = TRUE)
+  gene_info.immune_markers <- merge(gene_info, ref_genes.list[["genes_immune"]]$genes_immune_markers, by = "SYMBOL", all.x = TRUE)
 
   ##### Keep only immune response markers for which there is available annotation
-  ref_genes.list[["genes_immune"]]$immune_markers <- ref_genes.list[["genes_immune"]]$immune_markers[ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% gene_info.immune_markers$SYMBOL, ]
+  ref_genes.list[["genes_immune"]]$immune_markers <- ref_genes.list[["genes_immune"]]$genes_immune_markers[ref_genes.list[["genes_immune"]]$genes_immune_markers$SYMBOL %in% gene_info.immune_markers$SYMBOL, ]
 
   ##### Add info about immunogram genes
   if (params$immunogram) {
-    gene_info.immunogram <- merge(gene_info, ref_genes.list[["genes_immune"]]$immunogram, by = "SYMBOL", all.x = TRUE)
+    gene_info.immunogram <- merge(gene_info, ref_genes.list[["genes_immune"]]$genes_immunogram, by = "SYMBOL", all.x = TRUE)
     gene_info.immunogram <- gene_info.immunogram[!duplicated(gene_info.immunogram[, "ENSEMBL"]), ]
 
     ##### Keep only immunogram genes for which there is available annotation
-    ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$immunogram[ref_genes.list[["genes_immune"]]$immunogram$SYMBOL %in% gene_info.immunogram$SYMBOL, ]
+    ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$genes_immunogram[ref_genes.list[["genes_immune"]]$genes_immunogram$SYMBOL %in% gene_info.immunogram$SYMBOL, ]
 
     ##### Merge genes annotations for immunogram genes and immune markers
     gene_info <- merge(gene_info.immunogram, gene_info.immune_markers[, c("ENSEMBL", "Immune_Cycle_Role")], by = "ENSEMBL")
@@ -1161,10 +1168,10 @@ data <- ref_dataset.list[[dataset]][["data_to_report"]]
 ##### Percentiles
 # Define Z-transformation direction
 scaling <- dplyr::if_else(tolower(params$scaling) == "gene-wise", "gene_wise", "group-wise")
-genes.expr.perc <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+genes.expr.perc <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
 
 ##### Z-scores
-genes.expr.z <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+genes.expr.z <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
 
 ##### Create directory for saving tables
 exprTableDir <- paste(results_dir, "exprTables", sep = "/")
