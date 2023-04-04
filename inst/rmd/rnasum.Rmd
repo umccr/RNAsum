@@ -1321,7 +1321,8 @@ if (!is.null(sample_data.list$wgs$pcgr_tiers_tsv)) {
 ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
 
 ##### Limit the data to include only cancer genes - not seeing how this will work as ref_genes.list[["genes_cancer"]] has numerical rownames
-cn_data.sub <- cn_data.sub[cn_data.sub$gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
+#cn_data.sub <- cn_data.sub[cn_data.sub$gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
+cn_data.sub <- cn_data.sub[cn_data.sub$gene %in% ref_genes.list[["summary"]]$Cancer]
 
 ##### Keep genes meeting the user-defined CN values thresholds
 ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[cn_data.sub$CN <= cn_bottom | cn_data.sub$CN >= cn_top, ]
@@ -1367,13 +1368,13 @@ rm(cn_data.all)
 
 ```{r known_fusions_prep, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Flag known fusions based on info from Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
-known_translocations.CGI <- cancer_genes_annot.list[["cancer_biomarkers_trans"]]
+known_translocations.CGI <- ref_genes.list[["cancer_biomarkers_trans"]]
 known_translocations.CGI$cancer_acronym <- gsub(";", ", ", known_translocations.CGI$cancer_acronym)
 known_translocations.CGI$source <- gsub(";", ", ", known_translocations.CGI$source)
 known_translocations.CGI$translocation <- gsub("__", "_", known_translocations.CGI$translocation)
 
 ##### Flag known fusions based on info from FusionGDB (https://ccsm.uth.edu/FusionGDB)
-known_translocations.FusionGDB <- cancer_genes_annot.list[["FusionGDB"]]
+known_translocations.FusionGDB <- ref_genes.list[["FusionGDB"]]
 
 ##### Merge info from both resources
 known_translocations <- merge(known_translocations.FusionGDB, known_translocations.CGI, by.x = "FGname", by.y = "translocation", all = TRUE, sort = FALSE)
@@ -1389,12 +1390,11 @@ trans.pairs <- apply(trans.pairs, 1, paste, collapse = "-")
 
 ```{r arriba_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
 ##### Read in the arriba fusion calls
-arriba.fusions <- ref_genes.list[["arriba"]]
-colnames(arriba.fusions) <- gsub("X.gene1", "geneA", colnames(arriba.fusions))
+arriba.fusions <- sample_data.list[["arriba_tsv"]]
 colnames(arriba.fusions) <- gsub("1", "A", colnames(arriba.fusions))
 colnames(arriba.fusions) <- gsub("2", "B", colnames(arriba.fusions))
 
-#####  Note the fusions order, which will be later required for imbedding Arriba plots from corresponding pdf booklet pages
+#####  Note the fusions order, which will be later required for embedding Arriba plots from corresponding pdf booklet pages
 arriba.fusions.order <- paste(arriba.fusions$geneA, arriba.fusions$geneB, sep = "__")
 
 ##### Extract only those fusion genes that are in cancer genes list
@@ -1463,7 +1463,7 @@ for (i in 1:nrow(fusions)) {
     ##### Flag if any of the genes are effector gene
     if (geneA %in% known_translocations$effector_gene) {
       fusions$effector_gene[i] <- geneA
-    } else if (geneB == known_translocations$effector_gene) {
+    } else if (geneB %in% known_translocations$effector_gene) {
       fusions$effector_gene[i] <- geneB
     }
   }
