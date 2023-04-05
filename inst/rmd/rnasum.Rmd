@@ -1322,7 +1322,7 @@ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
 
 ##### Limit the data to include only cancer genes - not seeing how this will work as ref_genes.list[["genes_cancer"]] has numerical rownames
 #cn_data.sub <- cn_data.sub[cn_data.sub$gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
-cn_data.sub <- cn_data.sub[cn_data.sub$gene %in% ref_genes.list[["summary"]]$Cancer]
+cn_data.sub <- cn_data.sub[cn_data.sub$Gene %in% ref_genes.list[["summary"]]$Cancer,]
 
 ##### Keep genes meeting the user-defined CN values thresholds
 ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[cn_data.sub$CN <= cn_bottom | cn_data.sub$CN >= cn_top, ]
@@ -1463,7 +1463,8 @@ for (i in 1:nrow(fusions)) {
     ##### Flag if any of the genes are effector gene
     if (geneA %in% known_translocations$effector_gene) {
       fusions$effector_gene[i] <- geneA
-    } else if (geneB %in% known_translocations$effector_gene) {
+    } # TO_DO how is this working in master
+    else if (geneB %in% known_translocations$effector_gene) {
       fusions$effector_gene[i] <- geneB
     }
   }
@@ -1501,7 +1502,7 @@ rm(arriba.fusions, arriba.fusion.transcripts, arriba.cancer_genes, arriba.other_
 
 ```{r dragen_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
 ##### Read in the arriba fusion calls
-dragen.fusions <- ref_genes.list[["dragenFusion"]]
+dragen.fusions <- sample_data.list[["dragen_fusions"]]
 colnames(dragen.fusions) <- gsub("gene1", "geneA", colnames(dragen.fusions))
 colnames(dragen.fusions) <- gsub("1", "A", colnames(dragen.fusions))
 colnames(dragen.fusions) <- gsub("2", "B", colnames(dragen.fusions))
@@ -1509,10 +1510,10 @@ colnames(dragen.fusions) <- gsub("2", "B", colnames(dragen.fusions))
 ##### Extract only those fusion genes that are in cancer genes list
 dragen.cancer_genes <- data.frame()
 
-##### Check if there are any fusions detected at all
+##### Check if there are any fusions detected at all in dragen fusion output
 if (nrow(dragen.fusions) > 0) {
   for (row in 1:nrow(dragen.fusions)) {
-    if (dragen.fusions[row, "geneA"] %in% rownames(ref_genes.list[["genes_cancer"]]) | dragen.fusions[row, "geneB"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
+    if (dragen.fusions[row, "geneA"] %in% ref_genes.list[["summary"]]$Cancer | dragen.fusions[row, "geneB"] %in% ref_genes.list[["summary"]]$Cancer) {
       ##### Creating a new dataframe for extracting dragen rows with cancer gene hits
       dragen.cancer_genes <- rbind(dragen.cancer_genes, data.frame(dragen.fusions[row, ]))
     }
@@ -1574,7 +1575,7 @@ if (nrow(dragen.fusions) > 0) {
       ##### Flag if any of the genes are effector gene
       if (geneA %in% known_translocations$effector_gene) {
         dragen.fusions$effector_gene[i] <- geneA
-      } else if (geneB == known_translocations$effector_gene) {
+      } else if (geneB %in% known_translocations$effector_gene) {
         dragen.fusions$effector_gene[i] <- geneB
       }
     }
@@ -1606,7 +1607,9 @@ if (nrow(dragen.fusions) > 0) {
       ##### Add column with Dragen fusions
       dragen.fusions$fusion <- paste(dragen.fusions$geneA, dragen.fusions$geneB, sep = "__")
       fusions$Dragen <- c(rep("-", nrow(fusions)))
-      fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
+      #below is erroring out with non-numeric argument to binary operator error
+      #fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
+      fusions$split_reads <- as.numeric(fusions$split_readsA) + as.numeric(fusions$split_readsB)
       fusions$soft_clipped_reads <- c(rep("-", nrow(fusions)))
       fusions$score <- c(rep("-", nrow(fusions)))
 
@@ -1648,7 +1651,7 @@ if (nrow(dragen.fusions) > 0) {
       }
     }
 
-    ##### Otherwise keep only columns with info from Dragen
+    ##### No arriba results keep only columns with info from Dragen
   } else {
     fusions <- dragen.fusions
 
