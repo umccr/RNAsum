@@ -92,28 +92,35 @@ ucsc_genome_assembly <- 38L
 ensembl_version <- 86L
 ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
 bsgen_pkg <- paste0("BSgenome.Hsapiens.UCSC.hg", ucsc_genome_assembly)
-library(conflicted) # checks for pkg function conflicts
-library(package = ensdb_pkg, character.only = TRUE, include.only = ensdb_pkg)
-library(package = bsgen_pkg, character.only = TRUE, include.only = bsgen_pkg)
-library(AnnotationDbi, include.only = c("keys"))
-library(ensembldb, include.only = c("select")) # be explicit with ensembldb::select
-library(edgeR, include.only = c("DGEList", "cpm", "rpkm", "calcNormFactors"))
-library(png, include.only = c("readPNG", "writePNG"))
-dplyr_funcs <- c(
-  "mutate", "filter", "select", "arrange", "distinct", "left_join", "n",
-  "if_else", "rename", "contains", "bind_rows", "pull", "relocate", "row_number",
-  "slice"
-)
-# probably should load all dplyr instead of individual functions
-library(dplyr, include.only = dplyr_funcs)
-library(tibble, include.only = c("tibble", "add_row"))
-library(glue, include.only = c("glue"))
-library(rlang, include.only = c("set_names"))
-library(lares, include.only = c("plot_timeline"))
-library(fs, include.only = c("dir_create"))
-library(plotly, include.only = c("plot_ly", "layout", "add_trace"))
-library(EDASeq, include.only = c("plotRLE"))
-library(RNAsum) # use :: explicitly for all RNAsum pkg funcs
+# start with more exotic pkgs, then get to core ones
+{
+  library(conflicted) # checks for pkg function conflicts
+  library(ensdb_pkg, character.only = TRUE, include.only = ensdb_pkg)
+  library(bsgen_pkg, character.only = TRUE, include.only = bsgen_pkg)
+  library(AnnotationDbi, include.only = c("keys"))
+  library(AnnotationFilter, include.only = c("GeneIdFilter"))
+  library(EDASeq, include.only = c("plotRLE"))
+  library(edgeR, include.only = c("DGEList", "cpm", "rpkm", "calcNormFactors"))
+  library(ensembldb, include.only = c("select", "lengthOf"))
+  library(preprocessCore, include.only = c("normalize.quantiles"))
+  library(plotly, include.only = c("plot_ly", "layout", "add_trace"))
+  library(png, include.only = c("readPNG", "writePNG"))
+  library(rlang, include.only = c("set_names"))
+  library(lares, include.only = c("plot_timeline"))
+  library(fs, include.only = c("dir_create", "dir_delete"))
+  library(tibble, include.only = c("tibble", "add_row"))
+  library(glue, include.only = c("glue"))
+  library(dplyr) # keep dplyr last
+  library(RNAsum) # use :: explicitly for all RNAsum pkg funcs
+  library(limma, include.only = c("removeBatchEffect"))
+  # library(rapportools)
+  # library(rhdf5)
+  # library(DT)
+  # library(matrixStats)
+  # library(RCircos)
+  # library(ggplot2)
+  # library(ggforce)
+}
 ```
 
 ```{r prep, echo = FALSE}
@@ -139,43 +146,12 @@ knitr::opts_chunk$set(timeit = TRUE)
 knitr::knit_hooks$set(plot = allow_thumbnails)
 ```
 
-```{r load_libraries, warning=FALSE}
-# Load libraries
-# suppressMessages(library(edgeR))
-# suppressMessages(library(limma))
-# suppressMessages(library(EDASeq))
-# suppressMessages(library(preprocessCore))
-# suppressMessages(library(rapportools))
-# suppressMessages(library(tximport))
-# suppressMessages(library(rhdf5))
-# suppressMessages(library(openxlsx))
-# suppressMessages(library(readr))
-# suppressMessages(library(tidyverse))
-# suppressMessages(library(dplyr))
-# suppressMessages(library(tidyr))
-# suppressMessages(library(rlang))
-# suppressMessages(library(DT))
-# suppressMessages(library(matrixStats))
-# suppressMessages(library(tibble))
-# suppressMessages(library(knitr))
-# suppressMessages(library(scales))
-# suppressMessages(library(RCircos))
-# suppressMessages(library(ggplot2))
-# suppressMessages(library(ggforce))
-# suppressMessages(library(pdftools))
-# suppressMessages(library(png))
-# suppressMessages(library(htmltools))
-# suppressMessages(library(htmlwidgets))
-# suppressMessages(library(devtools))
-# suppressMessages(library(lares))
-```
-
 ```{r load_refdata, comment = NA, message=FALSE, warning=FALSE}
 dataset <- toupper(params$dataset)
 dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
 ##### Grab umccrise SBJ for MySQL insert command.
 ##### Will overwrite argument passed to "--clinical_id" flag
-# TODO: revisit subjectID
+# TODO (PD): revisit subjectID
 subjectID <- params$subject_id %||% ""
 subjectID <- ifelse(is.null(params$umccrise), subjectID, basename(params$umccrise))
 sample_name <- paste0(
@@ -183,11 +159,11 @@ sample_name <- paste0(
   if_else(dataset_name_incl == "", "", paste0("_", dataset))
 )
 results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
-dir_create(results_dir)
+fs::dir_create(results_dir)
 # Annotate transcripts with gene IDs
 # These could probably go into refdata
 edb <- eval(parse(text = ensdb_pkg))
-keys <- keys(edb, keytype = "GENEID")
+keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
 tx2ensembl <- edb |>
   ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
   rename(tx_name = "TXID", gene_id = "GENEID")
@@ -388,12 +364,8 @@ if (length(sampleID.col) > 0) {
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
 tmpg <- ref_genes.list[["genes_oncokb"]] |>
-  mutate(
-    UMCCR = "No", Oncogene = "-", TSG = "-", Fusion = "-", Germline = "-"
-  ) |>
-  rename(
-    occurrence_num = "# of occurence within resources"
-  )
+  mutate(UMCCR = "No", Oncogene = "-", TSG = "-", Fusion = "-", Germline = "-") |>
+  rename(occurrence_num = "# of occurence within resources")
 ##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
 ref_genes.list[["genes_cancer"]] <- ref_genes.list[["genes_cancer"]] |>
   mutate(
@@ -530,8 +502,9 @@ genes2keep <- genes2keep[!duplicated(genes2keep$ENSEMBL), ]
 rownames(genes2keep) <- genes2keep$ENSEMBL
 
 ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc). Preferably select ENSEMBL ID that is used in the count data
+comb_data <- ref_dataset.list[[dataset]][["combined_data"]]
 genes2keep.combined_data <- genes2keep |>
-  dplyr::filter(.data$ENSEMBL %in% rownames(ref_dataset.list[[dataset]][["combined_data"]]))
+  dplyr::filter(.data$ENSEMBL %in% rownames(comb_data))
 genes2keep <- genes2keep |>
   dplyr::filter(!.data$SYMBOL %in% genes2keep.combined_data$SYMBOL)
 genes2keep <- genes2keep[!duplicated(genes2keep$SYMBOL), ]
@@ -541,14 +514,12 @@ genes2keep <- rbind(genes2keep.combined_data, genes2keep)
 genes2keep$EXP <- TRUE
 
 ##### Clean the space
-## edb is actually used downstream (in if-else which probably doesn't get hit), so keep for now
-# rm(edb, keys, gene_info)
+rm(gene_info)
 ```
 
 ```{r library_size_plot, message = FALSE, warning = FALSE, echo = TRUE, fig.width = 12, fig.height = 9}
 # Generate bar-plot for library size. The colours indicate sample groups,
 # as provided in *Target* column in the sample annotation file
-comb_data <- ref_dataset.list[[dataset]][["combined_data"]]
 target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
   mutate(Target = if_else(.data$Target == sample_name, "Patient", .data$Target))
 rownames(target)[rownames(target) == sample_name] <- "Patient"
@@ -575,7 +546,7 @@ max_libsize <- max(data.df[["Library_size"]])
 # - Should the bars be sorted instead of mixed?
 
 library_size <- data.df |>
-  plot_ly(
+  plotly::plot_ly(
     x = ~Sample, y = ~Library_size, color = ~Target,
     colors = targets.colour[[1]], type = "bar",
     width = 800, height = 400
@@ -607,37 +578,35 @@ target_mod <- ref_dataset.list[[dataset]][["sample_annot"]] |>
   )
 targets_mod.list <- unique(target_mod$Dataset)
 
-##### Create lists with processed data each group
-y <- vector("list", length(targets_mod.list))
-names(y) <- targets_mod.list
-
 ##### Keep info about samples with the lowest and greatest counts for defined CPM threshold
 # numerical summary given a max/min function
-summarise_comb_data <- function(f) {
+summarise_comb_data <- function(f, comb_data) {
   stopifnot(is.function(f))
-  sums_vec <- colSums(ref_dataset.list[[dataset]][["combined_data"]])
+  sums_vec <- colSums(comb_data)
   res <- as.numeric(sums_vec * 1e-6) |>
     f() |>
     round(digits = 0)
   res
 }
-cpm.min <- summarise_comb_data(min)
-cpm.max <- summarise_comb_data(max)
+cpm.min <- summarise_comb_data(min, comb_data)
+cpm.max <- summarise_comb_data(max, comb_data)
+##### Create lists with processed data each group
+y <- vector("list", length(targets_mod.list)) |> set_names(targets_mod.list)
 
 #### For each group...
 for (group in targets_mod.list) {
-  target <- target_mod[target_mod$Dataset == group, ]
-  data <- ref_dataset.list[[dataset]][["combined_data"]]
-  data <- data[, target_mod$Dataset == group]
+  target <- target_mod |> dplyr::filter(.data$Dataset == group)
+  dat1 <- comb_data
+  dat1 <- dat1[, target_mod$Dataset == group]
 
   ##### CPM transformation and filtering
   if (params$filter && params$transform == "CPM") {
     ##### Create EdgeR DGEList object
-    y[[group]] <- DGEList(counts = data, group = target$Dataset)
+    y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
 
     ##### Keep genes with CPM of at least 1 in more than 10% of samples
     filter.threshold <- 1
-    keep <- rowSums(cpm(y[[group]]) > filter.threshold) >= ncol(data) / 10
+    keep <- rowSums(edgeR::cpm(y[[group]]) > filter.threshold) >= ncol(dat1) / 10
 
     ##### Note which genes of interest are not expressed
     genes2keep$EXP[rownames(genes2keep) %!in% names(keep)] <- FALSE
@@ -647,36 +616,45 @@ for (group in targets_mod.list) {
     y[[group]]$filtered <- y[[group]][keep, , keep.lib.sizes = FALSE]
 
     ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-    y[[group]]$transformed <- cpm(y[[group]], normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25)
-    y[[group]]$filtered.transformed <- cpm(y[[group]]$filtered, normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25)
+    y[[group]]$transformed <- edgeR::cpm(
+      y[[group]],
+      normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25
+    )
+    y[[group]]$filtered.transformed <- edgeR::cpm(
+      y[[group]]$filtered,
+      normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25
+    )
 
     ##### CPM transformation without filtering
   } else if (!params$filter && params$transform == "CPM") {
     ##### Create EdgeR DGEList object
-    y[[group]] <- DGEList(counts = data, group = target$Dataset)
+    y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
 
     ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-    y[[group]]$transformed <- cpm(y[[group]], normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25)
+    y[[group]]$transformed <- edgeR::cpm(
+      y[[group]],
+      normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25
+    )
 
     ##### TPM data transformation. We can convert RPKM to TPM in two different ways: from pre-calculated RPKM, by diving by the sum of RPKM values, or directly from the normalized counts. Here we calculate TPM starting from RPKM values computed using edgeR's rpkm function ( from http://luisvalesilva.com/datasimple/rna-seq_units.html )
     ##### TPM transformation with filtering
   } else if (params$filter && params$transform == "TPM") {
     ##### Get genes lengths
-    gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
+    gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
 
     ##### Check for which genes the lenght info is not available and remove them from the data
-    genes.no_length <- rownames(data)[rownames(data) %!in% names(gene.length)]
-    data <- data[rownames(data) %!in% genes.no_length, ]
+    genes.no_length <- rownames(dat1)[rownames(dat1) %!in% names(gene.length)]
+    dat1 <- dat1[rownames(dat1) %!in% genes.no_length, ]
 
     ##### Create EdgeR DGEList object
-    y[[group]] <- DGEList(counts = data, group = target$Dataset)
+    y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
 
     ##### Convert data into RPKM
-    y[[group]]$transformed <- rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes = FALSE, log = FALSE)
+    y[[group]]$transformed <- edgeR::rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes = FALSE, log = FALSE)
 
     ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
     if (params$log) {
-      y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed + 0.25))
+      y[[group]]$transformed <- log2(RNAsum::tpm_from_rpkm(y[[group]]$transformed + 0.25))
 
       ##### Keep genes with TPM of at least 1 in more than 10% of samples
       filter.threshold <- 1 + 0.25
@@ -690,7 +668,7 @@ for (group in targets_mod.list) {
       y[[group]]$filtered <- y[[group]]$counts[keep, ]
       y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
     } else {
-      y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
+      y[[group]]$transformed <- RNAsum::tpm_from_rpkm(y[[group]]$transformed)
 
       ##### Keep genes with TPM of at least 1 in more than 10% of samples
       filter.threshold <- 1
@@ -708,45 +686,60 @@ for (group in targets_mod.list) {
     ##### TPM transformation without filtering
   } else if (!params$filter && params$transform == "TPM") {
     ##### Get genes lengths
-    gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
+    gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
 
     ##### Check for which genes the lenght info is not available and remove them from the data
-    genes.no_length <- rownames(data)[rownames(data) %!in% names(gene.length)]
-    data <- data[rownames(data) %!in% genes.no_length, ]
+    genes.no_length <- rownames(dat1)[rownames(dat1) %!in% names(gene.length)]
+    dat1 <- dat1[rownames(dat1) %!in% genes.no_length, ]
 
     ##### Create EdgeR DGEList object
-    y[[group]] <- DGEList(counts = data, group = target$Dataset)
+    y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
 
     ##### Convert data into RPKM
-    y[[group]]$transformed <- rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes = FALSE, log = FALSE)
+    y[[group]]$transformed <- edgeR::rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes = FALSE, log = FALSE)
 
     ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
     if (params$log) {
-      y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed + 0.25))
+      y[[group]]$transformed <- log2(RNAsum::tpm_from_rpkm(y[[group]]$transformed + 0.25))
     } else {
-      y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
+      y[[group]]$transformed <- RNAsum::tpm_from_rpkm(y[[group]]$transformed)
     }
   }
 }
 
 ##### Now combine DGEList objects created for each group
-y[["comb"]]$transformed <- cbind(y[[targets_mod.list[1]]]$transformed, y[[targets_mod.list[2]]]$transformed)
-y[["comb"]]$samples <- rbind(y[[targets_mod.list[1]]]$samples, y[[targets_mod.list[2]]]$samples)
+y[["comb"]]$transformed <- cbind(
+  y[[targets_mod.list[1]]]$transformed,
+  y[[targets_mod.list[2]]]$transformed
+)
+y[["comb"]]$samples <- rbind(
+  y[[targets_mod.list[1]]]$samples,
+  y[[targets_mod.list[2]]]$samples
+)
 
 if (params$filter) {
   ##### Keep only genes present in all sets
-  genes_mod <- intersect(rownames(y[[targets_mod.list[1]]]$filtered), rownames(y[[targets_mod.list[2]]]$filtered))
+  genes_mod <- intersect(
+    rownames(y[[targets_mod.list[1]]]$filtered),
+    rownames(y[[targets_mod.list[2]]]$filtered)
+  )
   y[[targets_mod.list[1]]]$filtered <- y[[targets_mod.list[1]]]$filtered[rownames(y[[targets_mod.list[1]]]$filtered) %in% genes_mod, ]
   y[[targets_mod.list[2]]]$filtered <- y[[targets_mod.list[2]]]$filtered[rownames(y[[targets_mod.list[2]]]$filtered) %in% genes_mod, ]
   y[[targets_mod.list[1]]]$filtered.transformed <- y[[targets_mod.list[1]]]$filtered.transformed[rownames(y[[targets_mod.list[1]]]$filtered.transformed) %in% genes_mod, ]
   y[[targets_mod.list[2]]]$filtered.transformed <- y[[targets_mod.list[2]]]$filtered.transformed[rownames(y[[targets_mod.list[2]]]$filtered.transformed) %in% genes_mod, ]
 
-  y[["comb"]]$filtered <- cbind(y[[targets_mod.list[1]]]$filtered, y[[targets_mod.list[2]]]$filtered)
-  y[["comb"]]$filtered.transformed <- cbind(y[[targets_mod.list[1]]]$filtered.transformed, y[[targets_mod.list[2]]]$filtered.transformed)
+  y[["comb"]]$filtered <- cbind(
+    y[[targets_mod.list[1]]]$filtered,
+    y[[targets_mod.list[2]]]$filtered
+  )
+  y[["comb"]]$filtered.transformed <- cbind(
+    y[[targets_mod.list[1]]]$filtered.transformed,
+    y[[targets_mod.list[2]]]$filtered.transformed
+  )
 }
 
 ##### Clean the space
-rm(target, target_mod, genes_mod, keep)
+rm(dat1, target, target_mod, genes_mod, keep)
 ```
 
 ```{r data_transformation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
@@ -755,10 +748,12 @@ target <- ref_dataset.list[[dataset]][["sample_annot"]]
 targets.colour <- RNAsum::getColours(target$Target)
 
 ##### Collect the most extreme density values for set the x-axis and y-axis boundaries
-den.x <- density(y[["comb"]]$transformed[, 1])$x
-den.y <- density(y[["comb"]]$transformed[, 1])$y
+den1 <- density(y[["comb"]]$transformed[, 1])
+den.x <- den1$x
+den.y <- den1$y
 
-for (i in 2:ncol(y[["comb"]]$transformed)) {
+ncol_transformed <- ncol(y[["comb"]]$transformed)
+for (i in 2:ncol_transformed) {
   den <- density(y[["comb"]]$transformed[, i])
   den.x <- sort(c(den.x, den$x))
   den.y <- sort(c(den.y, den$y))
@@ -766,10 +761,9 @@ for (i in 2:ncol(y[["comb"]]$transformed)) {
 
 ##### Plot read counts against transformed data
 if (params$filter) {
-  ##### Organise the data into data frame
   data.df <- tibble(
-    Transformed = y[["comb"]]$transformed[, ncol(y[["comb"]]$transformed)],
-    Counts = ref_dataset.list[[dataset]][["combined_data"]][, ncol(ref_dataset.list[[dataset]][["combined_data"]])]
+    Transformed = y[["comb"]]$transformed[, ncol_transformed],
+    Counts = comb_data[, ncol(comb_data)]
   )
   ##### Keep only genes with read counts below the 99th percentile
   ##### Keep only every 25th gene to reduce the size of the plot
@@ -779,14 +773,14 @@ if (params$filter) {
     slice(which(row_number() %% 25 == 1))
 
   ##### Generate plot for filtered data
-  counts_vs_transformed <- plot_ly(
+  counts_vs_transformed <- plotly::plot_ly(
     data.df,
     x = ~Transformed, y = ~Counts,
     width = 800, height = 300, color = I("black"),
     marker = list(size = 5), type = "scatter", mode = "markers",
     name = glue("{params$transform} / Counts (Patient)")
   ) |>
-    add_trace(
+    plotly::add_trace(
       x = c(filter.threshold, filter.threshold),
       y = c(0, max(data.df$Counts)),
       mode = "lines+markers", color = I("red"), name = "Filtering threshold"
@@ -799,21 +793,27 @@ if (params$filter) {
   ##### Save interactive plot as html file
   RNAsum::saveWidgetFix(counts_vs_transformed, file = file.path(PlotsDir, "counts_vs_transformed.html"))
 
-  # potential NULL add_cancer_group just gets ignored
   plot_legend1 <- c(ext_cancer_group, add_cancer_group, int_cancer_group, "Patient")
 
   ##### Before filtering
   par(mfrow = c(1, 2))
-  plot(density(y[["comb"]]$transformed[, 1]),
-    lwd = 2, xlim = c(den.x[1], max(data.df$Transformed)),
+
+  dens_transformed_all <- vector("list", length = ncol_transformed)
+  for (i in seq_len(ncol_transformed)) {
+    dens_transformed_all[[i]] <- density(y[["comb"]]$transformed[, i])
+  }
+
+  plot(
+    dens_transformed_all[[1]],
+    xlim = c(den.x[1], max(data.df$Transformed)),
     ylim = c(den.y[1], den.y[length(den.y)]),
-    las = 2, main = "", xlab = "", col = targets.colour[[2]][1]
+    lwd = 2, las = 2, main = "", xlab = "", col = targets.colour[[2]][1]
   )
   title(main = "Transformed data (unfiltered)", xlab = params$transform)
   abline(v = 0, lty = 3)
 
-  for (i in 2:ncol(y[["comb"]]$transformed)) {
-    den <- density(y[["comb"]]$transformed[, i])
+  for (i in 2:ncol_transformed) {
+    den <- dens_transformed_all[[i]]
     lines(den$x, den$y, lwd = 2, col = targets.colour[[2]][i])
   }
   legend("topright",
@@ -824,7 +824,13 @@ if (params$filter) {
   data_transformation_nonfiltered <- recordPlot()
 
   ##### After filtering
-  plot(density(y[["comb"]]$filtered.transformed[, 1]),
+  ncol_filt_transformed <- ncol(y[["comb"]]$filtered.transformed)
+  dens_filt_transformed_all <- vector("list", length = ncol_filt_transformed)
+  for (i in seq_len(ncol_filt_transformed)) {
+    dens_filt_transformed_all[[i]] <- density(y[["comb"]]$filtered.transformed[, i])
+  }
+
+  plot(dens_filt_transformed_all[[1]],
     lwd = 2, xlim = c(den.x[1], max(data.df$Transformed)),
     ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "",
     col = targets.colour[[2]][1]
@@ -832,8 +838,8 @@ if (params$filter) {
   title(main = "Transformed and filtered data", xlab = params$transform)
   abline(v = 0, lty = 3)
 
-  for (i in 2:ncol(y[["comb"]]$filtered.transformed)) {
-    den <- density(y[["comb"]]$filtered.transformed[, i])
+  for (i in 2:ncol_filt_transformed) {
+    den <- dens_filt_transformed_all[[i]]
     lines(den$x, den$y, lwd = 2, col = targets.colour[[2]][i])
   }
   legend("topright",
@@ -842,6 +848,7 @@ if (params$filter) {
   )
 
   data_transformation_filtered <- recordPlot()
+  # TODO (PD): Convert these to ggplot to save into vars and pngs
   # save
   png(file.path(PlotsDir, "filtering.png"), width = 900, height = 400, pointsize = 14)
   par(mfrow = c(1, 2))
@@ -864,7 +871,8 @@ if (params$filter) {
   )
 
   ##### After filtering
-  plot(density(y[["comb"]]$filtered.transformed[, 1]),
+  plot(
+    density(y[["comb"]]$filtered.transformed[, 1]),
     lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]),
     ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "",
     col = targets.colour[[2]][1]
@@ -884,7 +892,8 @@ if (params$filter) {
 
   ##### Without filtering
 } else {
-  plot(density(y[["comb"]]$transformed[, 1]),
+  plot(
+    density(y[["comb"]]$transformed[, 1]),
     lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]),
     ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "",
     col = targets.colour[[2]][1]
@@ -902,9 +911,6 @@ if (params$filter) {
   )
 
   data_transformation_nonfiltered <- recordPlot()
-
-  #### Clear plots to free up some memory
-  if (!is.null(dev.list())) invisible(dev.off())
 
   ##### Save the plot as png file
   png(file.path(PlotsDir, "filtering.png"), width = 900, height = 400, pointsize = 14)
@@ -929,7 +935,7 @@ if (params$filter) {
 }
 
 ##### Clean the space
-rm(data, data.df, target, den.x, den.y)
+rm(data.df, target, den.x, den.y)
 ```
 
 ```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE }
@@ -943,12 +949,12 @@ for (group in targets_mod.list) {
     ##### Calculate normalization factors and transformations from the raw-scale to CPM and normalisation using user-defined method
     if (params$filter) {
       y[[group]]$noNorm <- y[[group]]$filtered.transformed
-      y[[group]]$filtered$samples["norm.factors"] <- calcNormFactors(y[[group]]$filtered, method = params$norm)$samples["norm.factors"]
-      y[[group]]$norm <- cpm(y[[group]]$filtered, normalized.lib.sizes = TRUE, log = params$log, prior.count = 0.25)
+      y[[group]]$filtered$samples["norm.factors"] <- edgeR::calcNormFactors(y[[group]]$filtered, method = params$norm)$samples["norm.factors"]
+      y[[group]]$norm <- edgeR::cpm(y[[group]]$filtered, normalized.lib.sizes = TRUE, log = params$log, prior.count = 0.25)
     } else {
       y[[group]]$noNorm <- y[[group]]$transformed
-      y[[group]]$samples["norm.factors"] <- calcNormFactors(y[[group]], method = params$norm)$samples["norm.factors"]
-      y[[group]]$norm <- cpm(y[[group]], normalized.lib.sizes = TRUE, log = params$log, prior.count = 0.25)
+      y[[group]]$samples["norm.factors"] <- edgeR::calcNormFactors(y[[group]], method = params$norm)$samples["norm.factors"]
+      y[[group]]$norm <- edgeR::cpm(y[[group]], normalized.lib.sizes = TRUE, log = params$log, prior.count = 0.25)
     }
 
     ##### Quantile normalsation (from https://www.biostars.org/p/296992/ )
@@ -959,7 +965,7 @@ for (group in targets_mod.list) {
       y[[group]]$filtered.transformed <- data.matrix(y[[group]]$filtered.transformed)
 
       if (tolower(params$norm) != "none") {
-        y[[group]]$norm <- normalize.quantiles(y[[group]]$filtered.transformed, copy = TRUE)
+        y[[group]]$norm <- preprocessCore::normalize.quantiles(y[[group]]$filtered.transformed, copy = TRUE)
         colnames(y[[group]]$norm) <- colnames(y[[group]]$filtered.transformed)
         rownames(y[[group]]$norm) <- rownames(y[[group]]$filtered.transformed)
       } else {
@@ -970,7 +976,7 @@ for (group in targets_mod.list) {
       y[[group]]$transformed <- data.matrix(y[[group]]$transformed)
 
       if (tolower(params$norm) != "none") {
-        y[[group]]$norm <- normalize.quantiles(y[[group]]$transformed, copy = TRUE)
+        y[[group]]$norm <- preprocessCore::normalize.quantiles(y[[group]]$transformed, copy = TRUE)
         colnames(y[[group]]$norm) <- colnames(y[[group]]$transformed)
         rownames(y[[group]]$norm) <- rownames(y[[group]]$transformed)
       } else {
@@ -981,8 +987,14 @@ for (group in targets_mod.list) {
 }
 
 ##### Combine DGEList objects created for each group
-y[["comb"]]$noNorm <- cbind(y[[targets_mod.list[1]]]$noNorm, y[[targets_mod.list[2]]]$noNorm)
-y[["comb"]]$norm <- cbind(y[[targets_mod.list[1]]]$norm, y[[targets_mod.list[2]]]$norm)
+y[["comb"]]$noNorm <- cbind(
+  y[[targets_mod.list[1]]]$noNorm,
+  y[[targets_mod.list[2]]]$noNorm
+)
+y[["comb"]]$norm <- cbind(
+  y[[targets_mod.list[1]]]$norm,
+  y[[targets_mod.list[2]]]$norm
+)
 
 if (tolower(params$norm) != "none") {
   ref_dataset.list[[dataset]][["combined_data_processed"]] <- y[["comb"]]$norm
@@ -999,32 +1011,57 @@ rm(targets_mod.list)
 par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
 ##### Unnormalised data
-boxplot(y[["comb"]]$noNorm, las = 2, col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+boxplot(y[["comb"]]$noNorm,
+  las = 2, col = targets.colour[[2]],
+  main = "", pch = "", xaxt = "n", outline = FALSE
+)
 title(main = "Unnormalised data", ylab = params$transform)
-legend("topright", legend = plot_legend1, fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+legend("topright",
+  legend = plot_legend1, fill = targets.colour[[1]],
+  horiz = TRUE, bg = "transparent", box.col = "transparent"
+)
 
 data_nonnormalised <- recordPlot()
 
 ##### Normalised data
-boxplot(y[["comb"]]$norm, las = 2, col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
-title(main = paste0("Normalised data (", params$norm, ")"), ylab = params$transform)
-legend("topright", legend = plot_legend1, fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+boxplot(y[["comb"]]$norm,
+  las = 2, col = targets.colour[[2]],
+  main = "", pch = "", xaxt = "n", outline = FALSE
+)
+title(main = glue("Normalised data ({params$norm})"), ylab = params$transform)
+legend("topright",
+  legend = plot_legend1, fill = targets.colour[[1]],
+  horiz = TRUE, bg = "transparent", box.col = "transparent"
+)
 
 data_normalised <- recordPlot()
 
 ##### Save the plot as png file
+# TODO (PD): remove duplicated code chunks, use ggplot objects
 png(file.path(PlotsDir, "normalisation.png"), width = 900, height = 700, pointsize = 14)
 par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
 ##### Unnormalised data
-boxplot(y[["comb"]]$noNorm, las = 2, col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+boxplot(y[["comb"]]$noNorm,
+  las = 2, col = targets.colour[[2]],
+  main = "", pch = "", xaxt = "n", outline = FALSE
+)
 title(main = "Unnormalised data", ylab = params$transform)
-legend("topright", legend = plot_legend1, fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", cex = 0.7, box.col = "transparent")
+legend("topright",
+  legend = plot_legend1, fill = targets.colour[[1]],
+  horiz = TRUE, bg = "transparent", cex = 0.7, box.col = "transparent"
+)
 
 ##### Normalised data
-boxplot(y[["comb"]]$norm, las = 2, col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+boxplot(y[["comb"]]$norm,
+  las = 2, col = targets.colour[[2]], main = "",
+  pch = "", xaxt = "n", outline = FALSE
+)
 title(main = paste0("Normalised data (", params$norm, ")"), ylab = params$transform)
-legend("topright", legend = plot_legend1, fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", cex = 0.7, box.col = "transparent")
+legend("topright",
+  legend = plot_legend1, fill = targets.colour[[1]],
+  horiz = TRUE, bg = "transparent", cex = 0.7, box.col = "transparent"
+)
 invisible(dev.off())
 
 ##### Clean the space
@@ -1039,33 +1076,42 @@ batches <- as.character(ref_dataset.list[[dataset]][["sample_annot"]]$Dataset)
 batches[match(sample_name, batches)] <- int_cancer_group
 
 ##### Perform batch-effect correctrion using limma
-ref_dataset.list[[dataset]][["batch_effect_corrected"]] <- limma::removeBatchEffect(ref_dataset.list[[dataset]][["combined_data_processed"]], batch = batches)
+ref_dataset.list[[dataset]][["batch_effect_corrected"]] <- limma::removeBatchEffect(
+  ref_dataset.list[[dataset]][["combined_data_processed"]],
+  batch = batches
+)
 ```
 
 ```{r pca, comment = NA, message=FALSE, warning=FALSE}
-suppressMessages(library(plotly))
-
 ##### Perform principal component analysis (PCA) using combined-only data and batch-effect corrected data
 ##### Loop through combined datasets and perform PCA
 for (dataset in names(ref_dataset.list)) {
-  target <- ref_dataset.list[[dataset]][["sample_annot"]]
-  target$Dataset <- gsub(sample_name, "Patient", target$Dataset)
-  target$Target <- gsub(sample_name, "Patient", target$Target)
+  target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+    dplyr::mutate(
+      Dataset = if_else(.data$Dataset == sample_name, "Patient", .data$Dataset),
+      Target = if_else(.data$Target == sample_name, "Patient", .data$Target),
+    )
 
   if (params$batch_rm) {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = results_dir, suffix = "_before_batch_rm")
-
-    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], targets = target, title = "After batch-effects correction", report_dir = results_dir, suffix = "_after_batch_rm")
-
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- RNAsum::pca(
+      data = ref_dataset.list[[dataset]][["combined_data_processed"]],
+      targets = target, title = "Before batch-effects correction",
+      report_dir = results_dir, suffix = "_before_batch_rm"
+    )
+    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- RNAsum::pca(
+      data = ref_dataset.list[[dataset]][["batch_effect_corrected"]],
+      targets = target, title = "After batch-effects correction",
+      report_dir = results_dir, suffix = "_after_batch_rm"
+    )
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["batch_effect_corrected"]]
   } else {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, report_dir = results_dir)
-
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- RNAsum::pca(
+      data = ref_dataset.list[[dataset]][["combined_data_processed"]],
+      targets = target, report_dir = results_dir
+    )
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["combined_data_processed"]]
   }
 }
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -1075,55 +1121,100 @@ if (!is.null(dev.list())) invisible(dev.off())
 ##### Generate relative log expression (RLE) plot using combined-only data and batch-effect corrected data
 ##### Loop through combined datasets and generate RLE plot
 for (dataset in names(ref_dataset.list)) {
-  target <- ref_dataset.list[[dataset]][["sample_annot"]]
-  target$Dataset <- gsub(sample_name, "Patient", target$Dataset)
-  target$Target <- gsub(sample_name, "Patient", target$Target)
+  target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+    dplyr::mutate(
+      Dataset = if_else(.data$Dataset == sample_name, "Patient", .data$Dataset),
+      Target = if_else(.data$Target == sample_name, "Patient", .data$Target),
+    )
 
   if (params$batch_rm) {
     par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
     ##### Before batch-effects correction
-    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "Before batch-effects correction", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
 
     ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
 
     ##### After batch-effects correction
-    plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "After batch-effects correction", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
 
     ref_dataset.list[[dataset]][["rle_batch_effect_corrected"]] <- recordPlot()
 
 
+    # TODO (PD): de-duplicate plotting code
     ##### Save the plot as png file
     png(file.path(PlotsDir, "rle.png"), width = 900, height = 700, pointsize = 14)
     par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
     ##### Before batch-effects correction
-    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "Before batch-effects correction", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
 
     ##### After batch-effects correction
-    plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "After batch-effects correction", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
     invisible(dev.off())
   } else {
-    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
 
     ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
 
     ##### Save the plot as png file
     png(file.path(PlotsDir, "rle.png"), width = 900, height = 450, pointsize = 14)
 
-    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
     invisible(dev.off())
   }
 }
@@ -1132,7 +1223,7 @@ for (dataset in names(ref_dataset.list)) {
 if (!is.null(dev.list())) invisible(dev.off())
 
 ##### Clean the space
-rm(targets.colour, den, y)
+rm(targets.colour)
 ```
 
 ```{r gene_annot_count_data, comment = NA, message=FALSE, warning=FALSE}
