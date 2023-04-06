@@ -162,11 +162,13 @@ results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
 fs::dir_create(results_dir)
 # Annotate transcripts with gene IDs
 # These could probably go into refdata
+##### Get genes annotation and genomic locations
+##### Get keytypes for gene SYMBOL
 edb <- eval(parse(text = ensdb_pkg))
 keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
 tx2ensembl <- edb |>
   ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
-  rename(tx_name = "TXID", gene_id = "GENEID")
+  dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
 
 # reference data
 ref_dataset_filepaths <- RNAsum::get_refdata(dataset)
@@ -365,7 +367,7 @@ if (length(sampleID.col) > 0) {
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
 tmpg <- ref_genes.list[["genes_oncokb"]] |>
   mutate(UMCCR = "No", Oncogene = "-", TSG = "-", Fusion = "-", Germline = "-") |>
-  rename(occurrence_num = "# of occurence within resources")
+  dplyr::rename(occurrence_num = "# of occurence within resources")
 ##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
 ref_genes.list[["genes_cancer"]] <- ref_genes.list[["genes_cancer"]] |>
   mutate(
@@ -492,7 +494,7 @@ genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
 ##### Get genes genomic coordiantes
 gene_info <- edb |>
   ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
-  rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
+  dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
 
 ##### Limit genes annotation to the gene of interest, then
 ##### remove rows with duplicated ENSEMBL IDs
@@ -1230,23 +1232,22 @@ rm(targets.colour)
 ##### Loop through combined, BUT NOT PROCESSED, datasets and annotate ALL genes. This part is mainly required for biotype detection step
 for (dataset in names(ref_dataset.list)) {
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_dataset.list[[dataset]][["combined_data"]]
-  data.df <- as.data.frame(cbind(rownames(data), data))
+  dat1 <- ref_dataset.list[[dataset]][["combined_data"]]
+  data.df <- as.data.frame(cbind(rownames(dat1), dat1))
   colnames(data.df)[1] <- "ENSEMBL"
 
-  ##### Get genes annotation and genomic locations
-  edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", ensembl_version)))
-
-  ##### Get keytypes for gene SYMBOL
-  keys <- keys(edb, keytype = "GENEID")
-
   ##### Get genes genomic coordiantes
-  gene_info <- ensembldb::select(edb, keys = keys, columns = c("GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME", "GENESEQSTART", "GENESEQEND"), keytype = "GENEID")
-  names(gene_info) <- gsub("GENEID", "ENSEMBL", names(gene_info))
-  names(gene_info) <- gsub("GENENAME", "SYMBOL", names(gene_info))
-
   ##### Limit genes annotation to those genes for which sample expression measurments are available
-  gene_info <- gene_info[gene_info$ENSEMBL %in% data.df$ENSEMBL, ]
+  gene_info <- edb |>
+    ensembldb::select(
+      keys = keys,
+      columns = c(
+        "GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME",
+        "GENESEQSTART", "GENESEQEND"
+      ), keytype = "GENEID"
+    ) |>
+    dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME") |>
+    dplyr::filter(.data$ENSEMBL %in% data.df$ENSEMBL)
 
   ##### Remove rows with duplicated ENSEMBL IDs
   gene_info <- gene_info[!duplicated(gene_info$ENSEMBL), ]
@@ -1256,18 +1257,26 @@ for (dataset in names(ref_dataset.list)) {
   gene_info <- gene_info[!duplicated(gene_info$SYMBOL), ]
 
   ##### Add info about immune response markers
-  gene_info.immune_markers <- merge(gene_info, ref_genes.list[["genes_immune"]]$genes_immune_markers, by = "SYMBOL", all.x = TRUE)
+  gene_info.immune_markers <- merge(
+    gene_info, ref_genes.list[["genes_immune"]]$genes_immune_markers,
+    by = "SYMBOL", all.x = TRUE
+  )
 
   ##### Keep only immune response markers for which there is available annotation
-  ref_genes.list[["genes_immune"]]$immune_markers <- ref_genes.list[["genes_immune"]]$genes_immune_markers[ref_genes.list[["genes_immune"]]$genes_immune_markers$SYMBOL %in% gene_info.immune_markers$SYMBOL, ]
+  ref_genes.list[["genes_immune"]]$immune_markers <- ref_genes.list[["genes_immune"]]$genes_immune_markers |>
+    dplyr::filter(.data$SYMBOL %in% gene_info.immune_markers$SYMBOL)
 
   ##### Add info about immunogram genes
   if (params$immunogram) {
-    gene_info.immunogram <- merge(gene_info, ref_genes.list[["genes_immune"]]$genes_immunogram, by = "SYMBOL", all.x = TRUE)
+    gene_info.immunogram <- merge(
+      gene_info, ref_genes.list[["genes_immune"]]$genes_immunogram,
+      by = "SYMBOL", all.x = TRUE
+    )
     gene_info.immunogram <- gene_info.immunogram[!duplicated(gene_info.immunogram[, "ENSEMBL"]), ]
 
     ##### Keep only immunogram genes for which there is available annotation
-    ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$genes_immunogram[ref_genes.list[["genes_immune"]]$genes_immunogram$SYMBOL %in% gene_info.immunogram$SYMBOL, ]
+    ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$genes_immunogram |>
+      dplyr::filter(.data$SYMBOL %in% gene_info.immunogram$SYMBOL)
 
     ##### Merge genes annotations for immunogram genes and immune markers
     gene_info <- merge(gene_info.immunogram, gene_info.immune_markers[, c("ENSEMBL", "Immune_Cycle_Role")], by = "ENSEMBL")
@@ -1280,19 +1289,27 @@ for (dataset in names(ref_dataset.list)) {
   rownames(data.annot) <- data.annot$ENSEMBL
 
   ##### Get data matrix with gene symbols
-  if (params$immunogram) {
-    ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "CIC", "Immune_Cycle_Role")]
-  } else {
-    ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  imm_cols_select <- c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "CIC", "Immune_Cycle_Role")
+  if (!params$immunogram) {
+    imm_cols_select <- imm_cols_select[imm_cols_select != "CIC"]
   }
+  ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, imm_cols_select]
 
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["combined_data"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
-  write.table(prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.gene_annot_all.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
+  write.table(
+    prepare2write(ref_dataset.list[[dataset]][["combined_data"]]),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.combined_data.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
+  write.table(
+    prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.gene_annot_all.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
 }
 
 ##### Clean the space
-rm(data, target, data.df, edb, keys)
+rm(dat1, target, data.df, edb, keys)
 ```
 
 ```{r gene_annot_processed_data, comment = NA, message=FALSE, warning=FALSE}
