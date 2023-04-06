@@ -1297,12 +1297,12 @@ for (dataset in names(ref_dataset.list)) {
 
   ##### Save the combined expression matrix, genes list and associated targets into txt files
   write.table(
-    prepare2write(ref_dataset.list[[dataset]][["combined_data"]]),
+    RNAsum::prepare2write(ref_dataset.list[[dataset]][["combined_data"]]),
     file = file.path(results_dir, glue("{sample_name}.RNAseq_report.combined_data.txt")),
     sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
   )
   write.table(
-    prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]),
+    RNAsum::prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]),
     file = file.path(results_dir, glue("{sample_name}.RNAseq_report.gene_annot_all.txt")),
     sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
   )
@@ -1316,8 +1316,8 @@ rm(dat1, target, data.df, edb, keys)
 ##### Loop through combined datasets and annotate genes
 for (dataset in names(ref_dataset.list)) {
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_dataset.list[[dataset]][["data_to_report"]]
-  data.df <- as.data.frame(cbind(rownames(data), data))
+  dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
+  data.df <- as.data.frame(cbind(rownames(dat1), dat1))
   colnames(data.df)[1] <- "ENSEMBL"
 
   ##### Merge genes genomic coordinates info with their annotation and expression data
@@ -1328,47 +1328,77 @@ for (dataset in names(ref_dataset.list)) {
   rownames(data.annot) <- data.annot$SYMBOL
 
   ##### Get data matrix with gene symbols
-  ref_dataset.list[[dataset]][["data_to_report"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
+  ref_dataset.list[[dataset]][["data_to_report"]] <- apply(data.annot[, colnames(dat1)], 2, as.numeric)
   rownames(ref_dataset.list[[dataset]][["data_to_report"]]) <- data.annot$SYMBOL
-  ref_dataset.list[[dataset]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  ref_dataset.list[[dataset]][["gene_annot"]] <- data.annot |>
+    dplyr::select("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")
 
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data_processed.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
-  write.table(prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data_processed.genes.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
-  write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.sample_annot.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
+  write.table(
+    RNAsum::prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.combined_data_processed.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
+  write.table(
+    RNAsum::prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.combined_data_processed.genes.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
+  write.table(
+    RNAsum::prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.sample_annot.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
 }
 
 ##### Clean the space
-rm(data, data.df, gene_info)
+rm(dat1, data.df, gene_info)
 ```
 
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
 ##### Save the entire expression data for all genes measured in patient's sample with cancer genes annotation as a data table html file
 ##### Generate expression summary table for mutated genes
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
-data <- ref_dataset.list[[dataset]][["data_to_report"]]
+dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
 # Define Z-transformation direction
 scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene_wise", "group-wise")
-genes.expr.perc <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  genes = rownames(dat1), keep_all = TRUE, data = dat1, targets = targets,
+  sampleName = sample_name, ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group, comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]],
+  ext_links = TRUE, scaling = scaling
+)
 
 ##### Z-scores
-genes.expr.z <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  genes = rownames(dat1), keep_all = TRUE, data = dat1, targets = targets,
+  sampleName = sample_name, ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group, comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]],
+  ext_links = TRUE, scaling = scaling
+)
 
 ##### Create directory for saving tables
-exprTableDir <- paste(results_dir, "exprTables", sep = "/")
-
-if (!file.exists(exprTableDir)) {
-  dir.create(exprTableDir, recursive = TRUE)
-}
+exprTableDir <- file.path(results_dir, "exprTables")
+fs::dir_create(exprTableDir)
 
 ##### Save the expression tables as html file
-saveWidgetFix(widget = genes.expr.perc[[1]], file = paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
-saveWidgetFix(widget = genes.expr.z[[1]], file = paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+RNAsum::saveWidgetFix(widget = genes.expr.perc[[1]], file = file.path(exprTableDir, "genes.expr.perc.html"))
+RNAsum::saveWidgetFix(widget = genes.expr.z[[1]], file = file.path(exprTableDir, "genes.expr.z.html"))
 
 ##### Clean the space
-rm(data, targets, genes.expr.z, genes.expr.perc)
+rm(dat1, targets, genes.expr.z, genes.expr.perc)
 ```
 
 ```{r cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
