@@ -1366,27 +1366,41 @@ dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene_wise", "group-wise")
 genes.expr.perc <- RNAsum::exprTable(
   type = "perc",
-  genes = rownames(dat1), keep_all = TRUE, data = dat1, targets = targets,
-  sampleName = sample_name, ext_cancer = ext_cancer_group,
-  int_cancer = int_cancer_group, comp_cancer = comp_cancer_group,
+  data = dat1,
+  genes = rownames(dat1),
+  keep_all = TRUE,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
   add_cancer = add_cancer_group,
   genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]],
-  ext_links = TRUE, scaling = scaling
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
 )
 
 ##### Z-scores
 genes.expr.z <- RNAsum::exprTable(
   type = "z",
-  genes = rownames(dat1), keep_all = TRUE, data = dat1, targets = targets,
-  sampleName = sample_name, ext_cancer = ext_cancer_group,
-  int_cancer = int_cancer_group, comp_cancer = comp_cancer_group,
+  data = dat1,
+  genes = rownames(dat1),
+  keep_all = TRUE,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
   add_cancer = add_cancer_group,
   genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]],
-  ext_links = TRUE, scaling = scaling
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
 )
 
 ##### Create directory for saving tables
@@ -1408,12 +1422,38 @@ expr_data <- ref_dataset.list[[dataset]][["data_to_report"]]
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 
 ##### ...percerntiles
-expr_data.perc <- exprTable(genes = rownames(expr_data), keep_all = TRUE, data = expr_data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
+expr_data.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = expr_data,
+  genes = rownames(expr_data),
+  keep_all = TRUE,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[2]]
 
-expr_genes <- expr_data.perc$SYMBOL
+expr_genes <- expr_data.perc[["SYMBOL"]]
 
 ##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores using exprTable function
-expr_data.z <- exprTable(genes = expr_genes, keep_all = TRUE, data = expr_data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
+expr_data.z <- RNAsum::exprTable(
+  type = "z",
+  data = expr_data,
+  genes = expr_genes,
+  keep_all = TRUE,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[2]]
 
 ##### Make sure the tables have the same genes order
 # expr_data.perc <- expr_data.perc[expr_genes, ]
@@ -2499,7 +2539,24 @@ if (length(genes) == 0) {
   genes_no <- length(genes)
 }
 
-mut_genes.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+mut_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 mut_genes.expr.perc[[1]]
@@ -2527,7 +2584,24 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk, results = "asis"}
-mut_genes.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+mut_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 mut_genes.expr.z
@@ -3036,10 +3110,44 @@ for (i in 1:genes_no) {
     genes <- c(geneA, geneB)
 
     ##### Z-scores
-    output_table_Z[[i]] <- exprTable(genes = unique(genes), data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline")], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB), ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+    output_table_Z[[i]] <- RNAsum::exprTable(
+      type = "z",
+      data = data,
+      genes = unique(genes),
+      targets = targets,
+      sampleName = sample_name,
+      ext_cancer = ext_cancer_group,
+      int_cancer = int_cancer_group,
+      comp_cancer = comp_cancer_group,
+      add_cancer = add_cancer_group,
+      genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+      oncokb_annot = ref_genes.list[["genes_oncokb"]],
+      cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline")],
+      fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
+      ext_links = TRUE,
+      scaling = scaling,
+      civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    )[[1]]
 
     ##### Percentiles
-    output_table_perc[[i]] <- exprTable(genes = unique(genes), data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline")], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB), ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+    output_table_perc[[i]] <- RNAsum::exprTable(
+      type = "perc",
+      data = data,
+      genes = unique(genes),
+      targets = targets,
+      sampleName = sample_name,
+      ext_cancer = ext_cancer_group,
+      int_cancer = int_cancer_group,
+      comp_cancer = comp_cancer_group,
+      add_cancer = add_cancer_group,
+      genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+      oncokb_annot = ref_genes.list[["genes_oncokb"]],
+      cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline")],
+      fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
+      ext_links = TRUE,
+      scaling = scaling,
+      civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    )[[1]]
   }
 }
 
@@ -3221,7 +3329,24 @@ if (length(genes) == 0) {
   genes_no <- length(genes)
 }
 
-sv_genes.expr.perc <- exprTable(genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+sv_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  sv_data = manta_sv,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
@@ -3251,7 +3376,24 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-sv_genes.expr.z <- exprTable(genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+sv_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  sv_data = manta_sv,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 sv_genes.expr.z
@@ -3589,11 +3731,48 @@ if (length(genes_gains) == 0) {
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 if (runPcgrChunk && runPurpleChunk) {
-  cn_expr_genes.expr.gains.perc <- exprTable(genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.gains.perc <- RNAsum::exprTable(
+    type = "perc",
+    data = data,
+    genes = genes_gains,
+    cn_data = cn_data,
+    cn_decrease = TRUE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    ext_links = TRUE,
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 
   ##### Generate expression summary table for per-gene expression values and CN values
 } else if (runPurpleChunk) {
-  cn_expr_genes.expr.gains.perc <- exprTable(genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.gains.perc <- RNAsum::exprTable(
+    type = "perc",
+    data = data,
+    genes = genes_gains,
+    cn_data = cn_data,
+    cn_decrease = TRUE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    ext_links = TRUE,
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -3623,11 +3802,47 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if (runPcgrChunk && runPurpleChunk) {
-  cn_expr_genes.expr.gains.z <- exprTable(genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.gains.z <- RNAsum::exprTable(
+    type = "z",
+    genes = genes_gains,
+    data = data,
+    cn_data = cn_data,
+    cn_decrease = TRUE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    ext_links = TRUE,
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 
   ##### Generate expression summary table for per-gene expression values and CN values
 } else if (runPurpleChunk) {
-  cn_expr_genes.expr.gains.z <- exprTable(genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.gains.z <- RNAsum::exprTable(
+    type = "z",
+    data = data,
+    genes = genes_gains,
+    cn_data = cn_data,
+    cn_decrease = TRUE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    ext_links = TRUE,
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -3689,11 +3904,48 @@ if (genes_gains_no + genes_losses_no > params$top_genes) {
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 if (runPcgrChunk && runPurpleChunk) {
-  cn_expr_genes.expr.losses.perc <- exprTable(genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.losses.perc <- RNAsum::exprTable(
+    type = "perc",
+    genes = genes_losses,
+    data = data,
+    cn_data = cn_data,
+    cn_decrease = FALSE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    ext_links = TRUE,
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 
   ##### Generate expression summary table for per-gene expression values and CN values
 } else if (runPurpleChunk) {
-  cn_expr_genes.expr.losses.perc <- exprTable(genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.losses.perc <- RNAsum::exprTable(
+    type = "perc",
+    data = data,
+    genes = genes_losses,
+    cn_data = cn_data,
+    cn_decrease = FALSE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    ext_links = TRUE,
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -3723,11 +3975,48 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if (runPcgrChunk && runPurpleChunk) {
-  cn_expr_genes.expr.losses.z <- exprTable(genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.losses.z <- RNAsum::exprTable(
+    type = "z",
+    data = data,
+    genes = genes_losses,
+    cn_data = cn_data,
+    cn_decrease = FALSE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    ext_links = TRUE,
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 
   ##### Generate expression summary table for per-gene expression values and CN values
 } else if (runPurpleChunk) {
-  cn_expr_genes.expr.losses.z <- exprTable(genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.losses.z <- RNAsum::exprTable(
+    type = "z",
+    data = data,
+    genes = genes_losses,
+    cn_data = cn_data,
+    cn_decrease = FALSE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    ext_links = TRUE,
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -3939,7 +4228,22 @@ if (length(genes) == 0) {
   genes <- NULL
 }
 
-immune_genes.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+immune_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 immune_genes.expr.perc
@@ -3968,7 +4272,22 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immune_genes.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+immune_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 immune_genes.expr.z
@@ -4110,7 +4429,22 @@ if (length(genes) == 0) {
 }
 
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCr (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immunogram.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+immunogram.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 immunogram.expr.perc
@@ -4138,7 +4472,22 @@ cat("\n***\n")
 
 ```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immunogram.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+immunogram.expr.z <- RNAsum::exprTable(
+  genes = genes,
+  data = data,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  ext_links = TRUE,
+  type = "z",
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 immunogram.expr.z
@@ -4174,7 +4523,22 @@ if (length(genes) == 0) {
   genes <- NULL
 }
 
-hrd_genes.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+hrd_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 hrd_genes.expr.perc[[1]]
@@ -4200,7 +4564,22 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for hrd genes from Richard
-hrd_genes.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+hrd_genes.expr.z <- RNAsum::exprTable(
+  genes = genes,
+  data = data,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  ext_links = TRUE,
+  type = "z",
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 hrd_genes.expr.z[[1]]
@@ -4314,7 +4693,23 @@ if (length(genes) == 0) {
   genes <- NULL
 }
 
-cancer_genes.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+cancer_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
@@ -4340,7 +4735,23 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-cancer_genes.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+cancer_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]],
+  ext_links = TRUE,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 cancer_genes.expr.z

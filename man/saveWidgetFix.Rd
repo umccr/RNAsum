@@ -4,12 +4,16 @@
 \alias{saveWidgetFix}
 \title{Wrapper for saveWidget bug fix}
 \usage{
-saveWidgetFix(widget, file, ...)
+saveWidgetFix(widget, file, selfcontained = TRUE, ...)
 }
 \arguments{
-\item{widget}{Input widget.}
+\item{widget}{Widget to save.}
 
-\item{file}{Input file.}
+\item{file}{Full path to save HTML into.}
+
+\item{selfcontained}{Whether to save the HTML as a single self-contained file
+(with external resources base64 encoded) or a file with external resources
+placed in an adjacent directory.}
 
 \item{...}{Additional arguments passed to \link[htmlwidgets:saveWidget]{htmlwidgets::saveWidget}.}
 }
@@ -17,6 +21,7 @@ saveWidgetFix(widget, file, ...)
 Change work dir to compensate for saveWidget bug
 }
 \description{
-A wrapper to saveWidget which compensates for arguable BUG in saveWidget which requires
-\code{file} to be in current working directory (see https://github.com/ramnathv/htmlwidgets/issues/299).
+A wrapper to saveWidget which compensates for bug where the temporary
+directory with widget dependencies is not deleted - see
+https://github.com/ramnathv/htmlwidgets/issues/296.
 }

@@ -21,7 +21,9 @@
 #' @param fusion_genes Fusion genes.
 #' @param ext_links External links.
 #' @param type Type.
+#' @param civic_clin_evid civic_clin_evid tibble from reference genes.
 #' @param scaling Scaling
+#'
 #' @importFrom magrittr %>%
 #' @return Table with coloured cells indicating expression values for selected genes
 #' @export
@@ -29,7 +31,9 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
                       cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer,
                       comp_cancer, add_cancer = NULL, genes_annot = NULL,
                       oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL,
-                      fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise") {
+                      fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise",
+                      civic_clin_evid = NULL) {
+  # TODO (PD): refactor this function
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[genes %!in% rownames(data)]
 
@@ -239,8 +243,17 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
       }
 
       ##### Provide link to CIViC database druggable genes ( https://civicdb.org )
-      if (gene %in% ref_genes.list$civic_clin_evid$gene) {
-        group.z$ext_links[group.z$Gene == gene] <- paste(group.z$ext_links[group.z$Gene == gene], paste0("<a href='", unique(ref_genes.list[["civic_clin_evid"]][ref_genes.list[["civic_clin_evid"]]$gene == gene, "gene_civic_url"]), "' target='_blank'>CIViC</a>"), sep = ", ")
+      assertthat::assert_that("gene" %in% colnames(civic_clin_evid))
+      if (gene %in% civic_clin_evid[["gene"]]) {
+        group.z$ext_links[group.z$Gene == gene] <- paste(
+          group.z$ext_links[group.z$Gene == gene],
+          paste0(
+            "<a href='",
+            unique(civic_clin_evid[civic_clin_evid[["gene"]] == gene, "gene_civic_url"]),
+            "' target='_blank'>CIViC</a>"
+          ),
+          sep = ", "
+        )
       }
     }
 
@@ -251,7 +264,13 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
   for (gene in genes) {
     if ("ENSEMBL" %in% names(group.z)) {
       if (!is.na(group.z$ENSEMBL[group.z$Gene == gene])) {
-        group.z$ENSEMBL[group.z$Gene == gene] <- paste0("<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=", group.z$ENSEMBL[group.z$Gene == gene], "' target='_blank'>", group.z$ENSEMBL[group.z$Gene == gene], "</a>")
+        group.z$ENSEMBL[group.z$Gene == gene] <- paste0(
+          "<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=",
+          group.z$ENSEMBL[group.z$Gene == gene],
+          "' target='_blank'>",
+          group.z$ENSEMBL[group.z$Gene == gene],
+          "</a>"
+        )
       }
     }
 

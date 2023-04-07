@@ -25,7 +25,7 @@ exprTable(
   ext_links = FALSE,
   type = "z",
   scaling = "gene-wise",
-  caner_genes_annot.list
+  civic_clin_evid = NULL
 )
 }
 \arguments{
@@ -69,7 +69,7 @@ exprTable(
 
 \item{scaling}{Scaling}
 
-\item{caner_genes_annot.list}{The caner_genes_annot.list from the report.}
+\item{civic_clin_evid}{civic_clin_evid tibble from reference genes.}
 }
 \value{
 Table with coloured cells indicating expression values for selected genes
