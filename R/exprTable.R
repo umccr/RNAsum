@@ -328,72 +328,48 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
   }
 
   ##### Generate a table with genes annotations and coloured expression values in each group
-  if (!is.null(cn_data)) {
-    dt.table <- DT::datatable(
-      data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")],
-      filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"),
-      options = list(
-        pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"),
-        scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE,
-        scrollY = scrollY, scroller = TRUE
-      ),
-      width = 800, height = table_height,
-      caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
-      escape = FALSE
+  dt.table <- DT::datatable(
+    data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")],
+    filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"),
+    options = list(
+      pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"),
+      scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE,
+      scrollY = scrollY, scroller = TRUE
+    ),
+    width = 800, height = table_height,
+    caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
+    escape = FALSE
+  ) |>
+    DT::formatStyle(columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = "12px", "text-align" = "center") |>
+    ##### Colour cells according to the expression values quantiles in each group
+    DT::formatStyle(
+      columns = targets.list[1],
+      backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])
     ) |>
-      DT::formatStyle(columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = "12px", "text-align" = "center") |>
-      ##### Colour cells according to the expression values quantiles in each group
+    DT::formatStyle(
+      columns = targets.list[2],
+      backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])
+    ) |>
+    DT::formatStyle(
+      columns = targets.list[3],
+      backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])
+    ) |>
+    DT::formatStyle(
+      columns = names(group.z)[diff_col_idx],
+      backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]])
+    )
+
+  if (!is.null(cn_data)) {
+    dt.table <- dt.table |>
       DT::formatStyle(
-        columns = targets.list[1],
-        backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])
-      ) |>
-      DT::formatStyle(
-        columns = targets.list[2],
-        backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])
-      ) |>
-      DT::formatStyle(
-        columns = targets.list[3],
-        backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])
-      ) |>
-      DT::formatStyle(
-        columns = names(group.z)[diff_col_idx],
-        backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]])
-      ) |>
-      DT::formatStyle(columns = "Patient (CN)", background = DT::styleColorBar(cn_range, "lightblue"), backgroundSize = "98% 88%", backgroundRepeat = "no-repeat", backgroundPosition = "center")
+        columns = "Patient (CN)",
+        background = DT::styleColorBar(cn_range, "lightblue"),
+        backgroundSize = "98% 88%",
+        backgroundRepeat = "no-repeat",
+        backgroundPosition = "center"
+      )
 
     ##### Generate a table with genes annotations and coloured expression values in each group
-  } else {
-    dt.table <- DT::datatable(
-      data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")],
-      filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"),
-      options = list(
-        pageLength = 10, dom = "Bfrtip",
-        buttons = c("excel", "csv", "pdf", "copy", "colvis"),
-        scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE,
-        scrollY = scrollY, scroller = TRUE
-      ),
-      width = 800, height = table_height,
-      caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
-      escape = FALSE
-    ) |>
-      DT::formatStyle(columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = "12px", "text-align" = "center") |>
-      ##### Colour cells according to the expression values quantiles in each group
-      DT::formatStyle(
-        columns = targets.list[1],
-        backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])
-      ) |>
-      DT::formatStyle(
-        columns = targets.list[2],
-        backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])
-      ) |>
-      DT::formatStyle(
-        columns = targets.list[3],
-        backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])
-      ) |>
-      DT::formatStyle(
-        columns = names(group.z)[diff_col_idx],
-        backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]])
-      )
   }
   return(list(dt.table, group.z))
 }
