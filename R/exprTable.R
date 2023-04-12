@@ -27,12 +27,20 @@
 #' @importFrom magrittr %>%
 #' @return Table with coloured cells indicating expression values for selected genes
 #' @export
-exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = NULL,
+exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NULL, sv_data = NULL,
                       cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer,
                       comp_cancer, add_cancer = NULL, genes_annot = NULL,
                       oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL,
                       fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise",
                       civic_clin_evid = NULL) {
+  assertthat::assert_that(
+    !is.null(genes), !is.null(data), !is.null(civic_clin_evid),
+    is.matrix(data), is.data.frame(targets),
+    "Target" %in% colnames(targets),
+    type %in% c("perc", "z"),
+    is.character(genes),
+    scaling %in% c("gene-wise", "group-wise")
+  )
   # TODO (PD): refactor this function
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[genes %!in% rownames(data)]
@@ -48,7 +56,7 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
     ##### Calculate z-score for each group
     group.stats <- exprGroupsStats_geneWise(data, targets)[[1]]
 
-    ##### Make sure to include only genes for which Z-scores were calaculated  (genes with SD = 0 across all samples will give NA)
+    ##### Make sure to include only genes for which Z-scores were calculated (genes with SD = 0 across all samples will give NA)
     group.z <- group.z[rownames(group.z) %in% rownames(group.stats[[targets.list[1]]]), ]
 
     #### Present expression data as percentiles or z-score values (default)
@@ -87,7 +95,7 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
   group.z <- cbind(group.z, round(matrixStats::rowSds(as.matrix(group.z)), digits = 2))
   names(group.z)[ncol(group.z)] <- "SD"
 
-  ##### Calculate Z-score differneces between investigated sample and median values in the cancer group of interest
+  ##### Calculate Z-score differences between investigated sample and median values in the cancer group of interest
   group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, comp_cancer]), digits = 2))
   names(group.z)[ncol(group.z)] <- "Diff"
 
@@ -231,14 +239,60 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
     group.z <- tibble::add_column(group.z, NA, .after = col_idx)
     names(group.z)[col_idx + 1] <- "ext_links"
 
+    # create mini tbls for urls
+    vicc1 <- tibble::tibble(Gene = genes) |>
+      dplyr::mutate(url_vicc = glue::glue("<a href='https://search.cancervariants.org/#{.data$Gene}' target='_blank'>VICC</a>"))
+    civic1 <- civic_clin_evid |>
+      dplyr::distinct(.data$gene, .data$gene_civic_url) |>
+      dplyr::mutate(gene_civic_url = glue::glue("<a href='{.data$gene_civic_url}' target='_blank'>CIViC</a>")) |>
+      dplyr::select(Gene = "gene", url_civic = "gene_civic_url")
+    onco1 <- tibble::tibble(Gene = NA, url_oncokb = NA)
+    if (!is.null(oncokb_annot)) {
+      onco1 <- oncokb_annot |>
+        dplyr::filter(.data$OncoKB == "Yes") |>
+        dplyr::mutate(url_oncokb = glue::glue("<a href='http://oncokb.org/#/gene/{.data$Gene}' target='_blank'>OncoKB</a>")) |>
+        dplyr::select("Gene", "url_oncokb")
+    }
+
+
+    x <- group.z |> tibble::as_tibble()
+    xy <- x |>
+      dplyr::select(-ext_links) |>
+      dplyr::left_join(vicc1, by = "Gene") |>
+      dplyr::left_join(onco1, by = "Gene") |>
+      dplyr::left_join(civic1, by = "Gene") |>
+      tidyr::unite(col = "ext_links", url_vicc, url_oncokb, url_civic, sep = ", ", na.rm = TRUE, remove = TRUE) |>
+      dplyr::relocate(ext_links, .after = Diff) |>
+      dplyr::mutate(gene_url = glue::glue("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={.data$Gene}' target='_blank'>{.data$Gene}</a>"))
+    if ("ENSEMBL" %in% colnames(xy)) {
+      xy <- xy |>
+        dplyr::mutate(ENSEMBL = glue::glue("<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g={.data$ENSEMBL}' target='_blank'>{.data$ENSEMBL}</a>"))
+    }
+    xy <- xy |>
+      dplyr::relocate("gene_url") |>
+      dplyr::select(-"Gene") |>
+      dplyr::rename(
+        "External resources" = "ext_links",
+        "Gene" = "gene_url"
+      )
+
     for (gene in genes) {
+      # For every gene (~18K)
       ##### Provide link to VICC meta-knowledgebase ( https://search.cancervariants.org )
       group.z$ext_links[group.z$Gene == gene] <- paste0("<a href='https://search.cancervariants.org/#", gene, "' target='_blank'>VICC</a>")
 
       ##### Provide link to OncoKB
       if (!is.null(oncokb_annot)) {
-        if (gene %in% rownames(oncokb_annot) & oncokb_annot[gene, "OncoKB"] == "Yes") {
-          group.z$ext_links[group.z$Gene == gene] <- paste(group.z$ext_links[group.z$Gene == gene], paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>OncoKB</a>"), sep = ", ")
+        if ((gene %in% oncokb_annot$Gene) && ((oncokb_annot |> dplyr::filter(.data$Gene == gene) |> dplyr::pull("OncoKB")) == "Yes")) {
+          group.z$ext_links[group.z$Gene == gene] <- paste(
+            group.z$ext_links[group.z$Gene == gene],
+            paste0(
+              "<a href='http://oncokb.org/#/gene/",
+              gene,
+              "' target='_blank'>OncoKB</a>"
+            ),
+            sep = ", "
+          )
         }
       }
 
