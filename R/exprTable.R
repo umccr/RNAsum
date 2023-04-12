@@ -19,7 +19,6 @@
 #' @param cancer_genes Cancer genes.
 #' @param mut_annot Mutation annotation.
 #' @param fusion_genes Fusion genes.
-#' @param ext_links External links.
 #' @param type Type.
 #' @param civic_clin_evid civic_clin_evid tibble from reference genes.
 #' @param scaling Scaling
@@ -31,7 +30,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
                       cn_decrease = TRUE, targets, sampleName, int_cancer, ext_cancer,
                       comp_cancer, add_cancer = NULL, genes_annot = NULL,
                       oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL,
-                      fusion_genes = NULL, ext_links = FALSE, type = "z", scaling = "gene-wise",
+                      fusion_genes = NULL, type = "z", scaling = "gene-wise",
                       civic_clin_evid = NULL) {
   assertthat::assert_that(
     !is.null(genes), !is.null(data), !is.null(civic_clin_evid),
@@ -41,7 +40,6 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     is.character(genes),
     scaling %in% c("gene-wise", "group-wise")
   )
-  # TODO (PD): refactor this function
   ##### Check which of the selected genes are not present in the expression data
   genes.absent <- genes[genes %!in% rownames(data)]
 
@@ -232,13 +230,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   group.z$SYMBOL <- group.z$Gene
 
   ##### Add links to external gene annotation resourses
-  if (ext_links && length(genes) > 0) {
-    ##### Place the external links after the "Diff" column
-    ##### Get the position of "Diff" column
-    col_idx <- grep("Diff", names(group.z), fixed = TRUE)
-    group.z <- tibble::add_column(group.z, NA, .after = col_idx)
-    names(group.z)[col_idx + 1] <- "ext_links"
-
+  if (length(genes) > 0) {
     # create mini tbls for urls
     vicc1 <- tibble::tibble(Gene = genes) |>
       dplyr::mutate(url_vicc = glue::glue("<a href='https://search.cancervariants.org/#{.data$Gene}' target='_blank'>VICC</a>"))
@@ -255,80 +247,18 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     }
 
 
-    x <- group.z |> tibble::as_tibble()
-    xy <- x |>
-      dplyr::select(-ext_links) |>
+    group.z <- group.z |>
+      tibble::as_tibble() |>
       dplyr::left_join(vicc1, by = "Gene") |>
       dplyr::left_join(onco1, by = "Gene") |>
       dplyr::left_join(civic1, by = "Gene") |>
-      tidyr::unite(col = "ext_links", url_vicc, url_oncokb, url_civic, sep = ", ", na.rm = TRUE, remove = TRUE) |>
-      dplyr::relocate(ext_links, .after = Diff) |>
-      dplyr::mutate(gene_url = glue::glue("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={.data$Gene}' target='_blank'>{.data$Gene}</a>"))
+      tidyr::unite(col = "External resources", url_vicc, url_oncokb, url_civic, sep = ", ", na.rm = TRUE, remove = TRUE) |>
+      dplyr::relocate("External resources", .after = Diff) |>
+      dplyr::mutate(Gene = glue::glue("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={.data$Gene}' target='_blank'>{.data$Gene}</a>"))
     if ("ENSEMBL" %in% colnames(xy)) {
       xy <- xy |>
         dplyr::mutate(ENSEMBL = glue::glue("<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g={.data$ENSEMBL}' target='_blank'>{.data$ENSEMBL}</a>"))
     }
-    xy <- xy |>
-      dplyr::relocate("gene_url") |>
-      dplyr::select(-"Gene") |>
-      dplyr::rename(
-        "External resources" = "ext_links",
-        "Gene" = "gene_url"
-      )
-
-    for (gene in genes) {
-      # For every gene (~18K)
-      ##### Provide link to VICC meta-knowledgebase ( https://search.cancervariants.org )
-      group.z$ext_links[group.z$Gene == gene] <- paste0("<a href='https://search.cancervariants.org/#", gene, "' target='_blank'>VICC</a>")
-
-      ##### Provide link to OncoKB
-      if (!is.null(oncokb_annot)) {
-        if ((gene %in% oncokb_annot$Gene) && ((oncokb_annot |> dplyr::filter(.data$Gene == gene) |> dplyr::pull("OncoKB")) == "Yes")) {
-          group.z$ext_links[group.z$Gene == gene] <- paste(
-            group.z$ext_links[group.z$Gene == gene],
-            paste0(
-              "<a href='http://oncokb.org/#/gene/",
-              gene,
-              "' target='_blank'>OncoKB</a>"
-            ),
-            sep = ", "
-          )
-        }
-      }
-
-      ##### Provide link to CIViC database druggable genes ( https://civicdb.org )
-      assertthat::assert_that("gene" %in% colnames(civic_clin_evid))
-      if (gene %in% civic_clin_evid[["gene"]]) {
-        group.z$ext_links[group.z$Gene == gene] <- paste(
-          group.z$ext_links[group.z$Gene == gene],
-          paste0(
-            "<a href='",
-            unique(civic_clin_evid[civic_clin_evid[["gene"]] == gene, "gene_civic_url"]),
-            "' target='_blank'>CIViC</a>"
-          ),
-          sep = ", "
-        )
-      }
-    }
-
-    names(group.z) <- gsub("ext_links", "External resources", names(group.z))
-  }
-
-  ##### Attach links to GeneCards and Ensembl (if provided). Here we assume that gene names are
-  for (gene in genes) {
-    if ("ENSEMBL" %in% names(group.z)) {
-      if (!is.na(group.z$ENSEMBL[group.z$Gene == gene])) {
-        group.z$ENSEMBL[group.z$Gene == gene] <- paste0(
-          "<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=",
-          group.z$ENSEMBL[group.z$Gene == gene],
-          "' target='_blank'>",
-          group.z$ENSEMBL[group.z$Gene == gene],
-          "</a>"
-        )
-      }
-    }
-
-    group.z$Gene[group.z$Gene == gene] <- paste0("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene=", gene, "' target='_blank'>", gene, "</a>")
   }
 
   ##### Order the data by CN values (to allow filtering based on CN information) and then by the highest absolute values for Patient vs [comp_cancer] difference (to allow filtering based on z-score differences)
