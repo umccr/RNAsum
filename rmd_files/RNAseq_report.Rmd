@@ -14,12 +14,12 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  sample_name: 'test_sample_WTS'
-  dataset: 'TEST'
-  bcbio_rnaseq: '../data/test_data/final/test_sample_WTS'
-  dragen_rnaseq: NULL
-  arriba_rnaseq: NULL
-  report_dir: '../data/test_data/final/test_sample_WTS/RNAsum'
+  sample_name: 'MDX230101'
+  dataset: 'PANCAN'
+  bcbio_rnaseq: NULL
+  dragen_rnaseq: '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ03162_MDX230101_L2300435/dragen'
+  arriba_rnaseq: '/Users/kanwals/UMCCR/data/wts/RNAsum/final/SBJ03162_MDX230101_L2300435/dragen/arriba'
+  report_dir: '/Users/kanwals/UMCCR/data/wts/RNAsum/reports'
   ref_data_dir: '../data'
   transform: 'CPM'
   filter: TRUE
@@ -29,7 +29,7 @@ params:
   scaling: 'gene-wise'
   drugs: FALSE
   immunogram: FALSE
-  umccrise: '../data/test_data/umccrised/test_subject__test_sample_WGS'
+  umccrise: '/Users/kanwals/UMCCR/data/wts/RNAsum/umccrised/SBJ03162__MDX230100'
   clinical_info: '../data/test_data/test_clinical_data.xlsx'
   clinical_id: 'test_subject'
   subject_id: ''
@@ -2010,10 +2010,15 @@ if ( !is.null(params$dragen_rnaseq) && file.exists(dragen_fusion_file) ) {
   
   ref_genes.list[["dragenFusion"]] <- dragen_fusion_genes
   
-  runDragenFusionChunk <- TRUE
-  runFusionChunk <- TRUE
+  ##### Check if Dragen detected any fusions
+  if (nrow(dragen_fusion) > 0) {
+    runDragenFusionChunk <- TRUE
+    runFusionChunk <- TRUE   
+  } else {
+    runDragenFusionChunk <- FALSE
+    runFusionChunk <- FALSE
+  }
 }
-
 
 ##### Read in pizzly fusion calls
 ##### Check if pizzly output file exists
@@ -3415,59 +3420,59 @@ for (row in 1:nrow(arriba.fusions)){
 ##### Add columns for info about reported fusions
 fusions <- cbind(arriba.fusions, data.frame(matrix("", ncol = 5, nrow = nrow(arriba.fusions)), stringsAsFactors = FALSE))
 colnames(fusions)[(ncol(fusions)-4):ncol(fusions)] <- c("FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene")
-  
+
 ##### Add annotations about known fusion events
 ##### Loop through all genes involved in deteced gene fusions (arriba results) and check which are already reported
 for ( i in 1:nrow(fusions) ) {
   geneA <- as.character(fusions$geneA[i])
   geneB <- as.character(fusions$geneB[i])
-          
+  
   ##### First check if the exact reported gene pairs were detected by arriba
   if ( paste(geneA, geneB, sep="-") %in% trans.pairs ) {
-      
+    
     ##### provide fusion URL to FusionGDB
     fusions$reported_fusion[i] <- "Yes"
-      
+    
     ##### provide fusion ID from FusionGDB
     fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneA, geneB, sep="-")  ]
-      
+    
     fusions$reported_fusion_geneA[i] <- "Yes"
     fusions$reported_fusion_geneB[i] <- "Yes"
-      
+    
   } else if ( paste(geneB, geneA, sep="-") %in% trans.pairs ) {
-      
+    
     ##### provide fusion URL to FusionGDB
     fusions$reported_fusion[i] <- "Yes"
-      
+    
     ##### provide fusion ID from FusionGDB
     fusions$FGID[i] <- known_translocations$FGID[ trans.pairs %in% paste(geneB, geneA, sep="-")  ]
-      
+    
     fusions$reported_fusion_geneA[i] <- "Yes"
     fusions$reported_fusion_geneB[i] <- "Yes"
-      
-  ##### Now check if any ofthe arriba detected fusion genes are reported
+    
+    ##### Now check if any ofthe arriba detected fusion genes are reported
   } else {
     fusions$reported_fusion[i] <- "-"
-      
+    
     ##### Check the Cancer Genome Interpreter (CGI) database first
     ##### Check arriba genes A and genes A in reported fusions
     if ( geneA %in% known_translocations$geneA ) {
-       fusions$reported_fusion_geneA[i] <- "Yes"
-        
-    ##### Check arriba genes A and genes B in reported fusions
+      fusions$reported_fusion_geneA[i] <- "Yes"
+      
+      ##### Check arriba genes A and genes B in reported fusions
     } else if ( geneA %in% known_translocations$geneB ) {
       fusions$reported_fusion_geneA[i] <- "Yes"
     }
-      
+    
     ##### Check arriba genes B and genes A in reported fusions
     if ( geneB %in% known_translocations$geneA ) {
       fusions$reported_fusion_geneB[i] <- "Yes"
-        
-    ##### Check arriba genes B and genes B in reported fusions
+      
+      ##### Check arriba genes B and genes B in reported fusions
     } else if ( geneB %in% known_translocations$geneB ) {
       fusions$reported_fusion_geneB[i] <- "Yes"
     }
-      
+    
     ##### Flag if any of the genes are effector gene
     if ( geneA %in% known_translocations$effector_gene  ) {
       fusions$effector_gene[i] <- geneA
