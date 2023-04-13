@@ -1372,7 +1372,6 @@ genes.expr.perc <- RNAsum::exprTable(
 )
 
 ##### Z-scores
-start <- Sys.time()
 genes.expr.z <- RNAsum::exprTable(
   type = "z",
   data = dat1,
@@ -1390,8 +1389,6 @@ genes.expr.z <- RNAsum::exprTable(
   scaling = scaling,
   civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
 )
-end <- Sys.time()
-tot <- end - start
 
 ##### Create directory for saving tables
 exprTableDir <- file.path(results_dir, "exprTables")
@@ -1399,8 +1396,8 @@ fs::dir_create(exprTableDir)
 
 # TODO (PD): where do these widgets get sucked into the report??
 ##### Save the expression tables as html file
-# RNAsum::saveWidgetFix(widget = genes.expr.perc[[1]], file = file.path(exprTableDir, "genes.expr.perc.html"))
-# RNAsum::saveWidgetFix(widget = genes.expr.z[[1]], file = file.path(exprTableDir, "genes.expr.z.html"))
+RNAsum::saveWidgetFix(widget = genes.expr.perc[[1]], file = file.path(exprTableDir, "genes.expr.perc.html"))
+RNAsum::saveWidgetFix(widget = genes.expr.z[[1]], file = file.path(exprTableDir, "genes.expr.z.html"))
 
 ##### Clean the space
 rm(dat1, targets, genes.expr.z, genes.expr.perc)
@@ -1408,12 +1405,10 @@ rm(dat1, targets, genes.expr.z, genes.expr.perc)
 
 ```{r cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Combine expression data with mutation and CN data if available
-cn_data <- sample_data.list[["wgs"]][["purple_gene_tsv"]]
 expr_data <- ref_dataset.list[[dataset]][["data_to_report"]]
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 
 ##### ...percentiles
-start <- Sys.time()
 expr_data.perc <- RNAsum::exprTable(
   type = "perc",
   data = expr_data,
@@ -1428,13 +1423,10 @@ expr_data.perc <- RNAsum::exprTable(
   scaling = scaling,
   civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
 )[[2]]
-end <- Sys.time()
-tot <- end - start
 
 expr_genes <- expr_data.perc[["SYMBOL"]]
 
-##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores using exprTable function
-start <- Sys.time()
+##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores
 expr_data.z <- RNAsum::exprTable(
   type = "z",
   data = expr_data,
@@ -1449,32 +1441,32 @@ expr_data.z <- RNAsum::exprTable(
   scaling = scaling,
   civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
 )[[2]]
-end <- Sys.time()
-tot <- end - start
 
-##### Make sure the tables have the same genes order
-# expr_data.perc <- expr_data.perc[expr_genes, ]
-expr_data.z <- expr_data.z[expr_genes, ]
-
-if (comp_cancer_group != int_cancer_group) {
-  expr_data.perc <- expr_data.perc[, "Diff"]
-  expr_data.z <- expr_data.z[, "Diff"]
-} else {
-  expr_data.perc <- expr_data.perc[, paste0("Patient vs ", comp_cancer_group)]
-  expr_data.z <- expr_data.z[, paste0("Patient vs ", comp_cancer_group)]
+col1 <- "Diff"
+if (comp_cancer_group == int_cancer_group) {
+  col1 <- paste0("Patient vs ", comp_cancer_group)
 }
+expr_data.perc <- expr_data.perc |>
+  dplyr::select(c("SYMBOL", dplyr::all_of(col1))) |>
+  dplyr::arrange(.data$SYMBOL) |>
+  tibble::deframe()
+expr_data.z <- expr_data.z |>
+  dplyr::select(c("SYMBOL", dplyr::all_of(col1))) |>
+  dplyr::arrange(.data$SYMBOL) |>
+  tibble::deframe()
 
-names(expr_data.perc) <- expr_genes
-names(expr_data.z) <- expr_genes
+# make sure we have same names in order
+assertthat::assert_that(all(names(expr_data.perc) == names(expr_data.z)))
 
 ##### Calculate the mean CN for each gene
-cn_data$MeanCopyNumber <- rowMeans(cbind(cn_data$minCopyNumber, cn_data$maxCopyNumber))
-
 ##### Deal with negative CN values
-cn_data$MeanCopyNumber[cn_data$MeanCopyNumber < 0] <- 0
-
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
-cn_data <- cn_data[cn_data$gene %!in% "", ]
+cn_data <- sample_data.list[["wgs"]][["purple_gene_tsv"]] |>
+  dplyr::mutate(
+    MeanCopyNumber = rowMeans(cbind(.data$minCopyNumber, .data$maxCopyNumber)),
+    MeanCopyNumber = if_else(.data$MeanCopyNumber < 0, 0, .data$MeanCopyNumber)
+  ) |>
+  dplyr::filter(.data$gene != "")
 
 ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
 cn_data.all <- cn_data
@@ -1483,14 +1475,14 @@ cn_data.all <- cn_data
 cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
 
 ##### Keep only genes with available expression data
-cn_data <- cn_data[cn_data$gene %in% names(expr_data.z), ]
+cn_data <- cn_data |>
+  dplyr::filter(.data$gene %in% names(expr_data.z))
 
 ##### Add mutation data if available
-if (!is.null(sample_data.list$wgs$pcgr_tiers_tsv)) {
-  mut_data <- sample_data.list$wgs$pcgr_tiers_tsv
-
+if (!is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])) {
   ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
-  mut_data <- mut_data[mut_data$SYMBOL %!in% "", ]
+  pcgr1 <- sample_data.list$wgs$pcgr_tiers_tsv |>
+    dplyr::filter(!.data$SYMBOL == "")
 
   ##### Prepare mutation data to include multiple mutations per gene
   ##### Initiate variable for the gene mutation status for each gene
@@ -1498,20 +1490,79 @@ if (!is.null(sample_data.list$wgs$pcgr_tiers_tsv)) {
   colnames(gene.mut) <- "Alterations"
   rownames(gene.mut) <- names(expr_data.z)
 
-  for (i in 1:nrow(gene.mut)) {
+  pd_fun1 <- function(pcgr1, expr_data.z, expr_data.perc) {
+    # named vector with gene and csq
+    pcgr_csq_hits <- pcgr1 |>
+      dplyr::select("SYMBOL", "CONSEQUENCE") |>
+      dplyr::group_by(SYMBOL) |>
+      dplyr::mutate(
+        nr = n(),
+        res = dplyr::if_else(
+          nr == 1,
+          .data$CONSEQUENCE,
+          "multiple hits"
+        )
+      ) |>
+      dplyr::ungroup() |>
+      dplyr::select("SYMBOL", "res") |>
+      dplyr::distinct() |>
+      tibble::deframe()
+
+    gene.mut2 <- tibble::tibble(
+      gene = names(expr_data.z),
+      alterations = "None"
+    ) |>
+      dplyr::mutate(
+        csq_hits = pcgr_csq_hits[.data$gene],
+        alterations = dplyr::if_else(is.na(.data$csq_hits), .data$alterations, paste0("Mutation: ", csq_hits))
+      ) |>
+      dplyr::select("gene", "alterations")
+
+    # - get pcgr genes that are not in gene.mut
+    # - assign them the min expr_data value
+    # - add to expr_data named vectors
+    # - add it to gene.mut
+    gene.mut3 <- pcgr1 |>
+      dplyr::filter(!.data$SYMBOL %in% gene.mut2$gene) |>
+      dplyr::select(gene = "SYMBOL") |>
+      dplyr::distinct() |>
+      dplyr::mutate(alterations = pcgr_csq_hits[.data$gene])
+
+    expr_data3 <- gene.mut3 |>
+      dplyr::select("gene") |>
+      dplyr::mutate(
+        expr_min_z = min(expr_data.z),
+        expr_min_perc = min(expr_data.perc)
+      )
+
+    expr_data3_perc <- expr_data3 |>
+      dplyr::select("gene", "expr_min_perc") |>
+      tibble::deframe()
+    expr_data3_z <- expr_data3 |>
+      dplyr::select("gene", "expr_min_z") |>
+      tibble::deframe()
+
+    list(
+      gene.mut = dplyr::bind_rows(gene.mut2, gene.mut3),
+      expr_data.perc = c(expr_data.perc, expr_data3_perc),
+      expr_data.z = c(expr_data.z, expr_data3_z)
+    )
+  }
+
+  for (i in seq_len(nrow(gene.mut))) {
     ##### Check if any mutations are reported for each gene
-    if (rownames(gene.mut)[i] %in% mut_data$SYMBOL) {
+    if (rownames(gene.mut)[i] %in% pcgr1$SYMBOL) {
       ##### Deal with multiple mutations per gene
-      if (length(mut_data[mut_data$SYMBOL %in% rownames(gene.mut)[i], ]$CONSEQUENCE) > 1) {
+      if (length(pcgr1[pcgr1$SYMBOL %in% rownames(gene.mut)[i], ]$CONSEQUENCE) > 1) {
         gene.mut[rownames(gene.mut)[i], "Alterations"] <- "Mutation: multiple hits"
       } else {
-        gene.mut[rownames(gene.mut)[i], "Alterations"] <- paste0("Mutation: ", mut_data[mut_data$SYMBOL %in% rownames(gene.mut)[i], ]$CONSEQUENCE)
+        gene.mut[rownames(gene.mut)[i], "Alterations"] <- paste0("Mutation: ", pcgr1[pcgr1$SYMBOL %in% rownames(gene.mut)[i], ]$CONSEQUENCE)
       }
     }
   }
 
   ##### If there is no expression value for a specific gene then assume it's not expressed at all and assign the lowest value observed in that sample
-  for (gene in unique(mut_data$SYMBOL)) {
+  for (gene in unique(pcgr1$SYMBOL)) {
     if (gene %!in% rownames(gene.mut)) {
       # Add gene with no expression value to expression data percentiles and z-score values
       expr_data.perc <- c(expr_data.perc, min(expr_data.perc))
@@ -1521,10 +1572,10 @@ if (!is.null(sample_data.list$wgs$pcgr_tiers_tsv)) {
       names(expr_data.z)[length(expr_data.z)] <- gene
 
       ##### Deal with multiple mutations per gene. Add gene with no expression value to our gene.mut variable
-      if (length(mut_data[mut_data$SYMBOL %in% gene, ]$CONSEQUENCE) > 1) {
+      if (length(pcgr1[pcgr1$SYMBOL %in% gene, ]$CONSEQUENCE) > 1) {
         gene.mut <- rbind(gene.mut, "multiple hits")
       } else {
-        gene.mut <- rbind(gene.mut, mut_data[mut_data$SYMBOL %in% gene, ]$CONSEQUENCE)
+        gene.mut <- rbind(gene.mut, pcgr1[pcgr1$SYMBOL %in% gene, ]$CONSEQUENCE)
       }
       rownames(gene.mut)[nrow(gene.mut)] <- gene
     }
@@ -1532,7 +1583,6 @@ if (!is.null(sample_data.list$wgs$pcgr_tiers_tsv)) {
 
   ##### Subset expression, mutation and copy-number data to include only overlapping genes
   genes.intersect <- intersect(intersect(rownames(gene.mut), cn_data$gene), names(expr_data.perc))
-
   gene.mut.sub <- gene.mut[rownames(gene.mut) %in% genes.intersect, ]
   cn_data.sub <- cn_data[cn_data$gene %in% genes.intersect, ]
   expr_data.perc.sub <- expr_data.perc[names(expr_data.perc) %in% genes.intersect]
@@ -1577,7 +1627,7 @@ cn_data.sub <- cn_data.sub[cn_data.sub$gene %in% rownames(ref_genes.list[["genes
 ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[cn_data.sub$CN <= cn_bottom | cn_data.sub$CN >= cn_top, ]
 
 ##### Clean the space
-rm(cn_data, cn_data.sub, expr_data, gene.mut, mut_data, targets, expr_data.z, expr_data.perc, expr_data.z.sub, expr_data.perc.sub, expr_genes, gene.mut.sub, genes.intersect)
+rm(cn_data, cn_data.sub, expr_data, gene.mut, pcgr1, targets, expr_data.z, expr_data.perc, expr_data.z.sub, expr_data.perc.sub, expr_genes, gene.mut.sub, genes.intersect)
 ```
 
 ```{r cn_data_distribution, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
