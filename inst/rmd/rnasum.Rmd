@@ -8,7 +8,6 @@ output:
     code_download: true
     code_folding: hide
     theme: readable
-    css: style.css
     toc: true
     toc_float: true
   rmdformats::material:
@@ -48,7 +47,7 @@ params:
   umccrise: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS'
 ---
 
-```{r}
+```{r eval=FALSE}
 library(here, include.only = c("here"))
 p <- list(
   arriba_pdf = here("inst/rawdata/test_data/dragen/arriba/fusions.pdf"),
@@ -86,6 +85,17 @@ p <- list(
 )
 params <- p
 
+rmd <- here::here("inst/rmd/rnasum.Rmd")
+render_me <- function() {
+  rmarkdown::render(
+    rmd,
+    params = params
+  )
+}
+render_me()
+```
+
+```{r echo=TRUE}
 # only support GRCh38
 ucsc_genome_assembly <- 38L
 ensembl_version <- 86L
@@ -122,13 +132,16 @@ bsgen_pkg <- paste0("BSgenome.Hsapiens.UCSC.hg", ucsc_genome_assembly)
 }
 ```
 
-```{r prep, echo = FALSE}
+
+```{r prep_css, echo = FALSE, eval=FALSE}
 # TODO (PD): This needs to be reworked
 # Include/exclude the "Code" button allowing to "show"/"hide" code chunks from the report
 css_code <- if_else(params$hide_code_btn, ".btn { display: none ;", " ")
 writeLines(css_code, con = here::here("inst/rmd/style.css"))
 NOW <- Sys.time()
+```
 
+```{r prep_knitr_hooks, echo = FALSE}
 # Time chunks during knitting
 knitr::knit_hooks$set(timeit = function(before) {
   if (before) {
@@ -409,7 +422,7 @@ ref_genes.list[["genes_cancer"]] <- tmpg
 ref_genes.list[["genes_oncokb"]] <- tmpg |>
   dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]][["Hugo_Symbol"]])
 # dplyr::select(-c("Gene"))
-rm(tmpg)
+rm(tmpg, r1)
 ```
 
 
@@ -1454,7 +1467,7 @@ expr_data.perc <- expr_sel(expr_data.perc)
 expr_data.z <- expr_sel(expr_data.z)
 
 # make sure we have same names in order
-assertthat::assert_that(all(expr_data.perc[["SYMBOL"]] == expr_data.z[["SYMBOL"]]))
+stopifnot(all(expr_data.perc[["SYMBOL"]] == expr_data.z[["SYMBOL"]]))
 
 ##### Calculate the mean CN for each gene
 ##### Deal with negative CN values
@@ -1502,42 +1515,41 @@ ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub |>
   dplyr::filter(.data$CN <= cn_bottom | .data$CN >= cn_top)
 
 ##### Clean the space
-rm(cn_data, cn_data.sub, expr_data, gene.mut, targets, expr_data.z, expr_data.perc, expr_genes)
+rm(cn_data, cn_data.sub, expr_data, targets, expr_data.z, expr_data.perc, expr_genes, pcgr_expr1)
 ```
 
 ```{r cn_data_distribution, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
-suppressMessages(library(plotly))
-
-##### Draw histogram of CN data
-cn_dist_plot <- plot_ly(x = cn_data.all$MeanCopyNumber, type = "histogram", name = "CN data", width = 800, height = 300) %>%
-  ##### Add 5th percentile threshold
-  add_lines(
-    y = seq(0, 1000, 100), x = rep(cn_data.all.percent[2], 11),
+##### Draw histogram of CN data with percentile vertical thresholds
+cn_dist_plot <- plotly::plot_ly(
+  x = cn_data.all[["MeanCopyNumber"]], type = "histogram", name = "CN data",
+  width = 800, height = 300
+) |>
+  plotly::add_lines(
+    y = seq(0, 1000, 100), x = rep(cn_data.all.percent["5%"], 11),
     line = list(color = "black", dash = "dash"), opacity = 0.4,
     name = "5th percentile", showlegend = TRUE
-  ) %>%
-  ##### Add 50th percentile
-  add_lines(
-    y = seq(0, 1000, 100), x = rep(cn_data.all.percent[11], 11),
+  ) |>
+  plotly::add_lines(
+    y = seq(0, 1000, 100), x = rep(cn_data.all.percent["50%"], 11),
     line = list(color = "black", dash = "dash"), opacity = 0.7,
     name = "50th percentile", showlegend = TRUE
-  ) %>%
+  ) |>
   ##### Add 95th percentile threshold
-  add_lines(
-    y = seq(0, 1000, 100), x = rep(cn_data.all.percent[20], 11),
+  plotly::add_lines(
+    y = seq(0, 1000, 100), x = rep(cn_data.all.percent["95%"], 11),
     line = list(color = "black", dash = "dash"), opacity = 1,
     name = "95th percentile", showlegend = TRUE
-  ) %>%
-  layout(xaxis = list(title = "CN values"), yaxis = list(title = "Frequency"), margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4), autosize = F)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
+  ) |>
+  plotly::layout(
+    xaxis = list(title = "CN values"), yaxis = list(title = "Frequency"),
+    margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4), autosize = FALSE
+  )
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
 
 ##### Clean the space
-rm(cn_data.all)
+rm(cn_data.all, cn_data.all.percent)
 ```
 
 ```{r known_fusions_prep, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
