@@ -419,7 +419,7 @@ rm(tmpg)
 # Also include splice region variants if specified
 if (runPcgrChunk) {
   ref_genes.list[["summary"]]$Mutated <- RNAsum::genes_pcgr_summary(
-    pcgr_tbl = sample_data.list$wgs[["pcgr_tiers_tsv"]],
+    pcgr_tbl = sample_data.list[["wgs"]][["pcgr_tiers_tsv"]],
     tiers = 1:params$pcgr_tier,
     splice_vars = params$pcgr_splice_vars
   )
@@ -479,7 +479,7 @@ genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
 ```{r goi_annotation, comment = NA, message=FALSE, warning=FALSE}
 ##### Get gene symbols for the genes of interest. These genes will not be filtered out due to low/insufficient expression
 
-##### Get genes genomic coordiantes
+##### Get genes genomic coordinates
 gene_info <- edb |>
   ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
   dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
@@ -986,11 +986,8 @@ y[["comb"]]$norm <- cbind(
   y[[targets_mod.list[2]]]$norm
 )
 
-if (tolower(params$norm) != "none") {
-  ref_dataset.list[[dataset]][["combined_data_processed"]] <- y[["comb"]]$norm
-} else {
-  ref_dataset.list[[dataset]][["combined_data_processed"]] <- y[["comb"]]$noNorm
-}
+ref_dataset.list[[dataset]][["combined_data_processed"]] <- y[["comb"]] |>
+  purrr::pluck(if_else(tolower(params$norm) != "none", "norm", "noNorm"))
 
 ##### Clean the space
 rm(targets_mod.list)
@@ -1213,7 +1210,7 @@ for (dataset in names(ref_dataset.list)) {
 if (!is.null(dev.list())) invisible(dev.off())
 
 ##### Clean the space
-rm(targets.colour)
+rm(target, targets.colour)
 ```
 
 ```{r gene_annot_count_data, comment = NA, message=FALSE, warning=FALSE}
@@ -1297,7 +1294,7 @@ for (dataset in names(ref_dataset.list)) {
 }
 
 ##### Clean the space
-rm(dat1, target, data.df, edb, keys)
+rm(dat1, data.df, edb, keys)
 ```
 
 ```{r gene_annot_processed_data, comment = NA, message=FALSE, warning=FALSE}
@@ -1446,27 +1443,30 @@ col1 <- "Diff"
 if (comp_cancer_group == int_cancer_group) {
   col1 <- paste0("Patient vs ", comp_cancer_group)
 }
-expr_data.perc <- expr_data.perc |>
-  dplyr::select(c("SYMBOL", dplyr::all_of(col1))) |>
-  dplyr::arrange(.data$SYMBOL) |>
-  tibble::deframe()
-expr_data.z <- expr_data.z |>
-  dplyr::select(c("SYMBOL", dplyr::all_of(col1))) |>
-  dplyr::arrange(.data$SYMBOL) |>
-  tibble::deframe()
+expr_sel <- function(d) {
+  d |>
+    tibble::as_tibble() |>
+    dplyr::select(c("SYMBOL", dplyr::all_of(col1))) |>
+    dplyr::arrange(.data$SYMBOL)
+}
+
+expr_data.perc <- expr_sel(expr_data.perc)
+expr_data.z <- expr_sel(expr_data.z)
 
 # make sure we have same names in order
-assertthat::assert_that(all(names(expr_data.perc) == names(expr_data.z)))
+assertthat::assert_that(all(expr_data.perc[["SYMBOL"]] == expr_data.z[["SYMBOL"]]))
 
 ##### Calculate the mean CN for each gene
 ##### Deal with negative CN values
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
+##### Select just gene and mean cn
 cn_data <- sample_data.list[["wgs"]][["purple_gene_tsv"]] |>
   dplyr::mutate(
     MeanCopyNumber = rowMeans(cbind(.data$minCopyNumber, .data$maxCopyNumber)),
     MeanCopyNumber = if_else(.data$MeanCopyNumber < 0, 0, .data$MeanCopyNumber)
   ) |>
-  dplyr::filter(.data$gene != "")
+  dplyr::filter(.data$gene != "") |>
+  dplyr::select("gene", "MeanCopyNumber")
 
 ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
 cn_data.all <- cn_data
@@ -1476,158 +1476,33 @@ cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .0
 
 ##### Keep only genes with available expression data
 cn_data <- cn_data |>
-  dplyr::filter(.data$gene %in% names(expr_data.z))
+  dplyr::filter(.data$gene %in% expr_data.z[["SYMBOL"]])
 
-##### Add mutation data if available
-if (!is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])) {
-  ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
-  pcgr1 <- sample_data.list$wgs$pcgr_tiers_tsv |>
-    dplyr::filter(!.data$SYMBOL == "")
+##### Add mutation data if available. If PCGR is NULL, returns NULL for gene.mut
+##### and unmodified expr_data.z/perc
+pcgr_expr1 <- pcgr_expr(
+  pcgr = sample_data.list[["wgs"]][["pcgr_tiers_tsv"]],
+  expr_data.z = expr_data.z,
+  expr_data.perc = expr_data.perc
+)
 
-  ##### Prepare mutation data to include multiple mutations per gene
-  ##### Initiate variable for the gene mutation status for each gene
-  gene.mut <- as.matrix(rep("None", length(expr_data.z)))
-  colnames(gene.mut) <- "Alterations"
-  rownames(gene.mut) <- names(expr_data.z)
-
-  pd_fun1 <- function(pcgr1, expr_data.z, expr_data.perc) {
-    # named vector with gene and csq
-    pcgr_csq_hits <- pcgr1 |>
-      dplyr::select("SYMBOL", "CONSEQUENCE") |>
-      dplyr::group_by(SYMBOL) |>
-      dplyr::mutate(
-        nr = n(),
-        res = dplyr::if_else(
-          nr == 1,
-          .data$CONSEQUENCE,
-          "multiple hits"
-        )
-      ) |>
-      dplyr::ungroup() |>
-      dplyr::select("SYMBOL", "res") |>
-      dplyr::distinct() |>
-      tibble::deframe()
-
-    gene.mut2 <- tibble::tibble(
-      gene = names(expr_data.z),
-      alterations = "None"
-    ) |>
-      dplyr::mutate(
-        csq_hits = pcgr_csq_hits[.data$gene],
-        alterations = dplyr::if_else(is.na(.data$csq_hits), .data$alterations, paste0("Mutation: ", csq_hits))
-      ) |>
-      dplyr::select("gene", "alterations")
-
-    # - get pcgr genes that are not in gene.mut
-    # - assign them the min expr_data value
-    # - add to expr_data named vectors
-    # - add it to gene.mut
-    gene.mut3 <- pcgr1 |>
-      dplyr::filter(!.data$SYMBOL %in% gene.mut2$gene) |>
-      dplyr::select(gene = "SYMBOL") |>
-      dplyr::distinct() |>
-      dplyr::mutate(alterations = pcgr_csq_hits[.data$gene])
-
-    expr_data3 <- gene.mut3 |>
-      dplyr::select("gene") |>
-      dplyr::mutate(
-        expr_min_z = min(expr_data.z),
-        expr_min_perc = min(expr_data.perc)
-      )
-
-    expr_data3_perc <- expr_data3 |>
-      dplyr::select("gene", "expr_min_perc") |>
-      tibble::deframe()
-    expr_data3_z <- expr_data3 |>
-      dplyr::select("gene", "expr_min_z") |>
-      tibble::deframe()
-
-    list(
-      gene.mut = dplyr::bind_rows(gene.mut2, gene.mut3),
-      expr_data.perc = c(expr_data.perc, expr_data3_perc),
-      expr_data.z = c(expr_data.z, expr_data3_z)
-    )
-  }
-
-  for (i in seq_len(nrow(gene.mut))) {
-    ##### Check if any mutations are reported for each gene
-    if (rownames(gene.mut)[i] %in% pcgr1$SYMBOL) {
-      ##### Deal with multiple mutations per gene
-      if (length(pcgr1[pcgr1$SYMBOL %in% rownames(gene.mut)[i], ]$CONSEQUENCE) > 1) {
-        gene.mut[rownames(gene.mut)[i], "Alterations"] <- "Mutation: multiple hits"
-      } else {
-        gene.mut[rownames(gene.mut)[i], "Alterations"] <- paste0("Mutation: ", pcgr1[pcgr1$SYMBOL %in% rownames(gene.mut)[i], ]$CONSEQUENCE)
-      }
-    }
-  }
-
-  ##### If there is no expression value for a specific gene then assume it's not expressed at all and assign the lowest value observed in that sample
-  for (gene in unique(pcgr1$SYMBOL)) {
-    if (gene %!in% rownames(gene.mut)) {
-      # Add gene with no expression value to expression data percentiles and z-score values
-      expr_data.perc <- c(expr_data.perc, min(expr_data.perc))
-      names(expr_data.perc)[length(expr_data.perc)] <- gene
-
-      expr_data.z <- c(expr_data.z, min(expr_data.z))
-      names(expr_data.z)[length(expr_data.z)] <- gene
-
-      ##### Deal with multiple mutations per gene. Add gene with no expression value to our gene.mut variable
-      if (length(pcgr1[pcgr1$SYMBOL %in% gene, ]$CONSEQUENCE) > 1) {
-        gene.mut <- rbind(gene.mut, "multiple hits")
-      } else {
-        gene.mut <- rbind(gene.mut, pcgr1[pcgr1$SYMBOL %in% gene, ]$CONSEQUENCE)
-      }
-      rownames(gene.mut)[nrow(gene.mut)] <- gene
-    }
-  }
-
-  ##### Subset expression, mutation and copy-number data to include only overlapping genes
-  genes.intersect <- intersect(intersect(rownames(gene.mut), cn_data$gene), names(expr_data.perc))
-  gene.mut.sub <- gene.mut[rownames(gene.mut) %in% genes.intersect, ]
-  cn_data.sub <- cn_data[cn_data$gene %in% genes.intersect, ]
-  expr_data.perc.sub <- expr_data.perc[names(expr_data.perc) %in% genes.intersect]
-  expr_data.z.sub <- expr_data.z[names(expr_data.z) %in% genes.intersect]
-
-  ##### Make sure they are all in the same order
-  gene.mut.sub <- gene.mut.sub[genes.intersect]
-  rownames(cn_data.sub) <- cn_data.sub$gene
-  cn_data.sub <- cn_data.sub[genes.intersect, ]
-  expr_data.perc.sub <- expr_data.perc.sub[genes.intersect]
-  expr_data.z.sub <- expr_data.z.sub[genes.intersect]
-
-  ##### Prepare data frame
-  cn_data.sub <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.perc.sub, expr_data.z.sub, gene.mut.sub)
-  colnames(cn_data.sub) <- c("Gene", "CN", "Perc_diff", "Z_score_diff", "Alterations")
-} else {
-  ##### Skip the step for processing mutation info and deal with expression and copy-number data
-  ##### Subset expression and copy-number data to include only overlapping genes
-  genes.intersect <- intersect(cn_data$gene, names(expr_data.perc))
-
-  cn_data.sub <- cn_data[cn_data$gene %in% genes.intersect, ]
-  expr_data.perc.sub <- expr_data.perc[names(expr_data.perc) %in% genes.intersect]
-  expr_data.z.sub <- expr_data.z[names(expr_data.z) %in% genes.intersect]
-
-  ##### Make sure thay are all in the same order
-  rownames(cn_data.sub) <- cn_data.sub$Gene
-  cn_data.sub <- cn_data.sub[genes.intersect, ]
-  expr_data.perc.sub <- expr_data.perc.sub[genes.intersect]
-  expr_data.z.sub <- expr_data.z.sub[genes.intersect]
-
-  ##### Prepare data frame
-  cn_data.sub <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.perc.sub, expr_data.z.sub)
-  colnames(cn_data.sub) <- c("Gene", "CN", "Perc_diff", "Z_score_diff")
-}
-
+# Prepare CN table
+cn_data.sub <- RNAsum::cn_subset(
+  gene.mut = pcgr_expr1[["gene.mut"]],
+  cn_data = cn_data,
+  expr_data.perc = pcgr_expr1[["expr_data.perc"]],
+  expr_data.z = pcgr_expr1[["expr_data.z"]]
+)
 ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
 
-##### Limit the data to include only cancer genes - not seeing how this will work as ref_genes.list[["genes_cancer"]] has numerical rownames
-cn_data.sub <- cn_data.sub[cn_data.sub$gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
-
+##### Limit the data to include only cancer genes
 ##### Keep genes meeting the user-defined CN values thresholds
-ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[cn_data.sub$CN <= cn_bottom | cn_data.sub$CN >= cn_top, ]
+ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub |>
+  dplyr::filter(.data$Gene %in% ref_genes.list[["genes_cancer"]][["Gene"]]) |>
+  dplyr::filter(.data$CN <= cn_bottom | .data$CN >= cn_top)
 
 ##### Clean the space
-rm(cn_data, cn_data.sub, expr_data, gene.mut, pcgr1, targets, expr_data.z, expr_data.perc, expr_data.z.sub, expr_data.perc.sub, expr_genes, gene.mut.sub, genes.intersect)
+rm(cn_data, cn_data.sub, expr_data, gene.mut, targets, expr_data.z, expr_data.perc, expr_genes)
 ```
 
 ```{r cn_data_distribution, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}

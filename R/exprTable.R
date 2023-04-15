@@ -252,8 +252,8 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
       dplyr::left_join(vicc1, by = "Gene") |>
       dplyr::left_join(onco1, by = "Gene") |>
       dplyr::left_join(civic1, by = "Gene") |>
-      tidyr::unite(col = "External resources", url_vicc, url_oncokb, url_civic, sep = ", ", na.rm = TRUE, remove = TRUE) |>
-      dplyr::relocate("External resources", .after = Diff) |>
+      tidyr::unite(col = "External resources", .data$url_vicc, .data$url_oncokb, .data$url_civic, sep = ", ", na.rm = TRUE, remove = TRUE) |>
+      dplyr::relocate("External resources", .after = .data$Diff) |>
       dplyr::mutate(Gene = glue::glue("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={.data$Gene}' target='_blank'>{.data$Gene}</a>"))
     if ("ENSEMBL" %in% colnames(group.z)) {
       group.z <- group.z |>

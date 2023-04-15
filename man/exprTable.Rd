@@ -5,9 +5,9 @@
 \title{Generate table with coloured cells indicating expression values for selected genes}
 \usage{
 exprTable(
-  genes,
+  data = NULL,
+  genes = NULL,
   keep_all = FALSE,
-  data,
   cn_data = NULL,
   sv_data = NULL,
   cn_decrease = TRUE,
@@ -22,18 +22,17 @@ exprTable(
   cancer_genes = NULL,
   mut_annot = NULL,
   fusion_genes = NULL,
-  ext_links = FALSE,
   type = "z",
   scaling = "gene-wise",
   civic_clin_evid = NULL
 )
 }
 \arguments{
+\item{data}{Input data.}
+
 \item{genes}{Selected genes.}
 
 \item{keep_all}{keep all rows}
-
-\item{data}{Input data.}
 
 \item{cn_data}{Copy number data.}
 
@@ -62,8 +61,6 @@ exprTable(
 \item{mut_annot}{Mutation annotation.}
 
 \item{fusion_genes}{Fusion genes.}
-
-\item{ext_links}{External links.}
 
 \item{type}{Type.}
 
