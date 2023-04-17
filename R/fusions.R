@@ -63,3 +63,39 @@ known_trans <- function(kt_fusiongdb, kt_cgi) {
   # NOTE: FGname2 is basically the old trans.pairs
   kt
 }
+
+#' Pre-Process Arriba or DRAGEN Fusions
+#'
+#'
+#' @param d Parsed tibble with Arriba or DRAGEN fusions.
+#' @param known_translocations Tibble with known translocations.
+#' @param genes_cancer Character vector of cancer genes.
+#' @return Tibble with post-processed fusion calls.
+#' @export
+fusions_preprocess <- function(d, known_translocations, genes_cancer) {
+  k <- known_translocations
+  assertthat::assert_that(
+    inherits(k, "data.frame"),
+    inherits(d, "data.frame"),
+    is.character(genes_cancer),
+    all(c("gene1", "gene2") %in% colnames(d)),
+    all(c("FGname", "FGname2", "geneA", "geneB") %in% colnames(k))
+  )
+  colnames(d) <- sub("1", "A", colnames(d))
+  colnames(d) <- sub("2", "B", colnames(d))
+  fgid_from_fgname <- k |>
+    dplyr::select("FGname2", "FGID") |>
+    tibble::deframe()
+  d |>
+    tidyr::unite(col = "tpairAB", "geneA", "geneB", sep = "-", remove = FALSE) |>
+    tidyr::unite(col = "tpairBA", "geneB", "geneA", sep = "-", remove = FALSE) |>
+    dplyr::mutate(
+      reported_fusion = any(c(.data$tpairAB, .data$tpairBA) %in% k[["FGname2"]]),
+      FGID = fgid_from_fgname[.data$tpairAB],
+      FGID = dplyr::if_else(is.na(.data$FGID), fgid_from_fgname[.data$tpairBA], .data$FGID),
+      reported_fusion_geneA = .data$geneA %in% c(k[["geneA"]], k[["geneB"]]),
+      reported_fusion_geneB = .data$geneB %in% c(k[["geneA"]], k[["geneB"]]),
+      effector_gene = any(c(.data$geneA, .data$geneB) %in% k[["effector_gene"]]),
+      fusions_cancer = any(c(.data$geneA, .data$geneB) %in% genes_cancer)
+    )
+}

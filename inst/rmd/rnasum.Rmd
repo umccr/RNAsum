@@ -92,7 +92,7 @@ render_me <- function() {
     params = params
   )
 }
-render_me()
+# render_me()
 ```
 
 ```{r echo=TRUE}
@@ -158,7 +158,7 @@ knitr::opts_chunk$set(timeit = TRUE)
 knitr::knit_hooks$set(plot = allow_thumbnails)
 ```
 
-```{r load_refdata, comment = NA, message=FALSE, warning=FALSE}
+```{r read_data, comment = NA, message=FALSE, warning=FALSE}
 dataset <- toupper(params$dataset)
 dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
 ##### Grab umccrise SBJ for MySQL insert command.
@@ -188,15 +188,6 @@ ref_dataset.list <- vector("list", length(dataset)) |> set_names(dataset)
 ref_genes.list <- RNAsum::get_refgenes(params)
 # sample WTS/WGS data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
-# TODO: put all chunks inside a function
-runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
-runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
-runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
-runFusionChunk <- runArribaChunk || runDragenFusionChunk
-runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
-runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
-runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
-  nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
 
 arriba_summary_out <- glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
 RNAsum::arriba_summary_write(
@@ -227,6 +218,18 @@ comp_cancer_group <- ext_cancer_group
 if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
   comp_cancer_group <- int_cancer_group
 }
+```
+
+```{r chunk_eval}
+# TODO: put all chunks inside a function
+runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
+runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
+runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
+runFusionChunk <- runArribaChunk || runDragenFusionChunk
+runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
+runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
+runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
+  nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
 ```
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
@@ -938,7 +941,7 @@ if (params$filter) {
 }
 
 ##### Clean the space
-rm(data.df, target, den.x, den.y)
+rm(data.df, target, den.x, den.y, comb_data)
 ```
 
 ```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE }
@@ -1553,44 +1556,21 @@ rm(cn_data.all, cn_data.all.percent)
 ```
 
 ```{r known_fusions_prep, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-##### Flag known fusions based on info from Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
-known_translocations.CGI <- ref_genes.list[["cancer_biomarkers_trans"]] |>
-  dplyr::mutate(
-    cancer_acronym = gsub(";", ", ", .data$cancer_acronym),
-    source = gsub(";", ", ", .data$source),
-    translocation = gsub("__", "_", .data$translocation)
-  )
-
-##### Flag known fusions based on info from FusionGDB (https://ccsm.uth.edu/FusionGDB)
-known_translocations.FusionGDB <- ref_genes.list[["FusionGDB"]]
-
-##### Merge info from both resources
-known_translocations <- merge(known_translocations.FusionGDB, known_translocations.CGI, by.x = "FGname", by.y = "translocation", all = TRUE, sort = FALSE)
-
-##### Extract gene pairs involved in reported gene fusions
-trans.pairs <- as.data.frame(cbind(known_translocations$FGname, known_translocations$FGname))
-names(trans.pairs) <- c("geneA", "geneB")
-trans.pairs$geneA <- sub("_.*", "", trans.pairs$geneA)
-trans.pairs$geneB <- sub(".*_", "", trans.pairs$geneB)
-known_translocations <- cbind(known_translocations, trans.pairs)
-trans.pairs <- apply(trans.pairs, 1, paste, collapse = "-")
-
-rm(known_translocations.CGI, known_translocations.FusionGDB)
+known_translocations <- RNAsum::known_trans(
+  kt_fusiongdb = ref_genes.list[["FusionGDB"]],
+  kt_cgi = RNAsum::known_translocations_cgi_process(ref_genes.list[["cancer_biomarkers_trans"]])
+)
 ```
 
 ```{r arriba_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
 ##### Read in the arriba fusion calls
-arriba.fusions <- sample_data.list[["arriba"]]
-colnames(arriba.fusions) <- gsub("X.gene1", "geneA", colnames(arriba.fusions))
-colnames(arriba.fusions) <- gsub("1", "A", colnames(arriba.fusions))
-colnames(arriba.fusions) <- gsub("2", "B", colnames(arriba.fusions))
+arriba.fusions <- sample_data.list[["arriba_tsv"]]
+colnames(arriba.fusions) <- sub("1", "A", colnames(arriba.fusions))
+colnames(arriba.fusions) <- sub("2", "B", colnames(arriba.fusions))
 
-##### Note the fusions order, which will be later required for embedding Arriba plots from corresponding pdf booklet pages
-arriba.fusions.order <- paste(arriba.fusions$geneA, arriba.fusions$geneB, sep = "__")
 
 ##### Extract only those fusion genes that are in cancer genes list
 arriba.cancer_genes <- data.frame()
-
 for (row in 1:nrow(arriba.fusions)) {
   if (arriba.fusions[row, "geneA"] %in% rownames(ref_genes.list[["genes_cancer"]]) | arriba.fusions[row, "geneB"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
     ##### Creating a new dataframe for extracting arriba rows with cancer gene hits
@@ -1598,7 +1578,7 @@ for (row in 1:nrow(arriba.fusions)) {
   }
 }
 
-##### Add columns for info about reported fusions
+##### Add 5 columns for info about reported fusions
 fusions <- cbind(arriba.fusions, data.frame(matrix("", ncol = 5, nrow = nrow(arriba.fusions)), stringsAsFactors = FALSE))
 colnames(fusions)[(ncol(fusions) - 4):ncol(fusions)] <- c("FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene")
 
@@ -1609,21 +1589,21 @@ for (i in 1:nrow(fusions)) {
   geneB <- as.character(fusions$geneB[i])
 
   ##### First check if the exact reported gene pairs were detected by arriba
-  if (paste(geneA, geneB, sep = "-") %in% trans.pairs) {
+  if (paste(geneA, geneB, sep = "-") %in% known_translocations$FGname2) {
     ##### provide fusion URL to FusionGDB
     fusions$reported_fusion[i] <- "Yes"
 
     ##### provide fusion ID from FusionGDB
-    fusions$FGID[i] <- known_translocations$FGID[trans.pairs %in% paste(geneA, geneB, sep = "-")]
+    fusions$FGID[i] <- known_translocations$FGID[known_translocations$FGname2 %in% paste(geneA, geneB, sep = "-")]
 
     fusions$reported_fusion_geneA[i] <- "Yes"
     fusions$reported_fusion_geneB[i] <- "Yes"
-  } else if (paste(geneB, geneA, sep = "-") %in% trans.pairs) {
+  } else if (paste(geneB, geneA, sep = "-") %in% known_translocations$FGname2) {
     ##### provide fusion URL to FusionGDB
     fusions$reported_fusion[i] <- "Yes"
 
     ##### provide fusion ID from FusionGDB
-    fusions$FGID[i] <- known_translocations$FGID[trans.pairs %in% paste(geneB, geneA, sep = "-")]
+    fusions$FGID[i] <- known_translocations$FGID[known_translocations$FGname2 %in% paste(geneB, geneA, sep = "-")]
 
     fusions$reported_fusion_geneA[i] <- "Yes"
     fusions$reported_fusion_geneB[i] <- "Yes"
@@ -1654,7 +1634,7 @@ for (i in 1:nrow(fusions)) {
     ##### Flag if any of the genes are effector gene
     if (geneA %in% known_translocations$effector_gene) {
       fusions$effector_gene[i] <- geneA
-    } else if (geneB == known_translocations$effector_gene) {
+    } else if (geneB %in% known_translocations$effector_gene) {
       fusions$effector_gene[i] <- geneB
     }
   }
@@ -1673,10 +1653,16 @@ if (nrow(arriba.cancer_genes) > 0) {
 
 ##### Re-ordering arriba's results on the basis of Arriba's confidence, reported fusions and then read count values (first by split count and then paircount) and then involvment of cancer genes and reported one of the fusion genes
 fusions <- fusions[order(fusions$reported_fusion, fusions$split_reads, fusions$split_readsA, fusions$split_readsB, fusions$discordant_mates, fusions$fusions_cancer, fusions$reported_fusion_geneA, fusions$reported_fusion_geneB, decreasing = TRUE), ]
-fusions <- fusions[order(factor(fusions$confidence, levels = c("high", "medium", "low"))), ]
+# fusions <- fusions[order(factor(fusions$confidence, levels = c("high", "medium", "low"))), ]
 
 ##### Keep only key columns and add info about Arriba detected fusions and
 fusions <- fusions[colnames(fusions) %in% c("geneA", "geneB", "breakpointA", "breakpointB", "siteA", "siteB", "type", "split_reads", "split_readsA", "split_readsB", "discordant_mates", "confidence", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
+
+pd_fusions <- RNAsum::arriba_process(
+  arriba.fusions = sample_data.list[["arriba_tsv"]],
+  known_translocations = known_translocations,
+  genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
+)
 
 ##### Add column to flag fusions supported by WGS data (from MANTA), if available
 fusions$geneA_dna_support <- "-"
@@ -1687,15 +1673,14 @@ if (runDragenFusionChunk) {
 }
 
 ##### Clean the space and return output
-rm(arriba.fusions, arriba.fusion.transcripts, arriba.cancer_genes, arriba.other_genes)
+rm(arriba.fusions, arriba.cancer_genes)
 ```
 
 ```{r dragen_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
-##### Read in the arriba fusion calls
-dragen.fusions <- ref_genes.list[["dragenFusion"]]
-colnames(dragen.fusions) <- gsub("gene1", "geneA", colnames(dragen.fusions))
-colnames(dragen.fusions) <- gsub("1", "A", colnames(dragen.fusions))
-colnames(dragen.fusions) <- gsub("2", "B", colnames(dragen.fusions))
+##### Read in the dragen fusion calls
+dragen.fusions <- sample_data.list[["dragen_fusions"]]
+colnames(dragen.fusions) <- sub("1", "A", colnames(dragen.fusions))
+colnames(dragen.fusions) <- sub("2", "B", colnames(dragen.fusions))
 
 ##### Extract only those fusion genes that are in cancer genes list
 dragen.cancer_genes <- data.frame()
@@ -1720,21 +1705,21 @@ if (nrow(dragen.fusions) > 0) {
     geneB <- as.character(dragen.fusions$geneB[i])
 
     ##### First check if the exact reported gene pairs were detected by dragen
-    if (paste(geneA, geneB, sep = "-") %in% trans.pairs) {
+    if (paste(geneA, geneB, sep = "-") %in% known_translocations$FGname2) {
       ##### provide fusion URL to FusionGDB
       dragen.fusions$reported_fusion[i] <- "Yes"
 
       ##### provide fusion ID from FusionGDB
-      dragen.fusions$FGID[i] <- known_translocations$FGID[trans.pairs %in% paste(geneA, geneB, sep = "-")]
+      dragen.fusions$FGID[i] <- known_translocations$FGID[known_translocations$FGname2 %in% paste(geneA, geneB, sep = "-")]
 
       dragen.fusions$reported_fusion_geneA[i] <- "Yes"
       dragen.fusions$reported_fusion_geneB[i] <- "Yes"
-    } else if (paste(geneB, geneA, sep = "-") %in% trans.pairs) {
+    } else if (paste(geneB, geneA, sep = "-") %in% known_translocations$FGname2) {
       ##### provide fusion URL to FusionGDB
       dragen.fusions$reported_fusion[i] <- "Yes"
 
       ##### provide fusion ID from FusionGDB
-      dragen.fusions$FGID[i] <- known_translocations$FGID[trans.pairs %in% paste(geneB, geneA, sep = "-")]
+      dragen.fusions$FGID[i] <- known_translocations$FGID[known_translocations$FGname2 %in% paste(geneB, geneA, sep = "-")]
 
       dragen.fusions$reported_fusion_geneA[i] <- "Yes"
       dragen.fusions$reported_fusion_geneB[i] <- "Yes"
@@ -1765,7 +1750,7 @@ if (nrow(dragen.fusions) > 0) {
       ##### Flag if any of the genes are effector gene
       if (geneA %in% known_translocations$effector_gene) {
         dragen.fusions$effector_gene[i] <- geneA
-      } else if (geneB == known_translocations$effector_gene) {
+      } else if (geneB %in% known_translocations$effector_gene) {
         dragen.fusions$effector_gene[i] <- geneB
       }
     }
@@ -1786,6 +1771,11 @@ if (nrow(dragen.fusions) > 0) {
   ##### Keep only key columns
   dragen.fusions <- dragen.fusions[colnames(dragen.fusions) %in% c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint", "GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
 
+  pd_dragen.fusions <- RNAsum::dragen_fusions_process(
+    dragen.fusions = sample_data.list[["dragen_fusions"]],
+    known_translocations = known_translocations,
+    genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
+  )
   ##### Add column to flag fusions supported by WGS data (from MANTA), if available
   dragen.fusions$geneA_dna_support <- "-"
   dragen.fusions$geneB_dna_support <- "-"

@@ -16,14 +16,13 @@ arriba_pdf_read(pdf = NULL, fusions = NULL, outdir = NULL)
 \value{
 Tibble with paths to the created PNG images and their clean names.
 If the PDF (or any of the required params) is NULL, returns NULL.
-}
-\description{
-Reads the PDF output by Arriba containing one fusion plot per page and
-converts each page to a separate PNG file.
-}
-\examples{
+|> |> |> |>  @examples
 pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum")
 tsv <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
 fusions <- arriba_tsv_read(tsv)
 (pngs <- arriba_pdf_read(pdf, fusions, tempdir()))
+}
+\description{
+Reads the PDF output by Arriba containing one fusion plot per page and
+converts each page to a separate PNG file.
 }
