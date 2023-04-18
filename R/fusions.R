@@ -41,11 +41,19 @@ known_translocations_cgi_process <- function(kt_cgi) {
 }
 
 
+#' Get Known Translocations
+#'
+#' Flag known fusions based on info from:
+#' - FusionGDB (https://ccsm.uth.edu/FusionGDB)
+#' - Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
+#'
+#' @param kt_fusiongdb FusionGDB parsed tibble.
+#' @param kt_cgi CGI parsed tibble.
+#' @return Tibble with known translocations.
 #' @export
 known_trans <- function(kt_fusiongdb, kt_cgi) {
-  ##### Flag known fusions based on info from:
-  ##### FusionGDB (https://ccsm.uth.edu/FusionGDB)
-  ##### Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
+  # need to remove dup trans from cgi
+  kt_cgi <- known_translocations_cgi_process(kt_cgi)
   kt <- dplyr::full_join(
     kt_fusiongdb, kt_cgi,
     by = c("FGname" = "translocation")
