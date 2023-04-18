@@ -2,7 +2,7 @@
 #'
 #' Reads the TSV file output by Arriba.
 #' @param x Path to Arriba TSV file.
-#' @return A tibble with the contents of the input TSV file, or NULL if x is NULL.
+#' @return A tibble with the contents of the input TSV file, or NULL if input is NULL or TSV has no data rows.
 #'
 #' @examples
 #' x <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
@@ -15,14 +15,16 @@ arriba_tsv_read <- function(x = NULL) {
   if (is.null(x)) {
     return(NULL)
   }
-  x |>
-    readr::read_tsv(
-      col_types = readr::cols(
-        .default = "c", discordant_mates = "d",
-        split_reads1 = "d", split_reads2 = "d",
-        coverage1 = "d", coverage2 = "d"
-      )
-    ) |>
+  ctypes <- readr::cols(
+    .default = "c", discordant_mates = "d",
+    split_reads1 = "d", split_reads2 = "d",
+    coverage1 = "d", coverage2 = "d"
+  )
+  d <- readr::read_tsv(x, col_types = ctypes)
+  if (nrow(d) == 0) {
+    return(NULL)
+  }
+  d |>
     dplyr::rename(gene1 = "#gene1")
 }
 
@@ -117,6 +119,6 @@ arriba_process <- function(arriba.fusions, known_translocations, genes_cancer) {
       "geneA", "geneB", "breakpointA", "breakpointB", "siteA", "siteB",
       "type", "split_reads", "split_readsA", "split_readsB", "discordant_mates",
       "confidence", "FGID", "reported_fusion", "reported_fusion_geneA",
-      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller"
+      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller", "tpairAB", "tpairBA"
     )
 }

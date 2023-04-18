@@ -1658,7 +1658,7 @@ fusions <- fusions[order(fusions$reported_fusion, fusions$split_reads, fusions$s
 ##### Keep only key columns and add info about Arriba detected fusions and
 fusions <- fusions[colnames(fusions) %in% c("geneA", "geneB", "breakpointA", "breakpointB", "siteA", "siteB", "type", "split_reads", "split_readsA", "split_readsB", "discordant_mates", "confidence", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
 
-pd_fusions <- RNAsum::arriba_process(
+pd_arriba.fusions <- RNAsum::arriba_process(
   arriba.fusions = sample_data.list[["arriba_tsv"]],
   known_translocations = known_translocations,
   genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
@@ -1781,6 +1781,8 @@ if (nrow(dragen.fusions) > 0) {
   dragen.fusions$geneB_dna_support <- "-"
 
   ##### Add results from Arriba
+  ##### PD: How about we just parse the Arriba results (if not NULL), then
+  ##### parse the Dragen results (if not NULL), then merge the two?
   if (runArribaChunk) {
     #####  Dragen's fusion format version 3.9.3
     if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
@@ -1802,7 +1804,35 @@ if (nrow(dragen.fusions) > 0) {
           fusions$Dragen[match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep = "__"))] <- "Yes"
           dragen.fusions[i, ] <- rep("-", ncol(dragen.fusions))
         } else {
-          fusions <- rbind(fusions, data.frame(geneA = dragen.fusions$geneA[i], geneB = dragen.fusions$geneB[i], breakpointA = dragen.fusions$LeftBreakpoint[i], breakpointB = dragen.fusions$RightBreakpoint[i], siteA = dragen.fusions$GeneALocation[i], siteB = dragen.fusions$GeneBLocation[i], type = "-", split_reads = dragen.fusions$NumSplitReads[i], split_readsA = "-", split_readsB = "-", discordant_mates = "-", soft_clipped_reads = dragen.fusions$NumSoftClippedReads[i], confidence = "-", score = dragen.fusions$Score[i], FGID = dragen.fusions$FGID[i], reported_fusion = dragen.fusions$reported_fusion[i], reported_fusion_geneA = dragen.fusions$reported_fusion_geneA[i], reported_fusion_geneB = dragen.fusions$reported_fusion_geneB[i], effector_gene = dragen.fusions$effector_gene[i], fusions_cancer = dragen.fusions$fusions_cancer[i], geneA_dna_support = "-", geneB_dna_support = "-", Arriba = "-", Dragen = "Yes"))
+          fusions <- rbind(
+            fusions,
+            data.frame(
+              geneA = dragen.fusions$geneA[i],
+              geneB = dragen.fusions$geneB[i],
+              breakpointA = dragen.fusions$LeftBreakpoint[i],
+              breakpointB = dragen.fusions$RightBreakpoint[i],
+              siteA = dragen.fusions$GeneALocation[i],
+              siteB = dragen.fusions$GeneBLocation[i],
+              type = "-",
+              split_reads = dragen.fusions$NumSplitReads[i],
+              split_readsA = "-",
+              split_readsB = "-",
+              discordant_mates = "-",
+              soft_clipped_reads = dragen.fusions$NumSoftClippedReads[i],
+              confidence = "-",
+              score = dragen.fusions$Score[i],
+              FGID = dragen.fusions$FGID[i],
+              reported_fusion = dragen.fusions$reported_fusion[i],
+              reported_fusion_geneA = dragen.fusions$reported_fusion_geneA[i],
+              reported_fusion_geneB = dragen.fusions$reported_fusion_geneB[i],
+              effector_gene = dragen.fusions$effector_gene[i],
+              fusions_cancer = dragen.fusions$fusions_cancer[i],
+              geneA_dna_support = "-",
+              geneB_dna_support = "-",
+              Arriba = "-",
+              Dragen = "Yes"
+            )
+          )
         }
       }
 
@@ -1824,7 +1854,34 @@ if (nrow(dragen.fusions) > 0) {
           fusions$Dragen[match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep = "__"))] <- "Yes"
           dragen.fusions[i, ] <- rep("-", ncol(dragen.fusions))
         } else {
-          fusions <- rbind(fusions, data.frame(geneA = dragen.fusions$geneA[i], geneB = dragen.fusions$geneB[i], breakpointA = dragen.fusions$LeftBreakpoint[i], breakpointB = dragen.fusions$RightBreakpoint[i], siteA = "-", siteB = "-", type = "-", split_reads = "-", split_readsA = "-", split_readsB = "-", discordant_mates = "-", confidence = "-", score = dragen.fusions$Score[i], FGID = dragen.fusions$FGID[i], reported_fusion = dragen.fusions$reported_fusion[i], reported_fusion_geneA = dragen.fusions$reported_fusion_geneA[i], reported_fusion_geneB = dragen.fusions$reported_fusion_geneB[i], effector_gene = dragen.fusions$effector_gene[i], fusions_cancer = dragen.fusions$fusions_cancer[i], geneA_dna_support = "-", geneB_dna_support = "-", Arriba = "-", Dragen = "Yes"))
+          fusions <- rbind(
+            fusions,
+            data.frame(
+              geneA = dragen.fusions$geneA[i],
+              geneB = dragen.fusions$geneB[i],
+              breakpointA = dragen.fusions$LeftBreakpoint[i],
+              breakpointB = dragen.fusions$RightBreakpoint[i],
+              siteA = "-",
+              siteB = "-",
+              type = "-",
+              split_reads = "-",
+              split_readsA = "-",
+              split_readsB = "-",
+              discordant_mates = "-",
+              confidence = "-",
+              score = dragen.fusions$Score[i],
+              FGID = dragen.fusions$FGID[i],
+              reported_fusion = dragen.fusions$reported_fusion[i],
+              reported_fusion_geneA = dragen.fusions$reported_fusion_geneA[i],
+              reported_fusion_geneB = dragen.fusions$reported_fusion_geneB[i],
+              effector_gene = dragen.fusions$effector_gene[i],
+              fusions_cancer = dragen.fusions$fusions_cancer[i],
+              geneA_dna_support = "-",
+              geneB_dna_support = "-",
+              Arriba = "-",
+              Dragen = "Yes"
+            )
+          )
         }
       }
     }

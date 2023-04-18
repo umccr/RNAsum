@@ -2,7 +2,7 @@
 #'
 #' Reads the `fusion_candidates.final` file output by DRAGEN.
 #' @param x Path to the `fusion_candidates.final` file.
-#' @return A tibble with the contents of the input TSV file, or NULL if input is NULL.
+#' @return A tibble with the contents of the input TSV file, or NULL if input is NULL or TSV has no data rows.
 #' @examples
 #' x <- system.file("rawdata/test_data/dragen",
 #'   "test_sample_WTS.fusion_candidates.final",
@@ -22,9 +22,22 @@ dragen_fusions_read <- function(x = NULL) {
     .default = "c", Score = "d", NumSplitReads = "d",
     NumSoftClippedReads = "d", NumPairedReads = "d"
   )
-  readr::read_tsv(x, col_types = ctypes) |>
+  d <- readr::read_tsv(x, col_types = ctypes)
+  if (nrow(d) == 0) {
+    return(NULL)
+  }
+  # Old Dragen version (e.g. 3.7.5) had only:
+  # #FusionGene, Score, Left/RightBreakpoint, ReadNames columns.
+  # New version (e.g. 3.9.3) also has:
+  # Gene1/2Location, Gene1/2Sense, Gene1/2Id, NumSplitReads, NumSoftClippedReads, NumPairedReads
+  # If you try to read an old file with the above readr spec, you'll just get a
+  # warning about the missing columns provided in ctypes (which is okay!).
+  d |>
     dplyr::rename(FusionGene = "#FusionGene") |>
-    tidyr::separate(.data$FusionGene, into = c("gene1", "gene2"), sep = "--")
+    tidyr::separate_wider_delim(
+      cols = "FusionGene", delim = "--", names = c("gene1", "gene2"),
+      cols_remove = TRUE, too_few = "align_start", too_many = "merge"
+    )
 }
 
 #' Process DRAGEN Fusions
@@ -48,6 +61,6 @@ dragen_fusions_process <- function(dragen.fusions, known_translocations, genes_c
       "geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint",
       "GeneALocation", "GeneBLocation", "NumSplitReads",
       "NumSoftClippedReads", "FGID", "reported_fusion", "reported_fusion_geneA",
-      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller"
+      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller", "tpairAB", "tpairBA"
     )
 }
