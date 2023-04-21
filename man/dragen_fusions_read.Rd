@@ -10,7 +10,7 @@ dragen_fusions_read(x = NULL)
 \item{x}{Path to the \code{fusion_candidates.final} file.}
 }
 \value{
-A tibble with the contents of the input TSV file, or NULL if input is NULL.
+A tibble with the contents of the input TSV file, or NULL if input is NULL or TSV has no data rows.
 }
 \description{
 Reads the \code{fusion_candidates.final} file output by DRAGEN.

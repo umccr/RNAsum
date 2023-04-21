@@ -106,7 +106,7 @@ arriba_process <- function(arriba.fusions, known_translocations, genes_cancer) {
   d <- fusions_preprocess(d = arriba.fusions, known_translocations = known_translocations, genes_cancer = genes_cancer)
   d |>
     dplyr::mutate(
-      split_reads = .data$split_readsA + split_readsB,
+      split_reads = .data$split_readsA + .data$split_readsB,
       fusion_caller = "arriba"
     ) |>
     dplyr::arrange(

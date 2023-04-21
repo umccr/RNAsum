@@ -10,7 +10,7 @@ arriba_tsv_read(x = NULL)
 \item{x}{Path to Arriba TSV file.}
 }
 \value{
-A tibble with the contents of the input TSV file, or NULL if x is NULL.
+A tibble with the contents of the input TSV file, or NULL if input is NULL or TSV has no data rows.
 }
 \description{
 Reads the TSV file output by Arriba.

@@ -74,5 +74,5 @@ is.empty <- function(x, trim = TRUE, ...) {
 #' @return A tibble with 0 rows and the given column names.
 #' @export
 empty_tbl <- function(cnames, ctypes = readr::cols(.default = "c")) {
-  read_csv("\n", col_names = cnames, col_types = ctypes)
+  readr::read_csv("\n", col_names = cnames, col_types = ctypes)
 }

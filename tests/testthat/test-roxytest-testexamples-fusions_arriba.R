@@ -11,7 +11,7 @@ test_that("Function arriba_tsv_read() @ L14", {
 })
 
 
-test_that("Function arriba_pdf_read() @ L48", {
+test_that("Function arriba_pdf_read() @ L50", {
   
   pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum")
   tsv <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")

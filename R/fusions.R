@@ -15,7 +15,7 @@ known_translocations_cgi_process <- function(kt_cgi) {
   )
   kt_cgi_dup <- kt_cgi |>
     dplyr::group_by(.data$translocation) |>
-    dplyr::filter(n() > 1) |>
+    dplyr::filter(dplyr::n() > 1) |>
     dplyr::ungroup() |>
     tidyr::pivot_wider(
       id_cols = dplyr::all_of(dup_id_cols),
