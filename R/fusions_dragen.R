@@ -62,5 +62,14 @@ dragen_fusions_process <- function(dragen.fusions, known_translocations, genes_c
       "GeneALocation", "GeneBLocation", "NumSplitReads",
       "NumSoftClippedReads", "FGID", "reported_fusion", "reported_fusion_geneA",
       "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller", "tpairAB", "tpairBA"
+    ) |>
+    dplyr::rename(
+      breakpointA = "LeftBreakpoint",
+      breakpointB = "RightBreakpoint",
+      siteA = "GeneALocation",
+      siteB = "GeneBLocation",
+      split_reads = "NumSplitReads",
+      soft_clipped_reads = "NumSoftClippedReads",
+      score = "Score"
     )
 }
