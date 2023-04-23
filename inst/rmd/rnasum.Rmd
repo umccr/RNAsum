@@ -212,7 +212,7 @@ if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
 ```
 
 ```{r chunk_eval}
-# TODO: put all chunks inside a function
+# TODO (PD): put all chunks inside a function
 runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
 runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
 runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
@@ -268,7 +268,7 @@ if (!is.null(params$clinical_id)) {
 
 runClinicalChunk <- FALSE
 
-# TODO (PD): cleanup this clinical info chunk
+# TODO (PD): cleanup clinical info chunk
 if (length(sampleID.col) > 0) {
   ##### Identify column and row with patients details
   if (!is.null(params$clinical_id)) {
@@ -537,7 +537,7 @@ data.df <- tibble(
 # The default order will be alphabetized unless specified as below
 data.df[["Sample"]] <- factor(data.df[["Sample"]], levels = data.df[["Sample"]])
 max_libsize <- max(data.df[["Library_size"]])
-# TODO:
+# TODO (PD):
 # - Does this need to be interactive? Its size is fairly big (>3MB for test set)
 # - Does it need to be a barplot?
 # - Should the bars be sorted instead of mixed?
@@ -1229,7 +1229,7 @@ for (dataset in names(ref_dataset.list)) {
   colnames(data.df)[1] <- "ENSEMBL"
 
   ##### Get genes genomic coordiantes
-  ##### Limit genes annotation to those genes for which sample expression measurments are available
+  ##### Limit genes annotation to those genes for which sample expression measurements are available
   gene_info <- edb |>
     ensembldb::select(
       keys = keys,
@@ -1560,10 +1560,6 @@ fusions_arriba <- RNAsum::arriba_process(
   known_translocations = known_translocations,
   genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
 )
-
-##### TODO (PD): Add column to flag fusions supported by WGS data (from MANTA), if available
-fusions_arriba$geneA_dna_support <- "-"
-fusions_arriba$geneB_dna_support <- "-"
 ```
 
 ```{r dragen_processing, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
@@ -1573,42 +1569,112 @@ fusions_dragen <- RNAsum::dragen_fusions_process(
   known_translocations = known_translocations,
   genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
 )
-##### TODO (PD): Add column to flag fusions supported by WGS data (from MANTA), if available
-fusions_dragen$geneA_dna_support <- "-"
-fusions_dragen$geneB_dna_support <- "-"
+```
+
+```{r fusions_merge}
+# TODO (PD): merge arriba and dragen fusions
+# - need to standardise the outputs so that the report table has
+# the same columns whether or not any of the tool outputs are missing.
+# Potentially use `empty_tbl` here.
 ```
 
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Annotate fusion genes
 ##### Get data to annotate fusion genes
-fusion_genes_annot <- ref_dataset.list[[dataset]][["gene_annot_all"]][, c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
+fusion_genes_annot <- ref_dataset.list[[dataset]][["gene_annot_all"]] |>
+  dplyr::select("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") |>
+  tibble::as_tibble()
+
+pd_fusions_annot <- function(fusions, ann) {
+  ann <- ref_dataset.list$TEST$gene_annot_all |>
+    dplyr::select("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") |>
+    tibble::as_tibble()
+
+  fus <- fusions
+  fus |>
+    dplyr::mutate(
+      order = dplyr::row_number()
+    ) |>
+    dplyr::left_join(ann, by = c("geneA" = "SYMBOL")) |>
+    dplyr::left_join(ann, by = c("geneB" = "SYMBOL"), suffix = c("."))
+}
 
 fusions.annot <- fusions
 fusions.annot$order <- 1:nrow(fusions.annot)
 
 ##### Get genomic info for fusions genes
-fusion_annot1 <- merge(fusion_genes_annot, fusions.annot[, c("order", "geneA")], by = 2, sort = FALSE, all.y = TRUE)
+fusion_annot1 <- merge(
+  fusion_genes_annot,
+  fusions.annot[, c("order", "geneA")],
+  by = 2, sort = FALSE, all.y = TRUE
+)
 fusion_annot1 <- fusion_annot1[order(fusion_annot1$order), ]
-fusion_annot2 <- merge(fusion_genes_annot, fusions.annot[, c("order", "geneB")], by = 2, sort = FALSE, all.y = TRUE)
+fusion_annot2 <- merge(
+  fusion_genes_annot,
+  fusions.annot[, c("order", "geneB")],
+  by = 2, sort = FALSE, all.y = TRUE
+)
 fusion_annot2 <- fusion_annot2[order(fusion_annot2$order), ]
 
 ##### Dragen + Arriba
 if (runDragenFusionChunk && runArribaChunk) {
-  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("score", "breakpointA", "breakpointB", "discordant_mates", "split_reads", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
-
+  fusion_annot <- cbind(
+    fusion_annot1,
+    fusion_annot2,
+    fusions.annot |>
+      dplyr::select(
+        "score",
+        "breakpointA", "breakpointB", "discordant_mates",
+        "split_reads", "split_readsA", "split_readsB",
+        "reported_fusion", "fusions_cancer",
+        "reported_fusion_geneA", "reported_fusion_geneB"
+      )
+  )
   ##### Arriba
 } else if (runArribaChunk) {
-  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_reads", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+  fusion_annot <- cbind(
+    fusion_annot1,
+    fusion_annot2,
+    fusions.annot |>
+      dplyr::select(
+        "breakpointA", "breakpointB", "discordant_mates",
+        "split_reads", "split_readsA", "split_readsB",
+        "reported_fusion", "fusions_cancer",
+        "reported_fusion_geneA", "reported_fusion_geneB"
+      )
+  )
 
   ##### Dragen only
 } else if (runDragenFusionChunk) {
   #####  Dragen's fusion format version 3.9.3
-  if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
-    fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("score", "breakpointA", "breakpointB", "split_reads", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+  if (
+    all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
+    fusion_annot <- cbind(
+      fusion_annot1,
+      fusion_annot2,
+      fusions.annot |>
+        dplyr::select(
+          "score",
+          "breakpointA", "breakpointB",
+          "split_reads",
+          "reported_fusion", "fusions_cancer",
+          "reported_fusion_geneA", "reported_fusion_geneB"
+        )
+    )
 
     #####  Dragen's fusion format prior to version 3.9.3
   } else {
-    fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("score", "breakpointA", "breakpointB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
+    fusion_annot <- cbind(
+      fusion_annot1,
+      fusion_annot2,
+      fusions.annot |>
+        dplyr::select(
+          "score",
+          "breakpointA", "breakpointB",
+          "reported_fusion", "fusions_cancer",
+          "reported_fusion_geneA", "reported_fusion_geneB"
+        )
+    )
   }
 }
 
@@ -1626,14 +1692,14 @@ rm(fusion_annot1, fusion_annot2, fusions.annot, fusion_genes_annot)
 ```
 
 ```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-##### Compare PIZZY and MANTA called gene fusion events
 ##### Add row for gene fusion events so that there is one row per gene
-manta_sv <- ref_genes.list[["manta"]]
-manta_sv$"Fusion genes" <- manta_sv$Gene
+manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
+  dplyr::mutate("Fusion genes" = .data$Genes)
 
+# TODO (PD): basically just interested in duplicating rows based on 2-gene events?
 i <- 1
 while (i <= nrow(manta_sv)) {
-  if (length(strsplit(manta_sv$Gene[i], split = "&", fixed = TRUE)[[1]]) > 1) {
+  if (length(strsplit(manta_sv$Genes[i], split = "&", fixed = TRUE)[[1]]) > 1) {
     ##### Insert new row for events involving two genes
     manta_sv <- tibble::add_row(manta_sv, .after = i)
     manta_sv[i + 1, ] <- manta_sv[i, ]
