@@ -1503,7 +1503,6 @@ cn_data.sub <- RNAsum::cn_subset(
 ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
 
 ##### Limit the data to include only cancer genes
-
 ##### Keep genes meeting the user-defined CN values thresholds
 ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub |>
   dplyr::filter(.data$Gene %in% ref_genes.list[["genes_cancer"]][["Gene"]]) |>
@@ -1577,119 +1576,29 @@ fusions_dragen <- RNAsum::dragen_fusions_process(
 # - need to standardise the outputs so that the report table has
 # the same columns whether or not any of the tool outputs are missing.
 # Potentially use `empty_tbl` here.
+# - instead of having tpairAB and tpairBA, we could have one column where the
+# pair is sorted then concatenated. That way matches between tables wouldn't need
+# to run over both columns.
 ```
 
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Annotate fusion genes
-##### Get data to annotate fusion genes
-fusion_genes_annot <- ref_dataset.list[[dataset]][["gene_annot_all"]] |>
-  dplyr::select("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") |>
-  tibble::as_tibble()
-
-pd_fusions_annot <- function(fusions, ann) {
-  ann <- ref_dataset.list$TEST$gene_annot_all |>
-    dplyr::select("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND") |>
+pd_fusions_annot <- function(fusions, gene_ann) {
+  sel_cols <- c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND")
+  assertthat::assert_that(all(sel_cols %in% colnames(gene_ann)))
+  a <- gene_ann |>
+    dplyr::select(dplyr::all_of(sel_cols)) |>
     tibble::as_tibble()
-
-  fus <- fusions
-  fus |>
-    dplyr::mutate(
-      order = dplyr::row_number()
-    ) |>
-    dplyr::left_join(ann, by = c("geneA" = "SYMBOL")) |>
-    dplyr::left_join(ann, by = c("geneB" = "SYMBOL"), suffix = c("."))
+  fusions |>
+    dplyr::left_join(a, by = c("geneA" = "SYMBOL")) |>
+    dplyr::left_join(a, by = c("geneB" = "SYMBOL"))
 }
-
-fusions.annot <- fusions
-fusions.annot$order <- 1:nrow(fusions.annot)
-
-##### Get genomic info for fusions genes
-fusion_annot1 <- merge(
-  fusion_genes_annot,
-  fusions.annot[, c("order", "geneA")],
-  by = 2, sort = FALSE, all.y = TRUE
-)
-fusion_annot1 <- fusion_annot1[order(fusion_annot1$order), ]
-fusion_annot2 <- merge(
-  fusion_genes_annot,
-  fusions.annot[, c("order", "geneB")],
-  by = 2, sort = FALSE, all.y = TRUE
-)
-fusion_annot2 <- fusion_annot2[order(fusion_annot2$order), ]
-
-##### Dragen + Arriba
-if (runDragenFusionChunk && runArribaChunk) {
-  fusion_annot <- cbind(
-    fusion_annot1,
-    fusion_annot2,
-    fusions.annot |>
-      dplyr::select(
-        "score",
-        "breakpointA", "breakpointB", "discordant_mates",
-        "split_reads", "split_readsA", "split_readsB",
-        "reported_fusion", "fusions_cancer",
-        "reported_fusion_geneA", "reported_fusion_geneB"
-      )
-  )
-  ##### Arriba
-} else if (runArribaChunk) {
-  fusion_annot <- cbind(
-    fusion_annot1,
-    fusion_annot2,
-    fusions.annot |>
-      dplyr::select(
-        "breakpointA", "breakpointB", "discordant_mates",
-        "split_reads", "split_readsA", "split_readsB",
-        "reported_fusion", "fusions_cancer",
-        "reported_fusion_geneA", "reported_fusion_geneB"
-      )
-  )
-
-  ##### Dragen only
-} else if (runDragenFusionChunk) {
-  #####  Dragen's fusion format version 3.9.3
-  if (
-    all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
-    fusion_annot <- cbind(
-      fusion_annot1,
-      fusion_annot2,
-      fusions.annot |>
-        dplyr::select(
-          "score",
-          "breakpointA", "breakpointB",
-          "split_reads",
-          "reported_fusion", "fusions_cancer",
-          "reported_fusion_geneA", "reported_fusion_geneB"
-        )
-    )
-
-    #####  Dragen's fusion format prior to version 3.9.3
-  } else {
-    fusion_annot <- cbind(
-      fusion_annot1,
-      fusion_annot2,
-      fusions.annot |>
-        dplyr::select(
-          "score",
-          "breakpointA", "breakpointB",
-          "reported_fusion", "fusions_cancer",
-          "reported_fusion_geneA", "reported_fusion_geneB"
-        )
-    )
-  }
-}
-
-##### Add column to flag fusions supported by WGS data (from MANTA), if available
-fusion_annot$geneA_dna_support <- "-"
-fusion_annot$geneB_dna_support <- "-"
-
-colnames(fusion_annot) <- make.names(colnames(fusion_annot), unique = TRUE)
-
-##### Remove entries with missing annotation
-fusion_annot <- fusion_annot[complete.cases(fusion_annot), ]
+gene_ann <- ref_dataset.list[[dataset]][["gene_annot_all"]]
+fusions_dragen_ann <- pd_fusions_annot(fusions_dragen, gene_ann)
+fusions_arriba_ann <- pd_fusions_annot(fusions_arriba, gene_ann)
 
 ##### Clean the space
-rm(fusion_annot1, fusion_annot2, fusions.annot, fusion_genes_annot)
+rm(fusion_genes_annot)
 ```
 
 ```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
