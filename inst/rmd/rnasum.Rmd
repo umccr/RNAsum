@@ -1598,7 +1598,7 @@ fusions_dragen_ann <- pd_fusions_annot(fusions_dragen, gene_ann)
 fusions_arriba_ann <- pd_fusions_annot(fusions_arriba, gene_ann)
 
 ##### Clean the space
-rm(fusion_genes_annot)
+rm(gene_ann)
 ```
 
 ```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
@@ -1609,12 +1609,12 @@ manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
 # TODO (PD): basically just interested in duplicating rows based on 2-gene events?
 i <- 1
 while (i <= nrow(manta_sv)) {
-  if (length(strsplit(manta_sv$Genes[i], split = "&", fixed = TRUE)[[1]]) > 1) {
+  if (length(strsplit(manta_sv$Genes[i], split = ", ", fixed = TRUE)[[1]]) > 1) {
     ##### Insert new row for events involving two genes
     manta_sv <- tibble::add_row(manta_sv, .after = i)
     manta_sv[i + 1, ] <- manta_sv[i, ]
-    manta_sv$Gene[i] <- strsplit(manta_sv$Gene[i], split = "&", fixed = TRUE)[[1]][1]
-    manta_sv$Gene[i + 1] <- strsplit(manta_sv$Gene[i + 1], split = "&", fixed = TRUE)[[1]][2]
+    manta_sv$Genes[i] <- strsplit(manta_sv$Genes[i], split = ", ", fixed = TRUE)[[1]][1]
+    manta_sv$Genes[i + 1] <- strsplit(manta_sv$Genes[i + 1], split = ", ", fixed = TRUE)[[1]][2]
 
     i <- i + 2
   } else {
@@ -1626,7 +1626,7 @@ while (i <= nrow(manta_sv)) {
 ##### Compare fusion genes called by MANTA
 ##### First limit MANTA output to fusions only
 if (runFusionChunk) {
-  manta_fusions <- unique(manta_sv[grep("&", manta_sv$"Fusion genes"), ]$Gene)
+  manta_fusions <- unique(manta_sv[grep(",", manta_sv$"Fusion genes"), ]$Genes)
   manta_fusions <- manta_fusions[manta_fusions %in% unique(c(as.vector(fusions$geneA), as.vector(fusions$geneB)))]
 
   ##### Flag fusions that were also reported in MANTA
@@ -1700,24 +1700,25 @@ fusions$circos[paste(fusions$geneA, fusions$geneB, sep = "-") %in% paste(fusion_
 
 ```{r immunogram_table_prep, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Extract data for Immunogram genes
-data <- ref_dataset.list[[dataset]][["data_to_report"]]
-data <- data[rownames(data) %in% ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ]
+dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
+dat1 <- dat1[rownames(dat1) %in% ref_genes.list[["genes_immune"]][["genes_immunogram"]][["SYMBOL"]], ]
 
-##### Create lists with caulcuation results for each individual Cancer-Immunity Cycle (CIC) step
-CIC.list <- vector("list", length(unique(ref_genes.list[["genes_immune"]]$immunogram$CIC)))
-names(CIC.list) <- unique(ref_genes.list[["genes_immune"]]$immunogram$CIC)
+##### Create lists with calculation results for each individual Cancer-Immunity Cycle (CIC) step
+CIC.list <- vector("list", length(unique(ref_genes.list[["genes_immune"]][["genes_immunogram"]][["CIC"]])))
+names(CIC.list) <- unique(ref_genes.list[["genes_immune"]][["genes_immunogram"]][["CIC"]])
 
 ##### Calculate average expression for each Cancer-Immunity Cycle (CIC) step
-for (cic_step in unique(ref_genes.list[["genes_immune"]]$immunogram$CIC)) {
-  genes <- ref_genes.list[["genes_immune"]]$immunogram$SYMBOL[ref_genes.list[["genes_immune"]]$immunogram$CIC %in% cic_step]
-  data.sub <- data[rownames(data) %in% genes, ]
+for (cic_step in unique(ref_genes.list[["genes_immune"]][["genes_immunogram"]][["CIC"]])) {
+  genes <- ref_genes.list[["genes_immune"]][["genes_immunogram"]][["SYMBOL"]][ref_genes.list[["genes_immune"]][["genes_immunogram"]][["CIC"]] %in% cic_step]
+  data.sub <- dat1[rownames(dat1) %in% genes, ]
   CIC.list[[cic_step]] <- colMeans(data.sub)
 }
 
 ##### Conver the list into dataframe
-ref_genes.list[["genes_immune"]]$immunogram.df <- t(data.frame(matrix(unlist(CIC.list), nrow = length(CIC.list), byrow = T), stringsAsFactors = FALSE))
-colnames(ref_genes.list[["genes_immune"]]$immunogram.df) <- names(CIC.list)
-rownames(ref_genes.list[["genes_immune"]]$immunogram.df) <- colnames(data.sub)
+ref_genes.list[["genes_immune"]][["immunogram.df"]] <- t(data.frame(matrix(unlist(CIC.list), nrow = length(CIC.list), byrow = T), stringsAsFactors = FALSE))
+colnames(ref_genes.list[["genes_immune"]][["immunogram.df"]]) <- names(CIC.list)
+rownames(ref_genes.list[["genes_immune"]][["immunogram.df"]]) <- colnames(data.sub)
+rm(dat1)
 ```
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -1757,8 +1758,6 @@ if (params$immunogram) {
 ```
 
 ```{r goi_sunburst, comment = NA, message=FALSE, warning=FALSE}
-suppressMessages(library(plotly))
-
 ##### Prepare dataframe for Sunburst plot summarising all altered genes
 alt_genes.all.list <- ref_genes.list[["summary"]]
 
@@ -1777,28 +1776,35 @@ for (alt in names(alt_genes.all.list)) {
   }
 }
 
-sunburst.all.df <- data.frame(
+sunburst.all.df <- tibble::tibble(
   ids = names(alt_genes.all.list),
   labels = names(alt_genes.all.list),
-  parents = rep("", length(alt_genes.all.list)),
-  values = as.numeric(lengths(alt_genes.all.list)) / 100,
-  stringsAsFactors = FALSE
+  parents = "",
+  values = as.numeric(lengths(alt_genes.all.list)) / 100
 )
 
 for (alt in names(alt_genes.all.list)) {
   ##### Add only alteration type which has at least one alteration detected
   if (length(alt_genes.all[names(alt_genes.all) %in% names(alt_genes.all.list[[alt]])]) > 0) {
-    sunburst.all.df <- rbind(sunburst.all.df, data.frame(
-      ids = paste(alt, names(alt_genes.all.list[[alt]]), sep = " - "),
-      labels = paste0("\t\t", names(alt_genes.all.list[[alt]]), "\t\t"),
-      parents = rep(alt, length(alt_genes.all.list[[alt]])),
-      values = as.numeric(alt_genes.all.list[[alt]])
-    ))
+    sunburst.all.df <- rbind(
+      sunburst.all.df,
+      tibble::tibble(
+        ids = paste(alt, names(alt_genes.all.list[[alt]]), sep = " - "),
+        labels = paste0("\t\t", names(alt_genes.all.list[[alt]]), "\t\t"),
+        parents = alt,
+        values = as.numeric(alt_genes.all.list[[alt]])
+      )
+    )
   }
 }
 
 sunburst_plot <- NULL
-sunburst_plot[[1]] <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = "sunburst", width = 600, height = 600)
+sunburst_plot[[1]] <- plotly::plot_ly(
+  sunburst.all.df,
+  ids = ~ids, labels = ~labels,
+  parents = ~parents, values = ~values,
+  type = "sunburst", width = 600, height = 600
+)
 
 ##### Now include only Identify genes that appear in more then two lists
 alt_genes.list <- alt_genes.all.list
@@ -1813,44 +1819,44 @@ for (alt in names(alt_genes.list)) {
   }
 }
 
-sunburst.df <- data.frame(
+sunburst.df <- tibble::tibble(
   ids = names(alt_genes.list),
   labels = names(alt_genes.list),
-  parents = rep("", length(alt_genes.list)),
-  values = as.numeric(lengths(alt_genes.list)) / 100,
-  stringsAsFactors = FALSE
+  parents = "",
+  values = as.numeric(lengths(alt_genes.list)) / 100
 )
 
 for (alt in names(alt_genes.list)) {
-  sunburst.df <- rbind(sunburst.df, data.frame(
-    ids = paste(alt, names(alt_genes.list[[alt]]), sep = " - "),
-    labels = paste0("\t\t", names(alt_genes.list[[alt]]), "\t\t"),
-    parents = rep(alt, length(alt_genes.list[[alt]])),
-    values = as.numeric(alt_genes.list[[alt]])
-  ))
+  sunburst.df <- rbind(
+    sunburst.df,
+    tibble::tibble(
+      ids = paste(alt, names(alt_genes.list[[alt]]), sep = " - "),
+      labels = paste0("\t\t", names(alt_genes.list[[alt]]), "\t\t"),
+      parents = alt,
+      values = as.numeric(alt_genes.list[[alt]])
+    )
+  )
 }
 
+sunburst_plot[[2]] <- NA
 if (nrow(sunburst.df) > 0) {
-  sunburst_plot[[2]] <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = "sunburst", width = 600, height = 600)
-} else {
-  sunburst_plot[[2]] <- NA
+  sunburst_plot[[2]] <- plotly::plot_ly(
+    sunburst.df,
+    ids = ~ids, labels = ~labels, parents = ~parents,
+    values = ~values, type = "sunburst", width = 600, height = 600
+  )
 }
 
 ##### Create directory for the plots
-summaryPlotsDir <- paste(results_dir, "summaryPlots", sep = "/")
-if (!file.exists(summaryPlotsDir)) {
-  dir.create(summaryPlotsDir, recursive = TRUE)
-}
+summaryPlotsDir <- file.path(results_dir, "summaryPlots")
+fs::dir_create(summaryPlotsDir)
 
 ##### Save interactive plot as html file
-saveWidgetFix(sunburst_plot[[1]], file = paste(summaryPlotsDir, "sunburst_plot_all.html", sep = "/"))
+RNAsum::saveWidgetFix(widget = sunburst_plot[[1]], file = file.path(summaryPlotsDir, "sunburst_plot_all.html"))
 
 if (!is.na(sunburst_plot[[2]])) {
-  saveWidgetFix(sunburst_plot[[2]], file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
+  RNAsum::saveWidgetFix(widget = sunburst_plot[[2]], file = file.path(summaryPlotsDir, "sunburst_plot.html"))
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
