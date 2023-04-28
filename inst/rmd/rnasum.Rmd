@@ -1647,8 +1647,8 @@ for (cic_step in unique(ref_genes.list[["genes_immune"]][["genes_immunogram"]][[
   CIC.list[[cic_step]] <- colMeans(data.sub)
 }
 
-##### Conver the list into dataframe
-ref_genes.list[["genes_immune"]][["immunogram.df"]] <- t(data.frame(matrix(unlist(CIC.list), nrow = length(CIC.list), byrow = T), stringsAsFactors = FALSE))
+##### Convert the list into dataframe
+ref_genes.list[["genes_immune"]][["immunogram.df"]] <- t(data.frame(matrix(unlist(CIC.list), nrow = length(CIC.list), byrow = TRUE), stringsAsFactors = FALSE))
 colnames(ref_genes.list[["genes_immune"]][["immunogram.df"]]) <- names(CIC.list)
 rownames(ref_genes.list[["genes_immune"]][["immunogram.df"]]) <- colnames(data.sub)
 rm(dat1)
@@ -1668,25 +1668,32 @@ if (!is.null(add_cancer_group)) {
 ```{r goi_summary_update, comment = NA, message=FALSE, warning=FALSE}
 ##### Update altered genes in ...
 ##### ...gene fusion section: Include only those which are DNA-supported (see Structural variants section) or reported in FusionGDB
+ref_genes.list[["summary"]]$Fusion <- NULL
 if (runFusionChunk) {
-  ref_genes.list[["summary"]]$Fusion <- fusions[fusions$reported_fusion == "Yes" | fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes", ]
-  ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(ref_genes.list[["summary"]]$Fusion$geneA), as.character(ref_genes.list[["summary"]]$Fusion$geneB)))
-} else {
-  ref_genes.list[["summary"]]$Fusion <- NULL
+  ref_genes.list[["summary"]]$Fusion <- fusions |>
+    dplyr::filter(.data$reported_fusion | .data$geneA_dna_support | .data$geneB_dna_support) |>
+    dplyr::select("geneA", "geneB") |>
+    unlist() |>
+    unique()
 }
 
 ##### ...copy-number (CN) section: include only genes with CN values > 3 or < 0.5
 if (runPurpleChunk) {
-  #### Keep only genes with user-define CN values
-  ref_genes.list[["summary"]]$CN <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-  ref_genes.list[["summary"]]$CN <- as.character(ref_genes.list[["summary"]]$CN[ref_genes.list[["summary"]]$CN$CN <= cn_bottom | ref_genes.list[["summary"]]$CN$CN >= cn_top, ]$Gene)
+  #### Keep only genes with user-defined CN values
+  ref_genes.list[["summary"]]$CN <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]] |>
+    dplyr::filter(.data$CN <= cn_bottom | .data$CN >= cn_top) |>
+    dplyr::pull("Gene")
 }
 
 ##### ...immune markers section: include only genes with available annotation
+ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]][["immune_markers"]][["SYMBOL"]])
 if (params$immunogram) {
-  ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
-} else {
-  ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)
+  ref_genes.list[["summary"]]$Immune <- unique(
+    c(
+      ref_genes.list[["genes_immune"]][["genes_immunogram"]][["SYMBOL"]],
+      ref_genes.list[["genes_immune"]][["immune_markers"]][["SYMBOL"]]
+    )
+  )
 }
 ```
 
@@ -1787,7 +1794,7 @@ fs::dir_create(summaryPlotsDir)
 ##### Save interactive plot as html file
 RNAsum::saveWidgetFix(widget = sunburst_plot[[1]], file = file.path(summaryPlotsDir, "sunburst_plot_all.html"))
 
-if (!is.na(sunburst_plot[[2]])) {
+if (inherits(sunburst_plot[[2]], "htmlwidget")) {
   RNAsum::saveWidgetFix(widget = sunburst_plot[[2]], file = file.path(summaryPlotsDir, "sunburst_plot.html"))
 }
 
@@ -1805,7 +1812,7 @@ genes.list <- names(alt_genes.all)
 summary_table.list <- vector("list", length(genes.list))
 names(summary_table.list) <- genes.list
 
-##### Go through all alterated genes and note the alterations types
+##### Go through all alterated genes and note the alteration types
 for (gene in names(alt_genes.all)) {
   for (alt in names(alt_genes.all.list)) {
     if (gene %in% names(alt_genes.all.list[[alt]])) {
@@ -1817,23 +1824,38 @@ for (gene in names(alt_genes.all)) {
 
   ##### Add links to external resources
   ##### Provide link to VICC meta-knowledgebase ( https://search.cancervariants.org )
-  summary_table.list[[gene]] <- c(summary_table.list[[gene]], paste0("<a href='https://search.cancervariants.org/#", gene, "' target='_blank'>VICC</a>"))
+  summary_table.list[[gene]] <- c(
+    summary_table.list[[gene]],
+    paste0("<a href='https://search.cancervariants.org/#", gene, "' target='_blank'>VICC</a>")
+  )
 
   ##### Provide link to OncoKB
   if (gene %in% rownames(ref_genes.list[["genes_oncokb"]])) {
     if (ref_genes.list[["genes_oncokb"]][gene, "OncoKB"] == "Yes") {
-      summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(summary_table.list[[gene]][length(summary_table.list[[gene]])], paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>OncoKB</a>"), sep = ", ")
+      summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(
+        summary_table.list[[gene]][length(summary_table.list[[gene]])],
+        paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>OncoKB</a>"),
+        sep = ", "
+      )
     }
   }
 
   ##### Provide link to CIViC database druggable genes ( https://civicdb.org )
-  if (gene %in% cancer_genes_annot.list[["civic_clin_evid"]]$gene) {
-    summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(summary_table.list[[gene]][length(summary_table.list[[gene]])], paste0("<a href='", unique(cancer_genes_annot.list[["civic_clin_evid"]][cancer_genes_annot.list[["civic_clin_evid"]]$gene == gene, "gene_civic_url"]), "' target='_blank'>CIViC</a>"), sep = ", ")
+  if (gene %in% ref_genes.list[["civic_clin_evid"]][["gene"]]) {
+    summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(
+      summary_table.list[[gene]][length(summary_table.list[[gene]])],
+      paste0(
+        "<a href='",
+        unique(ref_genes.list[["civic_clin_evid"]][ref_genes.list[["civic_clin_evid"]][["gene"]] == gene, "gene_civic_url"]),
+        "' target='_blank'>CIViC</a>"
+      ),
+      sep = ", "
+    )
   }
 }
 
 ##### Convert the list into data frame
-summary_table.df <- data.frame(matrix(unlist(summary_table.list), nrow = length(summary_table.list), byrow = T), stringsAsFactors = FALSE)
+summary_table.df <- data.frame(matrix(unlist(summary_table.list), nrow = length(summary_table.list), byrow = TRUE), stringsAsFactors = FALSE)
 
 ##### Add gene names and number of section in which individual genes are reported
 summary_table.df <- cbind(names(summary_table.list), summary_table.df)
