@@ -1610,35 +1610,6 @@ if (runFusionChunk) {
 rm(manta_fusions)
 ```
 
-```{r fusions_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-##### Filter out fusions that are with < 2 split reads and < 2 pair reads and are not supported by genomic data, are not reported and don't involve cancer genes
-
-##### Dragen + Arriba
-if (runDragenFusionChunk && runArribaChunk) {
-  fusions <- fusions %>% dplyr::filter(split_reads > 1 | discordant_mates > 1 | score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-  fusion_annot <- fusion_annot %>% dplyr::filter(split_reads > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-
-  ##### Arriba
-} else if (runArribaChunk) {
-  fusions <- fusions %>% dplyr::filter(split_reads > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-  fusion_annot <- fusion_annot %>% dplyr::filter(split_reads > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-
-  ##### Dragen only
-} else if (runDragenFusionChunk) {
-  ##### For Dragen , this filtering is not changing the results. We'll review the "Score" value again once we start to regularly produce the RNAsum report for Dragen results
-  #####  Dragen's fusion format version 3.9.3
-  if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(fusions))) {
-    fusions <- fusions %>% dplyr::filter(split_reads > 1 | score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-    fusion_annot <- fusion_annot %>% dplyr::filter(score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-
-    #####  Dragen's fusion format prior to version 3.9.3
-  } else {
-    fusions <- fusions %>% dplyr::filter(score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-    fusion_annot <- fusion_annot %>% dplyr::filter(score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-  }
-}
-```
-
 ```{r fusions_circos, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Indicate which fusions have genomic coordinates and can be presented on circos plot
 ##### Take into account only reported fusions or those with both genes genes supported by DNA
