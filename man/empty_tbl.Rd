@@ -8,6 +8,8 @@ empty_tbl(cnames, ctypes = readr::cols(.default = "c"))
 }
 \arguments{
 \item{cnames}{Character vector of column names to use.}
+
+\item{ctypes}{Character vector of column types corresponding to \code{cnames}.}
 }
 \value{
 A tibble with 0 rows and the given column names.

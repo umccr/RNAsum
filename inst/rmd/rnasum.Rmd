@@ -1573,9 +1573,6 @@ fusions_dragen <- RNAsum::dragen_fusions_process(
 
 ```{r fusions_merge, eval = runFusionChunk}
 fusions <- dplyr::bind_rows(fusions_arriba, fusions_dragen)
-```
-
-```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Annotate fusion genes
 fusions_ann <- RNAsum::fusions_annot(
   fusions = fusions,
@@ -1585,35 +1582,15 @@ fusions_ann <- RNAsum::fusions_annot(
 
 ```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Add row for gene fusion events so that there is one row per gene
-manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
-  dplyr::mutate(
-    "Fusion genes" = .data$Genes,
-    multigene = grepl(", ", .data$Genes)
-  ) |>
-  dplyr::select("Start", "End", "Type", "Genes", "Fusion genes", "multigene")
-
-# TODO (PD): basically just interested in duplicating rows based on 2-gene events?
-i <- 1
-while (i <= nrow(manta_sv)) {
-  if (length(strsplit(manta_sv$Genes[i], split = ", ", fixed = TRUE)[[1]]) > 1) {
-    ##### Insert new row for events involving two genes
-    manta_sv <- tibble::add_row(manta_sv, .after = i)
-    manta_sv[i + 1, ] <- manta_sv[i, ]
-    manta_sv$Genes[i] <- strsplit(manta_sv$Genes[i], split = ", ", fixed = TRUE)[[1]][1]
-    manta_sv$Genes[i + 1] <- strsplit(manta_sv$Genes[i + 1], split = ", ", fixed = TRUE)[[1]][2]
-
-    i <- i + 2
-  } else {
-    manta_sv$"Fusion genes"[i] <- ""
-    i <- i + 1
-  }
-}
+manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]] |>
+  RNAsum::manta_process()
 
 ##### Compare fusion genes called by MANTA
 ##### First limit MANTA output to fusions only
 if (runFusionChunk) {
-  manta_fusions <- unique(manta_sv[grep(",", manta_sv$"Fusion genes"), ]$Genes)
-  manta_fusions <- manta_fusions[manta_fusions %in% unique(c(fusions[["geneA"]], fusions[["geneB"]]))]
+  manta_fusions <- manta_sv[["multigenes"]] |>
+    dplyr::filter(.data$Genes %in% unique(c(fusions[["geneA"]], fusions[["geneB"]]))) |>
+    dplyr::pull(.data$Genes)
 
   ##### Flag fusions that were also reported in MANTA
   if (length(manta_fusions) > 0) {
@@ -1627,26 +1604,9 @@ if (runFusionChunk) {
         geneA_dna_support = .data$geneA %in% manta_fusions,
         geneB_dna_support = .data$geneB %in% manta_fusions
       )
-
-    fusions_ann$geneA_dna_support[sort(match(manta_fusions, fusion_annot$SYMBOL), na.last = NA)] <- "Yes"
-    fusions_ann$geneB_dna_support[sort(match(manta_fusions, fusion_annot$SYMBOL.1), na.last = NA)] <- "Yes"
-
-    ##### Re-order fusion dataframe with MANTA supporting fusions on top
-    if (runArribaChunk) {
-      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Arriba, fusions$reported_fusion, decreasing = TRUE)
-    } else {
-      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$reported_fusion, decreasing = TRUE)
-    }
-
-    fusions <- fusions[idx, ]
-    fusion_annot <- fusion_annot[idx, ]
   }
-
-  ##### Remove entries with missing annotation
-  fusion_annot <- fusion_annot[complete.cases(fusion_annot), ]
 }
 
-##### Clean the space and return output
 rm(manta_fusions)
 ```
 
