@@ -1593,34 +1593,42 @@ if (runFusionChunk) {
     dplyr::pull(.data$Genes)
 
   ##### Flag fusions that were also reported in MANTA
-  if (length(manta_fusions) > 0) {
-    fusions <- fusions |>
-      dplyr::mutate(
-        geneA_dna_support = .data$geneA %in% manta_fusions,
-        geneB_dna_support = .data$geneB %in% manta_fusions
-      )
-    fusions_ann <- fusions_ann |>
-      dplyr::mutate(
-        geneA_dna_support = .data$geneA %in% manta_fusions,
-        geneB_dna_support = .data$geneB %in% manta_fusions
-      )
-  }
+  cond1 <- length(manta_fusions) > 0
+  fusions <- fusions |>
+    dplyr::rowwise() |>
+    dplyr::mutate(
+      geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% manta_fusions, FALSE),
+      geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% manta_fusions, FALSE)
+    ) |>
+    dplyr::ungroup()
+  fusions_ann <- fusions_ann |>
+    dplyr::rowwise() |>
+    dplyr::mutate(
+      geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% manta_fusions, FALSE),
+      geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% manta_fusions, FALSE)
+    ) |>
+    dplyr::ungroup()
+  rm(manta_fusions, cond1)
 }
-
-rm(manta_fusions)
 ```
 
 ```{r fusions_circos, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Indicate which fusions have genomic coordinates and can be presented on circos plot
-##### Take into account only reported fusions or those with both genes genes supported by DNA
+##### Take into account only reported fusions or those with both genes supported by DNA
 if (runSVsChunk) {
-  fusion_annot_top <- fusion_annot[fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes", ]
+  fusion_annot_top <- fusions_ann |>
+    dplyr::filter(
+      .data$reported_fusion | .data$geneA_dna_support | .data$geneB_dna_support
+    )
 } else {
-  fusion_annot_top <- fusion_annot[fusion_annot$reported_fusion == "Yes", ]
+  fusion_annot_top <- fusions_ann |>
+    dplyr::filter(.data$reported_fusion)
 }
 
-fusions$circos <- "-"
-fusions$circos[paste(fusions$geneA, fusions$geneB, sep = "-") %in% paste(fusion_annot_top$SYMBOL, fusion_annot_top$SYMBOL.1, sep = "-")] <- "Yes"
+fusions <- fusions |>
+  dplyr::mutate(
+    circos = .data$gene_pair %in% fusion_annot_top[["gene_pair"]]
+  )
 ```
 
 ```{r immunogram_table_prep, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
