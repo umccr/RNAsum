@@ -119,6 +119,6 @@ arriba_process <- function(arriba.fusions, known_translocations, genes_cancer) {
       "geneA", "geneB", "breakpointA", "breakpointB", "siteA", "siteB",
       "type", "split_reads", "split_readsA", "split_readsB", "discordant_mates",
       "confidence", "FGID", "reported_fusion", "reported_fusion_geneA",
-      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller", "tpairAB", "tpairBA"
+      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller", "gene_pair"
     )
 }

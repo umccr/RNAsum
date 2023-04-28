@@ -61,7 +61,7 @@ dragen_fusions_process <- function(dragen.fusions, known_translocations, genes_c
       "geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint",
       "GeneALocation", "GeneBLocation", "NumSplitReads",
       "NumSoftClippedReads", "FGID", "reported_fusion", "reported_fusion_geneA",
-      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller", "tpairAB", "tpairBA"
+      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller", "gene_pair"
     ) |>
     dplyr::rename(
       breakpointA = "LeftBreakpoint",

@@ -62,13 +62,17 @@ known_trans <- function(kt_fusiongdb, kt_cgi) {
       cols = "FGname", delim = "_", names = c("geneA", "geneB"),
       cols_remove = FALSE, too_few = "align_start", too_many = "merge"
     ) |>
-    tidyr::unite(col = "FGname2", "geneA", "geneB", sep = "-", remove = FALSE) |>
+    # use a comparator gene column where the genes are sorted
+    dplyr::mutate(
+      gene_cmp1 = dplyr::if_else(.data$geneA < .data$geneB, .data$geneA, .data$geneB),
+      gene_cmp2 = dplyr::if_else(.data$geneA < .data$geneB, .data$geneB, .data$geneA),
+      gene_pair = glue::glue("{gene_cmp1}--{gene_cmp2}")
+    ) |>
     dplyr::select(
-      "FGname", "FGname2", "Hgene", "HgeneID", "Tgene", "TgeneID",
+      "FGname", "gene_pair", "Hgene", "HgeneID", "Tgene", "TgeneID",
       "FGID", "effector_gene", "cancer_acronym", "source", "geneA", "geneB"
     )
   # NOTE: when geneB is missing we'll get NA e.g. COX6C-NA instead of COX6C-COX6C
-  # NOTE: FGname2 is basically the old trans.pairs
   kt
 }
 
@@ -87,23 +91,47 @@ fusions_preprocess <- function(d, known_translocations, genes_cancer) {
     inherits(d, "data.frame"),
     is.character(genes_cancer),
     all(c("gene1", "gene2") %in% colnames(d)),
-    all(c("FGname", "FGname2", "geneA", "geneB") %in% colnames(k))
+    all(c("FGname", "gene_pair", "geneA", "geneB") %in% colnames(k))
   )
   colnames(d) <- sub("1", "A", colnames(d))
   colnames(d) <- sub("2", "B", colnames(d))
   fgid_from_fgname <- k |>
-    dplyr::select("FGname2", "FGID") |>
+    dplyr::select("gene_pair", "FGID") |>
     tibble::deframe()
   d |>
-    tidyr::unite(col = "tpairAB", "geneA", "geneB", sep = "-", remove = FALSE) |>
-    tidyr::unite(col = "tpairBA", "geneB", "geneA", sep = "-", remove = FALSE) |>
+    # use a comparator gene column where the genes are sorted
     dplyr::mutate(
-      reported_fusion = any(c(.data$tpairAB, .data$tpairBA) %in% k[["FGname2"]]),
-      FGID = fgid_from_fgname[.data$tpairAB],
-      FGID = dplyr::if_else(is.na(.data$FGID), fgid_from_fgname[.data$tpairBA], .data$FGID),
+      gene_cmp1 = dplyr::if_else(.data$geneA < .data$geneB, .data$geneA, .data$geneB),
+      gene_cmp2 = dplyr::if_else(.data$geneA < .data$geneB, .data$geneB, .data$geneA),
+      gene_pair = glue::glue("{gene_cmp1}--{gene_cmp2}")
+    ) |>
+    dplyr::mutate(
+      reported_fusion = .data$gene_pair %in% k[["gene_pair"]],
+      FGID = fgid_from_fgname[.data$gene_pair],
+      FGID = dplyr::if_else(is.na(.data$FGID), fgid_from_fgname[.data$gene_pair], .data$FGID),
       reported_fusion_geneA = .data$geneA %in% c(k[["geneA"]], k[["geneB"]]),
       reported_fusion_geneB = .data$geneB %in% c(k[["geneA"]], k[["geneB"]]),
       effector_gene = any(c(.data$geneA, .data$geneB) %in% k[["effector_gene"]]),
       fusions_cancer = any(c(.data$geneA, .data$geneB) %in% genes_cancer)
-    )
+    ) |>
+    dplyr::select(-c("gene_cmp1", "gene_cmp2"))
+}
+
+
+#' Annotate Fusions with Ensembl Coordinates
+#'
+#' @param fusions Tibble with DRAGEN and Arriba fusions.
+#' @param gene_ann Dataframe with gene annotations.
+#'
+#' @return Tibble with annotated genes.
+#' @export
+fusions_annot <- function(fusions, gene_ann) {
+  sel_cols <- c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND")
+  assertthat::assert_that(all(sel_cols %in% colnames(gene_ann)))
+  a <- gene_ann |>
+    dplyr::select(dplyr::all_of(sel_cols)) |>
+    tibble::as_tibble()
+  fusions |>
+    dplyr::left_join(a, by = c("geneA" = "SYMBOL")) |>
+    dplyr::left_join(a, by = c("geneB" = "SYMBOL"))
 }

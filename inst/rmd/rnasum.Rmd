@@ -155,7 +155,7 @@ dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}")
 ##### Grab umccrise SBJ for MySQL insert command.
 ##### Will overwrite argument passed to "--clinical_id" flag
 # TODO (PD): revisit subjectID
-subjectID <- params$subject_id %||% ""
+subjectID <- ifelse(!is.null(params$subject_id), params$subject_id, "")
 subjectID <- ifelse(is.null(params$umccrise), subjectID, basename(params$umccrise))
 sample_name <- paste0(
   params$sample_name,
@@ -1553,7 +1553,7 @@ known_translocations <- RNAsum::known_trans(
 )
 ```
 
-```{r arriba_processing, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
+```{r fusions_arriba_processing, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
 ##### Read in the arriba fusion calls
 fusions_arriba <- RNAsum::arriba_process(
   arriba.fusions = sample_data.list[["arriba_tsv"]],
@@ -1562,7 +1562,7 @@ fusions_arriba <- RNAsum::arriba_process(
 )
 ```
 
-```{r dragen_processing, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
+```{r fusions_dragen_processing, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
 ##### Read in the dragen fusion calls
 fusions_dragen <- RNAsum::dragen_fusions_process(
   dragen.fusions = sample_data.list[["dragen_fusions"]],
@@ -1571,40 +1571,26 @@ fusions_dragen <- RNAsum::dragen_fusions_process(
 )
 ```
 
-```{r fusions_merge}
-# TODO (PD): merge arriba and dragen fusions
-# - need to standardise the outputs so that the report table has
-# the same columns whether or not any of the tool outputs are missing.
-# Potentially use `empty_tbl` here.
-# - instead of having tpairAB and tpairBA, we could have one column where the
-# pair is sorted then concatenated. That way matches between tables wouldn't need
-# to run over both columns.
+```{r fusions_merge, eval = runFusionChunk}
+fusions <- dplyr::bind_rows(fusions_arriba, fusions_dragen)
 ```
 
 ```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
 ##### Annotate fusion genes
-pd_fusions_annot <- function(fusions, gene_ann) {
-  sel_cols <- c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND")
-  assertthat::assert_that(all(sel_cols %in% colnames(gene_ann)))
-  a <- gene_ann |>
-    dplyr::select(dplyr::all_of(sel_cols)) |>
-    tibble::as_tibble()
-  fusions |>
-    dplyr::left_join(a, by = c("geneA" = "SYMBOL")) |>
-    dplyr::left_join(a, by = c("geneB" = "SYMBOL"))
-}
-gene_ann <- ref_dataset.list[[dataset]][["gene_annot_all"]]
-fusions_dragen_ann <- pd_fusions_annot(fusions_dragen, gene_ann)
-fusions_arriba_ann <- pd_fusions_annot(fusions_arriba, gene_ann)
-
-##### Clean the space
-rm(gene_ann)
+fusions_ann <- RNAsum::fusions_annot(
+  fusions = fusions,
+  gene_ann = ref_dataset.list[[dataset]][["gene_annot_all"]]
+)
 ```
 
 ```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Add row for gene fusion events so that there is one row per gene
 manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
-  dplyr::mutate("Fusion genes" = .data$Genes)
+  dplyr::mutate(
+    "Fusion genes" = .data$Genes,
+    multigene = grepl(", ", .data$Genes)
+  ) |>
+  dplyr::select("Start", "End", "Type", "Genes", "Fusion genes", "multigene")
 
 # TODO (PD): basically just interested in duplicating rows based on 2-gene events?
 i <- 1
@@ -1627,15 +1613,23 @@ while (i <= nrow(manta_sv)) {
 ##### First limit MANTA output to fusions only
 if (runFusionChunk) {
   manta_fusions <- unique(manta_sv[grep(",", manta_sv$"Fusion genes"), ]$Genes)
-  manta_fusions <- manta_fusions[manta_fusions %in% unique(c(as.vector(fusions$geneA), as.vector(fusions$geneB)))]
+  manta_fusions <- manta_fusions[manta_fusions %in% unique(c(fusions[["geneA"]], fusions[["geneB"]]))]
 
   ##### Flag fusions that were also reported in MANTA
   if (length(manta_fusions) > 0) {
-    fusions$geneA_dna_support[sort(match(manta_fusions, fusions$geneA), na.last = NA)] <- "Yes"
-    fusions$geneB_dna_support[sort(match(manta_fusions, fusions$geneB), na.last = NA)] <- "Yes"
+    fusions <- fusions |>
+      dplyr::mutate(
+        geneA_dna_support = .data$geneA %in% manta_fusions,
+        geneB_dna_support = .data$geneB %in% manta_fusions
+      )
+    fusions_ann <- fusions_ann |>
+      dplyr::mutate(
+        geneA_dna_support = .data$geneA %in% manta_fusions,
+        geneB_dna_support = .data$geneB %in% manta_fusions
+      )
 
-    fusion_annot$geneA_dna_support[sort(match(manta_fusions, fusion_annot$SYMBOL), na.last = NA)] <- "Yes"
-    fusion_annot$geneB_dna_support[sort(match(manta_fusions, fusion_annot$SYMBOL.1), na.last = NA)] <- "Yes"
+    fusions_ann$geneA_dna_support[sort(match(manta_fusions, fusion_annot$SYMBOL), na.last = NA)] <- "Yes"
+    fusions_ann$geneB_dna_support[sort(match(manta_fusions, fusion_annot$SYMBOL.1), na.last = NA)] <- "Yes"
 
     ##### Re-order fusion dataframe with MANTA supporting fusions on top
     if (runArribaChunk) {
