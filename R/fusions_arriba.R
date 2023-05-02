@@ -2,7 +2,7 @@
 #'
 #' Reads the TSV file output by Arriba.
 #' @param x Path to Arriba TSV file.
-#' @return A tibble with the contents of the input TSV file, or NULL if x is NULL.
+#' @return A tibble with the contents of the input TSV file, or NULL if input is NULL or TSV has no data rows.
 #'
 #' @examples
 #' x <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
@@ -15,14 +15,16 @@ arriba_tsv_read <- function(x = NULL) {
   if (is.null(x)) {
     return(NULL)
   }
-  x |>
-    readr::read_tsv(
-      col_types = readr::cols(
-        .default = "c", discordant_mates = "d",
-        split_reads1 = "d", split_reads2 = "d",
-        coverage1 = "d", coverage2 = "d"
-      )
-    ) |>
+  ctypes <- readr::cols(
+    .default = "c", discordant_mates = "d",
+    split_reads1 = "d", split_reads2 = "d",
+    coverage1 = "d", coverage2 = "d"
+  )
+  d <- readr::read_tsv(x, col_types = ctypes)
+  if (nrow(d) == 0) {
+    return(NULL)
+  }
+  d |>
     dplyr::rename(gene1 = "#gene1")
 }
 
@@ -49,7 +51,7 @@ arriba_pdf_read <- function(pdf = NULL, fusions = NULL, outdir = NULL) {
   if (is.null(pdf) || is.null(fusions) || is.null(outdir)) {
     return(NULL)
   }
-  mkdir(outdir)
+  fs::dir_create(outdir)
   # construct png filenames
   clean_fusions <- fusions |>
     dplyr::select(
@@ -91,4 +93,32 @@ arriba_summary_write <- function(x, file) {
   x |>
     dplyr::select("nm") |>
     readr::write_tsv(file = file, col_names = FALSE)
+}
+
+#' Process Arriba Fusions
+#'
+#' @param arriba.fusions Parsed tibble with Arriba fusions.
+#' @param known_translocations Tibble with known translocations.
+#' @param genes_cancer Character vector of cancer genes.
+#' @return Tibble with post-processed Arriba fusion calls.
+#' @export
+arriba_process <- function(arriba.fusions, known_translocations, genes_cancer) {
+  d <- fusions_preprocess(d = arriba.fusions, known_translocations = known_translocations, genes_cancer = genes_cancer)
+  d |>
+    dplyr::mutate(
+      split_reads = .data$split_readsA + .data$split_readsB,
+      fusion_caller = "arriba"
+    ) |>
+    dplyr::arrange(
+      .data$reported_fusion, .data$split_reads, .data$split_readsA, .data$split_readsB,
+      .data$discordant_mates, .data$fusions_cancer, .data$reported_fusion_geneA, .data$reported_fusion_geneB
+    ) |>
+    # just reverse order
+    dplyr::arrange(-dplyr::row_number()) |>
+    dplyr::select(
+      "geneA", "geneB", "breakpointA", "breakpointB", "siteA", "siteB",
+      "type", "split_reads", "split_readsA", "split_readsB", "discordant_mates",
+      "confidence", "FGID", "reported_fusion", "reported_fusion_geneA",
+      "reported_fusion_geneB", "effector_gene", "fusions_cancer", "fusion_caller", "gene_pair"
+    )
 }
