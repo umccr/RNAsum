@@ -8,7 +8,6 @@ output:
     code_download: true
     code_folding: hide
     theme: readable
-    css: style.css
     toc: true
     toc_float: true
   rmdformats::material:
@@ -48,9 +47,8 @@ params:
   umccrise: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS'
 ---
 
-```{r}
-require(here)
-
+```{r eval=FALSE}
+library(here, include.only = c("here"))
 p <- list(
   arriba_pdf = here("inst/rawdata/test_data/dragen/arriba/fusions.pdf"),
   arriba_tsv = here("inst/rawdata/test_data/dragen/arriba/fusions.tsv"),
@@ -87,27 +85,57 @@ p <- list(
 )
 params <- p
 
+rmd <- here::here("inst/rmd/rnasum.Rmd")
+render_me <- function() {
+  rmarkdown::render(
+    rmd,
+    params = params
+  )
+}
+# render_me()
+```
+
+```{r echo=TRUE}
 # only support GRCh38
 ucsc_genome_assembly <- 38L
 ensembl_version <- 86L
-library(package = paste0("EnsDb.Hsapiens.v", ensembl_version), character.only = TRUE)
-library(package = paste0("BSgenome.Hsapiens.UCSC.hg", ucsc_genome_assembly), character.only = TRUE)
-library(AnnotationDbi)
-library(dplyr)
-library(ensembldb)
-library(glue)
-library(rlang)
-library(EDASeq)
-library(RNAsum)
+ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
+bsgen_pkg <- paste0("BSgenome.Hsapiens.UCSC.hg", ucsc_genome_assembly)
+# start with more exotic pkgs, then get to core ones
+{
+  library(conflicted) # checks for pkg function conflicts
+  library(ensdb_pkg, character.only = TRUE, include.only = ensdb_pkg)
+  library(bsgen_pkg, character.only = TRUE, include.only = bsgen_pkg)
+  library(AnnotationDbi, include.only = c("keys"))
+  library(AnnotationFilter, include.only = c("GeneIdFilter"))
+  library(EDASeq, include.only = c("plotRLE"))
+  library(edgeR, include.only = c("DGEList", "cpm", "rpkm", "calcNormFactors"))
+  library(ensembldb, include.only = c("select", "lengthOf"))
+  library(preprocessCore, include.only = c("normalize.quantiles"))
+  library(plotly, include.only = c("plot_ly", "layout", "add_trace"))
+  library(png, include.only = c("readPNG", "writePNG"))
+  library(rlang, include.only = c("set_names"))
+  library(lares, include.only = c("plot_timeline"))
+  library(fs, include.only = c("dir_create", "dir_delete"))
+  library(tibble, include.only = c("tibble", "add_row"))
+  library(glue, include.only = c("glue"))
+  library(dplyr) # keep dplyr last
+  library(RNAsum) # use :: explicitly for all RNAsum pkg funcs
+  library(limma, include.only = c("removeBatchEffect"))
+  # library(rapportools)
+  # library(rhdf5)
+  # library(DT)
+  # library(matrixStats)
+  # library(RCircos)
+  # library(ggplot2)
+  # library(ggforce)
+}
 ```
 
-```{r prep, echo = FALSE}
-# Include/exclude the "Code" button allowing to "show"/"hide" code chunks from the report
-css_code <- dplyr::if_else(params$hide_code_btn, ".btn { display: none ;", " ")
-writeLines(css_code, con = here::here("inst/rmd/style.css"))
-NOW <- Sys.time()
 
+```{r prep_knitr_hooks, echo = FALSE}
 # Time chunks during knitting
+NOW <- Sys.time()
 knitr::knit_hooks$set(timeit = function(before) {
   if (before) {
     print(paste("Start:", Sys.time()))
@@ -119,58 +147,27 @@ knitr::knit_hooks$set(timeit = function(before) {
 })
 
 knitr::opts_chunk$set(timeit = TRUE)
-# Generate a full-resolution pdf image before generating a small image in the chunk
-knitr::knit_hooks$set(plot = allow_thumbnails)
 ```
 
-```{r load_libraries, warning=FALSE}
-# Load libraries
-# suppressMessages(library(edgeR))
-# suppressMessages(library(limma))
-# suppressMessages(library(EDASeq))
-# suppressMessages(library(preprocessCore))
-# suppressMessages(library(rapportools))
-# suppressMessages(library(tximport))
-# suppressMessages(library(rhdf5))
-# suppressMessages(library(openxlsx))
-# suppressMessages(library(readr))
-# suppressMessages(library(tidyverse))
-# suppressMessages(library(dplyr))
-# suppressMessages(library(tidyr))
-# suppressMessages(library(rlang))
-# suppressMessages(library(DT))
-# suppressMessages(library(matrixStats))
-# suppressMessages(library(tibble))
-# suppressMessages(library(knitr))
-# suppressMessages(library(scales))
-# suppressMessages(library(RCircos))
-# suppressMessages(library(ggplot2))
-# suppressMessages(library(ggforce))
-# suppressMessages(library(pdftools))
-# suppressMessages(library(png))
-# suppressMessages(library(htmltools))
-# suppressMessages(library(htmlwidgets))
-# suppressMessages(library(devtools))
-# suppressMessages(library(lares))
-```
-
-```{r load_refdata, comment = NA, message=FALSE, warning=FALSE}
+```{r read_data, comment = NA, message=FALSE, warning=FALSE}
 dataset <- toupper(params$dataset)
-dataset_name_incl <- dplyr::if_else(params$dataset_name_incl, glue::glue("_{params$dataset}"), "")
+dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
 ##### Grab umccrise SBJ for MySQL insert command.
 ##### Will overwrite argument passed to "--clinical_id" flag
-# TODO: revisit subjectID
-subjectID <- params$subject_id %||% ""
+# TODO (PD): revisit subjectID
+subjectID <- ifelse(!is.null(params$subject_id), params$subject_id, "")
 subjectID <- ifelse(is.null(params$umccrise), subjectID, basename(params$umccrise))
 sample_name <- paste0(
   params$sample_name,
-  dplyr::if_else(dataset_name_incl == "", "", paste0("_", dataset))
+  if_else(dataset_name_incl == "", "", paste0("_", dataset))
 )
 results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
-RNAsum::mkdir(results_dir) # there is also fs::dir_create
+fs::dir_create(results_dir)
 # Annotate transcripts with gene IDs
 # These could probably go into refdata
-edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", ensembl_version)))
+##### Get genes annotation and genomic locations
+##### Get keytypes for gene SYMBOL
+edb <- eval(parse(text = ensdb_pkg))
 keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
 tx2ensembl <- edb |>
   ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
@@ -178,39 +175,19 @@ tx2ensembl <- edb |>
 
 # reference data
 ref_dataset_filepaths <- RNAsum::get_refdata(dataset)
-ref_dataset.list <- vector("list", length(dataset)) |> rlang::set_names(dataset)
+ref_dataset.list <- vector("list", length(dataset)) |> set_names(dataset)
 ref_genes.list <- RNAsum::get_refgenes(params)
 # sample WTS/WGS data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
-# TODO: put all chunks inside a function
-runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
-runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
-runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
-runFusionChunk <- runArribaChunk || runDragenFusionChunk
-runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
-runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
-runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
-  nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
 
-arriba_summary_out <- glue::glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
+arriba_summary_out <- glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
 RNAsum::arriba_summary_write(
   sample_data.list[["arriba_pdf"]],
   file = file.path(results_dir, arriba_summary_out)
 )
 
-if (runSVsChunk) {
-  manta <- sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] |>
-    dplyr::select(
-      dplyr::contains("tier", ignore.case = TRUE),
-      "Event", "Genes", "Effect", "Detail", "Start", "End", "AF_BPI", "CNC", "CN",
-      "SR_alt", "PR_alt", "Ploidy", "Transcript"
-    )
-  # TODO: Check if 'dplyr::filter(Genes != "")' makes sense
-}
-
 ##### Read in reference datasets and merge them with sample data.
-# This part outputs a vector with first element containing the merged data and
-# second element containing merged targets info.
+# Output list: merged data and merged targets info.
 ref_dataset.list[[dataset]] <- RNAsum::combineDatasets(
   sample_name = sample_name,
   sample_counts = sample_data.list[["salmon"]],
@@ -232,6 +209,18 @@ comp_cancer_group <- ext_cancer_group
 if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
   comp_cancer_group <- int_cancer_group
 }
+```
+
+```{r chunk_eval}
+# TODO (PD): put all chunks inside a function
+runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
+runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
+runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
+runFusionChunk <- runArribaChunk || runDragenFusionChunk
+runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
+runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
+runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
+  nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
 ```
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
@@ -279,7 +268,7 @@ if (!is.null(params$clinical_id)) {
 
 runClinicalChunk <- FALSE
 
-# TODO: cleanup this clinical info chunk
+# TODO (PD): cleanup clinical info chunk
 if (length(sampleID.col) > 0) {
   ##### Identify column and row with patients details
   if (!is.null(params$clinical_id)) {
@@ -333,13 +322,13 @@ if (length(sampleID.col) > 0) {
 
     ##### Create directory for timeline plot
     PlotsDir_clininfo <- file.path(results_dir, "clinical_info")
-    RNAsum::mkdir(PlotsDir_clininfo)
+    dir_create(PlotsDir_clininfo)
 
     ##### Record the timeline plot. NOTE, the modified dates are used here
-    treatment_timeline <- lares::plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = FALSE)
+    treatment_timeline <- plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = FALSE)
 
     ##### Save the plot into png file. NOTE, the modified dates are used here. As default, the plot is saved as "cv_timeline"
-    lares::plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = TRUE, subdir = "clinical_info")
+    plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = TRUE, subdir = "clinical_info")
 
     #### Clear plots to free up some memory
     if (!is.null(dev.list())) invisible(dev.off())
@@ -347,7 +336,7 @@ if (length(sampleID.col) > 0) {
     cv_timeline.png <- readPNG("clinical_info/cv_timeline.png", native = FALSE, info = FALSE)
 
     ##### Change the size of the timeline png plot and save it as "treatment_timeline.png"
-    png::writePNG(cv_timeline.png, file.path(PlotsDir_clininfo, "treatment_timeline.png"), dpi = 300)
+    writePNG(cv_timeline.png, file.path(PlotsDir_clininfo, "treatment_timeline.png"), dpi = 300)
     # png(paste(PlotsDir_clininfo, "treatment_timeline.png", sep="/"), width = 900, height = 600, pointsize = 0.0001, res=300)
     # plot(cv_timeline.png)
     # invisible(dev.off())
@@ -356,7 +345,10 @@ if (length(sampleID.col) > 0) {
     if (!is.null(dev.list())) invisible(dev.off())
 
     ##### Remove the original plot folder
-    system("rm -rf clinical_info", ignore.stdout = TRUE, ignore.stderr = TRUE)
+    # TODO (PD): check this gets deleted
+    dir_delete("clinical_info")
+    # Ouchy use of rm here
+    # system("rm -rf clinical_info", ignore.stdout = TRUE, ignore.stderr = TRUE)
 
     runClinicalChunk <- TRUE
   }
@@ -369,19 +361,15 @@ if (length(sampleID.col) > 0) {
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
 tmpg <- ref_genes.list[["genes_oncokb"]] |>
-  dplyr::mutate(
-    UMCCR = "No", Oncogene = "-", TSG = "-", Fusion = "-", Germline = "-"
-  ) |>
-  dplyr::rename(
-    occurrence_num = "# of occurence within resources"
-  )
+  dplyr::mutate(UMCCR = "No", Oncogene = "-", TSG = "-", Fusion = "-", Germline = "-") |>
+  dplyr::rename(occurrence_num = "# of occurence within resources")
 ##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
 ref_genes.list[["genes_cancer"]] <- ref_genes.list[["genes_cancer"]] |>
   dplyr::mutate(
-    germ = dplyr::if_else(.data$germ, "Yes", "-"),
-    fusion = dplyr::if_else(.data$fusion, "Yes", "-"),
-    tumorsuppressor = dplyr::if_else(.data$tumorsuppressor, "Yes", "-"),
-    oncogene = dplyr::if_else(.data$oncogene, "Yes", "-")
+    germ = if_else(.data$germ, "Yes", "-"),
+    fusion = if_else(.data$fusion, "Yes", "-"),
+    tumorsuppressor = if_else(.data$tumorsuppressor, "Yes", "-"),
+    oncogene = if_else(.data$oncogene, "Yes", "-")
   )
 
 for (gene in ref_genes.list[["genes_cancer"]][["symbol"]]) {
@@ -395,14 +383,14 @@ for (gene in ref_genes.list[["genes_cancer"]][["symbol"]]) {
     tmpg[tmpg$Hugo_Symbol == gene, "occurrence_num"] <- as.integer(tmpg[tmpg$Hugo_Symbol == gene, "occurrence_num"]) + 1L
   } else {
     ##### Add if not present
-    r1 <- tibble::tibble(
+    r1 <- tibble(
       "Hugo_Symbol" = gene, "occurrence_num" = 1L,
       "OncoKB Annotated" = "No", "OncoKB Oncogene" = "", "OncoKB TSG" = "",
       "MSK-IMPACT" = "", "MSK-HEME" = "", "Foundation One" = "",
       "Foundation One Heme" = "", "Vogelstein" = "", "Sanger CGC" = "",
       "UMCCR" = "Yes", "Oncogene" = "", "TSG" = "", "Fusion" = "", "Germline" = ""
     )
-    tmpg <- dplyr::bind_rows(tmpg, r1)
+    tmpg <- bind_rows(tmpg, r1)
     tmpg[tmpg$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
     tmpg[tmpg$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
     tmpg[tmpg$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
@@ -428,7 +416,7 @@ ref_genes.list[["genes_cancer"]] <- tmpg
 ref_genes.list[["genes_oncokb"]] <- tmpg |>
   dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]][["Hugo_Symbol"]])
 # dplyr::select(-c("Gene"))
-rm(tmpg)
+rm(tmpg, r1)
 ```
 
 
@@ -438,7 +426,7 @@ rm(tmpg)
 # Also include splice region variants if specified
 if (runPcgrChunk) {
   ref_genes.list[["summary"]]$Mutated <- RNAsum::genes_pcgr_summary(
-    pcgr_tbl = sample_data.list$wgs[["pcgr_tiers_tsv"]],
+    pcgr_tbl = sample_data.list[["wgs"]][["pcgr_tiers_tsv"]],
     tiers = 1:params$pcgr_tier,
     splice_vars = params$pcgr_splice_vars
   )
@@ -451,12 +439,12 @@ if (runFusionChunk) {
     RNAsum::fusions_summary(sample_data.list[["dragen_fusions"]])
   ) |>
     unique() |>
-    stats::na.omit()
+    na.omit()
 }
 
 # MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
 if (runSVsChunk) {
-  ref_genes.list[["summary"]]$SV <- RNAsum::sv_manta_summary(sample_data.list$wgs[["manta_tsv"]][["melted"]])
+  ref_genes.list[["summary"]]$SV <- RNAsum::sv_manta_summary(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]])
 }
 
 # PURPLE annotation of copy-number (CN) altered genes in given patient based on
@@ -482,14 +470,14 @@ ref_genes.list[["summary"]]$Immune <- RNAsum::immune_summary(
 
 # HRD (homologous recombination deficiency) genes
 ref_genes.list[["summary"]]$HRD <- ref_genes.list[["genes_hrd"]] |>
-  dplyr::pull("SYMBOL") |>
-  stats::na.omit()
+  pull("SYMBOL") |>
+  na.omit()
 
 # Cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and from OncoKB portal (http://oncokb.org/#/cancerGenes)
 ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["genes_cancer"]] |>
-  dplyr::pull("Gene") |>
+  pull("Gene") |>
   unique() |>
-  stats::na.omit()
+  na.omit()
 
 ##### Record all genes of interest
 genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
@@ -498,7 +486,7 @@ genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
 ```{r goi_annotation, comment = NA, message=FALSE, warning=FALSE}
 ##### Get gene symbols for the genes of interest. These genes will not be filtered out due to low/insufficient expression
 
-##### Get genes genomic coordiantes
+##### Get genes genomic coordinates
 gene_info <- edb |>
   ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
   dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
@@ -511,8 +499,9 @@ genes2keep <- genes2keep[!duplicated(genes2keep$ENSEMBL), ]
 rownames(genes2keep) <- genes2keep$ENSEMBL
 
 ##### Remove rows with duplicated gene symbols (Y_RNAs, SNORs, LINC0s etc). Preferably select ENSEMBL ID that is used in the count data
+comb_data <- ref_dataset.list[[dataset]][["combined_data"]]
 genes2keep.combined_data <- genes2keep |>
-  dplyr::filter(.data$ENSEMBL %in% rownames(ref_dataset.list[[dataset]][["combined_data"]]))
+  dplyr::filter(.data$ENSEMBL %in% rownames(comb_data))
 genes2keep <- genes2keep |>
   dplyr::filter(!.data$SYMBOL %in% genes2keep.combined_data$SYMBOL)
 genes2keep <- genes2keep[!duplicated(genes2keep$SYMBOL), ]
@@ -522,15 +511,14 @@ genes2keep <- rbind(genes2keep.combined_data, genes2keep)
 genes2keep$EXP <- TRUE
 
 ##### Clean the space
-rm(edb, keys, gene_info)
+rm(gene_info)
 ```
 
 ```{r library_size_plot, message = FALSE, warning = FALSE, echo = TRUE, fig.width = 12, fig.height = 9}
 # Generate bar-plot for library size. The colours indicate sample groups,
 # as provided in *Target* column in the sample annotation file
-comb_data <- ref_dataset.list[[dataset]][["combined_data"]]
 target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
-  dplyr::mutate(Target = dplyr::if_else(.data$Target == sample_name, "Patient", .data$Target))
+  mutate(Target = if_else(.data$Target == sample_name, "Patient", .data$Target))
 rownames(target)[rownames(target) == sample_name] <- "Patient"
 
 # Change the datasets levels order
@@ -540,16 +528,16 @@ target$Target <- factor(target$Target, levels = unique(target$Target))
 targets.colour <- RNAsum::getColours(target$Target)
 
 # Prepare data frame
-data.df <- dplyr::tibble(
+data.df <- tibble(
   Sample = rownames(target),
-  Library_size = as.numeric(base::colSums(comb_data) * 1e-6),
+  Library_size = as.numeric(colSums(comb_data) * 1e-6),
   Target = target[["Target"]]
 )
 
 # The default order will be alphabetized unless specified as below
 data.df[["Sample"]] <- factor(data.df[["Sample"]], levels = data.df[["Sample"]])
 max_libsize <- max(data.df[["Library_size"]])
-# TODO:
+# TODO (PD):
 # - Does this need to be interactive? Its size is fairly big (>3MB for test set)
 # - Does it need to be a barplot?
 # - Should the bars be sorted instead of mixed?
@@ -578,33 +566,44 @@ RNAsum::saveWidgetFix(widget = library_size, file = file.path(PlotsDir, "library
 
 ##### Transformation to CPM or TPM scale (see these blogs for details https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/ and https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/ ).  CPM = Counts Per Million,  TPM = Transcripts Per Kilobase Million.
 
-##### For counts data processing consider the investigated sample and internal reference cohort as one group  (regardless of the investigated patient tissie origin), and TCGA data (of any cancer type) as another group. This is to facilitate batch-effects (related with technical aspects) correction process
-target_mod <- ref_dataset.list[[dataset]][["sample_annot"]]
-target_mod$Dataset <- gsub(sample_name, int_cancer_group, target_mod$Dataset)
+##### For counts data processing consider the investigated sample and internal reference cohort as one group  (regardless of the investigated patient tissue origin), and TCGA data (of any cancer type) as another group. This is to facilitate batch-effects (related with technical aspects) correction process
+target_mod <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+  dplyr::mutate(
+    Dataset = if_else(.data$Dataset == sample_name,
+      int_cancer_group, .data$Dataset
+    )
+  )
 targets_mod.list <- unique(target_mod$Dataset)
 
+##### Keep info about samples with the lowest and greatest counts for defined CPM threshold
+# numerical summary given a max/min function
+summarise_comb_data <- function(f, comb_data) {
+  stopifnot(is.function(f))
+  sums_vec <- colSums(comb_data)
+  res <- as.numeric(sums_vec * 1e-6) |>
+    f() |>
+    round(digits = 0)
+  res
+}
+cpm.min <- summarise_comb_data(min, comb_data)
+cpm.max <- summarise_comb_data(max, comb_data)
 ##### Create lists with processed data each group
-y <- vector("list", length(targets_mod.list))
-names(y) <- targets_mod.list
-
-##### Keep info about samples with the lowest and greates counts for defined CPM threshold
-cpm.min <- round(min(as.numeric(colSums(ref_dataset.list[[dataset]][["combined_data"]]) * 1e-6)), digits = 0)
-cpm.max <- round(max(as.numeric(colSums(ref_dataset.list[[dataset]][["combined_data"]]) * 1e-6)), digits = 0)
+y <- vector("list", length(targets_mod.list)) |> set_names(targets_mod.list)
 
 #### For each group...
 for (group in targets_mod.list) {
-  target <- target_mod[target_mod$Dataset == group, ]
-  data <- ref_dataset.list[[dataset]][["combined_data"]]
-  data <- data[, target_mod$Dataset == group]
+  target <- target_mod |> dplyr::filter(.data$Dataset == group)
+  dat1 <- comb_data
+  dat1 <- dat1[, target_mod$Dataset == group]
 
   ##### CPM transformation and filtering
   if (params$filter && params$transform == "CPM") {
     ##### Create EdgeR DGEList object
-    y[[group]] <- edgeR::DGEList(counts = data, group = target$Dataset)
+    y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
 
     ##### Keep genes with CPM of at least 1 in more than 10% of samples
     filter.threshold <- 1
-    keep <- rowSums(edgeR::cpm(y[[group]]) > filter.threshold) >= ncol(data) / 10
+    keep <- rowSums(edgeR::cpm(y[[group]]) > filter.threshold) >= ncol(dat1) / 10
 
     ##### Note which genes of interest are not expressed
     genes2keep$EXP[rownames(genes2keep) %!in% names(keep)] <- FALSE
@@ -614,36 +613,45 @@ for (group in targets_mod.list) {
     y[[group]]$filtered <- y[[group]][keep, , keep.lib.sizes = FALSE]
 
     ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-    y[[group]]$transformed <- edgeR::cpm(y[[group]], normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25)
-    y[[group]]$filtered.transformed <- edgeR::cpm(y[[group]]$filtered, normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25)
+    y[[group]]$transformed <- edgeR::cpm(
+      y[[group]],
+      normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25
+    )
+    y[[group]]$filtered.transformed <- edgeR::cpm(
+      y[[group]]$filtered,
+      normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25
+    )
 
     ##### CPM transformation without filtering
   } else if (!params$filter && params$transform == "CPM") {
     ##### Create EdgeR DGEList object
-    y[[group]] <- edgeR::DGEList(counts = data, group = target$Dataset)
+    y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
 
     ##### Transform the raw-scale to CPM. Add small offset to each observation to avoid taking log of zero
-    y[[group]]$transformed <- edgeR::cpm(y[[group]], normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25)
+    y[[group]]$transformed <- edgeR::cpm(
+      y[[group]],
+      normalized.lib.sizes = FALSE, log = params$log, prior.count = 0.25
+    )
 
     ##### TPM data transformation. We can convert RPKM to TPM in two different ways: from pre-calculated RPKM, by diving by the sum of RPKM values, or directly from the normalized counts. Here we calculate TPM starting from RPKM values computed using edgeR's rpkm function ( from http://luisvalesilva.com/datasimple/rna-seq_units.html )
     ##### TPM transformation with filtering
   } else if (params$filter && params$transform == "TPM") {
     ##### Get genes lengths
-    gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
+    gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
 
     ##### Check for which genes the lenght info is not available and remove them from the data
-    genes.no_length <- rownames(data)[rownames(data) %!in% names(gene.length)]
-    data <- data[rownames(data) %!in% genes.no_length, ]
+    genes.no_length <- rownames(dat1)[rownames(dat1) %!in% names(gene.length)]
+    dat1 <- dat1[rownames(dat1) %!in% genes.no_length, ]
 
     ##### Create EdgeR DGEList object
-    y[[group]] <- edgeR::DGEList(counts = data, group = target$Dataset)
+    y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
 
     ##### Convert data into RPKM
     y[[group]]$transformed <- edgeR::rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes = FALSE, log = FALSE)
 
     ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
     if (params$log) {
-      y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed + 0.25))
+      y[[group]]$transformed <- log2(RNAsum::tpm_from_rpkm(y[[group]]$transformed + 0.25))
 
       ##### Keep genes with TPM of at least 1 in more than 10% of samples
       filter.threshold <- 1 + 0.25
@@ -657,7 +665,7 @@ for (group in targets_mod.list) {
       y[[group]]$filtered <- y[[group]]$counts[keep, ]
       y[[group]]$filtered.transformed <- y[[group]]$transformed[keep, ]
     } else {
-      y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
+      y[[group]]$transformed <- RNAsum::tpm_from_rpkm(y[[group]]$transformed)
 
       ##### Keep genes with TPM of at least 1 in more than 10% of samples
       filter.threshold <- 1
@@ -675,57 +683,74 @@ for (group in targets_mod.list) {
     ##### TPM transformation without filtering
   } else if (!params$filter && params$transform == "TPM") {
     ##### Get genes lengths
-    gene.length <- lengthOf(edb, filter = GeneIdFilter(rownames(data)))
+    gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
 
     ##### Check for which genes the lenght info is not available and remove them from the data
-    genes.no_length <- rownames(data)[rownames(data) %!in% names(gene.length)]
-    data <- data[rownames(data) %!in% genes.no_length, ]
+    genes.no_length <- rownames(dat1)[rownames(dat1) %!in% names(gene.length)]
+    dat1 <- dat1[rownames(dat1) %!in% genes.no_length, ]
 
     ##### Create EdgeR DGEList object
-    y[[group]] <- edgeR::DGEList(counts = data, group = target$Dataset)
+    y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
 
     ##### Convert data into RPKM
     y[[group]]$transformed <- edgeR::rpkm(y[[group]], gene.length = gene.length, normalized.lib.sizes = FALSE, log = FALSE)
 
     ##### ... and then to TPM scale. Add small offset to each observation to avoid taking log of zero
     if (params$log) {
-      y[[group]]$transformed <- log2(tpm_from_rpkm(y[[group]]$transformed + 0.25))
+      y[[group]]$transformed <- log2(RNAsum::tpm_from_rpkm(y[[group]]$transformed + 0.25))
     } else {
-      y[[group]]$transformed <- tpm_from_rpkm(y[[group]]$transformed)
+      y[[group]]$transformed <- RNAsum::tpm_from_rpkm(y[[group]]$transformed)
     }
   }
 }
 
 ##### Now combine DGEList objects created for each group
-y[["comb"]]$transformed <- cbind(y[[targets_mod.list[1]]]$transformed, y[[targets_mod.list[2]]]$transformed)
-y[["comb"]]$samples <- rbind(y[[targets_mod.list[1]]]$samples, y[[targets_mod.list[2]]]$samples)
+y[["comb"]]$transformed <- cbind(
+  y[[targets_mod.list[1]]]$transformed,
+  y[[targets_mod.list[2]]]$transformed
+)
+y[["comb"]]$samples <- rbind(
+  y[[targets_mod.list[1]]]$samples,
+  y[[targets_mod.list[2]]]$samples
+)
 
 if (params$filter) {
   ##### Keep only genes present in all sets
-  genes_mod <- intersect(rownames(y[[targets_mod.list[1]]]$filtered), rownames(y[[targets_mod.list[2]]]$filtered))
+  genes_mod <- intersect(
+    rownames(y[[targets_mod.list[1]]]$filtered),
+    rownames(y[[targets_mod.list[2]]]$filtered)
+  )
   y[[targets_mod.list[1]]]$filtered <- y[[targets_mod.list[1]]]$filtered[rownames(y[[targets_mod.list[1]]]$filtered) %in% genes_mod, ]
   y[[targets_mod.list[2]]]$filtered <- y[[targets_mod.list[2]]]$filtered[rownames(y[[targets_mod.list[2]]]$filtered) %in% genes_mod, ]
   y[[targets_mod.list[1]]]$filtered.transformed <- y[[targets_mod.list[1]]]$filtered.transformed[rownames(y[[targets_mod.list[1]]]$filtered.transformed) %in% genes_mod, ]
   y[[targets_mod.list[2]]]$filtered.transformed <- y[[targets_mod.list[2]]]$filtered.transformed[rownames(y[[targets_mod.list[2]]]$filtered.transformed) %in% genes_mod, ]
 
-  y[["comb"]]$filtered <- cbind(y[[targets_mod.list[1]]]$filtered, y[[targets_mod.list[2]]]$filtered)
-  y[["comb"]]$filtered.transformed <- cbind(y[[targets_mod.list[1]]]$filtered.transformed, y[[targets_mod.list[2]]]$filtered.transformed)
+  y[["comb"]]$filtered <- cbind(
+    y[[targets_mod.list[1]]]$filtered,
+    y[[targets_mod.list[2]]]$filtered
+  )
+  y[["comb"]]$filtered.transformed <- cbind(
+    y[[targets_mod.list[1]]]$filtered.transformed,
+    y[[targets_mod.list[2]]]$filtered.transformed
+  )
 }
 
 ##### Clean the space
-rm(target, target_mod, genes_mod, keep)
+rm(dat1, target, target_mod, genes_mod, keep)
 ```
 
 ```{r data_transformation_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 6, fig.show="hide"}
 ##### Assign colours to targets and datasets
 target <- ref_dataset.list[[dataset]][["sample_annot"]]
-targets.colour <- getColours(target$Target)
+targets.colour <- RNAsum::getColours(target$Target)
 
 ##### Collect the most extreme density values for set the x-axis and y-axis boundaries
-den.x <- density(y[["comb"]]$transformed[, 1])$x
-den.y <- density(y[["comb"]]$transformed[, 1])$y
+den1 <- density(y[["comb"]]$transformed[, 1])
+den.x <- den1$x
+den.y <- den1$y
 
-for (i in 2:ncol(y[["comb"]]$transformed)) {
+ncol_transformed <- ncol(y[["comb"]]$transformed)
+for (i in 2:ncol_transformed) {
   den <- density(y[["comb"]]$transformed[, i])
   den.x <- sort(c(den.x, den$x))
   den.y <- sort(c(den.y, den$y))
@@ -733,74 +758,103 @@ for (i in 2:ncol(y[["comb"]]$transformed)) {
 
 ##### Plot read counts against transformed data
 if (params$filter) {
-  suppressMessages(library(plotly))
-
-  ##### Organise the data into data frame
-  if (params$log) {
-    data.df <- as.data.frame(cbind(exp(y[["comb"]]$transformed[, ncol(y[["comb"]]$transformed)]), ref_dataset.list[[dataset]][["combined_data"]][, ncol(ref_dataset.list[[dataset]][["combined_data"]])]))
-    names(data.df) <- c("Transformed", "Counts")
-    data.df$Transformed <- log(data.df$Transformed)
-  } else {
-    data.df <- as.data.frame(cbind(y[["comb"]]$transformed[, ncol(y[["comb"]]$transformed)], ref_dataset.list[[dataset]][["combined_data"]][, ncol(ref_dataset.list[[dataset]][["combined_data"]])]))
-    names(data.df) <- c("Transformed", "Counts")
-  }
-
+  data.df <- tibble(
+    Transformed = y[["comb"]]$transformed[, ncol_transformed],
+    Counts = comb_data[, ncol(comb_data)]
+  )
   ##### Keep only genes with read counts below the 99th percentile
-  data.df <- data.df[data.df$Counts < quantile(data.df$Counts, 0.99), ]
-
-  ##### Keep only every 25th genes to reduce the size of the plot
-  data.df <- data.df[seq(1, nrow(data.df), by = 25), ]
+  ##### Keep only every 25th gene to reduce the size of the plot
+  count_quant <- quantile(data.df[["Counts"]], probs = 0.99)
+  data.df <- data.df |>
+    dplyr::filter(.data$Counts < count_quant) |>
+    slice(which(row_number() %% 25 == 1))
 
   ##### Generate plot for filtered data
-  counts_vs_transformed <- plot_ly(data.df, x = ~Transformed, y = ~Counts, width = 800, height = 300, color = I("black"), marker = list(size = 5), type = "scatter", mode = "markers", name = paste0(params$transform, " / Counts (Patient)")) %>%
-    add_trace(x = c(filter.threshold, filter.threshold), y = c(0, max(data.df$Counts)), mode = "lines", color = I("red"), name = "Filtering threshold") %>%
-    layout(title = "", xaxis = list(title = paste0(params$transform, "s")), yaxis = list(title = "Counts"), showlegend = TRUE)
+  counts_vs_transformed <- plotly::plot_ly(
+    data.df,
+    x = ~Transformed, y = ~Counts,
+    width = 800, height = 300, color = I("black"),
+    marker = list(size = 5), type = "scatter", mode = "markers",
+    name = glue("{params$transform} / Counts (Patient)")
+  ) |>
+    plotly::add_trace(
+      x = c(filter.threshold, filter.threshold),
+      y = c(0, max(data.df$Counts)),
+      mode = "lines+markers", color = I("red"), name = "Filtering threshold"
+    ) |>
+    plotly::layout(
+      title = "", xaxis = list(title = glue("{params$transform}s")),
+      yaxis = list(title = "Counts"), showlegend = TRUE
+    )
 
   ##### Save interactive plot as html file
   RNAsum::saveWidgetFix(counts_vs_transformed, file = file.path(PlotsDir, "counts_vs_transformed.html"))
 
-  ##### Detach plotly package. Otherwise it clashes with other graphics devices
-  detach("package:plotly", unload = FALSE)
-
-  if (!is.null(add_cancer_group)) {
-    legend <- c(ext_cancer_group, add_cancer_group, int_cancer_group, "Patient")
-  } else {
-    legend <- c(ext_cancer_group, int_cancer_group, "Patient")
-  }
+  plot_legend1 <- c(ext_cancer_group, add_cancer_group, int_cancer_group, "Patient")
 
   ##### Before filtering
   par(mfrow = c(1, 2))
-  plot(density(y[["comb"]]$transformed[, 1]), lwd = 2, xlim = c(den.x[1], max(data.df$Transformed)), ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "", col = targets.colour[[2]][1])
+
+  dens_transformed_all <- vector("list", length = ncol_transformed)
+  for (i in seq_len(ncol_transformed)) {
+    dens_transformed_all[[i]] <- density(y[["comb"]]$transformed[, i])
+  }
+
+  plot(
+    dens_transformed_all[[1]],
+    xlim = c(den.x[1], max(data.df$Transformed)),
+    ylim = c(den.y[1], den.y[length(den.y)]),
+    lwd = 2, las = 2, main = "", xlab = "", col = targets.colour[[2]][1]
+  )
   title(main = "Transformed data (unfiltered)", xlab = params$transform)
   abline(v = 0, lty = 3)
 
-  for (i in 2:ncol(y[["comb"]]$transformed)) {
-    den <- density(y[["comb"]]$transformed[, i])
+  for (i in 2:ncol_transformed) {
+    den <- dens_transformed_all[[i]]
     lines(den$x, den$y, lwd = 2, col = targets.colour[[2]][i])
   }
-  legend("topright", legend = legend, fill = targets.colour[[1]], bty = "n", bg = "transparent")
+  legend("topright",
+    legend = plot_legend1, fill = targets.colour[[1]],
+    bty = "n", bg = "transparent"
+  )
 
   data_transformation_nonfiltered <- recordPlot()
 
   ##### After filtering
-  plot(density(y[["comb"]]$filtered.transformed[, 1]), lwd = 2, xlim = c(den.x[1], max(data.df$Transformed)), ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "", col = targets.colour[[2]][1])
+  ncol_filt_transformed <- ncol(y[["comb"]]$filtered.transformed)
+  dens_filt_transformed_all <- vector("list", length = ncol_filt_transformed)
+  for (i in seq_len(ncol_filt_transformed)) {
+    dens_filt_transformed_all[[i]] <- density(y[["comb"]]$filtered.transformed[, i])
+  }
+
+  plot(dens_filt_transformed_all[[1]],
+    lwd = 2, xlim = c(den.x[1], max(data.df$Transformed)),
+    ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "",
+    col = targets.colour[[2]][1]
+  )
   title(main = "Transformed and filtered data", xlab = params$transform)
   abline(v = 0, lty = 3)
 
-  for (i in 2:ncol(y[["comb"]]$filtered.transformed)) {
-    den <- density(y[["comb"]]$filtered.transformed[, i])
+  for (i in 2:ncol_filt_transformed) {
+    den <- dens_filt_transformed_all[[i]]
     lines(den$x, den$y, lwd = 2, col = targets.colour[[2]][i])
   }
-  legend("topright", legend = legend, fill = targets.colour[[1]], bty = "n", bg = "transparent")
+  legend("topright",
+    legend = plot_legend1, fill = targets.colour[[1]],
+    bty = "n", bg = "transparent"
+  )
 
   data_transformation_filtered <- recordPlot()
-
-  ##### Save the plot as png file
+  # TODO (PD): Convert these to ggplot to save into vars and pngs
+  # save
   png(file.path(PlotsDir, "filtering.png"), width = 900, height = 400, pointsize = 14)
   par(mfrow = c(1, 2))
-
   ##### Before filtering
-  plot(density(y[["comb"]]$transformed[, 1]), lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]), ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "", col = targets.colour[[2]][1])
+  plot(density(y[["comb"]]$transformed[, 1]),
+    lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]),
+    ylim = c(den.y[1], den.y[length(den.y)]),
+    las = 2, main = "", xlab = "", col = targets.colour[[2]][1]
+  )
   title(main = "Transformed data (unfiltered)", xlab = params$transform)
   abline(v = 0, lty = 3)
 
@@ -808,10 +862,18 @@ if (params$filter) {
     den <- density(y[["comb"]]$transformed[, i])
     lines(den$x, den$y, lwd = 2, col = targets.colour[[2]][i])
   }
-  legend("topright", legend = legend, fill = targets.colour[[1]], cex = 0.7, bty = "n", bg = "transparent")
+  legend("topright",
+    legend = plot_legend1, fill = targets.colour[[1]],
+    cex = 0.7, bty = "n", bg = "transparent"
+  )
 
   ##### After filtering
-  plot(density(y[["comb"]]$filtered.transformed[, 1]), lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]), ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "", col = targets.colour[[2]][1])
+  plot(
+    density(y[["comb"]]$filtered.transformed[, 1]),
+    lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]),
+    ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "",
+    col = targets.colour[[2]][1]
+  )
   title(main = "Transformed and filtered data", xlab = params$transform)
   abline(v = 0, lty = 3)
 
@@ -819,12 +881,20 @@ if (params$filter) {
     den <- density(y[["comb"]]$filtered.transformed[, i])
     lines(den$x, den$y, lwd = 2, col = targets.colour[[2]][i])
   }
-  legend("topright", legend = legend, fill = targets.colour[[1]], cex = 0.7, bty = "n", bg = "transparent")
+  legend("topright",
+    legend = plot_legend1, fill = targets.colour[[1]],
+    cex = 0.7, bty = "n", bg = "transparent"
+  )
   invisible(dev.off())
 
   ##### Without filtering
 } else {
-  plot(density(y[["comb"]]$transformed[, 1]), lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]), ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "", col = targets.colour[[2]][1])
+  plot(
+    density(y[["comb"]]$transformed[, 1]),
+    lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]),
+    ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "",
+    col = targets.colour[[2]][1]
+  )
   title(main = "Transformed data (unfiltered)", xlab = params$transform)
   abline(v = 0, lty = 3)
 
@@ -832,16 +902,21 @@ if (params$filter) {
     den <- density(y[["comb"]]$transformed[, i])
     lines(den$x, den$y, lwd = 2, col = targets.colour[[2]][i])
   }
-  legend("topright", legend = legend, fill = targets.colour[[1]], bty = "n", bg = "transparent")
+  legend("topright",
+    legend = plot_legend1, fill = targets.colour[[1]],
+    bty = "n", bg = "transparent"
+  )
 
   data_transformation_nonfiltered <- recordPlot()
 
-  #### Clear plots to free up some memory
-  if (!is.null(dev.list())) invisible(dev.off())
-
   ##### Save the plot as png file
   png(file.path(PlotsDir, "filtering.png"), width = 900, height = 400, pointsize = 14)
-  plot(density(y[["comb"]]$transformed[, 1]), lwd = 2, xlim = c(den.x[1], den.x[length(den.x)]), ylim = c(den.y[1], den.y[length(den.y)]), las = 2, main = "", xlab = "", col = targets.colour[[2]][1])
+  plot(density(y[["comb"]]$transformed[, 1]),
+    lwd = 2,
+    xlim = c(den.x[1], den.x[length(den.x)]),
+    ylim = c(den.y[1], den.y[length(den.y)]),
+    las = 2, main = "", xlab = "", col = targets.colour[[2]][1]
+  )
   title(main = "Transformed data (unfiltered)", xlab = params$transform)
   abline(v = 0, lty = 3)
 
@@ -849,12 +924,15 @@ if (params$filter) {
     den <- density(y[["comb"]]$transformed[, i])
     lines(den$x, den$y, lwd = 2, col = targets.colour[[2]][i])
   }
-  legend("topright", legend = legend, fill = targets.colour[[1]], cex = 0.7, bty = "n", bg = "transparent")
+  legend("topright",
+    legend = plot_legend1, fill = targets.colour[[1]],
+    cex = 0.7, bty = "n", bg = "transparent"
+  )
   invisible(dev.off())
 }
 
 ##### Clean the space
-rm(data, data.df, target, den.x, den.y)
+rm(data.df, target, den.x, den.y, comb_data)
 ```
 
 ```{r data_normalisation, comment = NA, message=FALSE, warning=FALSE }
@@ -884,7 +962,7 @@ for (group in targets_mod.list) {
       y[[group]]$filtered.transformed <- data.matrix(y[[group]]$filtered.transformed)
 
       if (tolower(params$norm) != "none") {
-        y[[group]]$norm <- normalize.quantiles(y[[group]]$filtered.transformed, copy = TRUE)
+        y[[group]]$norm <- preprocessCore::normalize.quantiles(y[[group]]$filtered.transformed, copy = TRUE)
         colnames(y[[group]]$norm) <- colnames(y[[group]]$filtered.transformed)
         rownames(y[[group]]$norm) <- rownames(y[[group]]$filtered.transformed)
       } else {
@@ -895,7 +973,7 @@ for (group in targets_mod.list) {
       y[[group]]$transformed <- data.matrix(y[[group]]$transformed)
 
       if (tolower(params$norm) != "none") {
-        y[[group]]$norm <- normalize.quantiles(y[[group]]$transformed, copy = TRUE)
+        y[[group]]$norm <- preprocessCore::normalize.quantiles(y[[group]]$transformed, copy = TRUE)
         colnames(y[[group]]$norm) <- colnames(y[[group]]$transformed)
         rownames(y[[group]]$norm) <- rownames(y[[group]]$transformed)
       } else {
@@ -906,14 +984,17 @@ for (group in targets_mod.list) {
 }
 
 ##### Combine DGEList objects created for each group
-y[["comb"]]$noNorm <- cbind(y[[targets_mod.list[1]]]$noNorm, y[[targets_mod.list[2]]]$noNorm)
-y[["comb"]]$norm <- cbind(y[[targets_mod.list[1]]]$norm, y[[targets_mod.list[2]]]$norm)
+y[["comb"]]$noNorm <- cbind(
+  y[[targets_mod.list[1]]]$noNorm,
+  y[[targets_mod.list[2]]]$noNorm
+)
+y[["comb"]]$norm <- cbind(
+  y[[targets_mod.list[1]]]$norm,
+  y[[targets_mod.list[2]]]$norm
+)
 
-if (tolower(params$norm) != "none") {
-  ref_dataset.list[[dataset]][["combined_data_processed"]] <- y[["comb"]]$norm
-} else {
-  ref_dataset.list[[dataset]][["combined_data_processed"]] <- y[["comb"]]$noNorm
-}
+ref_dataset.list[[dataset]][["combined_data_processed"]] <- y[["comb"]] |>
+  purrr::pluck(if_else(tolower(params$norm) != "none", "norm", "noNorm"))
 
 ##### Clean the space
 rm(targets_mod.list)
@@ -924,32 +1005,57 @@ rm(targets_mod.list)
 par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
 ##### Unnormalised data
-boxplot(y[["comb"]]$noNorm, las = 2, col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+boxplot(y[["comb"]]$noNorm,
+  las = 2, col = targets.colour[[2]],
+  main = "", pch = "", xaxt = "n", outline = FALSE
+)
 title(main = "Unnormalised data", ylab = params$transform)
-legend("topright", legend = legend, fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+legend("topright",
+  legend = plot_legend1, fill = targets.colour[[1]],
+  horiz = TRUE, bg = "transparent", box.col = "transparent"
+)
 
 data_nonnormalised <- recordPlot()
 
 ##### Normalised data
-boxplot(y[["comb"]]$norm, las = 2, col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
-title(main = paste0("Normalised data (", params$norm, ")"), ylab = params$transform)
-legend("topright", legend = legend, fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+boxplot(y[["comb"]]$norm,
+  las = 2, col = targets.colour[[2]],
+  main = "", pch = "", xaxt = "n", outline = FALSE
+)
+title(main = glue("Normalised data ({params$norm})"), ylab = params$transform)
+legend("topright",
+  legend = plot_legend1, fill = targets.colour[[1]],
+  horiz = TRUE, bg = "transparent", box.col = "transparent"
+)
 
 data_normalised <- recordPlot()
 
 ##### Save the plot as png file
+# TODO (PD): remove duplicated code chunks, use ggplot objects
 png(file.path(PlotsDir, "normalisation.png"), width = 900, height = 700, pointsize = 14)
 par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
 ##### Unnormalised data
-boxplot(y[["comb"]]$noNorm, las = 2, col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+boxplot(y[["comb"]]$noNorm,
+  las = 2, col = targets.colour[[2]],
+  main = "", pch = "", xaxt = "n", outline = FALSE
+)
 title(main = "Unnormalised data", ylab = params$transform)
-legend("topright", legend = legend, fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", cex = 0.7, box.col = "transparent")
+legend("topright",
+  legend = plot_legend1, fill = targets.colour[[1]],
+  horiz = TRUE, bg = "transparent", cex = 0.7, box.col = "transparent"
+)
 
 ##### Normalised data
-boxplot(y[["comb"]]$norm, las = 2, col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+boxplot(y[["comb"]]$norm,
+  las = 2, col = targets.colour[[2]], main = "",
+  pch = "", xaxt = "n", outline = FALSE
+)
 title(main = paste0("Normalised data (", params$norm, ")"), ylab = params$transform)
-legend("topright", legend = legend, fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", cex = 0.7, box.col = "transparent")
+legend("topright",
+  legend = plot_legend1, fill = targets.colour[[1]],
+  horiz = TRUE, bg = "transparent", cex = 0.7, box.col = "transparent"
+)
 invisible(dev.off())
 
 ##### Clean the space
@@ -964,33 +1070,42 @@ batches <- as.character(ref_dataset.list[[dataset]][["sample_annot"]]$Dataset)
 batches[match(sample_name, batches)] <- int_cancer_group
 
 ##### Perform batch-effect correctrion using limma
-ref_dataset.list[[dataset]][["batch_effect_corrected"]] <- limma::removeBatchEffect(ref_dataset.list[[dataset]][["combined_data_processed"]], batch = batches)
+ref_dataset.list[[dataset]][["batch_effect_corrected"]] <- limma::removeBatchEffect(
+  ref_dataset.list[[dataset]][["combined_data_processed"]],
+  batch = batches
+)
 ```
 
 ```{r pca, comment = NA, message=FALSE, warning=FALSE}
-suppressMessages(library(plotly))
-
 ##### Perform principal component analysis (PCA) using combined-only data and batch-effect corrected data
 ##### Loop through combined datasets and perform PCA
 for (dataset in names(ref_dataset.list)) {
-  target <- ref_dataset.list[[dataset]][["sample_annot"]]
-  target$Dataset <- gsub(sample_name, "Patient", target$Dataset)
-  target$Target <- gsub(sample_name, "Patient", target$Target)
+  target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+    dplyr::mutate(
+      Dataset = if_else(.data$Dataset == sample_name, "Patient", .data$Dataset),
+      Target = if_else(.data$Target == sample_name, "Patient", .data$Target),
+    )
 
   if (params$batch_rm) {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, title = "Before batch-effects correction", report_dir = results_dir, suffix = "_before_batch_rm")
-
-    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- pca(data = ref_dataset.list[[dataset]][["batch_effect_corrected"]], targets = target, title = "After batch-effects correction", report_dir = results_dir, suffix = "_after_batch_rm")
-
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- RNAsum::pca(
+      data = ref_dataset.list[[dataset]][["combined_data_processed"]],
+      targets = target, title = "Before batch-effects correction",
+      report_dir = results_dir, suffix = "_before_batch_rm"
+    )
+    ref_dataset.list[[dataset]][["pca_batch_effect_corrected"]] <- RNAsum::pca(
+      data = ref_dataset.list[[dataset]][["batch_effect_corrected"]],
+      targets = target, title = "After batch-effects correction",
+      report_dir = results_dir, suffix = "_after_batch_rm"
+    )
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["batch_effect_corrected"]]
   } else {
-    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- pca(data = ref_dataset.list[[dataset]][["combined_data_processed"]], targets = target, report_dir = results_dir)
-
+    ref_dataset.list[[dataset]][["pca_combined_data_processed"]] <- RNAsum::pca(
+      data = ref_dataset.list[[dataset]][["combined_data_processed"]],
+      targets = target, report_dir = results_dir
+    )
     ref_dataset.list[[dataset]][["data_to_report"]] <- ref_dataset.list[[dataset]][["combined_data_processed"]]
   }
 }
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -1000,55 +1115,100 @@ if (!is.null(dev.list())) invisible(dev.off())
 ##### Generate relative log expression (RLE) plot using combined-only data and batch-effect corrected data
 ##### Loop through combined datasets and generate RLE plot
 for (dataset in names(ref_dataset.list)) {
-  target <- ref_dataset.list[[dataset]][["sample_annot"]]
-  target$Dataset <- gsub(sample_name, "Patient", target$Dataset)
-  target$Target <- gsub(sample_name, "Patient", target$Target)
+  target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+    dplyr::mutate(
+      Dataset = if_else(.data$Dataset == sample_name, "Patient", .data$Dataset),
+      Target = if_else(.data$Target == sample_name, "Patient", .data$Target),
+    )
 
   if (params$batch_rm) {
     par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
     ##### Before batch-effects correction
-    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "Before batch-effects correction", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
 
     ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
 
     ##### After batch-effects correction
-    plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "After batch-effects correction", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
 
     ref_dataset.list[[dataset]][["rle_batch_effect_corrected"]] <- recordPlot()
 
 
+    # TODO (PD): de-duplicate plotting code
     ##### Save the plot as png file
     png(file.path(PlotsDir, "rle.png"), width = 900, height = 700, pointsize = 14)
     par(mfrow = c(2, 1), mar = c(2, 5, 3, 2))
 
     ##### Before batch-effects correction
-    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "Before batch-effects correction", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
 
     ##### After batch-effects correction
-    plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["batch_effect_corrected"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "After batch-effects correction", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
     invisible(dev.off())
   } else {
-    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
 
     ref_dataset.list[[dataset]][["rle_combined_data_processed"]] <- recordPlot()
 
     ##### Save the plot as png file
     png(file.path(PlotsDir, "rle.png"), width = 900, height = 450, pointsize = 14)
 
-    plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]], col = targets.colour[[2]], main = "", pch = "", las = 3, xaxt = "n", outline = FALSE)
+    EDASeq::plotRLE(ref_dataset.list[[dataset]][["combined_data_processed"]],
+      col = targets.colour[[2]], main = "", pch = "", las = 3,
+      xaxt = "n", outline = FALSE
+    )
     title(main = "", ylab = "RLE")
-    legend("topright", legend = levels(factor(target$Target)), fill = targets.colour[[1]], horiz = TRUE, bg = "transparent", box.col = "transparent")
+    legend("topright",
+      legend = levels(factor(target$Target)),
+      fill = targets.colour[[1]], horiz = TRUE, bg = "transparent",
+      box.col = "transparent"
+    )
     invisible(dev.off())
   }
 }
@@ -1057,30 +1217,29 @@ for (dataset in names(ref_dataset.list)) {
 if (!is.null(dev.list())) invisible(dev.off())
 
 ##### Clean the space
-rm(targets.colour, den, y)
+rm(target, targets.colour)
 ```
 
 ```{r gene_annot_count_data, comment = NA, message=FALSE, warning=FALSE}
 ##### Loop through combined, BUT NOT PROCESSED, datasets and annotate ALL genes. This part is mainly required for biotype detection step
 for (dataset in names(ref_dataset.list)) {
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_dataset.list[[dataset]][["combined_data"]]
-  data.df <- as.data.frame(cbind(rownames(data), data))
+  dat1 <- ref_dataset.list[[dataset]][["combined_data"]]
+  data.df <- as.data.frame(cbind(rownames(dat1), dat1))
   colnames(data.df)[1] <- "ENSEMBL"
-  
-  ##### Get genes annotation and genomic locations
-  edb <- base::eval(base::parse(text = paste0("EnsDb.Hsapiens.v", ensembl_version)))
-  
-  ##### Get keytypes for gene SYMBOL
-  keys <- keys(edb, keytype="GENEID")
 
   ##### Get genes genomic coordiantes
-  gene_info <- ensembldb::select(edb, keys = keys, columns = c("GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME", "GENESEQSTART", "GENESEQEND"), keytype = "GENEID")
-  names(gene_info) <- gsub("GENEID", "ENSEMBL", names(gene_info))
-  names(gene_info) <- gsub("GENENAME", "SYMBOL", names(gene_info))
-
-  ##### Limit genes annotation to those genes for which sample expression measurments are available
-  gene_info <- gene_info[gene_info$ENSEMBL %in% data.df$ENSEMBL, ]
+  ##### Limit genes annotation to those genes for which sample expression measurements are available
+  gene_info <- edb |>
+    ensembldb::select(
+      keys = keys,
+      columns = c(
+        "GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME",
+        "GENESEQSTART", "GENESEQEND"
+      ), keytype = "GENEID"
+    ) |>
+    dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME") |>
+    dplyr::filter(.data$ENSEMBL %in% data.df$ENSEMBL)
 
   ##### Remove rows with duplicated ENSEMBL IDs
   gene_info <- gene_info[!duplicated(gene_info$ENSEMBL), ]
@@ -1090,18 +1249,26 @@ for (dataset in names(ref_dataset.list)) {
   gene_info <- gene_info[!duplicated(gene_info$SYMBOL), ]
 
   ##### Add info about immune response markers
-  gene_info.immune_markers <- merge(gene_info, ref_genes.list[["genes_immune"]]$genes_immune_markers, by = "SYMBOL", all.x = TRUE)
+  gene_info.immune_markers <- merge(
+    gene_info, ref_genes.list[["genes_immune"]]$genes_immune_markers,
+    by = "SYMBOL", all.x = TRUE
+  )
 
   ##### Keep only immune response markers for which there is available annotation
-  ref_genes.list[["genes_immune"]]$immune_markers <- ref_genes.list[["genes_immune"]]$genes_immune_markers[ref_genes.list[["genes_immune"]]$genes_immune_markers$SYMBOL %in% gene_info.immune_markers$SYMBOL, ]
+  ref_genes.list[["genes_immune"]]$immune_markers <- ref_genes.list[["genes_immune"]]$genes_immune_markers |>
+    dplyr::filter(.data$SYMBOL %in% gene_info.immune_markers$SYMBOL)
 
   ##### Add info about immunogram genes
   if (params$immunogram) {
-    gene_info.immunogram <- merge(gene_info, ref_genes.list[["genes_immune"]]$genes_immunogram, by = "SYMBOL", all.x = TRUE)
+    gene_info.immunogram <- merge(
+      gene_info, ref_genes.list[["genes_immune"]]$genes_immunogram,
+      by = "SYMBOL", all.x = TRUE
+    )
     gene_info.immunogram <- gene_info.immunogram[!duplicated(gene_info.immunogram[, "ENSEMBL"]), ]
 
     ##### Keep only immunogram genes for which there is available annotation
-    ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$genes_immunogram[ref_genes.list[["genes_immune"]]$genes_immunogram$SYMBOL %in% gene_info.immunogram$SYMBOL, ]
+    ref_genes.list[["genes_immune"]]$immunogram <- ref_genes.list[["genes_immune"]]$genes_immunogram |>
+      dplyr::filter(.data$SYMBOL %in% gene_info.immunogram$SYMBOL)
 
     ##### Merge genes annotations for immunogram genes and immune markers
     gene_info <- merge(gene_info.immunogram, gene_info.immune_markers[, c("ENSEMBL", "Immune_Cycle_Role")], by = "ENSEMBL")
@@ -1114,27 +1281,35 @@ for (dataset in names(ref_dataset.list)) {
   rownames(data.annot) <- data.annot$ENSEMBL
 
   ##### Get data matrix with gene symbols
-  if (params$immunogram) {
-    ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "CIC", "Immune_Cycle_Role")]
-  } else {
-    ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  imm_cols_select <- c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "CIC", "Immune_Cycle_Role")
+  if (!params$immunogram) {
+    imm_cols_select <- imm_cols_select[imm_cols_select != "CIC"]
   }
+  ref_dataset.list[[dataset]][["gene_annot_all"]] <- data.annot[, imm_cols_select]
 
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["combined_data"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
-  write.table(prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.gene_annot_all.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
+  write.table(
+    RNAsum::prepare2write(ref_dataset.list[[dataset]][["combined_data"]]),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.combined_data.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
+  write.table(
+    RNAsum::prepare2write(ref_dataset.list[[dataset]][["gene_annot_all"]]),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.gene_annot_all.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
 }
 
 ##### Clean the space
-rm(data, target, data.df, edb, keys)
+rm(dat1, data.df, edb, keys)
 ```
 
 ```{r gene_annot_processed_data, comment = NA, message=FALSE, warning=FALSE}
 ##### Loop through combined datasets and annotate genes
 for (dataset in names(ref_dataset.list)) {
   ##### Convert data into a data frame to make the Ensembl ID and gene symbol matches (with merge function)
-  data <- ref_dataset.list[[dataset]][["data_to_report"]]
-  data.df <- as.data.frame(cbind(rownames(data), data))
+  dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
+  data.df <- as.data.frame(cbind(rownames(dat1), dat1))
   colnames(data.df)[1] <- "ENSEMBL"
 
   ##### Merge genes genomic coordinates info with their annotation and expression data
@@ -1145,86 +1320,160 @@ for (dataset in names(ref_dataset.list)) {
   rownames(data.annot) <- data.annot$SYMBOL
 
   ##### Get data matrix with gene symbols
-  ref_dataset.list[[dataset]][["data_to_report"]] <- apply(data.annot[, colnames(data)], 2, as.numeric)
+  ref_dataset.list[[dataset]][["data_to_report"]] <- apply(data.annot[, colnames(dat1)], 2, as.numeric)
   rownames(ref_dataset.list[[dataset]][["data_to_report"]]) <- data.annot$SYMBOL
-  ref_dataset.list[[dataset]][["gene_annot"]] <- data.annot[, c("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")]
+  ref_dataset.list[[dataset]][["gene_annot"]] <- data.annot |>
+    dplyr::select("SYMBOL", "GENEBIOTYPE", "ENSEMBL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "Immune_Cycle_Role")
 
   ##### Save the combined expression matrix, genes list and associated targets into txt files
-  write.table(prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data_processed.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
-  write.table(prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.combined_data_processed.genes.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
-  write.table(prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]), file = paste0(results_dir, "/", sample_name, ".RNAseq_report.sample_annot.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE)
+  write.table(
+    RNAsum::prepare2write(ref_dataset.list[[dataset]][["data_to_report"]]),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.combined_data_processed.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
+  write.table(
+    RNAsum::prepare2write(toupper(rownames(ref_dataset.list[[dataset]][["data_to_report"]]))),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.combined_data_processed.genes.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
+  write.table(
+    RNAsum::prepare2write(ref_dataset.list[[dataset]][["sample_annot"]]),
+    file = file.path(results_dir, glue("{sample_name}.RNAseq_report.sample_annot.txt")),
+    sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE, append = FALSE
+  )
 }
 
 ##### Clean the space
-rm(data, data.df, gene_info)
+rm(dat1, data.df, gene_info)
 ```
 
 ```{r gene_annot_processed_data_save, comment = NA, message=FALSE, warning=FALSE, eval=params$save_tables}
 ##### Save the entire expression data for all genes measured in patient's sample with cancer genes annotation as a data table html file
 ##### Generate expression summary table for mutated genes
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
-data <- ref_dataset.list[[dataset]][["data_to_report"]]
+dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
 # Define Z-transformation direction
-scaling <- dplyr::if_else(tolower(params$scaling) == "gene-wise", "gene_wise", "group-wise")
-genes.expr.perc <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling)
+scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene-wise", "group-wise")
+
+genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = dat1,
+  genes = rownames(dat1),
+  keep_all = TRUE,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Z-scores
-genes.expr.z <- exprTable(genes = rownames(data), keep_all = TRUE, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling)
+genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = dat1,
+  genes = rownames(dat1),
+  keep_all = TRUE,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Create directory for saving tables
-exprTableDir <- paste(results_dir, "exprTables", sep = "/")
+exprTableDir <- file.path(results_dir, "exprTables")
+fs::dir_create(exprTableDir)
 
-if (!file.exists(exprTableDir)) {
-  dir.create(exprTableDir, recursive = TRUE)
-}
-
+# TODO (PD): where do these widgets get sucked into the report??
 ##### Save the expression tables as html file
-saveWidgetFix(widget = genes.expr.perc[[1]], file = paste(exprTableDir, "genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
-saveWidgetFix(widget = genes.expr.z[[1]], file = paste(exprTableDir, "genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+RNAsum::saveWidgetFix(widget = genes.expr.perc[[1]], file = file.path(exprTableDir, "genes.expr.perc.html"))
+RNAsum::saveWidgetFix(widget = genes.expr.z[[1]], file = file.path(exprTableDir, "genes.expr.z.html"))
 
 ##### Clean the space
-rm(data, targets, genes.expr.z, genes.expr.perc)
+rm(dat1, targets, genes.expr.z, genes.expr.perc)
 ```
 
 ```{r cn_expr_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Combine expression data with mutation and CN data if available
-cn_data <- sample_data.list$wgs$purple_gene_tsv
 expr_data <- ref_dataset.list[[dataset]][["data_to_report"]]
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 
-##### ...percerntiles
-expr_data.perc <- exprTable(genes = rownames(expr_data), keep_all = TRUE, data = expr_data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "perc", scaling = scaling)[[2]]
+##### ...percentiles
+expr_data.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = expr_data,
+  genes = rownames(expr_data),
+  keep_all = TRUE,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[2]]
 
-expr_genes <- expr_data.perc$SYMBOL
+expr_genes <- expr_data.perc[["SYMBOL"]]
 
-##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores using exprTable function
-expr_data.z <- exprTable(genes = expr_genes, keep_all = TRUE, data = expr_data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, type = "z", scaling = scaling)[[2]]
+##### Get the "Diff" (Patient vs [comp_cancer]) Z-scores
+expr_data.z <- RNAsum::exprTable(
+  type = "z",
+  data = expr_data,
+  genes = expr_genes,
+  keep_all = TRUE,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[2]]
 
-##### Make sure the tables have the same genes order
-#expr_data.perc <- expr_data.perc[expr_genes, ]
-expr_data.z <- expr_data.z[expr_genes, ]
-
-if (comp_cancer_group != int_cancer_group) {
-  expr_data.perc <- expr_data.perc[, "Diff"]
-  expr_data.z <- expr_data.z[, "Diff"]
-} else {
-  expr_data.perc <- expr_data.perc[, paste0("Patient vs ", comp_cancer_group)]
-  expr_data.z <- expr_data.z[, paste0("Patient vs ", comp_cancer_group)]
+col1 <- "Diff"
+if (comp_cancer_group == int_cancer_group) {
+  col1 <- paste0("Patient vs ", comp_cancer_group)
+}
+expr_sel <- function(d) {
+  d |>
+    tibble::as_tibble() |>
+    dplyr::select(c("SYMBOL", dplyr::all_of(col1))) |>
+    dplyr::arrange(.data$SYMBOL)
 }
 
-names(expr_data.perc) <- expr_genes
-names(expr_data.z) <- expr_genes
+expr_data.perc <- expr_sel(expr_data.perc)
+expr_data.z <- expr_sel(expr_data.z)
+
+# make sure we have same names in order
+stopifnot(all(expr_data.perc[["SYMBOL"]] == expr_data.z[["SYMBOL"]]))
 
 ##### Calculate the mean CN for each gene
-cn_data$MeanCopyNumber <- rowMeans(cbind(cn_data$minCopyNumber, cn_data$maxCopyNumber))
-
 ##### Deal with negative CN values
-cn_data$MeanCopyNumber[cn_data$MeanCopyNumber < 0] <- 0
-
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
-cn_data <- cn_data[cn_data$gene %!in% "", ]
+##### Select just gene and mean cn
+cn_data <- sample_data.list[["wgs"]][["purple_gene_tsv"]] |>
+  dplyr::mutate(
+    MeanCopyNumber = rowMeans(cbind(.data$minCopyNumber, .data$maxCopyNumber)),
+    MeanCopyNumber = if_else(.data$MeanCopyNumber < 0, 0, .data$MeanCopyNumber)
+  ) |>
+  dplyr::filter(.data$gene != "") |>
+  dplyr::select("gene", "MeanCopyNumber")
 
 ##### Keep only altered genes with CN values below loss threshold (default 5th percentile) and above gain threshold (default 95th percentile)
 cn_data.all <- cn_data
@@ -1233,619 +1482,176 @@ cn_data.all <- cn_data
 cn_data.all.percent <- quantile(cn_data.all$MeanCopyNumber, probs = seq(0, 1, .05), na.rm = TRUE)
 
 ##### Keep only genes with available expression data
-cn_data <- cn_data[cn_data$gene %in% names(expr_data.z), ]
+cn_data <- cn_data |>
+  dplyr::filter(.data$gene %in% expr_data.z[["SYMBOL"]])
 
-##### Add mutation data if available
-if (!is.null(sample_data.list$wgs$pcgr_tiers_tsv)) {
-  mut_data <- sample_data.list$wgs$pcgr_tiers_tsv
+##### Add mutation data if available. If PCGR is NULL, returns NULL for gene.mut
+##### and unmodified expr_data.z/perc
+pcgr_expr1 <- pcgr_expr(
+  pcgr = sample_data.list[["wgs"]][["pcgr_tiers_tsv"]],
+  expr_data.z = expr_data.z,
+  expr_data.perc = expr_data.perc
+)
 
-  ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
-  mut_data <- mut_data[mut_data$SYMBOL %!in% "", ]
-
-  ##### Prepare mutation data to include multiple mutations per gene
-  ##### Initiate variable for the gene mutation status for each gene
-  gene.mut <- as.matrix(rep("None", length(expr_data.z)))
-  colnames(gene.mut) <- "Alterations"
-  rownames(gene.mut) <- names(expr_data.z)
-
-  for (i in 1:nrow(gene.mut)) {
-    ##### Check if any mutations are reported for each gene
-    if (rownames(gene.mut)[i] %in% mut_data$SYMBOL) {
-      ##### Deal with multiple mutations per gene
-      if (length(mut_data[mut_data$SYMBOL %in% rownames(gene.mut)[i], ]$CONSEQUENCE) > 1) {
-        gene.mut[rownames(gene.mut)[i], "Alterations"] <- "Mutation: multiple hits"
-      } else {
-        gene.mut[rownames(gene.mut)[i], "Alterations"] <- paste0("Mutation: ", mut_data[mut_data$SYMBOL %in% rownames(gene.mut)[i], ]$CONSEQUENCE)
-      }
-    }
-  }
-
-  ##### If there is no expression value for a specific gene then assume it's not expressed at all and assign the lowest value observed in that sample
-  for (gene in unique(mut_data$SYMBOL)) {
-    if (gene %!in% rownames(gene.mut)) {
-      # Add gene with no expression value to expression data percentiles and z-score values
-      expr_data.perc <- c(expr_data.perc, min(expr_data.perc))
-      names(expr_data.perc)[length(expr_data.perc)] <- gene
-
-      expr_data.z <- c(expr_data.z, min(expr_data.z))
-      names(expr_data.z)[length(expr_data.z)] <- gene
-
-      ##### Deal with multiple mutations per gene. Add gene with no expression value to our gene.mut variable
-      if (length(mut_data[mut_data$SYMBOL %in% gene, ]$CONSEQUENCE) > 1) {
-        gene.mut <- rbind(gene.mut, "multiple hits")
-      } else {
-        gene.mut <- rbind(gene.mut, mut_data[mut_data$SYMBOL %in% gene, ]$CONSEQUENCE)
-      }
-      rownames(gene.mut)[nrow(gene.mut)] <- gene
-    }
-  }
-
-  ##### Subset expression, mutation and copy-number data to include only overlapping genes
-  genes.intersect <- intersect(intersect(rownames(gene.mut), cn_data$gene), names(expr_data.perc))
-
-  gene.mut.sub <- gene.mut[rownames(gene.mut) %in% genes.intersect, ]
-  cn_data.sub <- cn_data[cn_data$gene %in% genes.intersect, ]
-  expr_data.perc.sub <- expr_data.perc[names(expr_data.perc) %in% genes.intersect]
-  expr_data.z.sub <- expr_data.z[names(expr_data.z) %in% genes.intersect]
-
-  ##### Make sure they are all in the same order
-  gene.mut.sub <- gene.mut.sub[genes.intersect]
-  rownames(cn_data.sub) <- cn_data.sub$gene
-  cn_data.sub <- cn_data.sub[genes.intersect, ]
-  expr_data.perc.sub <- expr_data.perc.sub[genes.intersect]
-  expr_data.z.sub <- expr_data.z.sub[genes.intersect]
-
-  ##### Prepare data frame
-  cn_data.sub <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.perc.sub, expr_data.z.sub, gene.mut.sub)
-  colnames(cn_data.sub) <- c("Gene", "CN", "Perc_diff", "Z_score_diff", "Alterations")
-} else {
-  ##### Skip the step for processing mutation info and deal with expression and copy-number data
-  ##### Subset expression and copy-number data to include only overlapping genes
-  genes.intersect <- intersect(cn_data$gene, names(expr_data.perc))
-
-  cn_data.sub <- cn_data[cn_data$gene %in% genes.intersect, ]
-  expr_data.perc.sub <- expr_data.perc[names(expr_data.perc) %in% genes.intersect]
-  expr_data.z.sub <- expr_data.z[names(expr_data.z) %in% genes.intersect]
-
-  ##### Make sure thay are all in the same order
-  rownames(cn_data.sub) <- cn_data.sub$Gene
-  cn_data.sub <- cn_data.sub[genes.intersect, ]
-  expr_data.perc.sub <- expr_data.perc.sub[genes.intersect]
-  expr_data.z.sub <- expr_data.z.sub[genes.intersect]
-
-  ##### Prepare data frame
-  cn_data.sub <- data.frame(names(expr_data.z.sub), cn_data.sub$MeanCopyNumber, expr_data.perc.sub, expr_data.z.sub)
-  colnames(cn_data.sub) <- c("Gene", "CN", "Perc_diff", "Z_score_diff")
-}
-
+# Prepare CN table
+cn_data.sub <- RNAsum::cn_subset(
+  gene.mut = pcgr_expr1[["gene.mut"]],
+  cn_data = cn_data,
+  expr_data.perc = pcgr_expr1[["expr_data.perc"]],
+  expr_data.z = pcgr_expr1[["expr_data.z"]]
+)
 ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] <- cn_data.sub
 
-##### Limit the data to include only cancer genes - not seeing how this will work as ref_genes.list[["genes_cancer"]] has numerical rownames
-#cn_data.sub <- cn_data.sub[cn_data.sub$gene %in% rownames(ref_genes.list[["genes_cancer"]]), ]
-cn_data.sub <- cn_data.sub[cn_data.sub$Gene %in% ref_genes.list[["summary"]]$Cancer,]
-
+##### Limit the data to include only cancer genes
 ##### Keep genes meeting the user-defined CN values thresholds
-ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub[cn_data.sub$CN <= cn_bottom | cn_data.sub$CN >= cn_top, ]
+ref_dataset.list[[dataset]][["expr_mut_cn_data"]] <- cn_data.sub |>
+  dplyr::filter(.data$Gene %in% ref_genes.list[["genes_cancer"]][["Gene"]]) |>
+  dplyr::filter(.data$CN <= cn_bottom | .data$CN >= cn_top)
 
 ##### Clean the space
-rm(cn_data, cn_data.sub, expr_data, gene.mut, mut_data, targets, expr_data.z, expr_data.perc, expr_data.z.sub, expr_data.perc.sub, expr_genes, gene.mut.sub, genes.intersect)
+rm(cn_data, cn_data.sub, expr_data, targets, expr_data.z, expr_data.perc, expr_genes, pcgr_expr1)
 ```
 
 ```{r cn_data_distribution, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
-suppressMessages(library(plotly))
-
-##### Draw histogram of CN data
-cn_dist_plot <- plot_ly(x = cn_data.all$MeanCopyNumber, type = "histogram", name = "CN data", width = 800, height = 300) %>%
-  ##### Add 5th percentile threshold
-  add_lines(
-    y = seq(0, 1000, 100), x = rep(cn_data.all.percent[2], 11),
+##### Draw histogram of CN data with percentile vertical thresholds
+cn_dist_plot <- plotly::plot_ly(
+  x = cn_data.all[["MeanCopyNumber"]], type = "histogram", name = "CN data",
+  width = 800, height = 300
+) |>
+  plotly::add_lines(
+    y = seq(0, 1000, 100), x = rep(cn_data.all.percent["5%"], 11),
     line = list(color = "black", dash = "dash"), opacity = 0.4,
     name = "5th percentile", showlegend = TRUE
-  ) %>%
-  ##### Add 50th percentile
-  add_lines(
-    y = seq(0, 1000, 100), x = rep(cn_data.all.percent[11], 11),
+  ) |>
+  plotly::add_lines(
+    y = seq(0, 1000, 100), x = rep(cn_data.all.percent["50%"], 11),
     line = list(color = "black", dash = "dash"), opacity = 0.7,
     name = "50th percentile", showlegend = TRUE
-  ) %>%
+  ) |>
   ##### Add 95th percentile threshold
-  add_lines(
-    y = seq(0, 1000, 100), x = rep(cn_data.all.percent[20], 11),
+  plotly::add_lines(
+    y = seq(0, 1000, 100), x = rep(cn_data.all.percent["95%"], 11),
     line = list(color = "black", dash = "dash"), opacity = 1,
     name = "95th percentile", showlegend = TRUE
-  ) %>%
-  layout(xaxis = list(title = "CN values"), yaxis = list(title = "Frequency"), margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4), autosize = F)
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
+  ) |>
+  plotly::layout(
+    xaxis = list(title = "CN values"), yaxis = list(title = "Frequency"),
+    margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4), autosize = FALSE
+  )
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
 
 ##### Clean the space
-rm(cn_data.all)
+rm(cn_data.all, cn_data.all.percent)
 ```
 
 ```{r known_fusions_prep, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-##### Flag known fusions based on info from Cancer Biomarkers database (CGI) (https://www.cancergenomeinterpreter.org/biomarkers)
-known_translocations.CGI <- ref_genes.list[["cancer_biomarkers_trans"]]
-known_translocations.CGI$cancer_acronym <- gsub(";", ", ", known_translocations.CGI$cancer_acronym)
-known_translocations.CGI$source <- gsub(";", ", ", known_translocations.CGI$source)
-known_translocations.CGI$translocation <- gsub("__", "_", known_translocations.CGI$translocation)
-
-##### Flag known fusions based on info from FusionGDB (https://ccsm.uth.edu/FusionGDB)
-known_translocations.FusionGDB <- ref_genes.list[["FusionGDB"]]
-
-##### Merge info from both resources
-known_translocations <- merge(known_translocations.FusionGDB, known_translocations.CGI, by.x = "FGname", by.y = "translocation", all = TRUE, sort = FALSE)
-
-##### Extract gene pairs involved in reported gene fusions
-trans.pairs <- as.data.frame(cbind(known_translocations$FGname, known_translocations$FGname))
-names(trans.pairs) <- c("geneA", "geneB")
-trans.pairs$geneA <- sub("_.*", "", trans.pairs$geneA)
-trans.pairs$geneB <- sub(".*_", "", trans.pairs$geneB)
-known_translocations <- cbind(known_translocations, trans.pairs)
-trans.pairs <- apply(trans.pairs, 1, paste, collapse = "-")
+known_translocations <- RNAsum::known_trans(
+  kt_fusiongdb = ref_genes.list[["FusionGDB"]],
+  kt_cgi = ref_genes.list[["cancer_biomarkers_trans"]]
+)
 ```
 
-```{r arriba_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
+```{r fusions_arriba_processing, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
 ##### Read in the arriba fusion calls
-arriba.fusions <- sample_data.list[["arriba_tsv"]]
-colnames(arriba.fusions) <- gsub("1", "A", colnames(arriba.fusions))
-colnames(arriba.fusions) <- gsub("2", "B", colnames(arriba.fusions))
-
-#####  Note the fusions order, which will be later required for embedding Arriba plots from corresponding pdf booklet pages
-arriba.fusions.order <- paste(arriba.fusions$geneA, arriba.fusions$geneB, sep = "__")
-
-##### Extract only those fusion genes that are in cancer genes list
-arriba.cancer_genes <- data.frame()
-
-for (row in 1:nrow(arriba.fusions)) {
-  if (arriba.fusions[row, "geneA"] %in% rownames(ref_genes.list[["genes_cancer"]]) | arriba.fusions[row, "geneB"] %in% rownames(ref_genes.list[["genes_cancer"]])) {
-    ##### Creating a new dataframe for extracting arriba rows with cancer gene hits
-    arriba.cancer_genes <- rbind(arriba.cancer_genes, data.frame(arriba.fusions[row, ]))
-  }
-}
-
-##### Add columns for info about reported fusions
-fusions <- cbind(arriba.fusions, data.frame(matrix("", ncol = 5, nrow = nrow(arriba.fusions)), stringsAsFactors = FALSE))
-colnames(fusions)[(ncol(fusions) - 4):ncol(fusions)] <- c("FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene")
-
-##### Add annotations about known fusion events
-##### Loop through all genes involved in deteced gene fusions (arriba results) and check which are already reported
-for (i in 1:nrow(fusions)) {
-  geneA <- as.character(fusions$geneA[i])
-  geneB <- as.character(fusions$geneB[i])
-
-  ##### First check if the exact reported gene pairs were detected by arriba
-  if (paste(geneA, geneB, sep = "-") %in% trans.pairs) {
-    ##### provide fusion URL to FusionGDB
-    fusions$reported_fusion[i] <- "Yes"
-
-    ##### provide fusion ID from FusionGDB
-    fusions$FGID[i] <- known_translocations$FGID[trans.pairs %in% paste(geneA, geneB, sep = "-")]
-
-    fusions$reported_fusion_geneA[i] <- "Yes"
-    fusions$reported_fusion_geneB[i] <- "Yes"
-  } else if (paste(geneB, geneA, sep = "-") %in% trans.pairs) {
-    ##### provide fusion URL to FusionGDB
-    fusions$reported_fusion[i] <- "Yes"
-
-    ##### provide fusion ID from FusionGDB
-    fusions$FGID[i] <- known_translocations$FGID[trans.pairs %in% paste(geneB, geneA, sep = "-")]
-
-    fusions$reported_fusion_geneA[i] <- "Yes"
-    fusions$reported_fusion_geneB[i] <- "Yes"
-
-    ##### Now check if any ofthe arriba detected fusion genes are reported
-  } else {
-    fusions$reported_fusion[i] <- "-"
-
-    ##### Check the Cancer Genome Interpreter (CGI) database first
-    ##### Check arriba genes A and genes A in reported fusions
-    if (geneA %in% known_translocations$geneA) {
-      fusions$reported_fusion_geneA[i] <- "Yes"
-
-      ##### Check arriba genes A and genes B in reported fusions
-    } else if (geneA %in% known_translocations$geneB) {
-      fusions$reported_fusion_geneA[i] <- "Yes"
-    }
-
-    ##### Check arriba genes B and genes A in reported fusions
-    if (geneB %in% known_translocations$geneA) {
-      fusions$reported_fusion_geneB[i] <- "Yes"
-
-      ##### Check arriba genes B and genes B in reported fusions
-    } else if (geneB %in% known_translocations$geneB) {
-      fusions$reported_fusion_geneB[i] <- "Yes"
-    }
-
-    ##### Flag if any of the genes are effector gene
-    if (geneA %in% known_translocations$effector_gene) {
-      fusions$effector_gene[i] <- geneA
-    } # TO_DO how is this working in master
-    else if (geneB %in% known_translocations$effector_gene) {
-      fusions$effector_gene[i] <- geneB
-    }
-  }
-}
-
-##### Sum split reads in gene A and B
-fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
-
-##### Add column indicating fusions containing known cancer genes
-fusions$fusions_cancer <- c(rep("-", nrow(fusions)))
-
-if (nrow(arriba.cancer_genes) > 0) {
-  fusions$fusions_cancer[fusions$geneA %in% arriba.cancer_genes$geneA] <- "Yes"
-  fusions$fusions_cancer[fusions$geneB %in% arriba.cancer_genes$geneB] <- "Yes"
-}
-
-##### Re-ordering arriba's results on the basis of Arriba's confidence, reported fusions and then read count values (first by split count and then paircount) and then involvment of cancer genes and reported one of the fusion genes
-fusions <- fusions[order(fusions$reported_fusion, fusions$split_reads, fusions$split_readsA, fusions$split_readsB, fusions$discordant_mates, fusions$fusions_cancer, fusions$reported_fusion_geneA, fusions$reported_fusion_geneB, decreasing = TRUE), ]
-fusions <- fusions[order(factor(fusions$confidence, levels = c("high", "medium", "low"))), ]
-
-##### Keep only key columns and add info about Arriba detected fusions and
-fusions <- fusions[colnames(fusions) %in% c("geneA", "geneB", "breakpointA", "breakpointB", "siteA", "siteB", "type", "split_reads", "split_readsA", "split_readsB", "discordant_mates", "confidence", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
-
-##### Add column to flag fusions supported by WGS data (from MANTA), if available
-fusions$geneA_dna_support <- "-"
-fusions$geneB_dna_support <- "-"
-
-if (runDragenFusionChunk) {
-  fusions$Arriba <- c(rep("Yes", nrow(fusions)))
-}
-
-##### Clean the space and return output
-rm(arriba.fusions, arriba.fusion.transcripts, arriba.cancer_genes, arriba.other_genes)
+fusions_arriba <- RNAsum::arriba_process(
+  arriba.fusions = sample_data.list[["arriba_tsv"]],
+  known_translocations = known_translocations,
+  genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
+)
 ```
 
-```{r dragen_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
-##### Read in the arriba fusion calls
-dragen.fusions <- sample_data.list[["dragen_fusions"]]
-colnames(dragen.fusions) <- gsub("gene1", "geneA", colnames(dragen.fusions))
-colnames(dragen.fusions) <- gsub("1", "A", colnames(dragen.fusions))
-colnames(dragen.fusions) <- gsub("2", "B", colnames(dragen.fusions))
-
-##### Extract only those fusion genes that are in cancer genes list
-dragen.cancer_genes <- data.frame()
-
-##### Check if there are any fusions detected at all in dragen fusion output
-if (nrow(dragen.fusions) > 0) {
-  for (row in 1:nrow(dragen.fusions)) {
-    if (dragen.fusions[row, "geneA"] %in% ref_genes.list[["summary"]]$Cancer | dragen.fusions[row, "geneB"] %in% ref_genes.list[["summary"]]$Cancer) {
-      ##### Creating a new dataframe for extracting dragen rows with cancer gene hits
-      dragen.cancer_genes <- rbind(dragen.cancer_genes, data.frame(dragen.fusions[row, ]))
-    }
-  }
-
-  ##### Add columns for info about reported fusions
-  dragen.fusions <- cbind(dragen.fusions, data.frame(matrix("", ncol = 5, nrow = nrow(dragen.fusions)), stringsAsFactors = FALSE))
-  colnames(dragen.fusions)[(ncol(dragen.fusions) - 4):ncol(dragen.fusions)] <- c("FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene")
-
-  ##### Add annotations about known fusion events
-  ##### Loop through all genes involved in deteced gene fusions (dragen results) and check which are already reported
-  for (i in 1:nrow(dragen.fusions)) {
-    geneA <- as.character(dragen.fusions$geneA[i])
-    geneB <- as.character(dragen.fusions$geneB[i])
-
-    ##### First check if the exact reported gene pairs were detected by dragen
-    if (paste(geneA, geneB, sep = "-") %in% trans.pairs) {
-      ##### provide fusion URL to FusionGDB
-      dragen.fusions$reported_fusion[i] <- "Yes"
-
-      ##### provide fusion ID from FusionGDB
-      dragen.fusions$FGID[i] <- known_translocations$FGID[trans.pairs %in% paste(geneA, geneB, sep = "-")]
-
-      dragen.fusions$reported_fusion_geneA[i] <- "Yes"
-      dragen.fusions$reported_fusion_geneB[i] <- "Yes"
-    } else if (paste(geneB, geneA, sep = "-") %in% trans.pairs) {
-      ##### provide fusion URL to FusionGDB
-      dragen.fusions$reported_fusion[i] <- "Yes"
-
-      ##### provide fusion ID from FusionGDB
-      dragen.fusions$FGID[i] <- known_translocations$FGID[trans.pairs %in% paste(geneB, geneA, sep = "-")]
-
-      dragen.fusions$reported_fusion_geneA[i] <- "Yes"
-      dragen.fusions$reported_fusion_geneB[i] <- "Yes"
-
-      ##### Now check if any of the dragen detected fusion genes are reported
-    } else {
-      dragen.fusions$reported_fusion[i] <- "-"
-
-      ##### Check the Cancer Genome Interpreter (CGI) database first
-      ##### Check dragen genes A and genes B in reported fusions
-      if (geneA %in% known_translocations$geneA) {
-        dragen.fusions$reported_fusion_geneA[i] <- "Yes"
-
-        ##### Check dragen genes A and genes B in reported fusions
-      } else if (geneA %in% known_translocations$geneB) {
-        dragen.fusions$reported_fusion_geneA[i] <- "Yes"
-      }
-
-      ##### Check dragen genes B and genes A in reported fusions
-      if (geneB %in% known_translocations$geneA) {
-        dragen.fusions$reported_fusion_geneB[i] <- "Yes"
-
-        ##### Check dragen genes B and genes A in reported fusions
-      } else if (geneB %in% known_translocations$geneB) {
-        dragen.fusions$reported_fusion_geneB[i] <- "Yes"
-      }
-
-      ##### Flag if any of the genes are effector gene
-      if (geneA %in% known_translocations$effector_gene) {
-        dragen.fusions$effector_gene[i] <- geneA
-      } else if (geneB %in% known_translocations$effector_gene) {
-        dragen.fusions$effector_gene[i] <- geneB
-      }
-    }
-  }
-
-  ##### Add column indicating fusions containing known cancer genes
-  dragen.fusions$fusions_cancer <- c(rep("-", nrow(dragen.fusions)))
-
-  if (nrow(dragen.cancer_genes) > 0) {
-    dragen.fusions$fusions_cancer[dragen.fusions$geneA %in% dragen.cancer_genes$geneA] <- "Yes"
-    dragen.fusions$fusions_cancer[dragen.fusions$geneB %in% dragen.cancer_genes$geneB] <- "Yes"
-  }
-
-  ##### Re-ordering dragen's results on the basis of Dragen's confidence, reported fusions and then score (as Dragen doesn't includes split count and paircount info) and then involvment of cancer genes and reported one of the fusion genes
-  dragen.fusions <- dragen.fusions[order(dragen.fusions$reported_fusion, dragen.fusions$Score, dragen.fusions$fusions_cancer, dragen.fusions$reported_fusion_geneA, dragen.fusions$reported_fusion_geneB, decreasing = TRUE), ]
-  # dragen.fusions <- dragen.fusions[order(factor(dragen.fusions$confidence, levels=c("high", "medium", "low"))), ]
-
-  ##### Keep only key columns
-  dragen.fusions <- dragen.fusions[colnames(dragen.fusions) %in% c("geneA", "geneB", "Score", "LeftBreakpoint", "RightBreakpoint", "GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "FGID", "reported_fusion", "reported_fusion_geneA", "reported_fusion_geneB", "effector_gene", "fusions_cancer")]
-
-  ##### Add column to flag fusions supported by WGS data (from MANTA), if available
-  dragen.fusions$geneA_dna_support <- "-"
-  dragen.fusions$geneB_dna_support <- "-"
-
-  ##### Add results from Arriba
-  if (runArribaChunk) {
-    #####  Dragen's fusion format version 3.9.3
-    if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
-      ##### Add column with Dragen fusions
-      dragen.fusions$fusion <- paste(dragen.fusions$geneA, dragen.fusions$geneB, sep = "__")
-      fusions$Dragen <- c(rep("-", nrow(fusions)))
-      #below is erroring out with non-numeric argument to binary operator error
-      #fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
-      fusions$split_reads <- as.numeric(fusions$split_readsA) + as.numeric(fusions$split_readsB)
-      fusions$soft_clipped_reads <- c(rep("-", nrow(fusions)))
-      fusions$score <- c(rep("-", nrow(fusions)))
-
-      ##### Re-order columns
-      fusions <- fusions %>% dplyr::relocate(split_reads, .before = split_readsA)
-      fusions <- fusions %>% dplyr::relocate(soft_clipped_reads, .before = confidence)
-      fusions <- fusions %>% dplyr::relocate(score, .before = FGID)
-
-      ##### Loop through Dragen results, mark fusions detected by both tools. For those detected only by Dragen adapt results format to Arriba results
-      for (i in 1:nrow(dragen.fusions)) {
-        if (!is.na(match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep = "__")))) {
-          fusions$Dragen[match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep = "__"))] <- "Yes"
-          dragen.fusions[i, ] <- rep("-", ncol(dragen.fusions))
-        } else {
-          fusions <- rbind(fusions, data.frame(geneA = dragen.fusions$geneA[i], geneB = dragen.fusions$geneB[i], breakpointA = dragen.fusions$LeftBreakpoint[i], breakpointB = dragen.fusions$RightBreakpoint[i], siteA = dragen.fusions$GeneALocation[i], siteB = dragen.fusions$GeneBLocation[i], type = "-", split_reads = dragen.fusions$NumSplitReads[i], split_readsA = "-", split_readsB = "-", discordant_mates = "-", soft_clipped_reads = dragen.fusions$NumSoftClippedReads[i], confidence = "-", score = dragen.fusions$Score[i], FGID = dragen.fusions$FGID[i], reported_fusion = dragen.fusions$reported_fusion[i], reported_fusion_geneA = dragen.fusions$reported_fusion_geneA[i], reported_fusion_geneB = dragen.fusions$reported_fusion_geneB[i], effector_gene = dragen.fusions$effector_gene[i], fusions_cancer = dragen.fusions$fusions_cancer[i], geneA_dna_support = "-", geneB_dna_support = "-", Arriba = "-", Dragen = "Yes"))
-        }
-      }
-
-      #####  Dragen's fusion format prior to version 3.9.3
-    } else {
-      ##### Add column with Dragen fusions
-      dragen.fusions$fusion <- paste(dragen.fusions$geneA, dragen.fusions$geneB, sep = "__")
-      fusions$Dragen <- c(rep("-", nrow(fusions)))
-      fusions$split_reads <- fusions$split_readsA + fusions$split_readsB
-      fusions$score <- c(rep("-", nrow(fusions)))
-
-      ##### Re-order columns
-      fusions <- fusions %>% dplyr::relocate(split_reads, .before = split_readsA)
-      fusions <- fusions %>% dplyr::relocate(score, .before = FGID)
-
-      ##### Loop through Dragen results, mark fusions detected by both tools. For those detected only by Dragen adapt results format to Arriba results
-      for (i in 1:nrow(dragen.fusions)) {
-        if (!is.na(match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep = "__")))) {
-          fusions$Dragen[match(dragen.fusions$fusion[i], paste(fusions$geneA, fusions$geneB, sep = "__"))] <- "Yes"
-          dragen.fusions[i, ] <- rep("-", ncol(dragen.fusions))
-        } else {
-          fusions <- rbind(fusions, data.frame(geneA = dragen.fusions$geneA[i], geneB = dragen.fusions$geneB[i], breakpointA = dragen.fusions$LeftBreakpoint[i], breakpointB = dragen.fusions$RightBreakpoint[i], siteA = "-", siteB = "-", type = "-", split_reads = "-", split_readsA = "-", split_readsB = "-", discordant_mates = "-", confidence = "-", score = dragen.fusions$Score[i], FGID = dragen.fusions$FGID[i], reported_fusion = dragen.fusions$reported_fusion[i], reported_fusion_geneA = dragen.fusions$reported_fusion_geneA[i], reported_fusion_geneB = dragen.fusions$reported_fusion_geneB[i], effector_gene = dragen.fusions$effector_gene[i], fusions_cancer = dragen.fusions$fusions_cancer[i], geneA_dna_support = "-", geneB_dna_support = "-", Arriba = "-", Dragen = "Yes"))
-        }
-      }
-    }
-
-    ##### No arriba results keep only columns with info from Dragen
-  } else {
-    fusions <- dragen.fusions
-
-    #####  Dragen's fusion format version 3.9.3
-    if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
-      ##### Rename columns
-      names(fusions) <- gsub("LeftBreakpoint", "breakpointA", names(fusions))
-      names(fusions) <- gsub("RightBreakpoint", "breakpointB", names(fusions))
-      names(fusions) <- gsub("GeneALocation", "siteA", names(fusions))
-      names(fusions) <- gsub("GeneBLocation", "siteB", names(fusions))
-      names(fusions) <- gsub("NumSplitReads", "split_reads", names(fusions))
-      names(fusions) <- gsub("NumSoftClippedReads", "soft_clipped_reads", names(fusions))
-      names(fusions) <- gsub("Score", "score", names(fusions))
-
-      #####  Dragen's fusion format prior to version 3.9.3
-    } else {
-      ##### Rename columns
-      names(fusions) <- gsub("LeftBreakpoint", "breakpointA", names(fusions))
-      names(fusions) <- gsub("RightBreakpoint", "breakpointB", names(fusions))
-      names(fusions) <- gsub("Score", "score", names(fusions))
-    }
-  }
-
-  ##### Clean the space and return output
-  rm(dragen.fusion.transcripts, dragen.cancer_genes, dragen.other_genes)
-} else {
-  runFusionChunk <- FALSE
-}
+```{r fusions_dragen_processing, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
+##### Read in the dragen fusion calls
+fusions_dragen <- RNAsum::dragen_fusions_process(
+  dragen.fusions = sample_data.list[["dragen_fusions"]],
+  known_translocations = known_translocations,
+  genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
+)
 ```
 
-```{r fusions_annot, comment = NA, message=TRUE, warning=FALSE, eval = runFusionChunk}
+```{r fusions_merge, eval = runFusionChunk}
+fusions <- dplyr::bind_rows(fusions_arriba, fusions_dragen)
 ##### Annotate fusion genes
-##### Get data to annotate fusion genes
-fusion_genes_annot <- ref_dataset.list[[dataset]][["gene_annot_all"]][, c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND")]
-
-fusions.annot <- fusions
-fusions.annot$order <- 1:nrow(fusions.annot)
-
-##### Get genomic info for fusions genes
-fusion_annot1 <- merge(fusion_genes_annot, fusions.annot[, c("order", "geneA")], by = 2, sort = FALSE, all.y = TRUE)
-fusion_annot1 <- fusion_annot1[order(fusion_annot1$order), ]
-fusion_annot2 <- merge(fusion_genes_annot, fusions.annot[, c("order", "geneB")], by = 2, sort = FALSE, all.y = TRUE)
-fusion_annot2 <- fusion_annot2[order(fusion_annot2$order), ]
-
-##### Dragen + Arriba
-if (runDragenFusionChunk && runArribaChunk) {
-  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("score", "breakpointA", "breakpointB", "discordant_mates", "split_reads", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
-
-  ##### Arriba
-} else if (runArribaChunk) {
-  fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("breakpointA", "breakpointB", "discordant_mates", "split_reads", "split_readsA", "split_readsB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
-
-  ##### Dragen only
-} else if (runDragenFusionChunk) {
-  #####  Dragen's fusion format version 3.9.3
-  if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
-    fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("score", "breakpointA", "breakpointB", "split_reads", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
-
-    #####  Dragen's fusion format prior to version 3.9.3
-  } else {
-    fusion_annot <- cbind(fusion_annot1, fusion_annot2, fusions.annot[, c("score", "breakpointA", "breakpointB", "reported_fusion", "fusions_cancer", "reported_fusion_geneA", "reported_fusion_geneB")])
-  }
-}
-
-##### Add column to flag fusions supported by WGS data (from MANTA), if available
-fusion_annot$geneA_dna_support <- "-"
-fusion_annot$geneB_dna_support <- "-"
-
-colnames(fusion_annot) <- make.names(colnames(fusion_annot), unique = TRUE)
-
-##### Remove entries with missing annotation
-fusion_annot <- fusion_annot[complete.cases(fusion_annot), ]
-
-##### Clean the space
-rm(fusion_annot1, fusion_annot2, fusions.annot, fusion_genes_annot)
+fusions_ann <- RNAsum::fusions_annot(
+  fusions = fusions,
+  gene_ann = ref_dataset.list[[dataset]][["gene_annot_all"]]
+)
 ```
 
 ```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-##### Compare PIZZY and MANTA called gene fusion events
 ##### Add row for gene fusion events so that there is one row per gene
-manta_sv <- ref_genes.list[["manta"]]
-manta_sv$"Fusion genes" <- manta_sv$Gene
-
-i <- 1
-while (i <= nrow(manta_sv)) {
-  if (length(strsplit(manta_sv$Gene[i], split = "&", fixed = TRUE)[[1]]) > 1) {
-    ##### Insert new row for events involving two genes
-    manta_sv <- tibble::add_row(manta_sv, .after = i)
-    manta_sv[i + 1, ] <- manta_sv[i, ]
-    manta_sv$Gene[i] <- strsplit(manta_sv$Gene[i], split = "&", fixed = TRUE)[[1]][1]
-    manta_sv$Gene[i + 1] <- strsplit(manta_sv$Gene[i + 1], split = "&", fixed = TRUE)[[1]][2]
-
-    i <- i + 2
-  } else {
-    manta_sv$"Fusion genes"[i] <- ""
-    i <- i + 1
-  }
-}
+manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]] |>
+  RNAsum::manta_process()
 
 ##### Compare fusion genes called by MANTA
 ##### First limit MANTA output to fusions only
 if (runFusionChunk) {
-  manta_fusions <- unique(manta_sv[grep("&", manta_sv$"Fusion genes"), ]$Gene)
-  manta_fusions <- manta_fusions[manta_fusions %in% unique(c(as.vector(fusions$geneA), as.vector(fusions$geneB)))]
+  manta_fusions <- manta_sv[["multigenes"]] |>
+    dplyr::filter(.data$Genes %in% unique(c(fusions[["geneA"]], fusions[["geneB"]]))) |>
+    dplyr::pull(.data$Genes)
 
   ##### Flag fusions that were also reported in MANTA
-  if (length(manta_fusions) > 0) {
-    fusions$geneA_dna_support[sort(match(manta_fusions, fusions$geneA), na.last = NA)] <- "Yes"
-    fusions$geneB_dna_support[sort(match(manta_fusions, fusions$geneB), na.last = NA)] <- "Yes"
-
-    fusion_annot$geneA_dna_support[sort(match(manta_fusions, fusion_annot$SYMBOL), na.last = NA)] <- "Yes"
-    fusion_annot$geneB_dna_support[sort(match(manta_fusions, fusion_annot$SYMBOL.1), na.last = NA)] <- "Yes"
-
-    ##### Re-order fusion dataframe with MANTA supporting fusions on top
-    if (runArribaChunk) {
-      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$Arriba, fusions$reported_fusion, decreasing = TRUE)
-    } else {
-      idx <- order(fusions$geneA_dna_support, fusions$geneB_dna_support, fusions$reported_fusion, decreasing = TRUE)
-    }
-
-    fusions <- fusions[idx, ]
-    fusion_annot <- fusion_annot[idx, ]
-  }
-
-  ##### Remove entries with missing annotation
-  fusion_annot <- fusion_annot[complete.cases(fusion_annot), ]
-}
-
-##### Clean the space and return output
-rm(manta_fusions)
-```
-
-```{r fusions_filtering, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
-##### Filter out fusions that are with < 2 split reads and < 2 pair reads and are not supported by genomic data, are not reported and don't involve cancer genes
-
-##### Dragen + Arriba
-if (runDragenFusionChunk && runArribaChunk) {
-  fusions <- fusions %>% dplyr::filter(split_reads > 1 | discordant_mates > 1 | score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-  fusion_annot <- fusion_annot %>% dplyr::filter(split_reads > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-
-  ##### Arriba
-} else if (runArribaChunk) {
-  fusions <- fusions %>% dplyr::filter(split_reads > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-  fusion_annot <- fusion_annot %>% dplyr::filter(split_reads > 1 | discordant_mates > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-
-  ##### Dragen only
-} else if (runDragenFusionChunk) {
-  ##### For Dragen , this filtering is not changing the results. We'll review the "Score" value again once we start to regularly produce the RNAsum report for Dragen results
-  #####  Dragen's fusion format version 3.9.3
-  if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(fusions))) {
-    fusions <- fusions %>% dplyr::filter(split_reads > 1 | score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-    fusion_annot <- fusion_annot %>% dplyr::filter(score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-
-    #####  Dragen's fusion format prior to version 3.9.3
-  } else {
-    fusions <- fusions %>% dplyr::filter(score > 0 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-    fusion_annot <- fusion_annot %>% dplyr::filter(score > 1 | geneA_dna_support != "-" | geneB_dna_support != "-" | reported_fusion != "-" | fusions_cancer != "-")
-  }
+  cond1 <- length(manta_fusions) > 0
+  fusions <- fusions |>
+    dplyr::rowwise() |>
+    dplyr::mutate(
+      geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% manta_fusions, FALSE),
+      geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% manta_fusions, FALSE)
+    ) |>
+    dplyr::ungroup()
+  fusions_ann <- fusions_ann |>
+    dplyr::rowwise() |>
+    dplyr::mutate(
+      geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% manta_fusions, FALSE),
+      geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% manta_fusions, FALSE)
+    ) |>
+    dplyr::ungroup()
+  rm(manta_fusions, cond1)
 }
 ```
 
 ```{r fusions_circos, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Indicate which fusions have genomic coordinates and can be presented on circos plot
-##### Take into account only reported fusions or those with both genes genes supported by DNA
+##### Take into account only reported fusions or those with both genes supported by DNA
 if (runSVsChunk) {
-  fusion_annot_top <- fusion_annot[fusion_annot$reported_fusion == "Yes" | fusion_annot$geneA_dna_support == "Yes" | fusion_annot$geneB_dna_support == "Yes", ]
+  fusion_annot_top <- fusions_ann |>
+    dplyr::filter(
+      .data$reported_fusion | .data$geneA_dna_support | .data$geneB_dna_support
+    )
 } else {
-  fusion_annot_top <- fusion_annot[fusion_annot$reported_fusion == "Yes", ]
+  fusion_annot_top <- fusions_ann |>
+    dplyr::filter(.data$reported_fusion)
 }
 
-fusions$circos <- "-"
-fusions$circos[paste(fusions$geneA, fusions$geneB, sep = "-") %in% paste(fusion_annot_top$SYMBOL, fusion_annot_top$SYMBOL.1, sep = "-")] <- "Yes"
+fusions <- fusions |>
+  dplyr::mutate(
+    circos = .data$gene_pair %in% fusion_annot_top[["gene_pair"]]
+  )
 ```
 
 ```{r immunogram_table_prep, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Extract data for Immunogram genes
-data <- ref_dataset.list[[dataset]][["data_to_report"]]
-data <- data[rownames(data) %in% ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ]
+dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
+dat1 <- dat1[rownames(dat1) %in% ref_genes.list[["genes_immune"]][["genes_immunogram"]][["SYMBOL"]], ]
 
-##### Create lists with caulcuation results for each individual Cancer-Immunity Cycle (CIC) step
-CIC.list <- vector("list", length(unique(ref_genes.list[["genes_immune"]]$immunogram$CIC)))
-names(CIC.list) <- unique(ref_genes.list[["genes_immune"]]$immunogram$CIC)
+##### Create lists with calculation results for each individual Cancer-Immunity Cycle (CIC) step
+CIC.list <- vector("list", length(unique(ref_genes.list[["genes_immune"]][["genes_immunogram"]][["CIC"]])))
+names(CIC.list) <- unique(ref_genes.list[["genes_immune"]][["genes_immunogram"]][["CIC"]])
 
 ##### Calculate average expression for each Cancer-Immunity Cycle (CIC) step
-for (cic_step in unique(ref_genes.list[["genes_immune"]]$immunogram$CIC)) {
-  genes <- ref_genes.list[["genes_immune"]]$immunogram$SYMBOL[ref_genes.list[["genes_immune"]]$immunogram$CIC %in% cic_step]
-  data.sub <- data[rownames(data) %in% genes, ]
+for (cic_step in unique(ref_genes.list[["genes_immune"]][["genes_immunogram"]][["CIC"]])) {
+  genes <- ref_genes.list[["genes_immune"]][["genes_immunogram"]][["SYMBOL"]][ref_genes.list[["genes_immune"]][["genes_immunogram"]][["CIC"]] %in% cic_step]
+  data.sub <- dat1[rownames(dat1) %in% genes, ]
   CIC.list[[cic_step]] <- colMeans(data.sub)
 }
 
-##### Conver the list into dataframe
-ref_genes.list[["genes_immune"]]$immunogram.df <- t(data.frame(matrix(unlist(CIC.list), nrow = length(CIC.list), byrow = T), stringsAsFactors = FALSE))
-colnames(ref_genes.list[["genes_immune"]]$immunogram.df) <- names(CIC.list)
-rownames(ref_genes.list[["genes_immune"]]$immunogram.df) <- colnames(data.sub)
+##### Convert the list into dataframe
+ref_genes.list[["genes_immune"]][["immunogram.df"]] <- t(data.frame(matrix(unlist(CIC.list), nrow = length(CIC.list), byrow = TRUE), stringsAsFactors = FALSE))
+colnames(ref_genes.list[["genes_immune"]][["immunogram.df"]]) <- names(CIC.list)
+rownames(ref_genes.list[["genes_immune"]][["immunogram.df"]]) <- colnames(data.sub)
+rm(dat1)
 ```
 
 ```{r ref_cohorts_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -1862,31 +1668,36 @@ if (!is.null(add_cancer_group)) {
 ```{r goi_summary_update, comment = NA, message=FALSE, warning=FALSE}
 ##### Update altered genes in ...
 ##### ...gene fusion section: Include only those which are DNA-supported (see Structural variants section) or reported in FusionGDB
+ref_genes.list[["summary"]]$Fusion <- NULL
 if (runFusionChunk) {
-  ref_genes.list[["summary"]]$Fusion <- fusions[fusions$reported_fusion == "Yes" | fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes", ]
-  ref_genes.list[["summary"]]$Fusion <- unique(c(as.character(ref_genes.list[["summary"]]$Fusion$geneA), as.character(ref_genes.list[["summary"]]$Fusion$geneB)))
-} else {
-  ref_genes.list[["summary"]]$Fusion <- NULL
+  ref_genes.list[["summary"]]$Fusion <- fusions |>
+    dplyr::filter(.data$reported_fusion | .data$geneA_dna_support | .data$geneB_dna_support) |>
+    dplyr::select("geneA", "geneB") |>
+    unlist() |>
+    unique()
 }
 
 ##### ...copy-number (CN) section: include only genes with CN values > 3 or < 0.5
 if (runPurpleChunk) {
-  #### Keep only genes with user-define CN values
-  ref_genes.list[["summary"]]$CN <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-  ref_genes.list[["summary"]]$CN <- as.character(ref_genes.list[["summary"]]$CN[ref_genes.list[["summary"]]$CN$CN <= cn_bottom | ref_genes.list[["summary"]]$CN$CN >= cn_top, ]$Gene)
+  #### Keep only genes with user-defined CN values
+  ref_genes.list[["summary"]]$CN <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]] |>
+    dplyr::filter(.data$CN <= cn_bottom | .data$CN >= cn_top) |>
+    dplyr::pull("Gene")
 }
 
 ##### ...immune markers section: include only genes with available annotation
+ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]][["immune_markers"]][["SYMBOL"]])
 if (params$immunogram) {
-  ref_genes.list[["summary"]]$Immune <- unique(c(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL, ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL))
-} else {
-  ref_genes.list[["summary"]]$Immune <- unique(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)
+  ref_genes.list[["summary"]]$Immune <- unique(
+    c(
+      ref_genes.list[["genes_immune"]][["genes_immunogram"]][["SYMBOL"]],
+      ref_genes.list[["genes_immune"]][["immune_markers"]][["SYMBOL"]]
+    )
+  )
 }
 ```
 
 ```{r goi_sunburst, comment = NA, message=FALSE, warning=FALSE}
-suppressMessages(library(plotly))
-
 ##### Prepare dataframe for Sunburst plot summarising all altered genes
 alt_genes.all.list <- ref_genes.list[["summary"]]
 
@@ -1905,28 +1716,35 @@ for (alt in names(alt_genes.all.list)) {
   }
 }
 
-sunburst.all.df <- data.frame(
+sunburst.all.df <- tibble::tibble(
   ids = names(alt_genes.all.list),
   labels = names(alt_genes.all.list),
-  parents = rep("", length(alt_genes.all.list)),
-  values = as.numeric(lengths(alt_genes.all.list)) / 100,
-  stringsAsFactors = FALSE
+  parents = "",
+  values = as.numeric(lengths(alt_genes.all.list)) / 100
 )
 
 for (alt in names(alt_genes.all.list)) {
   ##### Add only alteration type which has at least one alteration detected
   if (length(alt_genes.all[names(alt_genes.all) %in% names(alt_genes.all.list[[alt]])]) > 0) {
-    sunburst.all.df <- rbind(sunburst.all.df, data.frame(
-      ids = paste(alt, names(alt_genes.all.list[[alt]]), sep = " - "),
-      labels = paste0("\t\t", names(alt_genes.all.list[[alt]]), "\t\t"),
-      parents = rep(alt, length(alt_genes.all.list[[alt]])),
-      values = as.numeric(alt_genes.all.list[[alt]])
-    ))
+    sunburst.all.df <- rbind(
+      sunburst.all.df,
+      tibble::tibble(
+        ids = paste(alt, names(alt_genes.all.list[[alt]]), sep = " - "),
+        labels = paste0("\t\t", names(alt_genes.all.list[[alt]]), "\t\t"),
+        parents = alt,
+        values = as.numeric(alt_genes.all.list[[alt]])
+      )
+    )
   }
 }
 
 sunburst_plot <- NULL
-sunburst_plot[[1]] <- plot_ly(sunburst.all.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = "sunburst", width = 600, height = 600)
+sunburst_plot[[1]] <- plotly::plot_ly(
+  sunburst.all.df,
+  ids = ~ids, labels = ~labels,
+  parents = ~parents, values = ~values,
+  type = "sunburst", width = 600, height = 600
+)
 
 ##### Now include only Identify genes that appear in more then two lists
 alt_genes.list <- alt_genes.all.list
@@ -1941,44 +1759,44 @@ for (alt in names(alt_genes.list)) {
   }
 }
 
-sunburst.df <- data.frame(
+sunburst.df <- tibble::tibble(
   ids = names(alt_genes.list),
   labels = names(alt_genes.list),
-  parents = rep("", length(alt_genes.list)),
-  values = as.numeric(lengths(alt_genes.list)) / 100,
-  stringsAsFactors = FALSE
+  parents = "",
+  values = as.numeric(lengths(alt_genes.list)) / 100
 )
 
 for (alt in names(alt_genes.list)) {
-  sunburst.df <- rbind(sunburst.df, data.frame(
-    ids = paste(alt, names(alt_genes.list[[alt]]), sep = " - "),
-    labels = paste0("\t\t", names(alt_genes.list[[alt]]), "\t\t"),
-    parents = rep(alt, length(alt_genes.list[[alt]])),
-    values = as.numeric(alt_genes.list[[alt]])
-  ))
+  sunburst.df <- rbind(
+    sunburst.df,
+    tibble::tibble(
+      ids = paste(alt, names(alt_genes.list[[alt]]), sep = " - "),
+      labels = paste0("\t\t", names(alt_genes.list[[alt]]), "\t\t"),
+      parents = alt,
+      values = as.numeric(alt_genes.list[[alt]])
+    )
+  )
 }
 
+sunburst_plot[[2]] <- NA
 if (nrow(sunburst.df) > 0) {
-  sunburst_plot[[2]] <- plot_ly(sunburst.df, ids = ~ids, labels = ~labels, parents = ~parents, values = ~values, type = "sunburst", width = 600, height = 600)
-} else {
-  sunburst_plot[[2]] <- NA
+  sunburst_plot[[2]] <- plotly::plot_ly(
+    sunburst.df,
+    ids = ~ids, labels = ~labels, parents = ~parents,
+    values = ~values, type = "sunburst", width = 600, height = 600
+  )
 }
 
 ##### Create directory for the plots
-summaryPlotsDir <- paste(results_dir, "summaryPlots", sep = "/")
-if (!file.exists(summaryPlotsDir)) {
-  dir.create(summaryPlotsDir, recursive = TRUE)
-}
+summaryPlotsDir <- file.path(results_dir, "summaryPlots")
+fs::dir_create(summaryPlotsDir)
 
 ##### Save interactive plot as html file
-saveWidgetFix(sunburst_plot[[1]], file = paste(summaryPlotsDir, "sunburst_plot_all.html", sep = "/"))
+RNAsum::saveWidgetFix(widget = sunburst_plot[[1]], file = file.path(summaryPlotsDir, "sunburst_plot_all.html"))
 
-if (!is.na(sunburst_plot[[2]])) {
-  saveWidgetFix(sunburst_plot[[2]], file = paste(summaryPlotsDir, "sunburst_plot.html", sep = "/"))
+if (inherits(sunburst_plot[[2]], "htmlwidget")) {
+  RNAsum::saveWidgetFix(widget = sunburst_plot[[2]], file = file.path(summaryPlotsDir, "sunburst_plot.html"))
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -1994,7 +1812,7 @@ genes.list <- names(alt_genes.all)
 summary_table.list <- vector("list", length(genes.list))
 names(summary_table.list) <- genes.list
 
-##### Go through all alterated genes and note the alterations types
+##### Go through all alterated genes and note the alteration types
 for (gene in names(alt_genes.all)) {
   for (alt in names(alt_genes.all.list)) {
     if (gene %in% names(alt_genes.all.list[[alt]])) {
@@ -2006,23 +1824,38 @@ for (gene in names(alt_genes.all)) {
 
   ##### Add links to external resources
   ##### Provide link to VICC meta-knowledgebase ( https://search.cancervariants.org )
-  summary_table.list[[gene]] <- c(summary_table.list[[gene]], paste0("<a href='https://search.cancervariants.org/#", gene, "' target='_blank'>VICC</a>"))
+  summary_table.list[[gene]] <- c(
+    summary_table.list[[gene]],
+    paste0("<a href='https://search.cancervariants.org/#", gene, "' target='_blank'>VICC</a>")
+  )
 
   ##### Provide link to OncoKB
   if (gene %in% rownames(ref_genes.list[["genes_oncokb"]])) {
     if (ref_genes.list[["genes_oncokb"]][gene, "OncoKB"] == "Yes") {
-      summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(summary_table.list[[gene]][length(summary_table.list[[gene]])], paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>OncoKB</a>"), sep = ", ")
+      summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(
+        summary_table.list[[gene]][length(summary_table.list[[gene]])],
+        paste0("<a href='http://oncokb.org/#/gene/", gene, "' target='_blank'>OncoKB</a>"),
+        sep = ", "
+      )
     }
   }
 
   ##### Provide link to CIViC database druggable genes ( https://civicdb.org )
-  if (gene %in% cancer_genes_annot.list[["civic_clin_evid"]]$gene) {
-    summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(summary_table.list[[gene]][length(summary_table.list[[gene]])], paste0("<a href='", unique(cancer_genes_annot.list[["civic_clin_evid"]][cancer_genes_annot.list[["civic_clin_evid"]]$gene == gene, "gene_civic_url"]), "' target='_blank'>CIViC</a>"), sep = ", ")
+  if (gene %in% ref_genes.list[["civic_clin_evid"]][["gene"]]) {
+    summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(
+      summary_table.list[[gene]][length(summary_table.list[[gene]])],
+      paste0(
+        "<a href='",
+        unique(ref_genes.list[["civic_clin_evid"]][ref_genes.list[["civic_clin_evid"]][["gene"]] == gene, "gene_civic_url"]),
+        "' target='_blank'>CIViC</a>"
+      ),
+      sep = ", "
+    )
   }
 }
 
 ##### Convert the list into data frame
-summary_table.df <- data.frame(matrix(unlist(summary_table.list), nrow = length(summary_table.list), byrow = T), stringsAsFactors = FALSE)
+summary_table.df <- data.frame(matrix(unlist(summary_table.list), nrow = length(summary_table.list), byrow = TRUE), stringsAsFactors = FALSE)
 
 ##### Add gene names and number of section in which individual genes are reported
 summary_table.df <- cbind(names(summary_table.list), summary_table.df)
@@ -2289,7 +2122,23 @@ if (length(genes) == 0) {
   genes_no <- length(genes)
 }
 
-mut_genes.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+mut_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 mut_genes.expr.perc[[1]]
@@ -2317,7 +2166,23 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 #### Z-scores
 
 ```{r mut_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk, results = "asis"}
-mut_genes.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+mut_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 mut_genes.expr.z
@@ -2826,10 +2691,42 @@ for (i in 1:genes_no) {
     genes <- c(geneA, geneB)
 
     ##### Z-scores
-    output_table_Z[[i]] <- exprTable(genes = unique(genes), data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline")], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB), ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+    output_table_Z[[i]] <- RNAsum::exprTable(
+      type = "z",
+      data = data,
+      genes = unique(genes),
+      targets = targets,
+      sampleName = sample_name,
+      ext_cancer = ext_cancer_group,
+      int_cancer = int_cancer_group,
+      comp_cancer = comp_cancer_group,
+      add_cancer = add_cancer_group,
+      genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+      oncokb_annot = ref_genes.list[["genes_oncokb"]],
+      cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline")],
+      fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
+      scaling = scaling,
+      civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    )[[1]]
 
     ##### Percentiles
-    output_table_perc[[i]] <- exprTable(genes = unique(genes), data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline")], fusion_genes = unique(known_translocations$geneA, known_translocations$geneB), ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+    output_table_perc[[i]] <- RNAsum::exprTable(
+      type = "perc",
+      data = data,
+      genes = unique(genes),
+      targets = targets,
+      sampleName = sample_name,
+      ext_cancer = ext_cancer_group,
+      int_cancer = int_cancer_group,
+      comp_cancer = comp_cancer_group,
+      add_cancer = add_cancer_group,
+      genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+      oncokb_annot = ref_genes.list[["genes_oncokb"]],
+      cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Germline")],
+      fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
+      scaling = scaling,
+      civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    )[[1]]
   }
 }
 
@@ -3011,7 +2908,23 @@ if (length(genes) == 0) {
   genes_no <- length(genes)
 }
 
-sv_genes.expr.perc <- exprTable(genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+sv_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  sv_data = manta_sv,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 sv_genes.expr.perc[[1]]
@@ -3041,7 +2954,23 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r sv_genes_table, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-sv_genes.expr.z <- exprTable(genes = genes, data = data, sv_data = manta_sv, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+sv_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  sv_data = manta_sv,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 sv_genes.expr.z
@@ -3379,11 +3308,46 @@ if (length(genes_gains) == 0) {
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 if (runPcgrChunk && runPurpleChunk) {
-  cn_expr_genes.expr.gains.perc <- exprTable(genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.gains.perc <- RNAsum::exprTable(
+    type = "perc",
+    data = data,
+    genes = genes_gains,
+    cn_data = cn_data,
+    cn_decrease = TRUE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 
   ##### Generate expression summary table for per-gene expression values and CN values
 } else if (runPurpleChunk) {
-  cn_expr_genes.expr.gains.perc <- exprTable(genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.gains.perc <- RNAsum::exprTable(
+    type = "perc",
+    data = data,
+    genes = genes_gains,
+    cn_data = cn_data,
+    cn_decrease = TRUE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -3413,11 +3377,45 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if (runPcgrChunk && runPurpleChunk) {
-  cn_expr_genes.expr.gains.z <- exprTable(genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.gains.z <- RNAsum::exprTable(
+    type = "z",
+    genes = genes_gains,
+    data = data,
+    cn_data = cn_data,
+    cn_decrease = TRUE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 
   ##### Generate expression summary table for per-gene expression values and CN values
 } else if (runPurpleChunk) {
-  cn_expr_genes.expr.gains.z <- exprTable(genes = genes_gains, data = data, cn_data = cn_data, cn_decrease = TRUE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.gains.z <- RNAsum::exprTable(
+    type = "z",
+    data = data,
+    genes = genes_gains,
+    cn_data = cn_data,
+    cn_decrease = TRUE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -3479,11 +3477,46 @@ if (genes_gains_no + genes_losses_no > params$top_genes) {
 data <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 if (runPcgrChunk && runPurpleChunk) {
-  cn_expr_genes.expr.losses.perc <- exprTable(genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.losses.perc <- RNAsum::exprTable(
+    type = "perc",
+    genes = genes_losses,
+    data = data,
+    cn_data = cn_data,
+    cn_decrease = FALSE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 
   ##### Generate expression summary table for per-gene expression values and CN values
 } else if (runPurpleChunk) {
-  cn_expr_genes.expr.losses.perc <- exprTable(genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.losses.perc <- RNAsum::exprTable(
+    type = "perc",
+    data = data,
+    genes = genes_losses,
+    cn_data = cn_data,
+    cn_decrease = FALSE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -3513,11 +3546,46 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 ```{r cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if (runPcgrChunk && runPurpleChunk) {
-  cn_expr_genes.expr.losses.z <- exprTable(genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.losses.z <- RNAsum::exprTable(
+    type = "z",
+    data = data,
+    genes = genes_losses,
+    cn_data = cn_data,
+    cn_decrease = FALSE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    mut_annot = ref_genes.list[["pcgr"]][, c("SYMBOL", "TIER", "CONSEQUENCE", "VARIANT_CLASS", "AF_TUMOR", "GENOMIC_CHANGE", "PROTEIN_CHANGE")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 
   ##### Generate expression summary table for per-gene expression values and CN values
 } else if (runPurpleChunk) {
-  cn_expr_genes.expr.losses.z <- exprTable(genes = genes_losses, data = data, cn_data = cn_data, cn_decrease = FALSE, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+  cn_expr_genes.expr.losses.z <- RNAsum::exprTable(
+    type = "z",
+    data = data,
+    genes = genes_losses,
+    cn_data = cn_data,
+    cn_decrease = FALSE,
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Oncogene", "TSG", "Fusion", "Germline")],
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )
 }
 
 ##### Present the expression, CN and mutation data summary table
@@ -3729,7 +3797,21 @@ if (length(genes) == 0) {
   genes <- NULL
 }
 
-immune_genes.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+immune_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 immune_genes.expr.perc
@@ -3758,7 +3840,21 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r immune_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immune_genes.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+immune_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 immune_genes.expr.z
@@ -3900,7 +3996,21 @@ if (length(genes) == 0) {
 }
 
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCr (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immunogram.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+immunogram.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 immunogram.expr.perc
@@ -3928,7 +4038,21 @@ cat("\n***\n")
 
 ```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-immunogram.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+immunogram.expr.z <- RNAsum::exprTable(
+  genes = genes,
+  data = data,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  type = "z",
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 immunogram.expr.z
@@ -3964,7 +4088,21 @@ if (length(genes) == 0) {
   genes <- NULL
 }
 
-hrd_genes.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+hrd_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 hrd_genes.expr.perc[[1]]
@@ -3990,7 +4128,21 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r hrd_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for hrd genes from Richard
-hrd_genes.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+hrd_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 hrd_genes.expr.z[[1]]
@@ -4104,7 +4256,22 @@ if (length(genes) == 0) {
   genes <- NULL
 }
 
-cancer_genes.expr.perc <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "perc", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)
+cancer_genes.expr.perc <- RNAsum::exprTable(
+  type = "perc",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)
 
 ##### Present the expression summary table
 cancer_genes.expr.perc[[1]]
@@ -4130,7 +4297,22 @@ The <span style="color:#ff0000">RED</span> colour range indicate relatively **hi
 
 ```{r cancer_genes_table, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
-cancer_genes.expr.z <- exprTable(genes = genes, data = data, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")], oncokb_annot = ref_genes.list[["genes_oncokb"]], cancer_genes = ref_genes.list[["genes_cancer"]], ext_links = TRUE, type = "z", scaling = scaling, cancer_genes_annot.list = cancer_genes_annot.list)[[1]]
+cancer_genes.expr.z <- RNAsum::exprTable(
+  type = "z",
+  data = data,
+  genes = genes,
+  targets = targets,
+  sampleName = sample_name,
+  ext_cancer = ext_cancer_group,
+  int_cancer = int_cancer_group,
+  comp_cancer = comp_cancer_group,
+  add_cancer = add_cancer_group,
+  genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+  oncokb_annot = ref_genes.list[["genes_oncokb"]],
+  cancer_genes = ref_genes.list[["genes_cancer"]],
+  scaling = scaling,
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+)[[1]]
 
 ##### Present the expression summary table
 cancer_genes.expr.z
