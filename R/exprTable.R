@@ -130,13 +130,14 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
   ##### Define colours for cells background for each group and the patient vs [comp_cancer] difference
   ##### Initiate dataframe for expression median values in each group
-  brks.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))))
+  step <- 0.005
+  brks.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, step))))
   colnames(brks.q) <- targets.list
-  clrs.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) + 1))
+  clrs.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, step)) + 1))
   colnames(clrs.q) <- targets.list
 
   for (group in c(targets.list, "Diff")) {
-    brks.q[[group]] <- stats::quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
+    brks.q[[group]] <- stats::quantile(group.z[, group], probs = seq(.05, .95, step), na.rm = TRUE)
 
     clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]]) / 2 + 1.5), 0) %>%
       {
@@ -154,7 +155,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
   #### Add variants information to the expression table - if exists. Note, "TIER" and "CONSEQUENCE" columns are required
   if (!is.null(mut_annot) && "TIER" %in% colnames(mut_annot) && length(genes) > 0) {
-    mut_annot <- mut_annot[mut_annot$SYMBOL %in% genes, ]
+    mut_annot <- mut_annot |> dplyr::filter(.data$SYMBOL %in% genes)
 
     #### keep only varaints that has the lowest tier value. Multiple varaints detected in same gene but with higher tier will be added to additional column "CONSEQUENCE_OTHER". Applies to the ones that may have multiple mutations and hence tiers
     ##### First, create a list of genes to store multiple variants
@@ -178,10 +179,9 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
     ##### Remove rows with duplicated gene symbols
     mut_annot <- mut_annot[!duplicated(mut_annot$SYMBOL), ]
-    rownames(mut_annot) <- mut_annot$SYMBOL
 
     ##### Add other provided variants consequences for individual genes
-    for (gene in rownames(mut_annot)) {
+    for (gene in mut_annot[["SYMBOL"]]) {
       if (length(mut_consequence[[gene]]) > 0) {
         mut_annot$CONSEQUENCE_OTHER[match(gene, mut_annot$SYMBOL)] <- mut_consequence[[gene]]
       }
@@ -222,7 +222,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
   ##### Add cancer gene resources info
   if (!is.null(cancer_genes) && length(genes) > 0) {
-    group.z <- merge(group.z, cancer_genes, by.x = "Gene", by.y = "row.names", all = TRUE, sort = FALSE)
+    group.z <- merge(group.z, cancer_genes, by.x = "Gene", by.y = "Gene", all = TRUE, sort = FALSE)
   }
 
   ##### Include only queried genes
@@ -312,18 +312,19 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   }
 
   ##### Generate a table with genes annotations and coloured expression values in each group
-  dt.table <- DT::datatable(
-    data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")],
-    filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"),
-    options = list(
-      pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"),
-      scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE,
-      scrollY = scrollY, scroller = TRUE
-    ),
-    width = 800, height = table_height,
-    caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
-    escape = FALSE
-  ) |>
+  dt.table <- group.z |>
+    dplyr::select(-c("SYMBOL", "SD")) |>
+    DT::datatable(
+      filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"),
+      options = list(
+        pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"),
+        scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE,
+        scrollY = scrollY, scroller = TRUE
+      ),
+      width = 800, height = table_height,
+      caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
+      escape = FALSE
+    ) |>
     DT::formatStyle(columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = "12px", "text-align" = "center") |>
     ##### Colour cells according to the expression values quantiles in each group
     DT::formatStyle(
