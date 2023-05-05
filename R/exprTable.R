@@ -129,26 +129,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   }
 
   ##### Define colours for cells background for each group and the patient vs [comp_cancer] difference
-  ##### Initiate dataframe for expression median values in each group
-  step <- 0.005
-  brks.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, step))))
-  colnames(brks.q) <- targets.list
-  clrs.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, step)) + 1))
-  colnames(clrs.q) <- targets.list
-
-  for (group in c(targets.list, "Diff")) {
-    brks.q[[group]] <- stats::quantile(group.z[, group], probs = seq(.05, .95, step), na.rm = TRUE)
-
-    clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]]) / 2 + 1.5), 0) %>%
-      {
-        paste0("rgb(255,", ., ",", ., ")")
-      }
-    clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]]) / 2 - 0.5), 0)) %>%
-      {
-        paste0("rgb(", ., ",", ., ",", "255)")
-      }
-    clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
-  }
+  brks_clrs1 <- brks_clrs(targets.list = targets.list, group.z = group.z, step1 = 0.005)
 
   ##### Subset the expression data to include only the user-defined genes
   group.z <- group.z[group.z$Gene %in% genes, ]
@@ -329,19 +310,31 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     ##### Colour cells according to the expression values quantiles in each group
     DT::formatStyle(
       columns = targets.list[1],
-      backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])
+      backgroundColor = DT::styleInterval(
+        brks_clrs1[["brks"]][[targets.list[1]]],
+        brks_clrs1[["clrs"]][[targets.list[1]]]
+      )
     ) |>
     DT::formatStyle(
       columns = targets.list[2],
-      backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])
+      backgroundColor = DT::styleInterval(
+        brks_clrs1[["brks"]][[targets.list[2]]],
+        brks_clrs1[["clrs"]][[targets.list[2]]]
+      )
     ) |>
     DT::formatStyle(
       columns = targets.list[3],
-      backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])
+      backgroundColor = DT::styleInterval(
+        brks_clrs1[["brks"]][[targets.list[2]]],
+        brks_clrs1[["clrs"]][[targets.list[2]]]
+      )
     ) |>
     DT::formatStyle(
       columns = names(group.z)[diff_col_idx],
-      backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]])
+      backgroundColor = DT::styleInterval(
+        brks_clrs1[["brks"]][["Diff"]],
+        brks_clrs1[["clrs"]][["Diff"]]
+      )
     )
 
   if (!is.null(cn_data)) {
@@ -357,4 +350,33 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     ##### Generate a table with genes annotations and coloured expression values in each group
   }
   return(list(dt.table, group.z))
+}
+
+# Define colours for cells background for each group and the patient vs [comp_cancer] difference
+brks_clrs <- function(targets.list, group.z, step1 = 0.01) {
+  ##### Initiate dataframe for expression median values in each group
+  probs1 <- seq(.05, .95, step1)
+  brks.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(probs1)))
+  clrs.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(probs1) + 1))
+  colnames(brks.q) <- targets.list
+  colnames(clrs.q) <- targets.list
+
+  for (group in c(targets.list, "Diff")) {
+    brks.q[[group]] <- stats::quantile(group.z[, group], probs = probs1, na.rm = TRUE)
+
+    clrs_pos.q <- round(seq(255, 150, length.out = length(probs1) / 2 + 1.5), 0) %>%
+      {
+        paste0("rgb(255,", ., ",", ., ")")
+      }
+    clrs_neg.q <- rev(round(seq(255, 150, length.out = length(probs1) / 2 - 0.5), 0)) %>%
+      {
+        paste0("rgb(", ., ",", ., ",", "255)")
+      }
+    clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
+  }
+
+  list(
+    brks = brks.q,
+    clrs = clrs.q
+  )
 }
