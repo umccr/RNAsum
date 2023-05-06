@@ -229,7 +229,6 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
 
     group.z <- group.z |>
-      # tibble::as_tibble() |>
       dplyr::left_join(vicc1, by = "Gene") |>
       dplyr::left_join(onco1, by = "Gene") |>
       dplyr::left_join(civic1, by = "Gene") |>
@@ -325,8 +324,8 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     DT::formatStyle(
       columns = targets.list[3],
       backgroundColor = DT::styleInterval(
-        brks_clrs1[["brks"]][[targets.list[2]]],
-        brks_clrs1[["clrs"]][[targets.list[2]]]
+        brks_clrs1[["brks"]][[targets.list[3]]],
+        brks_clrs1[["clrs"]][[targets.list[3]]]
       )
     ) |>
     DT::formatStyle(
@@ -353,7 +352,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 }
 
 # Define colours for cells background for each group and the patient vs [comp_cancer] difference
-brks_clrs <- function(targets.list, group.z, step1 = 0.01) {
+brks_clrs <- function(targets.list, group.z, step1 = 0.0005) {
   ##### Initiate dataframe for expression median values in each group
   probs1 <- seq(.05, .95, step1)
   brks.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(probs1)))
@@ -376,7 +375,7 @@ brks_clrs <- function(targets.list, group.z, step1 = 0.01) {
   }
 
   list(
-    brks = brks.q,
-    clrs = clrs.q
+    brks = tibble::as_tibble(brks.q),
+    clrs = tibble::as_tibble(clrs.q)
   )
 }

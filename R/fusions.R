@@ -135,3 +135,70 @@ fusions_annot <- function(fusions, gene_ann) {
     dplyr::left_join(a, by = c("geneA" = "SYMBOL")) |>
     dplyr::left_join(a, by = c("geneB" = "SYMBOL"))
 }
+
+
+#' Fusions Table Display
+#'
+#' @param fusions Tibble with fusions.
+#'
+#' @return A DT object.
+#' @export
+fusions_table <- function(fusions) {
+  tab1 <- fusions |>
+    ##### Provide link to FusionGDB
+    dplyr::mutate(
+      geneA = dplyr::if_else(
+        .data$reported_fusion,
+        glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue("{.data$geneA}")
+      ),
+      geneB = dplyr::if_else(
+        reported_fusion,
+        glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue("{.data$geneB}")
+      )
+    ) |>
+    dplyr::select(
+      c(
+        "Gene A" = "geneA",
+        "Gene B" = "geneB",
+        "Split reads (Total)" = "split_reads",
+        "Split reads (A)" = "split_readsA",
+        "Split reads (B)" = "split_readsB",
+        "Pair reads" = "discordant_mates",
+        "DNA support (A)" = "geneA_dna_support",
+        "DNA support (B)" = "geneB_dna_support",
+        "Reported fusion" = "reported_fusion",
+        "Cancer gene(s)" = "fusions_cancer",
+        "Fusion gene (A)" = "reported_fusion_geneA",
+        "Fusion gene (B)" = "reported_fusion_geneB",
+        "Confidence (Arriba)" = "confidence",
+        "Score (Dragen)" = "score",
+        "Breakpoint (A)" = "breakpointA",
+        "Breakpoint (B)" = "breakpointB",
+        "Site (A)" = "siteA",
+        "Site (B)" = "siteB",
+        "Type" = "type",
+        "Genomic view" = "circos",
+        "soft_clipped_reads",
+        "fusion_caller"
+      )
+    )
+  tab1 |>
+    DT::datatable(
+      filter = "none", rownames = FALSE, width = 800, height = 490,
+      escape = FALSE, extensions = c("Buttons", "Scroller"),
+      options = list(
+        buttons = c("excel", "csv", "pdf", "copy", "colvis"), pageLength = 10,
+        dom = "Bfrtip", scrollX = TRUE, deferRender = TRUE, scrollY = "333px",
+        scroller = TRUE
+      ),
+      caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;")
+    ) |>
+    DT::formatStyle(columns = names(tab1), `font-size` = "12px", "text-align" = "center") |>
+    ##### Highlight rows with fusions involving cancer genes or DNA support from MANTA
+    DT::formatStyle(columns = "Cancer gene(s)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgrey"))) |>
+    DT::formatStyle(columns = "DNA support (A)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral"))) |>
+    DT::formatStyle(columns = "DNA support (B)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral"))) |>
+    DT::formatStyle(columns = "Reported fusion", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgreen")))
+}
