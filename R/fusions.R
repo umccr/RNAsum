@@ -129,11 +129,11 @@ fusions_annot <- function(fusions, gene_ann) {
   sel_cols <- c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND")
   assertthat::assert_that(all(sel_cols %in% colnames(gene_ann)))
   a <- gene_ann |>
-    dplyr::select(dplyr::all_of(sel_cols)) |>
-    tibble::as_tibble()
+    tibble::as_tibble() |>
+    dplyr::select(dplyr::all_of(sel_cols))
   fusions |>
     dplyr::left_join(a, by = c("geneA" = "SYMBOL")) |>
-    dplyr::left_join(a, by = c("geneB" = "SYMBOL"))
+    dplyr::left_join(a, by = c("geneB" = "SYMBOL"), suffix = c(".geneA", ".geneB"))
 }
 
 
@@ -149,13 +149,13 @@ fusions_table <- function(fusions) {
     dplyr::mutate(
       geneA = dplyr::if_else(
         .data$reported_fusion,
-        glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
-        glue("{.data$geneA}")
+        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue::glue("{.data$geneA}")
       ),
       geneB = dplyr::if_else(
-        reported_fusion,
-        glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
-        glue("{.data$geneB}")
+        .data$reported_fusion,
+        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue::glue("{.data$geneB}")
       )
     ) |>
     dplyr::select(
@@ -209,6 +209,30 @@ fusions_table <- function(fusions) {
 rcircos_cyto_info38 <- function() {
   cyto.info_data <- "UCSC.HG38.Human.CytoBandIdeogram"
   RCircos_env1 <- rlang::env(rlang::current_env())
-  data(list = cyto.info_data, package = "RCircos", envir = RCircos_env1)
+  utils::data(list = cyto.info_data, package = "RCircos", envir = RCircos_env1)
   tibble::as_tibble(RCircos_env1[[cyto.info_data]])
+}
+
+#' RCircos Plot
+#'
+#' @param df_circos Dataframe with 4 columns: Chromosome, chromStart, chromEnd, and Gene.
+#' @param df_circos_pairs Dataframe with 3 columns for each fusion mate:
+#' Chromosome, chromStart and chromEnd for geneA and geneB.
+#' @param cyto.info A dataframe with hg38 cytoband/ideogram information from RCircos.
+#'
+#' @export
+#' @return An RCircos plot object.
+rcircos_plot <- function(df_circos, df_circos_pairs, cyto.info) {
+  ##### Generate circos plot
+  RCircos::RCircos.Set.Core.Components(
+    cyto.info = cyto.info, chr.exclude = NULL, tracks.inside = 4, tracks.outside = 0
+  )
+  RCircos::RCircos.Set.Plot.Area()
+  RCircos::RCircos.Chromosome.Ideogram.Plot()
+  RCircos::RCircos.Gene.Connector.Plot(genomic.data = df_circos, track.num = 1, side = "in")
+  RCircos::RCircos.Gene.Name.Plot(gene.data = df_circos, name.col = 4, track.num = 2, side = "in")
+  RCircos::RCircos.Link.Plot(
+    link.data = df_circos_pairs, track.num = 4, by.chromosome = TRUE,
+    is.sorted = FALSE, lineWidth = rep(2, nrow(df_circos_pairs))
+  )
 }

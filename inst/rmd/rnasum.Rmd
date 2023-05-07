@@ -96,16 +96,13 @@ render_me <- function() {
 ```
 
 ```{r echo=TRUE}
-# only support GRCh38
-ucsc_genome_assembly <- 38L
 ensembl_version <- 86L
 ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
-bsgen_pkg <- paste0("BSgenome.Hsapiens.UCSC.hg", ucsc_genome_assembly)
 # start with more exotic pkgs, then get to core ones
 {
   library(conflicted) # checks for pkg function conflicts
   library(ensdb_pkg, character.only = TRUE, include.only = ensdb_pkg)
-  library(bsgen_pkg, character.only = TRUE, include.only = bsgen_pkg)
+  library(BSgenome.Hsapiens.UCSC.hg38)
   library(AnnotationDbi, include.only = c("keys"))
   library(AnnotationFilter, include.only = c("GeneIdFilter"))
   library(EDASeq, include.only = c("plotRLE"))
@@ -123,7 +120,6 @@ bsgen_pkg <- paste0("BSgenome.Hsapiens.UCSC.hg", ucsc_genome_assembly)
   library(dplyr) # keep dplyr last
   library(RNAsum) # use :: explicitly for all RNAsum pkg funcs
   library(limma, include.only = c("removeBatchEffect"))
-  library(RCircos)
   # library(rapportools)
   # library(rhdf5)
   # library(DT)
@@ -2476,63 +2472,49 @@ if (nrow(fusion_annot_top) > 0) {
   fusionsPlotDir <- file.path(results_dir, "fusionsPlot")
   fs::dir_create(fusionsPlotDir)
   cyto.info <- RNAsum::rcircos_cyto_info38()
+  fusion_annot_top.circos.pairs <- fusion_annot_top |>
+    dplyr::select(
+      "SEQNAME.geneA", "GENESEQSTART.geneA", "GENESEQEND.geneA",
+      Gene.geneA = "geneA",
+      "SEQNAME.geneB", "GENESEQSTART.geneB", "GENESEQEND.geneB",
+      Gene.geneB = "geneB"
+    ) |>
+    dplyr::mutate(
+      SEQNAME.geneA = paste0("chr", .data$SEQNAME.geneA),
+      SEQNAME.geneB = paste0("chr", .data$SEQNAME.geneB)
+    ) |>
+    dplyr::filter(
+      .data$SEQNAME.geneA %in% cyto.info[["Chromosome"]],
+      .data$SEQNAME.geneB %in% cyto.info[["Chromosome"]]
+    ) |>
+    tidyr::drop_na() |>
+    as.data.frame()
+  colnames(fusion_annot_top.circos.pairs) <- sub("(.*).gene[AB]", "\\1", colnames(fusion_annot_top.circos.pairs))
+  colnames(fusion_annot_top.circos.pairs) <- sub("SEQNAME", "Chromosome", colnames(fusion_annot_top.circos.pairs))
+  colnames(fusion_annot_top.circos.pairs) <- sub("GENESEQSTART", "chromStart", colnames(fusion_annot_top.circos.pairs))
+  colnames(fusion_annot_top.circos.pairs) <- sub("GENESEQEND", "chromEnd", colnames(fusion_annot_top.circos.pairs))
+  fusion_annot_top.circos <- rbind(
+    fusion_annot_top.circos.pairs[, 1:4],
+    fusion_annot_top.circos.pairs[, 5:8]
+  ) |> as.data.frame()
+  fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[, !colnames(fusion_annot_top.circos.pairs) == "Gene"]
 
-  ##### Check if all driver genes are located in standard chromosomes
-  fusion_annot_top <- fusion_annot_top[paste0("chr", fusion_annot_top$SEQNAME) %in% cyto.info$Chromosome, ]
-
-  fusion_annot_top.circos.pairs <- fusion_annot_top[, c("SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "SYMBOL.1")]
-
-  ##### Add "chr" to chromosome numbers
-  fusion_annot_top.circos.pairs$SEQNAME <- paste0("chr", fusion_annot_top.circos.pairs$SEQNAME)
-  fusion_annot_top.circos.pairs$SEQNAME.1 <- paste0("chr", fusion_annot_top.circos.pairs$SEQNAME.1)
-
-  ##### Change column names
-  names(fusion_annot_top.circos.pairs) <- gsub("SEQNAME", "Chromosome", names(fusion_annot_top.circos.pairs))
-  names(fusion_annot_top.circos.pairs) <- gsub("GENESEQSTART", "chromStart", names(fusion_annot_top.circos.pairs))
-  names(fusion_annot_top.circos.pairs) <- gsub("GENESEQEND", "chromEnd", names(fusion_annot_top.circos.pairs))
-  names(fusion_annot_top.circos.pairs) <- gsub("SYMBOL", "Gene", names(fusion_annot_top.circos.pairs))
-  names(fusion_annot_top.circos.pairs) <- gsub("Chromosome.1", "Chromosome", names(fusion_annot_top.circos.pairs))
-  names(fusion_annot_top.circos.pairs) <- gsub("chromStart.1", "chromStart", names(fusion_annot_top.circos.pairs))
-  names(fusion_annot_top.circos.pairs) <- gsub("chromEnd.1", "chromEnd", names(fusion_annot_top.circos.pairs))
-  names(fusion_annot_top.circos.pairs) <- gsub("Gene.1", "Gene", names(fusion_annot_top.circos.pairs))
-
-  ##### Remove entries with missing genomic coordinates
-  fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[complete.cases(fusion_annot_top.circos.pairs), ]
-  fusion_annot_top.circos <- rbind(fusion_annot_top.circos.pairs[, 1:4], fusion_annot_top.circos.pairs[, 5:8])
-  fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[, colnames(fusion_annot_top.circos.pairs) %!in% c("Gene", "Gene.1")]
-
-  ##### Generate circos plot
-  RCircos.Set.Core.Components(cyto.info = cyto.info, chr.exclude = NULL, tracks.inside = 4, tracks.outside = 0)
-  RCircos.Set.Plot.Area()
-  RCircos.Chromosome.Ideogram.Plot()
-  RCircos.Gene.Connector.Plot(genomic.data = fusion_annot_top.circos, track.num = 1, side = "in")
-  RCircos.Gene.Name.Plot(gene.data = fusion_annot_top.circos, name.col = 4, track.num = 2, side = "in")
-  RCircos.Link.Plot(link.data = fusion_annot_top.circos.pairs, track.num = 4, by.chromosome = TRUE, is.sorted = FALSE, lineWidth = rep(2, nrow(fusion_annot_top.circos.pairs)))
-}
-```
-
-```{r fusions_genomic_view_circos_save, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runFusionChunk}
-##### Generate circos plot representing gene fusion events. NOTE. Only fusions involving fusion genes supported by MANTA or reported fusions are presented
-if (nrow(fusion_annot_top) > 0) {
-  ##### Save circos into a png file
-  png(filename = paste(fusionsPlotDir, "circosPlot.png", sep = "/"), width = 800, height = 800, units = "px", pointsize = 24)
-  RCircos.Set.Core.Components(cyto.info = cyto.info, chr.exclude = NULL, tracks.inside = 4, tracks.outside = 0)
-  RCircos.Set.Plot.Area()
-  RCircos.Chromosome.Ideogram.Plot()
-  RCircos.Gene.Connector.Plot(genomic.data = fusion_annot_top.circos, track.num = 1, side = "in")
-  RCircos.Gene.Name.Plot(gene.data = fusion_annot_top.circos, name.col = 4, track.num = 2, side = "in")
-  RCircos.Link.Plot(link.data = fusion_annot_top.circos.pairs, track.num = 4, by.chromosome = TRUE, is.sorted = FALSE, lineWidth = rep(2, nrow(fusion_annot_top.circos.pairs)))
+  ##### Generate circos for viewing in HTML report
+  RNAsum::rcircos_plot(
+    df_circos = fusion_annot_top.circos, df_circos_pairs = fusion_annot_top.circos.pairs, cyto.info = cyto.info
+  )
+  ##### Generate and save circos into a png file
+  png(filename = file.path(fusionsPlotDir, "circosPlot.png"), width = 800, height = 800, units = "px", pointsize = 24)
+  RNAsum::rcircos_plot(
+    df_circos = fusion_annot_top.circos, df_circos_pairs = fusion_annot_top.circos.pairs, cyto.info = cyto.info
+  )
   invisible(dev.off())
-
-  ##### Clean the space
   rm(fusion_annot_top.circos, fusion_annot_top.circos.pairs)
-
-  #### Clear plots to free up some memory
-  if (!is.null(dev.list())) invisible(dev.off())
 } else {
   cat("None of the transcriptome-based fusion events have supporting evidence from DNA data or was previously reported.")
 }
 ```
+
 
 ```{r genomic_view_circos_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 if (nrow(fusion_annot_top) > 0) {
