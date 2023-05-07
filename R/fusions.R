@@ -202,3 +202,13 @@ fusions_table <- function(fusions) {
     DT::formatStyle(columns = "DNA support (B)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral"))) |>
     DT::formatStyle(columns = "Reported fusion", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgreen")))
 }
+
+#' RCircos HG38 CytoBandIdeogram Object
+#' @return A dataframe with hg38 cytoband/ideogram information from RCircos.
+#' @export
+rcircos_cyto_info38 <- function() {
+  cyto.info_data <- "UCSC.HG38.Human.CytoBandIdeogram"
+  RCircos_env1 <- rlang::env(rlang::current_env())
+  data(list = cyto.info_data, package = "RCircos", envir = RCircos_env1)
+  tibble::as_tibble(RCircos_env1[[cyto.info_data]])
+}
