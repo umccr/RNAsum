@@ -60,7 +60,6 @@ params:
   FusionGDB: 'FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt'
 ---
 
-
 ```{r script_description, eval=FALSE}
 ##### We attempt to structure the script in the following way:
 # 1. Defining functions
@@ -1298,11 +1297,12 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
     names(group.z) <- gsub("ext_links", "External resources", names(group.z))
   }
   
-  ##### Attach links to GeneCards and Ensembl (if provided). Here we assume that gene names are
+  ##### Attach links to GeneCards and Ensembl (if provided). Here we assume that gene names are unique
   for ( gene in genes ) {
     if ( "ENSEMBL" %in% names(group.z) ) {
-        if ( isTRUE(group.z$ENSEMBL[ group.z$Gene==gene ]) ) {
-          
+      check1 <- unique(group.z$ENSEMBL[group.z$Gene == gene])
+      if (length(check1) > 0) {
+        # if ( !is.na(unique(group.z$ENSEMBL[group.z$Gene == gene ]) )) {
           group.z$ENSEMBL[ group.z$Gene==gene ] <- paste0("<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=", group.z$ENSEMBL[ group.z$Gene==gene], "' target='_blank'>", group.z$ENSEMBL[ group.z$Gene == gene ], "</a>")
       }
     }
@@ -1944,7 +1944,7 @@ if ( params$immunogram ) {
   ref_genes.list[["genes_immune"]]$immunogram <- read.table(paste(params$ref_data_dir, params$genes_immunogram, sep="/"), sep="\t", as.is=TRUE, header=TRUE, row.names=NULL, quote="")
 }
 
-##### Read in gene fusion data for investigate sample
+##### Read in gene fusion data for sample under investigation
 ##### Read in arriba and pizzly fusion calls
 ##### Check if arriba output file exists
 if ( !is.null(params$arriba_rnaseq) ) {
@@ -2010,8 +2010,13 @@ if ( !is.null(params$dragen_rnaseq) && file.exists(dragen_fusion_file) ) {
   
   ref_genes.list[["dragenFusion"]] <- dragen_fusion_genes
   
-  runDragenFusionChunk <- TRUE
-  runFusionChunk <- TRUE
+  ##### Check if Dragen detected any fusions
+  if (nrow(dragen_fusion) > 0) {
+    runDragenFusionChunk <- TRUE
+    runFusionChunk <- TRUE   
+  } else {
+    runDragenFusionChunk <- FALSE
+  }
 }
 
 
