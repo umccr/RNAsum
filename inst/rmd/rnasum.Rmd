@@ -711,7 +711,7 @@ y[["comb"]]$samples <- rbind(
 
 if (params$filter) {
   ##### Keep only genes present in all sets
-  genes_mod <- intersect(
+  genes_mod <- base::intersect(
     rownames(y[[targets_mod.list[1]]]$filtered),
     rownames(y[[targets_mod.list[2]]]$filtered)
   )
@@ -762,7 +762,7 @@ if (params$filter) {
   count_quant <- quantile(data.df[["Counts"]], probs = 0.99)
   data.df <- data.df |>
     dplyr::filter(.data$Counts < count_quant) |>
-    slice(which(row_number() %% 25 == 1))
+    dplyr::slice(which(dplyr::row_number() %% 25 == 1))
 
   ##### Generate plot for filtered data
   counts_vs_transformed <- plotly::plot_ly(
@@ -2341,11 +2341,6 @@ rm(limit_genes, dat1)
 
 `r if ( !runPcgrChunk ) { c("***") } else { c(" ") }`
 
-```{r}
-knitr::knit_exit()
-```
-
-
 ## Fusion genes
 
 <details>
@@ -2515,62 +2510,65 @@ if (nrow(fusion_annot_top) > 0) {
 }
 ```
 
+```{r}
+knitr::knit_exit()
+```
+
+
 
 ```{r genomic_view_circos_table_fusions, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 if (nrow(fusion_annot_top) > 0) {
   ##### Clean the table for better presentation
   ##### Dragen + Arriba
-  if (runDragenFusionChunk && runArribaChunk) {
-    fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_reads", "split_readsA", "split_readsB", "discordant_mates", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer")]
+  cols1 <- c(
+    "geneA", "SEQNAME.geneA", "GENESEQSTART.geneA", "GENESEQEND.geneA",
+    "geneB", "SEQNAME.geneB", "GENESEQSTART.geneB", "GENESEQEND.geneB",
+    "breakpointA", "breakpointB",
+    "split_reads",
+    "split_readsA", "split_readsB", "discordant_mates",
+    "geneA_dna_support", "geneB_dna_support",
+    "reported_fusion", "fusions_cancer"
+  )
 
-    ##### Dragen only
-  } else if (runDragenFusionChunk) {
-    #####  Dragen's fusion format version 3.9.3
-    if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
-      fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "split_reads", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer")]
-
-      #####  Dragen's fusion format prior to version 3.9.3
-    } else {
-      fusion_annot_top.clean <- fusion_annot_top[, c("SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND", "SYMBOL.1", "SEQNAME.1", "GENESEQSTART.1", "GENESEQEND.1", "breakpointA", "breakpointB", "geneA_dna_support", "geneB_dna_support", "reported_fusion", "fusions_cancer")]
-    }
-  }
-
-  ##### Order fusions based on the genomic location (chrom and start positions)
-  chrOrder <- c((1:22), "X", "Y", "M")
-
-  fusion_annot_top.clean$SEQNAME <- factor(fusion_annot_top.clean$SEQNAME, chrOrder, ordered = TRUE)
-  fusion_annot_top.clean$SEQNAME.1 <- factor(fusion_annot_top.clean$SEQNAME.1, chrOrder, ordered = TRUE)
-  fusion_annot_top.clean <- fusion_annot_top.clean[do.call(order, fusion_annot_top.clean[, c("SEQNAME", "SEQNAME.1", "GENESEQSTART", "GENESEQSTART.1")]), ]
-
-  ##### Dragen + Arriba
-  if (runDragenFusionChunk && runArribaChunk) {
-    names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads (Total)", "Split reads (A)", "Split reads (B)", "Pair reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
-
-    ##### Dragen only
-  } else if (runDragenFusionChunk) {
-    #####  Dragen's fusion format version 3.9.3
-    if (all(c("GeneALocation", "GeneBLocation", "NumSplitReads", "NumSoftClippedReads", "Score") %in% colnames(dragen.fusions))) {
-      names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "Split reads", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
-
-      #####  Dragen's fusion format prior to version 3.9.3
-    } else {
-      names(fusion_annot_top.clean) <- c("Gene A", "Chrom (A)", "Start (A)", "End (A)", "Gene B", "Chrom (B)", "Start (B)", "End (B)", "Breakpoint (A)", "Breakpoint (B)", "DNA support (A)", "DNA support (B)", "Reported fusion", "Cancer gene(s)")
-    }
-  }
-
-  fusions.genomicView <- DT::datatable(data = fusion_annot_top.clean, filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"), options = list(pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, height = 318, escape = FALSE) %>%
-    DT::formatStyle(columns = names(fusion_annot_top.clean), `font-size` = "12px", "text-align" = "center") %>%
+  # order fusions based on chrom + start
+  fusion_annot_top.clean <- fusion_annot_top |>
+    dplyr::select(dplyr::any_of(cols1))
+  fusions.genomicView <- fusion_annot_top.clean |>
+    DT::datatable(
+      filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"),
+      options = list(
+        pageLength = 10, dom = "Bfrtip", deferRender = TRUE,
+        buttons = c("excel", "csv", "pdf", "copy", "colvis"),
+        scroller = TRUE, scrollX = TRUE, scrollY = "167px"
+      ),
+      width = 800, height = 318, escape = FALSE
+    ) |>
+    DT::formatStyle(
+      columns = names(fusion_annot_top.clean), `font-size` = "12px", "text-align" = "center"
+    ) |>
     ##### Highlight rows with fusions involving cancer genes (grey)
-    DT::formatStyle(columns = colnames(fusion_annot_top.clean) %in% "Cancer gene(s)", backgroundColor = DT::styleEqual(c("-", "Yes"), c("transparent", "lightgrey"))) %>%
-    DT::formatStyle(columns = colnames(fusion_annot_top.clean) %in% "DNA support (A)", backgroundColor = DT::styleEqual(c("-", "Yes"), c("transparent", "coral"))) %>%
-    DT::formatStyle(columns = colnames(fusion_annot_top.clean) %in% "DNA support (B)", backgroundColor = DT::styleEqual(c("-", "Yes"), c("transparent", "coral"))) %>%
-    DT::formatStyle(columns = colnames(fusion_annot_top.clean) %in% "Reported fusion", backgroundColor = DT::styleEqual(c("-", "Yes"), c("transparent", "lightgreen")))
+    DT::formatStyle(
+      "fusions_cancer",
+      backgroundColor = DT::styleEqual(
+        c(FALSE, TRUE), c("transparent", "lightgrey")
+      )
+    ) |>
+    DT::formatStyle(
+      grepl("dna_support", colnames(fusion_annot_top.clean)),
+      backgroundColor = DT::styleEqual(
+        c(FALSE, TRUE), c("transparent", "coral")
+      )
+    ) |>
+    DT::formatStyle(
+      "reported_fusion",
+      backgroundColor = DT::styleEqual(
+        c(FALSE, TRUE), c("transparent", "lightgreen")
+      )
+    )
 
   fusions.genomicView
+  rm(fusion_annot_top.clean)
 }
-
-##### Clean the space
-rm(fusion_annot_top.clean)
 ```
 
 <details>
