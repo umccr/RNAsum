@@ -47,7 +47,7 @@ params:
   umccrise: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS'
 ---
 
-```{r eval=FALSE}
+```{r eval=F}
 library(here, include.only = c("here"))
 p <- list(
   arriba_pdf = here("inst/rawdata/test_data/dragen/arriba/fusions.pdf"),
@@ -114,6 +114,7 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
   library(png, include.only = c("readPNG", "writePNG"))
   library(rlang, include.only = c("set_names"))
   library(lares, include.only = c("plot_timeline"))
+  library(DT, include.only = c("datatable", "formatStyle", "styleEqual"))
   library(fs, include.only = c("dir_create", "dir_delete"))
   library(tibble, include.only = c("tibble", "add_row"))
   library(glue, include.only = c("glue"))
@@ -122,7 +123,6 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
   library(limma, include.only = c("removeBatchEffect"))
   # library(rapportools)
   # library(rhdf5)
-  # library(DT)
   # library(matrixStats)
   # library(ggplot2)
   # library(ggforce)
@@ -131,16 +131,19 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
 
 ```{r prep_knitr_hooks, echo = FALSE}
 # Time chunks during knitting
-NOW <- Sys.time()
-knitr::knit_hooks$set(timeit = function(before) {
-  if (before) {
-    message(cat("\n", as.character(glue::glue("Start: {Sys.time()}")), sep = ""))
-    NOW <<- Sys.time()
-  } else {
-    message(cat(as.character(glue::glue("Stop:  {Sys.time()}"))))
-    print((Sys.time() - NOW) |> round(2))
+# https://bookdown.org/yihui/rmarkdown-cookbook/time-chunk.html
+all_chunk_runtimes <- list()
+knitr::knit_hooks$set(timeit = local({
+  now <- NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res <- difftime(Sys.time(), now)
+      all_chunk_runtimes[[options$label]] <<- res
+    }
   }
-})
+}))
 
 knitr::opts_chunk$set(timeit = TRUE)
 ```
@@ -321,7 +324,7 @@ if (length(sampleID.col) > 0) {
     dir_create(PlotsDir_clininfo)
 
     ##### Record the timeline plot. NOTE, the modified dates are used here
-    treatment_timeline <- plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = FALSE)
+    treatment_timeline <- lares::plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = FALSE)
 
     ##### Save the plot into png file. NOTE, the modified dates are used here. As default, the plot is saved as "cv_timeline"
     plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = TRUE, subdir = "clinical_info")
@@ -1914,7 +1917,7 @@ counts_vs_transformed
 
 Plot(s) below present `r params$transform` data distribution `r if ( params$filter ) { c(" before and after filtering genes with low counts.") } else { cat(".")}`
 
-```{r data_transformation_display, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15) }
+```{r data_transformation_display, fig.width = 12, fig.height = 5}
 data_transformation_nonfiltered
 
 if (params$filter) {
@@ -1928,7 +1931,7 @@ During the sample preparation or sequencing process, external factors that are n
 
 Box-plots below present `r params$transform` data for individual samples, coloured by sample groups, before and after `r params$norm` normalisation.
 
-```{r data_normalisation_display, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15) }
+```{r data_normalisation_display, fig.width = 12, fig.height = 9}
 data_nonnormalised
 
 if (params$norm != "none") {
@@ -1984,7 +1987,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 The relative log expression (RLE) plot is a useful diagnostic tool to visualise the differences between the distributions of read counts across samples. It shows boxplot of the log-ratios of the gene-level read counts (*y-axis*) of each sample to those of a reference sample (defined as the median across the samples). Ideally, the distributions should be centered around the zero line and as tight as possible. Clear deviations indicate the need for normalisation and/or the presence of outlying samples.
 
-```{r rle_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9, thumb = list(width = 15, height = 15)}
+```{r rle_display, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 9}
 ref_dataset.list[[dataset]][["rle_combined_data_processed"]]
 
 if (params$norm != "none") {
@@ -2004,9 +2007,10 @@ if (params$norm != "none") {
 
 `r if ( runClinicalChunk ) { c("NOTE: for confidentiality reasons, the start of the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to 1st January 2000, but the treatments lengths are preserved.") }`
 
-```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, thumb = list(width = 15, height = 15), eval = runClinicalChunk }
+```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
 ##### Present the treatment timeline plot
 treatment_timeline
+rm(treatment_timeline)
 ```
 
 ------------------------------------------------------------------------
@@ -2053,7 +2057,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 ```{r clear_space, comment = NA, message=FALSE, warning=FALSE }
 rm(
   counts_vs_transformed, data_transformation_nonfiltered, data_transformation_filtered,
-  data_nonnormalised, data_normalised, treatment_timeline, data.annot
+  data_nonnormalised, data_normalised, data.annot
 )
 ```
 
@@ -2350,15 +2354,10 @@ rm(limit_genes, dat1)
 Fusion genes detected in transcriptome data are prioritised in the following order:
 
 1.  Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants] results are available)
-
 2.  **Detected in transcriptome data** by [Arriba](https://arriba.readthedocs.io/en/latest/)
-
 3.  **Reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB) database
-
 4.  Decreasing number of **split reads**
-
 5.  Decreasing number of **pair reads**
-
 6.  Involvement of **cancer gene(s)** (see [Cancer genes] section)
 
 </details>
@@ -2370,13 +2369,9 @@ Fusion genes detected in transcriptome data are prioritised in the following ord
 Fusion genes detected in transcriptome data are reported if **at least one** of the following criteria is met:
 
 1.  Involvement of fusion gene(s) **detected in genomic data** (if [Structural variants] results are available)
-
 2.  **Reported** fusion event according to [FusionGDB](https://ccsm.uth.edu/FusionGDB) database
-
 3.  Involvement of **cancer gene(s)** (see [Cancer genes] section)
-
 4.  **Split reads** \> 1
-
 5.  **Pair reads** \> 1 and **split reads** \> 1
 
 </details>
@@ -2425,19 +2420,13 @@ Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (s
 
 Fusion events are ordered by the following columns:
 
-**DNA support (A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section)
-
-**Confidence** level from [Arriba](https://arriba.readthedocs.io/en/latest/) tool
-
-**Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)
-
-**Split count**: the number of supporting split reads
-
-**Pair count**: the number of supporting pair reads
-
-**Cancer gene(s)**: gene fusion events involving [Cancer genes]
-
-**Fusion gene (A/B)**: gene(s) known to be involved in tumorigenesis across cancer types based on [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [CGI](https://www.cancergenomeinterpreter.org/biomarkers) databases
+- **DNA support (A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section)
+- **Confidence** level from [Arriba](https://arriba.readthedocs.io/en/latest/) tool
+- **Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)
+- **Split count**: the number of supporting split reads
+- **Pair count**: the number of supporting pair reads
+- **Cancer gene(s)**: gene fusion events involving [Cancer genes]
+- **Fusion gene (A/B)**: gene(s) known to be involved in tumorigenesis across cancer types based on [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [CGI](https://www.cancergenomeinterpreter.org/biomarkers) databases
 
 </font>
 
@@ -2601,7 +2590,7 @@ Expression profiles for gene fusion events involving **DNA-supported fusion** ge
 ##### Provide detailed expression info for the top ranked fusion events
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- as.character(fusions$geneA)
+genes <- as.character(fusions[["geneA"]])
 
 ##### Create lists to store
 output_cdf_A <- list()
@@ -2627,227 +2616,248 @@ if (length(genes) == 0) {
 genes <- c(genes, as.character(fusions$geneB))
 
 ##### Collect info and plots for each of the top fusions
-for (i in 1:genes_no) {
-  if (genes_no > 0) {
-    geneA <- as.vector(fusions$geneA[i])
-    geneB <- as.vector(fusions$geneB[i])
+for (i in seq_len(genes_no)) {
+  geneA <- fusions[["geneA"]][i]
+  geneB <- fusions[["geneB"]][i]
 
-    ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample
-    if (geneA %in% rownames(dat1)) {
-      ##### CDF plot
-      output_cdf_A[[i]] <- cdfPlot(gene = geneA, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = results_dir)
-
-      ##### Bar-plot of read counts
-      ##### First map the gene symbol to Ensmebl ID (used in the counts data)
-      genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL == geneA]
-
-      output_counts_A[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, add_cancer = add_cancer_group)
-
-      ##### Density plot - expression distribution
-      output_density_A[[i]] <- densityPlot(gene = geneA, data = dat1, main_title = "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
-    }
-
-    ##### Gene B
-    if (geneB %in% rownames(dat1) && geneB != geneA) {
-      ##### CDF plot
-      output_cdf_B[[i]] <- cdfPlot(gene = geneB, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = FALSE, scaling = scaling, report_dir = results_dir)
-
-      ##### Bar-plot of read counts
-      ##### First map the gene symbol to Ensmebl ID (used in the counts data)
-      genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL == geneB]
-
-      output_counts_B[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, add_cancer = add_cancer_group)
-
-      ##### Density plot - expression distribution
-      output_density_B[[i]] <- densityPlot(gene = geneB, data = dat1, main_title = "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
-    }
-
-    ##### Generate expression summary tables
-    genes <- c(geneA, geneB)
-
-    ##### Z-scores
-    output_table_Z[[i]] <- RNAsum::exprTable(
-      type = "z",
-      data = dat1,
-      genes = unique(genes),
-      targets = targets,
-      sampleName = sample_name,
-      ext_cancer = ext_cancer_group,
-      int_cancer = int_cancer_group,
-      comp_cancer = comp_cancer_group,
-      add_cancer = add_cancer_group,
-      genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
-      oncokb_annot = ref_genes.list[["genes_oncokb"]],
-      cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Germline")],
-      fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
-      scaling = scaling,
-      civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
-    )[[1]]
-
-    ##### Percentiles
-    output_table_perc[[i]] <- RNAsum::exprTable(
-      type = "perc",
-      data = dat1,
-      genes = unique(genes),
-      targets = targets,
-      sampleName = sample_name,
-      ext_cancer = ext_cancer_group,
-      int_cancer = int_cancer_group,
-      comp_cancer = comp_cancer_group,
-      add_cancer = add_cancer_group,
-      genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
-      oncokb_annot = ref_genes.list[["genes_oncokb"]],
-      cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Germline")],
-      fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
-      scaling = scaling,
-      civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
-    )[[1]]
+  ##### For each gene generate:
+  ##### (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups
+  ##### (2) bar-plot of read count data across all samples
+  ##### (3) density plot to demonstrate expression distribution in investigated sample
+  ##### Gene A
+  if (geneA %in% rownames(dat1)) {
+    ##### CDF plot
+    output_cdf_A[[i]] <- RNAsum::cdfPlot(
+      gene = geneA, data = dat1, targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+      comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+      addBoxPlot = FALSE, scaling = scaling, report_dir = results_dir
+    )
+    ##### Bar-plot of read counts
+    ##### First map the gene symbol to Ensembl ID (used in the counts data)
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]] |>
+      dplyr::filter(.data$SYMBOL == geneA) |>
+      dplyr::pull(.data$ENSEMBL)
+    output_counts_A[[i]] <- RNAsum::barPlot(
+      gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]],
+      y_title = "Counts", targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+      add_cancer = add_cancer_group
+    )
+    ##### Density plot - expression distribution
+    output_density_A[[i]] <- RNAsum::densityPlot(
+      gene = geneA, data = dat1, main_title = "",
+      x_title = "Z-score", sampleName = sample_name,
+      distributions = c("normal", "bimodal"), scaling = scaling
+    )
   }
+  ##### Gene B
+  if (geneB %in% rownames(dat1) && geneB != geneA) {
+    ##### CDF plot
+    output_cdf_B[[i]] <- RNAsum::cdfPlot(
+      gene = geneB, data = dat1, targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+      comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+      addBoxPlot = FALSE, scaling = scaling, report_dir = results_dir
+    )
+    ##### Bar-plot of read counts
+    ##### First map the gene symbol to Ensembl ID (used in the counts data)
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]] |>
+      dplyr::filter(.data$SYMBOL == geneB) |>
+      dplyr::pull(.data$ENSEMBL)
+    output_counts_B[[i]] <- RNAsum::barPlot(
+      gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]],
+      y_title = "Counts", targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+      add_cancer = add_cancer_group
+    )
+    ##### Density plot - expression distribution
+    output_density_B[[i]] <- RNAsum::densityPlot(
+      gene = geneB, data = dat1, main_title = "",
+      x_title = "Z-score", sampleName = sample_name,
+      distributions = c("normal", "bimodal"), scaling = scaling
+    )
+  }
+
+  ##### Generate expression summary tables
+  genes <- c(geneA, geneB)
+
+  ##### Z-scores
+  output_table_Z[[i]] <- RNAsum::exprTable(
+    type = "z",
+    data = dat1,
+    genes = unique(genes),
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Germline")],
+    fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )[[1]]
+
+  ##### Percentiles
+  output_table_perc[[i]] <- RNAsum::exprTable(
+    type = "perc",
+    data = dat1,
+    genes = unique(genes),
+    targets = targets,
+    sampleName = sample_name,
+    ext_cancer = ext_cancer_group,
+    int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group,
+    add_cancer = add_cancer_group,
+    genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
+    oncokb_annot = ref_genes.list[["genes_oncokb"]],
+    cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Germline")],
+    fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
+    scaling = scaling,
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  )[[1]]
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
-
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
 ```
 
-```{r}
-knitr::knit_exit()
-```
-
-
 ```{r top_hits_fusions_display, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 2.5, eval = runFusionChunk, results="asis"}
 ##### Now once the plots are ready show them in separate tabs
-if (genes_no > 0) {
-  for (i in 1:genes_no) {
-    geneA <- as.vector(fusions$geneA[i])
-    geneB <- as.vector(fusions$geneB[i])
-
-    breakpointA <- as.vector(fusions$breakpointA[i])
-    breakpointB <- as.vector(fusions$breakpointB[i])
-
-    cat("\n#### ", paste(fusions$geneA[i], fusions$geneB[i], sep = "-"), "\n")
-
-    ##### Check if Arriba fusion plot exists. Skip this section if it doesn't
-    if (file.exists(gsub(":", ".", paste0(results_dir, "/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png")))) {
-      cat("\n##### Fusion genes visualisation\n")
-
-      ##### Present Arriba plots it in the report
-      cat(paste0("![](", gsub(":", ".", paste0(results_dir, "/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "-", breakpointB, ".png)"))), "\n")
-      cat("\n***\n")
-    }
-
-    cat("\n##### Fusion genes expression\n")
-    cat("\nmRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.\n")
-
-    ##### Display CDF plots for each fusion gene pair
-    suppressMessages(library(plotly))
-
-    if (geneA %in% rownames(dat1)) {
-      cat(renderTags(output_cdf_A[[i]])$html)
-      cat("\n<details>\n")
-      cat("\n<summary>Plot legend</summary>\n")
-      cat("<font size=\"2\">\n")
-      cat(paste0("Distribution of percentile values (*y-axis*) as a function of expression levels (Z-scores, *x-axis*) of *", geneA, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
-      cat("\n</font>\n")
-      cat("\n</details>\n")
-      cat("\n<details>\n")
-      cat("\n<summary>Read counts</summary>\n")
-      cat(renderTags(output_counts_A[[i]])$html)
-      cat("<font size=\"2\">\n")
-      cat(paste0("Bar-plot illustrating read counts for *", geneA, "* across all samples. The *", geneA, "* read count in patient's sample is indicated by *black bar*.\n"))
-      cat("\n</font>\n")
-      cat("\n</details>\n")
-      cat("\n<details>\n")
-      cat("\n<summary>Expression distribution patterns</summary>\n")
-      cat(renderTags(output_density_A[[i]])$html)
-      cat("<font size=\"2\">\n")
-      cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", geneA, "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", geneA, "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
-      cat("\n</font>\n")
-      cat("\n</details>\n")
-      cat("<br />")
-    } else {
-      cat(paste0("\n<span style=\"color:#ff0000\">NOTE</span>, expression data is not available for ", geneA, ".\n"))
-    }
-
-    if (geneB == geneA) {
-      cat(paste0("\n"))
-    } else if (geneB %in% rownames(dat1)) {
-      cat(renderTags(output_cdf_B[[i]])$html)
-      cat("\n<details>\n")
-      cat("\n<summary>Plot legend</summary>\n")
-      cat("<font size=\"2\">\n")
-      cat(paste0("Distribution of percentile values (*y-axis*) as a function of expression levels (Z-scores, *x-axis*) of *", geneB, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
-      cat("\n</font>\n")
-      cat("\n</details>\n")
-      cat("\n<details>\n")
-      cat("\n<summary>Read counts</summary>\n")
-      cat(renderTags(output_counts_B[[i]])$html)
-      cat("<font size=\"2\">\n")
-      cat(paste0("Bar-plot illustrating read counts for *", geneB, "* across all samples. The *", geneB, "* read count in patient's sample is indicated by *black bar*.\n"))
-      cat("\n</font>\n")
-      cat("\n</details>\n")
-      cat("\n<details>\n")
-      cat("\n<summary>Expression distribution patterns</summary>\n")
-      cat(renderTags(output_density_B[[i]])$html)
-      cat("<font size=\"2\">\n")
-      cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", geneB, "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", geneB, "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
-      cat("\n</font>\n")
-      cat("\n</details>\n")
-      cat("\n***\n")
-    } else {
-      cat(paste0("\n<span style=\"color:#ff0000\">NOTE</span>, expression data is not available for ", geneB, ".\n"))
-    }
-
-    cat("\n##### Summary table {.tabset}\n")
-    cat("\n###### Percentiles\n")
-    cat(renderTags(output_table_perc[[i]])$html)
-    cat("<br />")
-    cat("\n<details>\n")
-    cat("\n<summary>Table legend</summary>\n")
-    cat("\n<font size=\"2\">\n")
-    cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes) database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n")
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-
-    if (length(genes) > 2000) {
-      cat(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries."))
-    }
-
-    cat("\n***\n")
-
-    cat("\n###### Z-scores\n")
-    cat(renderTags(output_table_Z[[i]])$html)
-    cat("<br />")
-    cat("\n<details>\n")
-    cat("\n<summary>Table legend</summary>\n")
-    cat("\n<font size=\"2\">\n")
-    cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes) database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n"))
-    cat("\n</font>\n")
-    cat("\n</details>\n")
-
-    if (length(genes) > 2000) {
-      cat(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries."))
-    }
-
-    cat("\n***\n")
-  }
-  #### Clear plots to free up some memory
-  if (!is.null(dev.list())) invisible(dev.off())
-} else {
+if (genes_no == 0) {
   cat("\nNo alterations were reported.\n")
   cat("\n***\n")
 }
+# this will do nothing if genes_no = 0
+for (i in seq_len(genes_no)) {
+  geneA <- fusions[["geneA"]][i]
+  geneB <- fusions[["geneB"]][i]
+  breakpointA <- fusions[["breakpointA"]][i]
+  breakpointB <- fusions[["breakpointB"]][i]
 
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
+  cat("\n#### ", paste(geneA, geneB, sep = "-"), "\n")
 
-##### Clean the space
+  ##### Check if Arriba fusion plot exists. Skip this section if it doesn't
+  png1 <- gsub(":", ".", paste0(results_dir, "/arriba/", make.names(paste(geneA, geneB, sep = "__")), "_", breakpointA, "_", breakpointB, ".png"))
+  if (file.exists(png1)) {
+    cat("\n##### Fusion genes visualisation\n")
+    ##### Present Arriba plots in the report
+    cat(glue("![]({png1})"), "\n")
+    cat("\n***\n")
+  }
+
+  cat("\n##### Fusion genes expression\n")
+  cat("\nmRNA expression levels of fusion genes detected in patient's sample and their average mRNA expression (Z-score) in samples from cancer cohorts.\n")
+
+  ##### Display CDF plots for each fusion gene pair
+  if (geneA %in% rownames(dat1)) {
+    cat(renderTags(output_cdf_A[[i]])$html)
+    cat("\n<details>\n")
+    cat("\n<summary>Plot legend</summary>\n")
+    cat("<font size=\"2\">\n")
+    cat(paste0("Distribution of percentile values (*y-axis*) as a function of expression levels (Z-scores, *x-axis*) of *", geneA, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
+    cat("\n<summary>Read counts</summary>\n")
+    cat(renderTags(output_counts_A[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Bar-plot illustrating read counts for *", geneA, "* across all samples. The *", geneA, "* read count in patient's sample is indicated by *black bar*.\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
+    cat("\n<summary>Expression distribution patterns</summary>\n")
+    cat(renderTags(output_density_A[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", geneA, "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", geneA, "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("<br />")
+  } else {
+    cat(paste0("\n<span style=\"color:#ff0000\">NOTE</span>, expression data is not available for ", geneA, ".\n"))
+  }
+
+  if (geneB == geneA) {
+    cat(paste0("\n"))
+  } else if (geneB %in% rownames(dat1)) {
+    cat(renderTags(output_cdf_B[[i]])$html)
+    cat("\n<details>\n")
+    cat("\n<summary>Plot legend</summary>\n")
+    cat("<font size=\"2\">\n")
+    cat(paste0("Distribution of percentile values (*y-axis*) as a function of expression levels (Z-scores, *x-axis*) of *", geneB, "* in patient's sample (*black dot*) and other reference cancer cohort(s) (median value(s)).\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
+    cat("\n<summary>Read counts</summary>\n")
+    cat(renderTags(output_counts_B[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Bar-plot illustrating read counts for *", geneB, "* across all samples. The *", geneB, "* read count in patient's sample is indicated by *black bar*.\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n<details>\n")
+    cat("\n<summary>Expression distribution patterns</summary>\n")
+    cat(renderTags(output_density_B[[i]])$html)
+    cat("<font size=\"2\">\n")
+    cat(paste0("Plot illustrating distribution of expression levels (Z-scores) of *", geneB, "* *observed* across all samples along with simulated *normal* and *bimodal* distributions. The *", geneB, "* expression level observed in patient's sample is indicated by *black dot* in each distribution.\n"))
+    cat("\n</font>\n")
+    cat("\n</details>\n")
+    cat("\n***\n")
+  } else {
+    cat(paste0("\n<span style=\"color:#ff0000\">NOTE</span>, expression data is not available for ", geneB, ".\n"))
+  }
+
+  cat("\n##### Summary table {.tabset}\n")
+  cat("\n###### Percentiles\n")
+  cat(renderTags(output_table_perc[[i]])$html)
+  cat("<br />")
+  cat("\n<details>\n")
+  cat("\n<summary>Table legend</summary>\n")
+  cat("\n<font size=\"2\">\n")
+  cat("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (percentile) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (percentile) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, " **) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes) database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n")
+  cat("\n</font>\n")
+  cat("\n</details>\n")
+
+  if (length(genes) > 2000) {
+    cat(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries."))
+  }
+
+  cat("\n***\n")
+
+  cat("\n###### Z-scores\n")
+  cat(renderTags(output_table_Z[[i]])$html)
+  cat("<br />")
+  cat("\n<details>\n")
+  cat("\n<summary>Table legend</summary>\n")
+  cat("\n<font size=\"2\">\n")
+  cat(paste0("\nThe <span style=\"color:#ff0000\">RED</span> colour range indicate relatively **high expression** (Z-score) values and <span style=\"color:#0000ff\">BLUE</span> colour range indicate relatively **low expression** (Z-score) values in individual sample group. The **Diff** (**Patient vs ", comp_cancer_group, "**) column illustrates the difference between Z-scores in patient sample and reference cancer cohort for each fusion gene. Genes considered to be oncogenes or tumour suppressor genes, according to [OncoKB](http://oncokb.org/#/cancerGenes) database, are also indicated. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs ", comp_cancer_group, "**) column. *TSG* - tumour suppressor gene\n"))
+  cat("\n</font>\n")
+  cat("\n</details>\n")
+
+  if (length(genes) > 2000) {
+    cat(paste0("<span style=\"color:#ff0000\">NOTE</span>, the table was truncated to 2000 entries."))
+  }
+
+  cat("\n***\n")
+}
+if (!is.null(dev.list())) invisible(dev.off())
 rm(list = ls(pattern = "^output*"))
 ```
 
 ------------------------------------------------------------------------
+
+## Chunk Runtimes + Exit
+
+```{r}
+all_chunk_runtimes |>
+  unlist() |>
+  tibble::enframe() |>
+  knitr::kable()
+knitr::knit_exit()
+```
+
+
 
 ## Structural variants
 
