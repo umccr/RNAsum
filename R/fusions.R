@@ -224,6 +224,11 @@ rcircos_cyto_info38 <- function() {
 #' @return An RCircos plot object.
 rcircos_plot <- function(df_circos, df_circos_pairs, cyto.info) {
   ##### Generate circos plot
+  # > We need the RCircos.Env object in the global namespace. Why? Because RCircos
+  # is weird that way.
+  # https://github.com/stianlagstad/chimeraviz/blob/80466b8/R/plot_circle.R#L207
+  base::assign("RCircos.Env", RCircos::RCircos.Env, .GlobalEnv)
+
   RCircos::RCircos.Set.Core.Components(
     cyto.info = cyto.info, chr.exclude = NULL, tracks.inside = 4, tracks.outside = 0
   )
