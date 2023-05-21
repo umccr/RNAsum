@@ -47,7 +47,7 @@ params:
   umccrise: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS'
 ---
 
-```{r eval=F}
+```{r eval=T}
 library(here, include.only = c("here"))
 p <- list(
   arriba_pdf = here("inst/rawdata/test_data/dragen/arriba/fusions.pdf"),
@@ -1854,15 +1854,21 @@ for (gene in names(alt_genes.all)) {
 }
 
 ##### Convert the list into data frame
-summary_table.df <- data.frame(matrix(unlist(summary_table.list), nrow = length(summary_table.list), byrow = TRUE), stringsAsFactors = FALSE)
-
 ##### Add gene names and number of section in which individual genes are reported
-summary_table.df <- cbind(names(summary_table.list), summary_table.df)
-summary_table.df <- cbind(summary_table.df, as.numeric(alt_genes.all))
-colnames(summary_table.df) <- c("Gene", names(alt_genes.all.list), "Resources", "Count")
-
 ##### Add GeneCards links
-summary_table.df$Gene <- paste0("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene=", summary_table.df$Gene, "' >", summary_table.df$Gene, "</a>")
+summary_table.df <- data.frame(
+  matrix(
+    unlist(summary_table.list),
+    nrow = length(summary_table.list), byrow = TRUE
+  )
+) |>
+  purrr::set_names(c(names(alt_genes.all.list), "Resources")) |>
+  dplyr::mutate(
+    Gene = names(summary_table.list),
+    Count = as.numeric(alt_genes.all),
+    Gene = glue("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={.data$Gene}'>{.data$Gene}</a>")
+  ) |>
+  dplyr::select("Gene", dplyr::everything())
 
 ##### Clean the space and return output
 rm(summary_table.list)
