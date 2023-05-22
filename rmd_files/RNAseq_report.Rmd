@@ -1170,21 +1170,53 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
   }
   
   ##### Define colours for cells background for each group and the patient vs [comp_cancer] difference
-  ##### Initiate dataframe for expression median values in each group
-  brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
-  colnames(brks.q) <- targets.list
-  clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
-  colnames(clrs.q) <- targets.list
-  
-  for ( group in c(targets.list, "Diff") ) {
-    brks.q[[group]] <- quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
-    
-    clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]])/2 + 1.5), 0) %>%
-    {paste0("rgb(255,", ., ",", ., ")")}
-    clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]])/2 - 0.5), 0)) %>%
-    {paste0("rgb(", .,",", .,",", "255)")}
-    clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
+  brks_clrs <- function(targets.list, group.z, step1 = 0.0005) {
+    ##### Initiate dataframe for expression median values in each group
+    probs1 <- seq(.05, .95, step1)
+    brks <- list()
+    clrs <- list()
+    clrs_pos.q <- round(seq(255, 150, length.out = length(probs1) / 2 + 1.5), 0) %>%
+      {
+        paste0("rgb(255,", ., ",", ., ")")
+      }
+    clrs_neg.q <- rev(round(seq(255, 150, length.out = length(probs1) / 2 - 0.5), 0)) %>%
+      {
+        paste0("rgb(", ., ",", ., ",", "255)")
+      }
+    clrs.q <- c(clrs_neg.q, clrs_pos.q)
+    for (group in c(targets.list, "Diff")) {
+      brks.q <- stats::quantile(group.z[, group], probs = probs1, na.rm = TRUE)
+      brks.q <- c(-Inf, brks.q)
+      stopifnot(length(brks.q) == length(clrs.q))
+      # grab top colour for duplicated brks
+      res <- tibble::tibble(brks.q = unname(brks.q), clrs.q = clrs.q) |>
+        dplyr::group_by(brks.q) |>
+        dplyr::slice_head(n = 1) |>
+        dplyr::ungroup()
+      brks[[group]] <- res[["brks.q"]][-1] # remove -Inf
+      clrs[[group]] <- res[["clrs.q"]]
+    }
+    list(
+      brks = brks,
+      clrs = clrs
+    )
   }
+  brks_clrs1 <- brks_clrs(targets.list = targets.list, group.z = group.z, step1 = 0.0005)
+  ##### Initiate dataframe for expression median values in each group
+  #brks.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) ))
+  #colnames(brks.q) <- targets.list
+  #clrs.q <- as.data.frame( matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))+1 ))
+  #colnames(clrs.q) <- targets.list
+  #
+  #for ( group in c(targets.list, "Diff") ) {
+  #  brks.q[[group]] <- quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
+  #  
+  #  clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]])/2 + 1.5), 0) %>%
+  #  {paste0("rgb(255,", ., ",", ., ")")}
+  #  clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]])/2 - 0.5), 0)) %>%
+  #  {paste0("rgb(", .,",", .,",", "255)")}
+  #  clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
+  #}
   
   ##### Subset the expression data to include only the user-defined genes
   group.z <- group.z[ group.z$Gene %in% genes, ]
@@ -1368,13 +1400,13 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
       
       ##### Colour cells according to the expression values quantiles in each group
       DT::formatStyle(columns = targets.list[1], 
-                      backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])) %>%
+                      backgroundColor = DT::styleInterval(brks_clrs1[["brks"]][[targets.list[1]]], brks_clrs1[["clrs"]][[targets.list[1]]])) %>%
       DT::formatStyle(columns = targets.list[2], 
-                      backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
+                      backgroundColor = DT::styleInterval(brks_clrs1[["brks"]][[targets.list[2]]], brks_clrs1[["clrs"]][[targets.list[2]]])) %>%
       DT::formatStyle(columns = targets.list[3], 
-                      backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
+                      backgroundColor = DT::styleInterval(brks_clrs1[["brks"]][[targets.list[3]]], brks_clrs1[["clrs"]][[targets.list[3]]])) %>%
       DT::formatStyle(columns = names(group.z)[diff_col_idx], 
-                      backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]])) %>%
+                      backgroundColor = DT::styleInterval(brks_clrs1[["brks"]][["Diff"]], brks_clrs1[["clrs"]][["Diff"]])) %>%
       DT::formatStyle(columns = "Patient (CN)", background = DT::styleColorBar(cn_range, 'lightblue'), backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat', backgroundPosition = 'center')
     
   ##### Generate a table with genes annotations and coloured expression values in each group
@@ -1384,13 +1416,13 @@ exprTable <- function(genes, keep_all = FALSE, data, cn_data = NULL, sv_data = N
       
       ##### Colour cells according to the expression values quantiles in each group
       DT::formatStyle(columns = targets.list[1], 
-                      backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])) %>%
+                      backgroundColor = DT::styleInterval(brks_clrs1[["brks"]][[targets.list[1]]], brks_clrs1[["clrs"]][[targets.list[1]]])) %>%
       DT::formatStyle(columns = targets.list[2], 
-                      backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])) %>%
+                      backgroundColor = DT::styleInterval(brks_clrs1[["brks"]][[targets.list[2]]], brks_clrs1[["clrs"]][[targets.list[2]]])) %>%
       DT::formatStyle(columns = targets.list[3], 
-                      backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])) %>%
+                      backgroundColor = DT::styleInterval(brks_clrs1[["brks"]][[targets.list[3]]], brks_clrs1[["clrs"]][[targets.list[3]]])) %>%
       DT::formatStyle(columns = names(group.z)[diff_col_idx], 
-                      backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]]))
+                      backgroundColor = DT::styleInterval(brks_clrs1[["brks"]][["Diff"]], brks_clrs1[["clrs"]][["Diff"]]))
   }
   
   ##### Clean the space and return output
