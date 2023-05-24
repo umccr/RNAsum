@@ -129,9 +129,115 @@ fusions_annot <- function(fusions, gene_ann) {
   sel_cols <- c("ENSEMBL", "SYMBOL", "SEQNAME", "GENESEQSTART", "GENESEQEND")
   assertthat::assert_that(all(sel_cols %in% colnames(gene_ann)))
   a <- gene_ann |>
-    dplyr::select(dplyr::all_of(sel_cols)) |>
-    tibble::as_tibble()
+    tibble::as_tibble() |>
+    dplyr::select(dplyr::all_of(sel_cols))
   fusions |>
     dplyr::left_join(a, by = c("geneA" = "SYMBOL")) |>
-    dplyr::left_join(a, by = c("geneB" = "SYMBOL"))
+    dplyr::left_join(a, by = c("geneB" = "SYMBOL"), suffix = c(".geneA", ".geneB"))
+}
+
+
+#' Fusions Table Display
+#'
+#' @param fusions Tibble with fusions.
+#'
+#' @return A DT object.
+#' @export
+fusions_table <- function(fusions) {
+  tab1 <- fusions |>
+    ##### Provide link to FusionGDB
+    dplyr::mutate(
+      geneA = dplyr::if_else(
+        .data$reported_fusion,
+        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue::glue("{.data$geneA}")
+      ),
+      geneB = dplyr::if_else(
+        .data$reported_fusion,
+        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue::glue("{.data$geneB}")
+      )
+    ) |>
+    dplyr::select(
+      c(
+        "Gene A" = "geneA",
+        "Gene B" = "geneB",
+        "Split reads (Total)" = "split_reads",
+        "Split reads (A)" = "split_readsA",
+        "Split reads (B)" = "split_readsB",
+        "Pair reads" = "discordant_mates",
+        "DNA support (A)" = "geneA_dna_support",
+        "DNA support (B)" = "geneB_dna_support",
+        "Reported fusion" = "reported_fusion",
+        "Cancer gene(s)" = "fusions_cancer",
+        "Fusion gene (A)" = "reported_fusion_geneA",
+        "Fusion gene (B)" = "reported_fusion_geneB",
+        "Confidence (Arriba)" = "confidence",
+        "Score (Dragen)" = "score",
+        "Breakpoint (A)" = "breakpointA",
+        "Breakpoint (B)" = "breakpointB",
+        "Site (A)" = "siteA",
+        "Site (B)" = "siteB",
+        "Type" = "type",
+        "Genomic view" = "circos",
+        "soft_clipped_reads",
+        "fusion_caller"
+      )
+    )
+  tab1 |>
+    DT::datatable(
+      filter = "none", rownames = FALSE, width = 800, height = 490,
+      escape = FALSE, extensions = c("Buttons", "Scroller"),
+      options = list(
+        buttons = c("excel", "csv", "pdf", "copy", "colvis"), pageLength = 10,
+        dom = "Bfrtip", scrollX = TRUE, deferRender = TRUE, scrollY = "333px",
+        scroller = TRUE
+      ),
+      caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;")
+    ) |>
+    DT::formatStyle(columns = names(tab1), `font-size` = "12px", "text-align" = "center") |>
+    ##### Highlight rows with fusions involving cancer genes or DNA support from MANTA
+    DT::formatStyle(columns = "Cancer gene(s)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgrey"))) |>
+    DT::formatStyle(columns = "DNA support (A)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral"))) |>
+    DT::formatStyle(columns = "DNA support (B)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral"))) |>
+    DT::formatStyle(columns = "Reported fusion", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgreen")))
+}
+
+#' RCircos HG38 CytoBandIdeogram Object
+#' @return A dataframe with hg38 cytoband/ideogram information from RCircos.
+#' @export
+rcircos_cyto_info38 <- function() {
+  cyto.info_data <- "UCSC.HG38.Human.CytoBandIdeogram"
+  RCircos_env1 <- rlang::env(rlang::current_env())
+  utils::data(list = cyto.info_data, package = "RCircos", envir = RCircos_env1)
+  tibble::as_tibble(RCircos_env1[[cyto.info_data]])
+}
+
+#' RCircos Plot
+#'
+#' @param df_circos Dataframe with 4 columns: Chromosome, chromStart, chromEnd, and Gene.
+#' @param df_circos_pairs Dataframe with 3 columns for each fusion mate:
+#' Chromosome, chromStart and chromEnd for geneA and geneB.
+#' @param cyto.info A dataframe with hg38 cytoband/ideogram information from RCircos.
+#'
+#' @export
+#' @return An RCircos plot object.
+rcircos_plot <- function(df_circos, df_circos_pairs, cyto.info) {
+  ##### Generate circos plot
+  # > We need the RCircos.Env object in the global namespace. Why? Because RCircos
+  # is weird that way.
+  # https://github.com/stianlagstad/chimeraviz/blob/80466b8/R/plot_circle.R#L207
+  base::assign("RCircos.Env", RCircos::RCircos.Env, .GlobalEnv)
+
+  RCircos::RCircos.Set.Core.Components(
+    cyto.info = cyto.info, chr.exclude = NULL, tracks.inside = 4, tracks.outside = 0
+  )
+  RCircos::RCircos.Set.Plot.Area()
+  RCircos::RCircos.Chromosome.Ideogram.Plot()
+  RCircos::RCircos.Gene.Connector.Plot(genomic.data = df_circos, track.num = 1, side = "in")
+  RCircos::RCircos.Gene.Name.Plot(gene.data = df_circos, name.col = 4, track.num = 2, side = "in")
+  RCircos::RCircos.Link.Plot(
+    link.data = df_circos_pairs, track.num = 4, by.chromosome = TRUE,
+    is.sorted = FALSE, lineWidth = rep(2, nrow(df_circos_pairs))
+  )
 }

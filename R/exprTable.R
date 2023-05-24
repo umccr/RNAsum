@@ -90,12 +90,16 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   }
 
   ##### Compute Z-scores sd for each gene across groups
-  group.z <- cbind(group.z, round(matrixStats::rowSds(as.matrix(group.z)), digits = 2))
-  names(group.z)[ncol(group.z)] <- "SD"
+  group.z <- base::cbind(
+    group.z,
+    SD = round(matrixStats::rowSds(as.matrix(group.z)), digits = 2)
+  )
 
   ##### Calculate Z-score differences between investigated sample and median values in the cancer group of interest
-  group.z <- cbind(group.z, round((group.z[, sampleName] - group.z[, comp_cancer]), digits = 2))
-  names(group.z)[ncol(group.z)] <- "Diff"
+  group.z <- base::cbind(
+    group.z,
+    Diff = round((group.z[, sampleName] - group.z[, comp_cancer]), digits = 2)
+  )
 
   ##### Add NAs for genes that are absent in the expression matrix. In the "Patient vs [comp_cancer]" columns provide "0"s to facilitate interactive sorting the table. These will appear in blank cells in the table
   if (length(genes.absent) > 0) {
@@ -111,50 +115,32 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   targets.list[targets.list == sampleName] <- "Patient"
 
   ##### Reorder groups
-  group.z <- cbind(group.z[, c(ext_cancer, int_cancer, "Patient")], group.z[, c("SD", "Diff")])
-
   ##### Add "Gene" column to facilitate adding annotations
-  group.z$Gene <- rownames(group.z)
+  group.z <- group.z |>
+    dplyr::select(tidyselect::all_of(c(ext_cancer, int_cancer)), "Patient", "SD", "Diff") |>
+    dplyr::mutate(Gene = rownames(group.z))
 
   ##### Add genes annotation
   if (!is.null(genes_annot)) {
     ##### Remove rows with duplicated gene symbols
-    if ("SYMBOL" %in% names(genes_annot)) {
-      genes_annot <- genes_annot[!duplicated(genes_annot$SYMBOL), ]
+    if ("SYMBOL" %in% colnames(genes_annot)) {
+      genes_annot <- genes_annot[!duplicated(genes_annot[["SYMBOL"]]), ]
     }
 
     ##### Merge the dataframe with groups median expression values and gene annotations
     group.z <- merge(genes_annot, group.z, by.x = "SYMBOL", by.y = "Gene", all = TRUE, sort = FALSE)
-    names(group.z) <- gsub("SYMBOL", "Gene", names(group.z))
+    names(group.z) <- sub("SYMBOL", "Gene", names(group.z))
   }
 
   ##### Define colours for cells background for each group and the patient vs [comp_cancer] difference
-  ##### Initiate dataframe for expression median values in each group
-  brks.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005))))
-  colnames(brks.q) <- targets.list
-  clrs.q <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = length(seq(.05, .95, .0005)) + 1))
-  colnames(clrs.q) <- targets.list
-
-  for (group in c(targets.list, "Diff")) {
-    brks.q[[group]] <- stats::quantile(group.z[, group], probs = seq(.05, .95, .0005), na.rm = TRUE)
-
-    clrs_pos.q <- round(seq(255, 150, length.out = length(brks.q[[group]]) / 2 + 1.5), 0) %>%
-      {
-        paste0("rgb(255,", ., ",", ., ")")
-      }
-    clrs_neg.q <- rev(round(seq(255, 150, length.out = length(brks.q[[group]]) / 2 - 0.5), 0)) %>%
-      {
-        paste0("rgb(", ., ",", ., ",", "255)")
-      }
-    clrs.q[[group]] <- c(clrs_neg.q, clrs_pos.q)
-  }
+  brks_clrs1 <- brks_clrs(targets.list = targets.list, group.z = group.z, step1 = 0.0005)
 
   ##### Subset the expression data to include only the user-defined genes
   group.z <- group.z[group.z$Gene %in% genes, ]
 
   #### Add variants information to the expression table - if exists. Note, "TIER" and "CONSEQUENCE" columns are required
   if (!is.null(mut_annot) && "TIER" %in% colnames(mut_annot) && length(genes) > 0) {
-    mut_annot <- mut_annot[mut_annot$SYMBOL %in% genes, ]
+    mut_annot <- mut_annot |> dplyr::filter(.data$SYMBOL %in% genes)
 
     #### keep only varaints that has the lowest tier value. Multiple varaints detected in same gene but with higher tier will be added to additional column "CONSEQUENCE_OTHER". Applies to the ones that may have multiple mutations and hence tiers
     ##### First, create a list of genes to store multiple variants
@@ -178,10 +164,9 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
     ##### Remove rows with duplicated gene symbols
     mut_annot <- mut_annot[!duplicated(mut_annot$SYMBOL), ]
-    rownames(mut_annot) <- mut_annot$SYMBOL
 
     ##### Add other provided variants consequences for individual genes
-    for (gene in rownames(mut_annot)) {
+    for (gene in mut_annot[["SYMBOL"]]) {
       if (length(mut_consequence[[gene]]) > 0) {
         mut_annot$CONSEQUENCE_OTHER[match(gene, mut_annot$SYMBOL)] <- mut_consequence[[gene]]
       }
@@ -222,7 +207,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
   ##### Add cancer gene resources info
   if (!is.null(cancer_genes) && length(genes) > 0) {
-    group.z <- merge(group.z, cancer_genes, by.x = "Gene", by.y = "row.names", all = TRUE, sort = FALSE)
+    group.z <- merge(group.z, cancer_genes, by.x = "Gene", by.y = "Gene", all = TRUE, sort = FALSE)
   }
 
   ##### Include only queried genes
@@ -233,31 +218,30 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   if (length(genes) > 0) {
     # create mini tbls for urls
     vicc1 <- tibble::tibble(Gene = genes) |>
-      dplyr::mutate(url_vicc = glue::glue("<a href='https://search.cancervariants.org/#{.data$Gene}' target='_blank'>VICC</a>"))
+      dplyr::mutate(url_vicc = glue::glue("<a href='https://search.cancervariants.org/#{.data$Gene}'>VICC</a>"))
     civic1 <- civic_clin_evid |>
       dplyr::distinct(.data$gene, .data$gene_civic_url) |>
-      dplyr::mutate(gene_civic_url = glue::glue("<a href='{.data$gene_civic_url}' target='_blank'>CIViC</a>")) |>
+      dplyr::mutate(gene_civic_url = glue::glue("<a href='{.data$gene_civic_url}'>CIViC</a>")) |>
       dplyr::select(Gene = "gene", url_civic = "gene_civic_url")
     onco1 <- tibble::tibble(Gene = NA, url_oncokb = NA)
     if (!is.null(oncokb_annot)) {
       onco1 <- oncokb_annot |>
         dplyr::filter(.data$OncoKB == "Yes") |>
-        dplyr::mutate(url_oncokb = glue::glue("<a href='http://oncokb.org/#/gene/{.data$Gene}' target='_blank'>OncoKB</a>")) |>
+        dplyr::mutate(url_oncokb = glue::glue("<a href='http://oncokb.org/#/gene/{.data$Gene}'>OncoKB</a>")) |>
         dplyr::select("Gene", "url_oncokb")
     }
 
 
     group.z <- group.z |>
-      # tibble::as_tibble() |>
       dplyr::left_join(vicc1, by = "Gene") |>
       dplyr::left_join(onco1, by = "Gene") |>
       dplyr::left_join(civic1, by = "Gene") |>
-      tidyr::unite(col = "External resources", .data$url_vicc, .data$url_oncokb, .data$url_civic, sep = ", ", na.rm = TRUE, remove = TRUE) |>
+      tidyr::unite(col = "External resources", "url_vicc", "url_oncokb", "url_civic", sep = ", ", na.rm = TRUE, remove = TRUE) |>
       dplyr::relocate("External resources", .after = .data$Diff) |>
-      dplyr::mutate(Gene = glue::glue("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={.data$Gene}' target='_blank'>{.data$Gene}</a>"))
+      dplyr::mutate(Gene = glue::glue("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={.data$Gene}'>{.data$Gene}</a>"))
     if ("ENSEMBL" %in% colnames(group.z)) {
       group.z <- group.z |>
-        dplyr::mutate(ENSEMBL = glue::glue("<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g={.data$ENSEMBL}' target='_blank'>{.data$ENSEMBL}</a>"))
+        dplyr::mutate(ENSEMBL = glue::glue("<a href='http://ensembl.org/Homo_sapiens/Gene/Summary?db=core;g={.data$ENSEMBL}'>{.data$ENSEMBL}</a>"))
     }
   }
 
@@ -312,35 +296,51 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   }
 
   ##### Generate a table with genes annotations and coloured expression values in each group
-  dt.table <- DT::datatable(
-    data = group.z[, names(group.z) %!in% c("SYMBOL", "SD")],
-    filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"),
-    options = list(
-      pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"),
-      scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE,
-      scrollY = scrollY, scroller = TRUE
-    ),
-    width = 800, height = table_height,
-    caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
-    escape = FALSE
-  ) |>
-    DT::formatStyle(columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")], `font-size` = "12px", "text-align" = "center") |>
+  dt.table <- group.z |>
+    dplyr::select(-c("SYMBOL", "SD")) |>
+    DT::datatable(
+      filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"),
+      options = list(
+        pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"),
+        scrollX = TRUE, scrollCollapse = TRUE, deferRender = TRUE,
+        scrollY = scrollY, scroller = TRUE
+      ),
+      width = 800, height = table_height,
+      caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
+      escape = FALSE
+    ) |>
+    DT::formatStyle(
+      columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")],
+      `font-size` = "12px", "text-align" = "center"
+    ) |>
     ##### Colour cells according to the expression values quantiles in each group
     DT::formatStyle(
       columns = targets.list[1],
-      backgroundColor = DT::styleInterval(brks.q[[targets.list[1]]], clrs.q[[targets.list[1]]])
+      backgroundColor = DT::styleInterval(
+        brks_clrs1[["brks"]][[targets.list[1]]],
+        brks_clrs1[["clrs"]][[targets.list[1]]]
+      )
     ) |>
     DT::formatStyle(
       columns = targets.list[2],
-      backgroundColor = DT::styleInterval(brks.q[[targets.list[2]]], clrs.q[[targets.list[2]]])
+      backgroundColor = DT::styleInterval(
+        brks_clrs1[["brks"]][[targets.list[2]]],
+        brks_clrs1[["clrs"]][[targets.list[2]]]
+      )
     ) |>
     DT::formatStyle(
       columns = targets.list[3],
-      backgroundColor = DT::styleInterval(brks.q[[targets.list[3]]], clrs.q[[targets.list[3]]])
+      backgroundColor = DT::styleInterval(
+        brks_clrs1[["brks"]][[targets.list[3]]],
+        brks_clrs1[["clrs"]][[targets.list[3]]]
+      )
     ) |>
     DT::formatStyle(
       columns = names(group.z)[diff_col_idx],
-      backgroundColor = DT::styleInterval(brks.q[["Diff"]], clrs.q[["Diff"]])
+      backgroundColor = DT::styleInterval(
+        brks_clrs1[["brks"]][["Diff"]],
+        brks_clrs1[["clrs"]][["Diff"]]
+      )
     )
 
   if (!is.null(cn_data)) {
@@ -356,4 +356,37 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     ##### Generate a table with genes annotations and coloured expression values in each group
   }
   return(list(dt.table, group.z))
+}
+
+# Define colours for cells background for each group and the patient vs [comp_cancer] difference
+brks_clrs <- function(targets.list, group.z, step1 = 0.0005) {
+  ##### Initiate dataframe for expression median values in each group
+  probs1 <- seq(.05, .95, step1)
+  brks <- list()
+  clrs <- list()
+  clrs_pos.q <- round(seq(255, 150, length.out = length(probs1) / 2 + 1.5), 0) %>%
+    {
+      paste0("rgb(255,", ., ",", ., ")")
+    }
+  clrs_neg.q <- rev(round(seq(255, 150, length.out = length(probs1) / 2 - 0.5), 0)) %>%
+    {
+      paste0("rgb(", ., ",", ., ",", "255)")
+    }
+  clrs.q <- c(clrs_neg.q, clrs_pos.q)
+  for (group in c(targets.list, "Diff")) {
+    brks.q <- stats::quantile(group.z[, group], probs = probs1, na.rm = TRUE)
+    brks.q <- c(-Inf, brks.q)
+    assertthat::assert_that(length(brks.q) == length(clrs.q))
+    # grab top colour for duplicated brks
+    res <- tibble::tibble(brks.q = unname(brks.q), clrs.q = clrs.q) |>
+      dplyr::group_by(brks.q) |>
+      dplyr::slice_head(n = 1) |>
+      dplyr::ungroup()
+    brks[[group]] <- res[["brks.q"]][-1] # remove -Inf
+    clrs[[group]] <- res[["clrs.q"]]
+  }
+  list(
+    brks = brks,
+    clrs = clrs
+  )
 }
