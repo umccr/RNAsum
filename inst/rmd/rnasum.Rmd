@@ -604,7 +604,7 @@ for (group in targets_mod.list) {
     keep <- rowSums(edgeR::cpm(y[[group]]) > filter.threshold) >= ncol(dat1) / 10
 
     ##### Note which genes of interest are not expressed
-    genes2keep$EXP[rownames(genes2keep) %!in% names(keep)] <- FALSE
+    genes2keep$EXP[!rownames(genes2keep) %in% names(keep)] <- FALSE
 
     ##### Keep the genes of interest too
     keep[names(keep) %in% rownames(genes2keep)] <- TRUE
@@ -638,8 +638,8 @@ for (group in targets_mod.list) {
     gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
 
     ##### Check for which genes the lenght info is not available and remove them from the data
-    genes.no_length <- rownames(dat1)[rownames(dat1) %!in% names(gene.length)]
-    dat1 <- dat1[rownames(dat1) %!in% genes.no_length, ]
+    genes.no_length <- rownames(dat1)[!rownames(dat1) %in% names(gene.length)]
+    dat1 <- dat1[!rownames(dat1) %in% genes.no_length, ]
 
     ##### Create EdgeR DGEList object
     y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
@@ -656,7 +656,7 @@ for (group in targets_mod.list) {
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed) / 10
 
       ##### Note which genes of interest are not expressed
-      genes2keep$EXP[rownames(genes2keep) %!in% names(keep)] <- FALSE
+      genes2keep$EXP[!rownames(genes2keep) %in% names(keep)] <- FALSE
 
       ##### Keep the genes of interest too
       keep[names(keep) %in% rownames(genes2keep)] <- TRUE
@@ -670,7 +670,7 @@ for (group in targets_mod.list) {
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed) / 10
 
       ##### Note which genes of interest are not expressed
-      genes2keep$EXP[rownames(genes2keep) %!in% names(keep)] <- FALSE
+      genes2keep$EXP[!rownames(genes2keep) %in% names(keep)] <- FALSE
 
       ##### Keep the genes of interest too
       keep[names(keep) %in% rownames(genes2keep)] <- TRUE
@@ -684,8 +684,8 @@ for (group in targets_mod.list) {
     gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
 
     ##### Check for which genes the lenght info is not available and remove them from the data
-    genes.no_length <- rownames(dat1)[rownames(dat1) %!in% names(gene.length)]
-    dat1 <- dat1[rownames(dat1) %!in% genes.no_length, ]
+    genes.no_length <- rownames(dat1)[!rownames(dat1) %in% names(gene.length)]
+    dat1 <- dat1[!rownames(dat1) %in% genes.no_length, ]
 
     ##### Create EdgeR DGEList object
     y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
@@ -2126,7 +2126,7 @@ include tier 1-`r params$pcgr_tier` variants
 Of these, the expression of
 **`r length(which(ref_genes.list[["summary"]]$Mutated %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`**
 was reliably measured in the patient's sample. The remaining
-`r length(which(ref_genes.list[["summary"]]$Mutated %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`
+`r length(which(!ref_genes.list[["summary"]]$Mutated %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`
 genes are either not expressed or their expression level is too low to be
 detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
@@ -2873,7 +2873,7 @@ mRNA expression levels of genes located within detected structural variants (SVs
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) }` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) }` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(!unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 
@@ -3281,7 +3281,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 ### - Summary table {.tabset}
 
-Out of the `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN <= cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN >= cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN <= cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN >= cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(!cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Gains {.tabset}
 
@@ -3791,7 +3791,8 @@ rm(limit_genes)
 
 Section presenting expression levels of immune markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample.
+The remaining `r length(which(!ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -4094,7 +4095,8 @@ if (params$save_tables) {
 
 Section presenting expression levels of homologous recombination deficiency (HRD) genes to assess how many of these demonstrate low expression, which may indicate potential promoter methylation events. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["summary"]]$HRD %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample.
+The remaining `r length(which(!ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -4276,7 +4278,7 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(!rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 

@@ -1,21 +1,3 @@
-#' Create Directory
-#'
-#' Creates directory (if not already exists).
-#' @param d Directory to create.
-#'
-#' @export
-mkdir <- function(d) {
-  if (!dir.exists(d)) {
-    dir.create(d, recursive = TRUE)
-  }
-}
-
-#' @export
-"%!in%" <- function(x, table) {
-  match(x, table, nomatch = 0) == 0
-}
-
-
 ## From rapportools - https://github.com/Rapporter/rapportools/blob/f45730af9cbdf147cafbd7c030602bae2fe915d5/R/utils.R#L356
 is.empty <- function(x, trim = TRUE, ...) {
   vgsub <- function(pattern, replacement, x, ...) {

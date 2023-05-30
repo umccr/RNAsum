@@ -24,7 +24,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
 
   ##### Remove the internal reference cohort data if the patient samples origins from other tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
   if ( comp_cancer != int_cancer ) {
-    targets <- targets[ targets$Target %!in% int_cancer, ]
+    targets <- targets[!targets$Target %in% int_cancer, ]
     data <- data[ ,rownames(targets) ]
   }
 

@@ -22,7 +22,7 @@
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, hexcode, type = "z", sort = "diff", scaling = "gene-wise", report_dir) {
 
   if ( comp_cancer != int_cancer ) {
-    targets <- targets[ targets$Target %!in% int_cancer, ]
+    targets <- targets[!targets$Target %in% int_cancer, ]
     data <- data[ ,rownames(targets) ]
   }
 
