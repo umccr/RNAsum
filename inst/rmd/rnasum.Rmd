@@ -47,7 +47,9 @@ params:
   umccrise: NULL
 ---
 
-```{r echo=TRUE}
+```{r echo=TRUE, message=FALSE}
+source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
+# source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
 ensembl_version <- 86L
 ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
 # start with more exotic pkgs, then get to core ones
@@ -100,7 +102,7 @@ knitr::knit_hooks$set(timeit = local({
 knitr::opts_chunk$set(timeit = TRUE)
 ```
 
-```{r read_data, comment = NA, message=FALSE, warning=FALSE}
+```{r read_data, message=FALSE, warning=FALSE, comment=NA}
 dataset <- toupper(params$dataset)
 dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
 ##### Grab umccrise SBJ for MySQL insert command.
@@ -1965,7 +1967,8 @@ if (params$norm != "none") {
 
 `r if ( runClinicalChunk ) { c("NOTE: for confidentiality reasons, the start of the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to 1st January 2000, but the treatments lengths are preserved.") }`
 
-```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
+```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = FALSE }
+# TODO (PD): change the eval to 'runClinicalChunk' (it just doesn't work when using 'Run All Chunks Above' - see https://github.com/rstudio/rstudio/issues/6675)
 ##### Present the treatment timeline plot
 treatment_timeline
 rm(treatment_timeline)
@@ -2531,8 +2534,8 @@ if (nrow(fusion_annot_top) > 0 && params$save_tables) {
     widget = fusions.genomicView, selfcontained = TRUE,
     file = file.path(fusionsTableDir, "fusions.genomicView.html")
   )
+  rm(fusions.genomicView)
 }
-rm(fusions.genomicView)
 ```
 
 ------------------------------------------------------------------------
@@ -2805,19 +2808,6 @@ rm(list = ls(pattern = "^output*"))
 
 ------------------------------------------------------------------------
 
-## Chunk Runtimes + Exit
-
-```{r}
-all_chunk_runtimes |>
-  unlist() |>
-  tibble::enframe() |>
-  dplyr::mutate(value = round(value, 2)) |>
-  knitr::kable()
-knitr::knit_exit()
-```
-
-
-
 ## Structural variants
 
 mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta) SV caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
@@ -2826,7 +2816,7 @@ mRNA expression levels of genes located within detected structural variants (SVs
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) }` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(!unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$melted_variants$Genes)) }` genes affected by `r if ( runSVsChunk ) { manta_sv$total_variants }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$melted_variants$Genes) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in the patient's sample. The remaining `r if ( runSVsChunk ) { length(which(!unique(manta_sv$melted_variants$Genes) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 
@@ -2840,7 +2830,7 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Consider only SVs with known genes and those in MANTA output for which the expression levels were measured
-genes <- unique(manta_sv$Gene)
+genes <- unique(manta_sv$melted_variants$Genes)
 genes <- genes[genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL]
 
 ##### Deal with no genes or when more than 10 genes are of interest
@@ -2860,7 +2850,7 @@ sv_genes.expr.perc <- RNAsum::exprTable(
   type = "perc",
   data = dat1,
   genes = genes,
-  sv_data = manta_sv,
+  sv_data = manta_sv[["melted_variants"]],
   targets = targets,
   sampleName = sample_name,
   ext_cancer = ext_cancer_group,
@@ -2879,7 +2869,10 @@ sv_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = sv_genes.expr.perc[[1]], file = paste(exprTableDir, "sv_genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = sv_genes.expr.perc[[1]], selfcontained = TRUE,
+    file = file.path(exprTableDir, "sv_genes.expr.perc.html")
+  )
 }
 ```
 
@@ -2909,7 +2902,7 @@ sv_genes.expr.z <- RNAsum::exprTable(
   type = "z",
   data = dat1,
   genes = genes,
-  sv_data = manta_sv,
+  sv_data = manta_sv[["melted_variants"]],
   targets = targets,
   sampleName = sample_name,
   ext_cancer = ext_cancer_group,
@@ -2921,14 +2914,17 @@ sv_genes.expr.z <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   scaling = scaling,
   civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
-)[[1]]
+)
 
 ##### Present the expression summary table
-sv_genes.expr.z
+sv_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = sv_genes.expr.z, file = paste(exprTableDir, "sv_genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = sv_genes.expr.z[[1]], selfcontained = TRUE,
+    file = file.path(exprTableDir, "sv_genes.expr.z.html")
+  )
 }
 
 ##### Clean the space
@@ -2958,7 +2954,6 @@ The [RED]{style="color:#ff0000"} colour range indicate relatively **high express
 `r if ( exists("limit_genes") ) { if ( limit_genes ) { c(paste0("Expression profiles for ", genes_no, " SVs-affected genes with the highest priority (low [tier](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36)) and demonstrating the greatest difference in mRNA expression (percentile) values between patient's sample and the average mRNA expression in samples from cancer patients.")) } else { cat(" ") }}`
 
 ```{r cdf_plots_sv, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk, results="asis"}
-suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
 output_counts <- list()
@@ -2969,16 +2964,31 @@ genes <- unique(sv_genes.expr.perc[[2]]$SYMBOL)
 for (i in 1:genes_no) {
   if (genes_no > 0 && genes[i] %in% rownames(dat1)) {
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir)
+    output_cdf[[i]] <- RNAsum::cdfPlot(
+      gene = genes[i], data = dat1, targets = targets,
+      sampleName = sample_name, ext_cancer = ext_cancer_group,
+      int_cancer = int_cancer_group, comp_cancer = comp_cancer_group,
+      add_cancer = add_cancer_group, addBoxPlot = TRUE,
+      scaling = scaling, report_dir = results_dir
+    )
 
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
-    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL == genes[i]]
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]] |>
+      dplyr::filter(.data$SYMBOL == genes[i]) |>
+      dplyr::pull(.data$ENSEMBL)
 
-    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, add_cancer = add_cancer_group)
+    output_counts[[i]] <- RNAsum::barPlot(
+      gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]],
+      y_title = "Counts", targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, add_cancer = add_cancer_group
+    )
 
     ##### Density plot - expression distribution
-    output_density[[i]] <- densityPlot(gene = genes[i], data = dat1, main_title = "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
+    output_density[[i]] <- RNAsum::densityPlot(
+      gene = genes[i], data = dat1, main_title = "", x_title = "Z-score",
+      sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling
+    )
   }
 }
 
@@ -3023,12 +3033,20 @@ if (genes_no != 0) {
   cat("\n***\n")
 }
 
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
-
 ##### Clean the space
 rm(list = ls(pattern = "^output*"))
 rm(limit_genes)
+```
+
+## Chunk Runtimes + Exit
+
+```{r}
+all_chunk_runtimes |>
+  unlist() |>
+  tibble::enframe() |>
+  dplyr::mutate(value = round(value, 0)) |>
+  knitr::kable()
+knitr::knit_exit()
 ```
 
 `r if ( !runSVsChunk ) { c("***") } else { c(" ") }`
