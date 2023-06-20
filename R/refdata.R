@@ -13,7 +13,7 @@ get_ensembl_db <- function(x) {
   keys_ah <- AnnotationDbi::keys(edb_105, keytype = "GENEID")
   # Extract gene and transcript ids
   tx_gene_id <- edb_105 |>
-    select(keys = keys_ah, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
+    AnnotationDbi::select(keys = keys_ah, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
     dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
   tx_gene_id
 }
