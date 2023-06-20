@@ -7,7 +7,7 @@
 #' x <- get_ensembl_db(x = ah)
 #' @export
 get_ensembl_db <- function(x) {
-  ahDb <- query(x, pattern = c("Homo Sapiens", "EnsDb"))
+  ahDb <- AnnotationHub::query(x, pattern = c("Homo Sapiens", "EnsDb"))
   edb_105 <- ah[["AH98047",force=TRUE]]
   # Find keys
   keys_ah <- AnnotationDbi::keys(edb_105, keytype = "GENEID")
