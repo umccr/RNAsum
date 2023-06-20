@@ -47,7 +47,7 @@ params:
   umccrise: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS'
 ---
 
-```{r eval=T}
+```{r eval=F}
 library(here, include.only = c("here"))
 p <- list(
   arriba_pdf = here("inst/rawdata/test_data/dragen/arriba/fusions.pdf"),
@@ -121,6 +121,7 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
   library(dplyr) # keep dplyr last
   library(RNAsum) # use :: explicitly for all RNAsum pkg funcs
   library(limma, include.only = c("removeBatchEffect"))
+  library(AnnotationHub)
   # library(rapportools)
   # library(rhdf5)
   # library(matrixStats)
@@ -162,15 +163,10 @@ sample_name <- paste0(
 )
 results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
 fs::dir_create(results_dir)
-# Annotate transcripts with gene IDs
-# These could probably go into refdata
-##### Get genes annotation and genomic locations
-##### Get keytypes for gene SYMBOL
-edb <- eval(parse(text = ensdb_pkg))
-keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
-tx2ensembl <- edb |>
-  ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
-  dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
+#### Annotate transcripts with gene IDs
+##### Get genes annotation and genomic locations using AnnotationHub
+ah <- AnnotationHub()
+tx2ensembl <- RNAsum::get_ensembl_db(ah)
 
 # reference data
 ref_dataset_filepaths <- RNAsum::get_refdata(dataset)
