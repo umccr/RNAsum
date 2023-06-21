@@ -15,8 +15,6 @@ option_list <- list(
   make_option("--arriba_pdf", type = "character", help = "File path of Arriba PDF output"),
   make_option("--arriba_tsv", type = "character", help = "File path of Arriba TSV output"),
   make_option("--batch_rm", default = TRUE, type = "logical", help = "Remove batch-associated effects between datasets? [def: %default]"),
-  make_option("--clinical_id", type = "character", help = "ID required to match sample with the subject clinical information"),
-  make_option("--clinical_info", type = "character", help = "File path to clinical information xlsx file"),
   make_option("--cn_gain", default = 95, type = "integer", help = "CN threshold value to classify genes within gained regions [def: %default]"),
   make_option("--cn_loss", default = 5, type = "integer", help = "CN threshold value to classify genes within lost regions [def: %default]"),
   make_option("--dataset", default = "PANCAN", type = "character", help = "Dataset to be used as external reference cohort [def: %default]"),
@@ -52,10 +50,6 @@ opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list, fo
 stopifnot(
   "'--sample_name' and '--report_dir' are required" =
     !is.null(opt$sample_name) && !is.null(opt$report_dir)
-)
-stopifnot(
-  "'--clinical_info' requires at least one of '--clinical_id', '--subject_id', or '--umccrise'" =
-    !is.null(opt$clinical_info) && (!is.null(opt$clinical_id) || !is.null(opt$subject_id) || !is.null(opt$umccrise))
 )
 stopifnot(
   "Invalid '--dataset'. Please see https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html" =

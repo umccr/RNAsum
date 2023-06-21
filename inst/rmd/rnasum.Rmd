@@ -16,8 +16,6 @@ params:
   arriba_pdf: NULL
   arriba_tsv: NULL
   batch_rm: TRUE
-  clinical_id: NULL
-  clinical_info: NULL
   cn_gain: 95
   cn_loss: 5
   dataset: 'PANCAN'
@@ -106,7 +104,6 @@ knitr::opts_chunk$set(timeit = TRUE)
 dataset <- toupper(params$dataset)
 dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
 ##### Grab umccrise SBJ for MySQL insert command.
-##### Will overwrite argument passed to "--clinical_id" flag
 # TODO (PD): revisit subjectID
 subjectID <- ifelse(!is.null(params$subject_id), params$subject_id, "")
 subjectID <- ifelse(is.null(params$umccrise), subjectID, basename(params$umccrise))
@@ -166,7 +163,6 @@ if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
 
 ```{r chunk_eval}
 # TODO (PD): put all chunks inside a function
-runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
 runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
 runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
 runFusionChunk <- runArribaChunk || runDragenFusionChunk
@@ -206,110 +202,6 @@ mysql_populate_update <- paste0(
   "\", Report=\"", paste0(sample_name, ".RNAseq_report.html"),
   "\", PMID=\"", sample_name, "\", Analysis=\""
 )
-```
-
-```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
-##### Prepare data for the treatment timeline plot
-##### Search for row with clinical info for investigated patient
-if (!is.null(params$clinical_id)) {
-  sampleID.col <- grep(params$clinical_id, sample_data.list[[dataset]][["clinical_info"]])
-} else if (!is.null(params$subject_id)) {
-  sampleID.col <- grep(params$subject_id, sample_data.list[[dataset]][["clinical_info"]])
-} else if (!is.null(subjectID)) {
-  sampleID.col <- grep(subjectID, sample_data.list[[dataset]][["clinical_info"]])
-}
-
-runClinicalChunk <- FALSE
-
-# TODO (PD): cleanup clinical info chunk
-if (length(sampleID.col) > 0) {
-  ##### Identify column and row with patients details
-  if (!is.null(params$clinical_id)) {
-    sampleID.row <- grep(params$clinical_id, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
-  } else if (!is.null(params$subject_id)) {
-    sampleID.row <- grep(params$subject_id, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
-  } else if (!is.null(subjectID)) {
-    sampleID.row <- grep(subjectID, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
-  }
-
-  clinical_info <- ref_dataset.list[[dataset]][["clinical_info"]][sampleID.row, ]
-
-  ##### Prepare data frame structure for plotting
-  ##### Define treatment types
-  treatment.types <- make.names(c("NEOADJUVANT REGIMEN", "ADJUVANT REGIMEN", "FIRST LINE REGIMEN", "SECOND LINE REGIMEN", "THIRD LINE REGIMEN"))
-  treatment.types_simple <- c("Neoadjuvant", "Adjuvant", "1st line", "2nd line", "3rd line")
-  treatment.df <- data.frame(matrix(ncol = 4, nrow = 0))
-  colnames(treatment.df) <- c("Treatment", "Type", "Start", "End")
-
-  for (i in 1:length(treatment.types)) {
-    ##### Identify treatment column number
-    treatment.types.col <- grep(paste0("^", treatment.types[i], "$"), names(clinical_info))
-
-    ##### Check how many treatments of particular type were used
-    treatment.types.details <- unlist(strsplit(clinical_info[, treatment.types.col], split = ",", fixed = TRUE))
-
-    ##### Add start and end info for each treatment
-    if (any(!is.na(treatment.types.details), na.rm = FALSE)) {
-      for (treatment in treatment.types.details) {
-        treatment.start <- clinical_info[, treatment.types.col + 1]
-        treatment.end <- clinical_info[, treatment.types.col + 2]
-
-        ##### Use current data if treatment is still ongoing
-        today <- as.character(Sys.Date())
-        treatment.end[is.na(treatment.end)] <- today
-        treatment.tmp <- data.frame(treatment, treatment, treatment.types_simple[i], treatment.start, treatment.end)
-        treatment.df <- rbind(treatment.df, treatment.tmp)
-      }
-    }
-  }
-
-  if (nrow(treatment.df) > 0) {
-    ##### For security reasons (wrt plots that go to PIEdb), change the dates but preserve the duration of the treatments
-    ##### Get the earliest treatment date and set it as day 0. Then, create fake start and end dates based on the treatment length
-    day0 <- sort(treatment.df$treatment.start, decreasing = FALSE)[1]
-    treatments.length <- treatment.df$treatment.end - treatment.df$treatment.start
-    treatments.reset <- as.Date("2000-01-01") - day0
-    treatment.df$treatment.start <- treatment.df$treatment.start + treatments.reset
-    treatment.df$treatment.end <- treatment.df$treatment.start + treatments.length
-    names(treatment.df) <- c("Treatment", "Drug", "Type", "Start", "End")
-
-    ##### Create directory for timeline plot
-    PlotsDir_clininfo <- file.path(results_dir, "clinical_info")
-    dir_create(PlotsDir_clininfo)
-
-    ##### Record the timeline plot. NOTE, the modified dates are used here
-    treatment_timeline <- lares::plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = FALSE)
-
-    ##### Save the plot into png file. NOTE, the modified dates are used here. As default, the plot is saved as "cv_timeline"
-    plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = TRUE, subdir = "clinical_info")
-
-    #### Clear plots to free up some memory
-    if (!is.null(dev.list())) invisible(dev.off())
-
-    cv_timeline.png <- readPNG("clinical_info/cv_timeline.png", native = FALSE, info = FALSE)
-
-    ##### Change the size of the timeline png plot and save it as "treatment_timeline.png"
-    writePNG(cv_timeline.png, file.path(PlotsDir_clininfo, "treatment_timeline.png"), dpi = 300)
-    # png(paste(PlotsDir_clininfo, "treatment_timeline.png", sep="/"), width = 900, height = 600, pointsize = 0.0001, res=300)
-    # plot(cv_timeline.png)
-    # invisible(dev.off())
-
-    #### Clear plots to free up some memory
-    if (!is.null(dev.list())) invisible(dev.off())
-
-    ##### Remove the original plot folder
-    # TODO (PD): check this gets deleted
-    dir_delete("clinical_info")
-    # Ouchy use of rm here
-    # system("rm -rf clinical_info", ignore.stdout = TRUE, ignore.stderr = TRUE)
-
-    runClinicalChunk <- TRUE
-  }
-
-  ##### Clean the space
-  rm(list = ls(pattern = "^treatment.*"))
-  rm(clinical_info, cv_timeline.png)
-}
 ```
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
@@ -1955,24 +1847,7 @@ if (params$norm != "none") {
 }
 ```
 
-
-
 </details>
-
-`r if ( runClinicalChunk ) { c("***") }`
-
-`r if ( runClinicalChunk ) { c("## Clinical information") }`
-
-`r if ( runClinicalChunk ) { c("#### Treatment timeline") }`
-
-`r if ( runClinicalChunk ) { c("NOTE: for confidentiality reasons, the start of the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to 1st January 2000, but the treatments lengths are preserved.") }`
-
-```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = FALSE }
-# TODO (PD): change the eval to 'runClinicalChunk' (it just doesn't work when using 'Run All Chunks Above' - see https://github.com/rstudio/rstudio/issues/6675)
-##### Present the treatment timeline plot
-treatment_timeline
-rm(treatment_timeline)
-```
 
 ------------------------------------------------------------------------
 
@@ -4686,13 +4561,6 @@ cat(drugsTable_legend)
 ##### Add input data info
 mysql_populate <- paste0(mysql_populate, ",Input data")
 mysql_populate_update <- paste0(mysql_populate_update, ",Input data")
-
-##### Add clinical data if available
-if (runClinicalChunk) {
-  mysql_populate <- paste0(mysql_populate, ",Clinical information")
-  mysql_populate_update <- paste0(mysql_populate_update, ",Clinical information")
-}
-
 mysql_populate <- paste0(mysql_populate, "\", \"Transcriptome summary for sample ", sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
 mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"Transcriptome summary for sample ", sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
 mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")
