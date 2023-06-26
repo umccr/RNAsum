@@ -18,6 +18,23 @@ get_ensembl_db <- function(x) {
   tx_gene_id
 }
 
+#' Extract AnnotationHub keys
+#'
+#' Extract AnnotationHub keys
+#' @param ah AnnotationHub object
+#' @param foo AnnotationHub version
+#' @return Vector of AnnotationHub keys
+#' @examples
+#' x <- get_ah_keys(ah = "AH98047")
+#' @export
+get_ah_keys <- function(ah, foo) {
+  # ahDb <- AnnotationHub::query(x, pattern = c("Homo Sapiens", "EnsDb"))
+  # foo <- "AH98047"
+  edb_105 <- ahDb[["AH98047",force=TRUE]]
+  # Find keys
+  AnnotationDbi::keys(edb_105, keytype = "GENEID")
+}
+
 #' Get Reference Data File Paths
 #'
 #' Get a list of paths to internal and external reference data, based on a
