@@ -30,6 +30,7 @@ get_edb <- function(record) {
   #ahDb <- AnnotationHub::query(x, pattern = c("Homo Sapiens", "EnsDb"))
   # Download db - this takes sometime - needs to be written under inst/extdata/
   edb_105 <- ah[[record, force=TRUE]]
+  edb_105
 }
 
 #' Get Reference Data File Paths
