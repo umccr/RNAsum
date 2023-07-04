@@ -4,33 +4,16 @@
 #' @param x AnnotationHub object
 #' @return Vector of gene and transcript ids
 #' @examples
-#' x <- get_ensembl_db(x = ah)
+#' x <- get_ensembl_db(edb = ah)
 #' @export
 get_ensembl_db <- function(edb) {
   # Find keys
-  keys_ah <- AnnotationDbi::keys(edb_105, keytype = "GENEID")
+  keys_ah <- AnnotationDbi::keys(edb, keytype = "GENEID")
   # Extract gene and transcript ids
   tx_gene_id <- edb |>
     AnnotationDbi::select(keys = keys_ah, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
     dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
   tx_gene_id
-}
-
-#' Extract AnnotationHub keys
-#'
-#' Extract AnnotationHub keys
-#' @param record AnnotationHub record number
-#' @return Vector of AnnotationHub keys
-#' @examples
-#' x <- get_ah_keys(record = "AH98047")
-#' @export
-get_edb <- function(record) {
-  ah <- AnnotationHub()
-  # example of query command
-  #ahDb <- AnnotationHub::query(x, pattern = c("Homo Sapiens", "EnsDb"))
-  # Download db - this takes sometime - needs to be written under inst/extdata/
-  edb_105 <- ah[[record, force=TRUE]]
-  edb_105
 }
 
 #' Get Reference Data File Paths
