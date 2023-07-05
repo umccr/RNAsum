@@ -13,30 +13,28 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  arriba_pdf: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/dragen/arriba/fusions.pdf'
-  arriba_tsv: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/dragen/arriba/fusions.tsv'
+  arriba_pdf: NULL
+  arriba_tsv: NULL
   batch_rm: TRUE
-  clinical_id: NULL
-  clinical_info: NULL
   cn_gain: 95
   cn_loss: 5
   dataset: 'PANCAN'
   dataset_name_incl: FALSE
-  dragen_fusions: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final'
+  dragen_fusions: NULL
   drugs: FALSE
   filter: TRUE
   hide_code_btn: TRUE
   immunogram: FALSE
   log: TRUE
-  manta_tsv: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv'
+  manta_tsv: NULL
   norm: TMM
   pcgr_splice_vars: TRUE
   pcgr_tier: 4
-  pcgr_tiers_tsv: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv'
+  pcgr_tiers_tsv: NULL
   project: NULL
-  purple_gene_tsv: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv'
-  report_dir: '/Users/kanwals/UMCCR/git/RNAsum/nogit/rnasum'
-  salmon: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/dragen/TEST.quant.sf'
+  purple_gene_tsv: NULL
+  report_dir: NULL
+  salmon: NULL
   sample_name: 'test_sample_WTS'
   sample_source: '-'
   save_tables: TRUE
@@ -44,58 +42,14 @@ params:
   subject_id: NULL
   top_genes: 5
   transform: 'CPM'
-  umccrise: '/Users/kanwals/UMCCR/git/RNAsum/inst/rawdata/test_data/umccrised/test_sample_WGS'
+  umccrise: NULL
 ---
 
-```{r eval=F}
-library(here, include.only = c("here"))
-p <- list(
-  arriba_pdf = here("inst/rawdata/test_data/dragen/arriba/fusions.pdf"),
-  arriba_tsv = here("inst/rawdata/test_data/dragen/arriba/fusions.tsv"),
-  batch_rm = TRUE,
-  clinical_id = "test_subject",
-  clinical_info = here("inst/rawdata/test_data/test_clinical_data.xlsx"),
-  cn_gain = 95,
-  cn_loss = 5,
-  dataset = "TEST",
-  dataset_name_incl = FALSE,
-  dragen_fusions = here("inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final"),
-  drugs = FALSE,
-  filter = TRUE,
-  hide_code_btn = TRUE,
-  immunogram = FALSE,
-  log = TRUE,
-  manta_tsv = here("inst/rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv"),
-  norm = "TMM",
-  pcgr_splice_vars = TRUE,
-  pcgr_tier = 4,
-  pcgr_tiers_tsv = NULL,
-  project = "-",
-  purple_gene_tsv = NULL,
-  report_dir = here("nogit/rnasum"),
-  salmon = here("inst/rawdata/test_data/dragen/TEST.quant.sf"),
-  sample_name = "test_sample_WTS",
-  sample_source = "-",
-  save_tables = TRUE,
-  scaling = "gene-wise",
-  subject_id = NULL,
-  top_genes = 5,
-  transform = "CPM",
-  umccrise = here("inst/rawdata/test_data/umccrised/test_sample_WGS")
-)
-params <- p
 
-rmd <- here::here("inst/rmd/rnasum.Rmd")
-render_me <- function() {
-  rmarkdown::render(
-    rmd,
-    params = params
-  )
-}
-# render_me()
-```
+```{r echo=TRUE, message=FALSE}
+source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
+# source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
 
-```{r echo=TRUE}
 # start with more exotic pkgs, then get to core ones
 {
   library(conflicted) # checks for pkg function conflicts
@@ -110,7 +64,6 @@ render_me <- function() {
   library(htmltools, include.only = c("renderTags"))
   library(png, include.only = c("readPNG", "writePNG"))
   library(rlang, include.only = c("set_names"))
-  library(lares, include.only = c("plot_timeline"))
   library(DT, include.only = c("datatable", "formatStyle", "styleEqual"))
   library(fs, include.only = c("dir_create", "dir_delete"))
   library(tibble, include.only = c("tibble", "add_row"))
@@ -146,11 +99,10 @@ knitr::knit_hooks$set(timeit = local({
 knitr::opts_chunk$set(timeit = TRUE)
 ```
 
-```{r read_data, comment = NA, message=FALSE, warning=FALSE}
+```{r read_data, message=FALSE, warning=FALSE, comment=NA}
 dataset <- toupper(params$dataset)
 dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
 ##### Grab umccrise SBJ for MySQL insert command.
-##### Will overwrite argument passed to "--clinical_id" flag
 # TODO (PD): revisit subjectID
 subjectID <- ifelse(!is.null(params$subject_id), params$subject_id, "")
 subjectID <- ifelse(is.null(params$umccrise), subjectID, basename(params$umccrise))
@@ -206,7 +158,6 @@ if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
 
 ```{r chunk_eval}
 # TODO (PD): put all chunks inside a function
-runClinicalChunk <- !is.null(sample_data.list[["clinical_info"]])
 runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
 runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
 runFusionChunk <- runArribaChunk || runDragenFusionChunk
@@ -246,110 +197,6 @@ mysql_populate_update <- paste0(
   "\", Report=\"", paste0(sample_name, ".RNAseq_report.html"),
   "\", PMID=\"", sample_name, "\", Analysis=\""
 )
-```
-
-```{r treatment_info, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
-##### Prepare data for the treatment timeline plot
-##### Search for row with clinical info for investigated patient
-if (!is.null(params$clinical_id)) {
-  sampleID.col <- grep(params$clinical_id, sample_data.list[[dataset]][["clinical_info"]])
-} else if (!is.null(params$subject_id)) {
-  sampleID.col <- grep(params$subject_id, sample_data.list[[dataset]][["clinical_info"]])
-} else if (!is.null(subjectID)) {
-  sampleID.col <- grep(subjectID, sample_data.list[[dataset]][["clinical_info"]])
-}
-
-runClinicalChunk <- FALSE
-
-# TODO (PD): cleanup clinical info chunk
-if (length(sampleID.col) > 0) {
-  ##### Identify column and row with patients details
-  if (!is.null(params$clinical_id)) {
-    sampleID.row <- grep(params$clinical_id, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
-  } else if (!is.null(params$subject_id)) {
-    sampleID.row <- grep(params$subject_id, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
-  } else if (!is.null(subjectID)) {
-    sampleID.row <- grep(subjectID, ref_dataset.list[[dataset]][["clinical_info"]][, sampleID.col])
-  }
-
-  clinical_info <- ref_dataset.list[[dataset]][["clinical_info"]][sampleID.row, ]
-
-  ##### Prepare data frame structure for plotting
-  ##### Define treatment types
-  treatment.types <- make.names(c("NEOADJUVANT REGIMEN", "ADJUVANT REGIMEN", "FIRST LINE REGIMEN", "SECOND LINE REGIMEN", "THIRD LINE REGIMEN"))
-  treatment.types_simple <- c("Neoadjuvant", "Adjuvant", "1st line", "2nd line", "3rd line")
-  treatment.df <- data.frame(matrix(ncol = 4, nrow = 0))
-  colnames(treatment.df) <- c("Treatment", "Type", "Start", "End")
-
-  for (i in 1:length(treatment.types)) {
-    ##### Identify treatment column number
-    treatment.types.col <- grep(paste0("^", treatment.types[i], "$"), names(clinical_info))
-
-    ##### Check how many treatments of particular type were used
-    treatment.types.details <- unlist(strsplit(clinical_info[, treatment.types.col], split = ",", fixed = TRUE))
-
-    ##### Add start and end info for each treatment
-    if (any(!is.na(treatment.types.details), na.rm = FALSE)) {
-      for (treatment in treatment.types.details) {
-        treatment.start <- clinical_info[, treatment.types.col + 1]
-        treatment.end <- clinical_info[, treatment.types.col + 2]
-
-        ##### Use current data if treatment is still ongoing
-        today <- as.character(Sys.Date())
-        treatment.end[is.na(treatment.end)] <- today
-        treatment.tmp <- data.frame(treatment, treatment, treatment.types_simple[i], treatment.start, treatment.end)
-        treatment.df <- rbind(treatment.df, treatment.tmp)
-      }
-    }
-  }
-
-  if (nrow(treatment.df) > 0) {
-    ##### For security reasons (wrt plots that go to PIEdb), change the dates but preserve the duration of the treatments
-    ##### Get the earliest treatment date and set it as day 0. Then, create fake start and end dates based on the treatment length
-    day0 <- sort(treatment.df$treatment.start, decreasing = FALSE)[1]
-    treatments.length <- treatment.df$treatment.end - treatment.df$treatment.start
-    treatments.reset <- as.Date("2000-01-01") - day0
-    treatment.df$treatment.start <- treatment.df$treatment.start + treatments.reset
-    treatment.df$treatment.end <- treatment.df$treatment.start + treatments.length
-    names(treatment.df) <- c("Treatment", "Drug", "Type", "Start", "End")
-
-    ##### Create directory for timeline plot
-    PlotsDir_clininfo <- file.path(results_dir, "clinical_info")
-    dir_create(PlotsDir_clininfo)
-
-    ##### Record the timeline plot. NOTE, the modified dates are used here
-    treatment_timeline <- lares::plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = FALSE)
-
-    ##### Save the plot into png file. NOTE, the modified dates are used here. As default, the plot is saved as "cv_timeline"
-    plot_timeline(event = treatment.df$Treatment, start = treatment.df$Start, end = treatment.df$End, label = NA, group = treatment.df$Type, title = "", subtitle = "", save = TRUE, subdir = "clinical_info")
-
-    #### Clear plots to free up some memory
-    if (!is.null(dev.list())) invisible(dev.off())
-
-    cv_timeline.png <- readPNG("clinical_info/cv_timeline.png", native = FALSE, info = FALSE)
-
-    ##### Change the size of the timeline png plot and save it as "treatment_timeline.png"
-    writePNG(cv_timeline.png, file.path(PlotsDir_clininfo, "treatment_timeline.png"), dpi = 300)
-    # png(paste(PlotsDir_clininfo, "treatment_timeline.png", sep="/"), width = 900, height = 600, pointsize = 0.0001, res=300)
-    # plot(cv_timeline.png)
-    # invisible(dev.off())
-
-    #### Clear plots to free up some memory
-    if (!is.null(dev.list())) invisible(dev.off())
-
-    ##### Remove the original plot folder
-    # TODO (PD): check this gets deleted
-    dir_delete("clinical_info")
-    # Ouchy use of rm here
-    # system("rm -rf clinical_info", ignore.stdout = TRUE, ignore.stderr = TRUE)
-
-    runClinicalChunk <- TRUE
-  }
-
-  ##### Clean the space
-  rm(list = ls(pattern = "^treatment.*"))
-  rm(clinical_info, cv_timeline.png)
-}
 ```
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
@@ -598,7 +445,7 @@ for (group in targets_mod.list) {
     keep <- rowSums(edgeR::cpm(y[[group]]) > filter.threshold) >= ncol(dat1) / 10
 
     ##### Note which genes of interest are not expressed
-    genes2keep$EXP[rownames(genes2keep) %!in% names(keep)] <- FALSE
+    genes2keep$EXP[!rownames(genes2keep) %in% names(keep)] <- FALSE
 
     ##### Keep the genes of interest too
     keep[names(keep) %in% rownames(genes2keep)] <- TRUE
@@ -632,8 +479,8 @@ for (group in targets_mod.list) {
     gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
 
     ##### Check for which genes the lenght info is not available and remove them from the data
-    genes.no_length <- rownames(dat1)[rownames(dat1) %!in% names(gene.length)]
-    dat1 <- dat1[rownames(dat1) %!in% genes.no_length, ]
+    genes.no_length <- rownames(dat1)[!rownames(dat1) %in% names(gene.length)]
+    dat1 <- dat1[!rownames(dat1) %in% genes.no_length, ]
 
     ##### Create EdgeR DGEList object
     y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
@@ -650,7 +497,7 @@ for (group in targets_mod.list) {
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed) / 10
 
       ##### Note which genes of interest are not expressed
-      genes2keep$EXP[rownames(genes2keep) %!in% names(keep)] <- FALSE
+      genes2keep$EXP[!rownames(genes2keep) %in% names(keep)] <- FALSE
 
       ##### Keep the genes of interest too
       keep[names(keep) %in% rownames(genes2keep)] <- TRUE
@@ -664,7 +511,7 @@ for (group in targets_mod.list) {
       keep <- rowSums(y[[group]]$transformed > filter.threshold) >= ncol(y[[group]]$transformed) / 10
 
       ##### Note which genes of interest are not expressed
-      genes2keep$EXP[rownames(genes2keep) %!in% names(keep)] <- FALSE
+      genes2keep$EXP[!rownames(genes2keep) %in% names(keep)] <- FALSE
 
       ##### Keep the genes of interest too
       keep[names(keep) %in% rownames(genes2keep)] <- TRUE
@@ -678,8 +525,8 @@ for (group in targets_mod.list) {
     gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
 
     ##### Check for which genes the lenght info is not available and remove them from the data
-    genes.no_length <- rownames(dat1)[rownames(dat1) %!in% names(gene.length)]
-    dat1 <- dat1[rownames(dat1) %!in% genes.no_length, ]
+    genes.no_length <- rownames(dat1)[!rownames(dat1) %in% names(gene.length)]
+    dat1 <- dat1[!rownames(dat1) %in% genes.no_length, ]
 
     ##### Create EdgeR DGEList object
     y[[group]] <- edgeR::DGEList(counts = dat1, group = target$Dataset)
@@ -1995,23 +1842,7 @@ if (params$norm != "none") {
 }
 ```
 
-
-
 </details>
-
-`r if ( runClinicalChunk ) { c("***") }`
-
-`r if ( runClinicalChunk ) { c("## Clinical information") }`
-
-`r if ( runClinicalChunk ) { c("#### Treatment timeline") }`
-
-`r if ( runClinicalChunk ) { c("NOTE: for confidentiality reasons, the start of the timeline (*x-axis*) projecting patient's treatment regimens (*y-axis*) is set to 1st January 2000, but the treatments lengths are preserved.") }`
-
-```{r treatment_timeline_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 5, eval = runClinicalChunk }
-##### Present the treatment timeline plot
-treatment_timeline
-rm(treatment_timeline)
-```
 
 ------------------------------------------------------------------------
 
@@ -2120,7 +1951,7 @@ include tier 1-`r params$pcgr_tier` variants
 Of these, the expression of
 **`r length(which(ref_genes.list[["summary"]]$Mutated %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`**
 was reliably measured in the patient's sample. The remaining
-`r length(which(ref_genes.list[["summary"]]$Mutated %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`
+`r length(which(!ref_genes.list[["summary"]]$Mutated %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`
 genes are either not expressed or their expression level is too low to be
 detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
@@ -2573,8 +2404,8 @@ if (nrow(fusion_annot_top) > 0 && params$save_tables) {
     widget = fusions.genomicView, selfcontained = TRUE,
     file = file.path(fusionsTableDir, "fusions.genomicView.html")
   )
+  rm(fusions.genomicView)
 }
-rm(fusions.genomicView)
 ```
 
 ------------------------------------------------------------------------
@@ -2847,18 +2678,6 @@ rm(list = ls(pattern = "^output*"))
 
 ------------------------------------------------------------------------
 
-## Chunk Runtimes + Exit
-
-```{r}
-all_chunk_runtimes |>
-  unlist() |>
-  tibble::enframe() |>
-  knitr::kable()
-knitr::knit_exit()
-```
-
-
-
 ## Structural variants
 
 mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta) SV caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
@@ -2867,7 +2686,7 @@ mRNA expression levels of genes located within detected structural variants (SVs
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$Gene)) }` genes affected by `r if ( runSVsChunk ) { nrow(manta_sv) }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in patient's sample. The remaining `r if ( runSVsChunk ) { length(which(unique(manta_sv$Gene) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$melted_variants$Genes)) }` genes affected by `r if ( runSVsChunk ) { manta_sv$total_variants }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$melted_variants$Genes) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in the patient's sample. The remaining `r if ( runSVsChunk ) { length(which(!unique(manta_sv$melted_variants$Genes) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 
@@ -2881,7 +2700,7 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Consider only SVs with known genes and those in MANTA output for which the expression levels were measured
-genes <- unique(manta_sv$Gene)
+genes <- unique(manta_sv$melted_variants$Genes)
 genes <- genes[genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL]
 
 ##### Deal with no genes or when more than 10 genes are of interest
@@ -2901,7 +2720,7 @@ sv_genes.expr.perc <- RNAsum::exprTable(
   type = "perc",
   data = dat1,
   genes = genes,
-  sv_data = manta_sv,
+  sv_data = manta_sv[["melted_variants"]],
   targets = targets,
   sampleName = sample_name,
   ext_cancer = ext_cancer_group,
@@ -2920,7 +2739,10 @@ sv_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = sv_genes.expr.perc[[1]], file = paste(exprTableDir, "sv_genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = sv_genes.expr.perc[[1]], selfcontained = TRUE,
+    file = file.path(exprTableDir, "sv_genes.expr.perc.html")
+  )
 }
 ```
 
@@ -2950,7 +2772,7 @@ sv_genes.expr.z <- RNAsum::exprTable(
   type = "z",
   data = dat1,
   genes = genes,
-  sv_data = manta_sv,
+  sv_data = manta_sv[["melted_variants"]],
   targets = targets,
   sampleName = sample_name,
   ext_cancer = ext_cancer_group,
@@ -2962,14 +2784,17 @@ sv_genes.expr.z <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   scaling = scaling,
   civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
-)[[1]]
+)
 
 ##### Present the expression summary table
-sv_genes.expr.z
+sv_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = sv_genes.expr.z, file = paste(exprTableDir, "sv_genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = sv_genes.expr.z[[1]], selfcontained = TRUE,
+    file = file.path(exprTableDir, "sv_genes.expr.z.html")
+  )
 }
 
 ##### Clean the space
@@ -2999,7 +2824,6 @@ The [RED]{style="color:#ff0000"} colour range indicate relatively **high express
 `r if ( exists("limit_genes") ) { if ( limit_genes ) { c(paste0("Expression profiles for ", genes_no, " SVs-affected genes with the highest priority (low [tier](https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py#L21-L36)) and demonstrating the greatest difference in mRNA expression (percentile) values between patient's sample and the average mRNA expression in samples from cancer patients.")) } else { cat(" ") }}`
 
 ```{r cdf_plots_sv, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runSVsChunk, results="asis"}
-suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
 output_counts <- list()
@@ -3010,16 +2834,31 @@ genes <- unique(sv_genes.expr.perc[[2]]$SYMBOL)
 for (i in 1:genes_no) {
   if (genes_no > 0 && genes[i] %in% rownames(dat1)) {
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir)
+    output_cdf[[i]] <- RNAsum::cdfPlot(
+      gene = genes[i], data = dat1, targets = targets,
+      sampleName = sample_name, ext_cancer = ext_cancer_group,
+      int_cancer = int_cancer_group, comp_cancer = comp_cancer_group,
+      add_cancer = add_cancer_group, addBoxPlot = TRUE,
+      scaling = scaling, report_dir = results_dir
+    )
 
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
-    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL == genes[i]]
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]] |>
+      dplyr::filter(.data$SYMBOL == genes[i]) |>
+      dplyr::pull(.data$ENSEMBL)
 
-    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, add_cancer = add_cancer_group)
+    output_counts[[i]] <- RNAsum::barPlot(
+      gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]],
+      y_title = "Counts", targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, add_cancer = add_cancer_group
+    )
 
     ##### Density plot - expression distribution
-    output_density[[i]] <- densityPlot(gene = genes[i], data = dat1, main_title = "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
+    output_density[[i]] <- RNAsum::densityPlot(
+      gene = genes[i], data = dat1, main_title = "", x_title = "Z-score",
+      sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling
+    )
   }
 }
 
@@ -3064,12 +2903,20 @@ if (genes_no != 0) {
   cat("\n***\n")
 }
 
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
-
 ##### Clean the space
 rm(list = ls(pattern = "^output*"))
 rm(limit_genes)
+```
+
+## Chunk Runtimes + Exit
+
+```{r}
+all_chunk_runtimes |>
+  unlist() |>
+  tibble::enframe() |>
+  dplyr::mutate(value = round(value, 0)) |>
+  knitr::kable()
+knitr::knit_exit()
 ```
 
 `r if ( !runSVsChunk ) { c("***") } else { c(" ") }`
@@ -3275,7 +3122,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 ### - Summary table {.tabset}
 
-Out of the `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN <= cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN >= cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(cn_genes %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN <= cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN >= cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(!cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Gains {.tabset}
 
@@ -3785,7 +3632,8 @@ rm(limit_genes)
 
 Section presenting expression levels of immune markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL)))` immune markers the expression of **`r length(which(ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample.
+The remaining `r length(which(!ref_genes.list[["genes_immune"]]$immune_markers$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -4088,7 +3936,8 @@ if (params$save_tables) {
 
 Section presenting expression levels of homologous recombination deficiency (HRD) genes to assess how many of these demonstrate low expression, which may indicate potential promoter methylation events. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(ref_genes.list[["summary"]]$HRD %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample.
+The remaining `r length(which(!ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -4270,7 +4119,7 @@ mRNA expression levels of cancer genes in patient's sample and their average mRN
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(rownames(ref_genes.list[["genes_cancer"]]) %!in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(!rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 
@@ -4707,13 +4556,6 @@ cat(drugsTable_legend)
 ##### Add input data info
 mysql_populate <- paste0(mysql_populate, ",Input data")
 mysql_populate_update <- paste0(mysql_populate_update, ",Input data")
-
-##### Add clinical data if available
-if (runClinicalChunk) {
-  mysql_populate <- paste0(mysql_populate, ",Clinical information")
-  mysql_populate_update <- paste0(mysql_populate_update, ",Clinical information")
-}
-
 mysql_populate <- paste0(mysql_populate, "\", \"Transcriptome summary for sample ", sample_name, " generated on ", Sys.Date(), "\"", ", \"", Sys.Date(), "\" )")
 mysql_populate_update <- paste0(mysql_populate_update, "\", Summary=\"Transcriptome summary for sample ", sample_name, " generated on ", Sys.Date(), "\"", ", Date=\"", Sys.Date(), "\";")
 mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @ID := 0;\nUPDATE RNAseq_reports SET ID = ( SELECT @ID := @ID + 1 );")

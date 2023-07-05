@@ -41,7 +41,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     scaling %in% c("gene-wise", "group-wise")
   )
   ##### Check which of the selected genes are not present in the expression data
-  genes.absent <- genes[genes %!in% rownames(data)]
+  genes.absent <- genes[!genes %in% rownames(data)]
 
   ##### Initiate dataframe for expression median values in each group
   targets.list <- unique(targets$Target)
@@ -84,9 +84,9 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
   ##### If additional cancer type is defined then remove it from the data
   if (!is.null(add_cancer)) {
-    group.z <- group.z[, names(group.z) %!in% add_cancer]
-    targets <- targets[targets$Target %!in% add_cancer, ]
-    targets.list <- targets.list[targets.list %!in% add_cancer]
+    group.z <- group.z[, !names(group.z) %in% add_cancer]
+    targets <- targets[!targets$Target %in% add_cancer, ]
+    targets.list <- targets.list[!targets.list %in% add_cancer]
   }
 
   ##### Compute Z-scores sd for each gene across groups
@@ -117,7 +117,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   ##### Reorder groups
   ##### Add "Gene" column to facilitate adding annotations
   group.z <- group.z |>
-    dplyr::select(tidyselect::all_of(c(ext_cancer, int_cancer)), "Patient", "SD", "Diff") |>
+    dplyr::select(dplyr::all_of(c(ext_cancer, int_cancer)), "Patient", "SD", "Diff") |>
     dplyr::mutate(Gene = rownames(group.z))
 
   ##### Add genes annotation
@@ -195,8 +195,8 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
   ##### Add structural variants results from MANTA
   if (!is.null(sv_data) && length(genes) > 0) {
-    ##### NOTE: when merging per-gene exprssion data with SV data from MANTA the "gene" column is used since multiple entires are possible for one gene in MANTA output
-    group.z <- merge(group.z, sv_data, by.x = "Gene", by.y = "Gene", all = TRUE, sort = FALSE)
+    ##### NOTE: when merging per-gene expression data with SV data from MANTA the "gene" column is used since multiple entries are possible for one gene in MANTA output
+    group.z <- merge(group.z, sv_data, by.x = "Gene", by.y = "Genes", all = TRUE, sort = FALSE)
   }
 
   ##### Add info about known fusion genes
@@ -260,7 +260,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     ##### Order the data by MANTA increasing Tier (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py), event type and then by the highest absolute values for Patient vs [comp_cancer] difference
   } else if (!is.null(sv_data) && length(genes) > 0) {
     group.z <- group.z[order(abs(group.z[, "Diff"]), decreasing = TRUE), ]
-    group.z <- group.z[order(group.z$"Fusion genes", decreasing = TRUE), ]
+    group.z <- group.z[order(group.z$"Fusion", decreasing = TRUE), ]
     group.z <- group.z[order(group.z$Tier), ]
 
     ##### Otherwise order table by the highest absolute values for Patient vs [comp_cancer] difference
@@ -270,7 +270,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
   ##### Remove the internal reference cohort column if the patient samples origins from other tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
   if (comp_cancer != int_cancer) {
-    group.z <- group.z[, names(group.z) %!in% int_cancer]
+    group.z <- group.z[, !names(group.z) %in% int_cancer]
     targets.list[match(int_cancer, targets.list)] <- "Patient"
 
     ##### Get the position of "Diff" column
@@ -310,7 +310,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
       escape = FALSE
     ) |>
     DT::formatStyle(
-      columns = names(group.z)[names(group.z) %!in% c("SYMBOL", "SD")],
+      columns = names(group.z)[!names(group.z) %in% c("SYMBOL", "SD")],
       `font-size` = "12px", "text-align" = "center"
     ) |>
     ##### Colour cells according to the expression values quantiles in each group
