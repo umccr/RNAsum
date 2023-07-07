@@ -54,7 +54,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir) {
   datasets.comb <- datasets.comb[, target_all[["Sample_name"]]]
 
   ##### Identify genes that were not present across all per-sample files and were ommited in the merged matrix
-  gene_list.missing <- gene_list[gene_list %!in% rownames(datasets.comb)]
+  gene_list.missing <- gene_list[!gene_list %in% rownames(datasets.comb)]
 
   ##### Write list of missing genes into a file
   # TODO: not sure why we write this - does it get used?
