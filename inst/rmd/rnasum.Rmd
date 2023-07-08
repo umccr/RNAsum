@@ -58,18 +58,19 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
   library(AnnotationDbi, include.only = c("keys"))
   library(AnnotationFilter, include.only = c("GeneIdFilter"))
   library(EDASeq, include.only = c("plotRLE"))
-  library(edgeR, include.only = c("DGEList", "cpm", "rpkm", "calcNormFactors"))
-  library(ensembldb, include.only = c("select", "lengthOf"))
+  library(edgeR, include.only = c("DGEList"))
+  library(ensembldb, include.only = c("lengthOf"))
+  library(manhattanly, include.only = c("manhattanly"))
   library(preprocessCore, include.only = c("normalize.quantiles"))
-  library(plotly, include.only = c("plot_ly", "layout", "add_trace"))
+  library(plotly, include.only = c("plot_ly"))
   library(htmltools, include.only = c("renderTags"))
-  library(png, include.only = c("readPNG", "writePNG"))
+  library(png, include.only = c("readPNG"))
   library(rlang, include.only = c("set_names"))
-  library(DT, include.only = c("datatable", "formatStyle", "styleEqual"))
-  library(fs, include.only = c("dir_create", "dir_delete"))
-  library(tibble, include.only = c("tibble", "add_row"))
+  library(DT, include.only = c("datatable"))
+  library(fs, include.only = c("dir_create"))
+  library(tibble, include.only = c("tibble"))
   library(glue, include.only = c("glue"))
-  library(dplyr) # keep dplyr last
+  library(dplyr, include.only = c("mutate", "select", "filter")) # keep dplyr last
   library(RNAsum) # use :: explicitly for all RNAsum pkg funcs
   library(limma, include.only = c("removeBatchEffect"))
   # library(rapportools)
@@ -2912,28 +2913,17 @@ rm(list = ls(pattern = "^output*"))
 rm(limit_genes)
 ```
 
-## Chunk Runtimes + Exit
-
-```{r}
-all_chunk_runtimes |>
-  unlist() |>
-  tibble::enframe() |>
-  dplyr::mutate(value = round(value, 0)) |>
-  knitr::kable()
-knitr::knit_exit()
-```
-
 `r if ( !runSVsChunk ) { c("***") } else { c(" ") }`
 
 ## CN altered genes
 
-Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)), as well as SNVs/indels and SVs data, if available.
+Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)), as well as SNVs/indels and SV data, if available.
 
 `r if ( !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
 
 ### - Genomic view
 
-`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by *various colours*) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }`. All other genes are marked in [*gray*]{style="color:#808080"} or *black*.
+`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) } else { length(NULL) }`** of them (indicated by *various colours*) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values <= ", cn_bottom, ")") }`. All other genes are marked in [*gray*]{style="color:#808080"} or *black*.
 
 ```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -2941,33 +2931,47 @@ mysql_populate <- paste0(mysql_populate, ",CN altered genes")
 mysql_populate_update <- paste0(mysql_populate_update, ",CN altered genes")
 
 ##### Generate genomic view plot with per-gene CN values (y-axis) along chromosomal coordinates (x-axis)
-suppressMessages(library(manhattanly))
-suppressMessages(library(plotly))
-
 dat1 <- ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]
 data.sub <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
 
-##### Add SNVs
-if (runPcgrChunk) {
-  dat1$Alterations <- as.character(dat1$Alterations)
-  data.sub$Alterations <- as.character(data.sub$Alterations)
-}
-
 ##### Add fusion genes
 if (runFusionChunk) {
-  ##### Change the alteration type to "fusion" for fusion genes
-  dat1$Alterations[dat1$Gene %in% fusions$geneA] <- paste0(dat1$Alterations[dat1$Gene %in% fusions$geneA], "; Fusion")
-  data.sub$Alterations[data.sub$Gene %in% fusions$geneA] <- paste0(data.sub$Alterations[data.sub$Gene %in% fusions$geneA], "; Fusion")
-  dat1$Alterations[dat1$Gene %in% fusions$geneB] <- paste0(dat1$Alterations[dat1$Gene %in% fusions$geneB], "; Fusion")
-  data.sub$Alterations[data.sub$Gene %in% fusions$geneB] <- paste0(data.sub$Alterations[data.sub$Gene %in% fusions$geneB], "; Fusion")
+  dat1 <- dat1 |>
+    dplyr::mutate(
+      Alterations = dplyr::if_else(
+        .data$Gene %in% c(fusions[["geneA"]], fusions[["geneB"]]),
+        paste0(.data$Alterations, "; Fusion"),
+        .data$Alterations
+      )
+    )
+  data.sub <- data.sub |>
+    dplyr::mutate(
+      Alterations = dplyr::if_else(
+        .data$Gene %in% c(fusions[["geneA"]], fusions[["geneB"]]),
+        paste0(.data$Alterations, "; Fusion"),
+        .data$Alterations
+      )
+    )
 }
 
-##### Add genes involved in SVs (if data available)
+##### Add SV genes
 if (runSVsChunk) {
-  ##### Change the alteration type to "fusion" for fusion genes
-  dat1$Alterations[dat1$Gene %in% unique(manta_sv$Gene)] <- paste0(dat1$Alterations[dat1$Gene %in% unique(manta_sv$Gene)], "; SV")
-  ##### Change the alteration type to "fusion" for fusion genes
-  data.sub$Alterations[data.sub$Gene %in% unique(manta_sv$Gene)] <- paste0(data.sub$Alterations[data.sub$Gene %in% unique(manta_sv$Gene)], "; SV")
+  dat1 <- dat1 |>
+    dplyr::mutate(
+      Alterations = dplyr::if_else(
+        .data$Gene %in% manta_sv[["melted_variants"]][["Genes"]],
+        paste0(.data$Alterations, "; SV"),
+        .data$Alterations
+      )
+    )
+  data.sub <- data.sub |>
+    dplyr::mutate(
+      Alterations = dplyr::if_else(
+        .data$Gene %in% manta_sv[["melted_variants"]][["Genes"]],
+        paste0(.data$Alterations, "; SV"),
+        .data$Alterations
+      )
+    )
 }
 
 ##### Remove altaration status "None" for gene which are not mutated but are involved in fusions or SVs
@@ -2976,52 +2980,74 @@ data.sub$Alterations <- gsub("None", "CN", data.sub$Alterations)
 
 ##### Prepare dataframe for manhattanly
 ##### Keep only genes for which both genes have gene symbol (and genomics location) available
-dat1 <- dat1[dat1$Gene %in% ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL, ]
+dat1 <- dat1 |>
+  dplyr::filter(.data$Gene %in% ref_dataset.list[[dataset]][["gene_annot"]][["SYMBOL"]])
 names(dat1)[match("CN", names(dat1))] <- "P"
 
 ##### Merge genes genomic coordinates info with their annotation and expression data
 data.annot <- merge(dat1, ref_dataset.list[[dataset]][["gene_annot"]], by.x = "Gene", by.y = "SYMBOL", all.x = FALSE)
-data.annot$SEQNAME <- as.numeric(data.annot$SEQNAME)
-data.annot$GENESEQSTART <- as.numeric(data.annot$GENESEQSTART)
-data.annot <- data.annot[!is.na(data.annot$SEQNAME), ]
+# need to change X, Y, MT to 23, 24, 25.
+data.annot <- data.annot |>
+  dplyr::mutate(
+    SEQNAME = dplyr::case_when(
+      .data$SEQNAME == "X" ~ "23",
+      .data$SEQNAME == "Y" ~ "24",
+      .data$SEQNAME %in% c("M", "MT") ~ "25",
+      .default = as.character(.data$SEQNAME)
+    ),
+    SEQNAME = as.integer(.data$SEQNAME)
+  )
 
 if (nrow(data.annot) > 0) {
   ##### Get plot results first to extract x-axis coordinated to annotate genes of interest
-  manhattanr.res <- manhattanr(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", logp = FALSE)
+  manhattanr.res <- manhattanly::manhattanr(
+    x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART",
+    p = "P", snp = "Gene", gene = "Diff_Z_score", annotation1 = "Diff_Perc",
+    annotation2 = "Alterations", logp = FALSE
+  )
 
   ##### Restrict the results to the genes of interest
-  # TODO (PD): check if the data should be dat1
-  manhattanr.res$data <- manhattanr.res$data[manhattanr.res$data$Gene %in% data.sub$Gene, ]
+  manhattanr.res$data <- manhattanr.res$data |>
+    dplyr::filter(.data$Gene %in% data.sub$Gene)
 
-  p <- manhattanly(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", suggestiveline = cn_top, genomewideline = cn_bottom, suggestiveline_color = "gray", genomewideline_color = "gray", ylab = "CN value", showgrid = FALSE, title = "", logp = FALSE) %>%
-    add_markers(
-      y = manhattanr.res$data$P, x = manhattanr.res$data$pos,
+  p <- manhattanly::manhattanly(
+    x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART",
+    p = "P", snp = "Gene", gene = "Diff_Z_score",
+    annotation1 = "Diff_Perc", annotation2 = "Alterations",
+    suggestiveline = cn_top, genomewideline = cn_bottom,
+    suggestiveline_color = "gray", genomewideline_color = "gray",
+    ylab = "CN value", showgrid = FALSE, title = "", logp = FALSE
+  ) |>
+    plotly::add_trace(
+      y = manhattanr.res$data$P,
+      x = manhattanr.res$data$pos,
       name = manhattanr.res$data$Gene,
-      text = paste0("Gene: ", manhattanr.res$data$Gene, "\nZ_score_diff: ", manhattanr.res$data$Z_score_diff, "\nPerc_diff: ", manhattanr.res$data$Perc_diff, "\nAlterations: ", manhattanr.res$data$Alterations, "\nchr: ", manhattanr.res$data$CHR),
+      text = paste0(
+        "Gene: ", manhattanr.res$data$Gene,
+        "\nDiff_Z_score: ", manhattanr.res$data$Diff_Z_score,
+        "\nDiff_Perc: ", manhattanr.res$data$Diff_Perc,
+        "\nAlterations: ", manhattanr.res$data$Alterations,
+        "\nchr: ", manhattanr.res$data$CHR
+      ),
+      marker = list(
+        color = "limegreen",
+        size = 10,
+        line = list(
+          color = "grey",
+          width = 1
+        )
+      ),
+      type = "scatter",
       mode = "markers",
-      marker = list(size = 10, symbol = "circle"),
-      color = manhattanr.res$data$Gene,
-      showlegend = TRUE,
-      legendtitle = TRUE,
       inherit = FALSE
-    ) %>%
-    add_annotations(
-      data = manhattanr.res$data, text = ~Gene,
-      x = ~pos, xanchor = "left",
-      y = ~P, yanchor = "top",
-      font = list(color = "Grey", size = 10),
-      legendtitle = TRUE,
-      showarrow = FALSE
     )
 
   ##### Create directory for the plots
-  PlotDir <- paste(results_dir, "cn_genomic_view", sep = "/")
-  if (!file.exists(PlotDir)) {
-    dir.create(PlotDir, recursive = TRUE)
-  }
+  PlotDir <- file.path(results_dir, "cn_genomic_view")
+  fs::dir_create(PlotDir)
 
   ##### Save interactive plot as html file
-  saveWidgetFix(p, file = paste(PlotDir, "cn_genomic_view.html", sep = "/"))
+  RNAsum::saveWidgetFix(widget = p, file = file.path(PlotDir, "cn_genomic_view.html"))
 
   #### Clear plots to free up some memory
   if (!is.null(dev.list())) invisible(dev.off())
@@ -3031,10 +3057,6 @@ if (nrow(data.annot) > 0) {
 }
 
 p
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:manhattanly", unload = FALSE)
-detach("package:plotly", unload = FALSE)
 ```
 
 ------------------------------------------------------------------------
@@ -3631,6 +3653,18 @@ rm(limit_genes)
 ```
 
 `r if ( !runPurpleChunk ) { c("***") } else { c(" ") }`
+
+## Chunk Runtimes + Exit
+
+```{r}
+all_chunk_runtimes |>
+  unlist() |>
+  tibble::enframe() |>
+  dplyr::mutate(value = round(value, 0)) |>
+  knitr::kable()
+knitr::knit_exit()
+```
+
 
 ## Immune markers
 
