@@ -3069,18 +3069,13 @@ p
 
 ```{r cn_data_distribution_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 4, eval = runPurpleChunk }
 ##### Generate a histogram illustrating CN data distribution
-suppressMessages(library(plotly))
 cn_dist_plot
 
 ##### Create directory for the plots
-PlotDir <- paste(results_dir, "cn_dist_plot", sep = "/")
-if (!file.exists(PlotDir)) {
-  dir.create(PlotDir, recursive = TRUE)
-}
-
+PlotDir <- file.path(results_dir, "cn_dist_plot")
+fs::dir_create(PlotDir)
 ##### Save interactive plot as html file
-saveWidgetFix(cn_dist_plot, file = paste(PlotDir, "cn_dist_plot.html", sep = "/"))
-detach("package:plotly", unload = FALSE)
+RNAsum::saveWidgetFix(widget = cn_dist_plot, file = file.path(PlotDir, "cn_dist_plot.html"))
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -3092,29 +3087,29 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 ### - Expression vs CN {.tabset}
 
-Scatterplot comparing the per-gene difference in **mRNA expression** of [Cancer genes] between patient's sample and cancer individuals (*y-axis*), and **CN values** (*x-axis*, from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)).
+Scatterplot comparing the per-gene difference in **mRNA expression** of [Cancer genes] between patient's sample and cancer individuals (*y-axis*), and **CN values** (*x-axis*, from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)).
 
 #### Percentiles
 
 ```{r cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
-suppressMessages(library(plotly))
 cn_genes <- data.sub$Gene
 
 if (runPcgrChunk && length(cn_genes) > 0) {
-  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir)
+  RNAsum::mutCNexprPlot(
+    data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top,
+    comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir
+  )
 } else if (length(cn_genes) > 0) {
   data.sub <- data.sub[data.sub$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir)
+  RNAsum::mutCNexprPlot(
+    data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top,
+    comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir
+  )
 } else {
   cn_genes <- NULL
   cat("None of the genes of interest are affected by changes in CN.")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
-
-#### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
 ```
 
