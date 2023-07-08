@@ -3689,18 +3689,6 @@ rm(limit_genes)
 
 `r if ( !runPurpleChunk ) { c("***") } else { c(" ") }`
 
-## Chunk Runtimes + Exit
-
-```{r}
-all_chunk_runtimes |>
-  unlist() |>
-  tibble::enframe() |>
-  dplyr::mutate(value = round(value, 0)) |>
-  knitr::kable()
-knitr::knit_exit()
-```
-
-
 ## Immune markers
 
 Section presenting expression levels of immune markers to assess pre-existing anti-cancer immunity and likelihood of response to immunotherapy. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
@@ -3748,7 +3736,10 @@ immune_genes.expr.perc
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = immune_genes.expr.perc, file = paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = immune_genes.expr.perc,
+    file = file.path(exprTableDir, "immune_genes.expr.perc.html")
+  )
 }
 
 ##### Clean the space
@@ -3794,7 +3785,10 @@ immune_genes.expr.z
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = immune_genes.expr.z, file = paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = immune_genes.expr.z,
+    file = file.path(exprTableDir, "immune_genes.expr.z.html")
+  )
 }
 
 ##### Clean the space
@@ -3822,17 +3816,18 @@ Overview of immune markers expression profiles in patient's sample and in sample
 #### Percentiles
 
 ```{r glance_expr_plot_immune_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "immune_genes", type = "perc", sort = "alphabetically",
+    scaling = scaling, report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -3855,17 +3850,18 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 #### Z-scores
 
 ```{r glance_expr_plot_immune_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "immune_genes", type = "z", sort = "alphabetically",
+    scaling = scaling, report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -3899,7 +3895,11 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 ##### NOTE: currently, the mean expression (Z-score) values of genes from each of the 7 CIC steps are presented rather than the normalized enrichment scores (NES) from GSEA analysis performed for each geneset (CIC step)
 
 ##### Preset cancer immunity status for the patient using web-plot
-webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = ncol(dat1), main = "", add = FALSE, col = "black")
+# TODO (PD): what does this return...
+RNAsum::webplot(
+  as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df),
+  data.row = ncol(dat1), main = "", add = FALSE, col = "black"
+)
 
 ##### Now add data for samples with specific immunogram patterns, e.g. T-cell–rich, T-cell–poor, T-cell–intermediate...
 # webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 5, main = "", add = TRUE, col = "powderblue", lty = 5)
@@ -3930,7 +3930,7 @@ cat("\n***\n")
 ```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- unique(unlist(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL))
+genes <- unique(unlist(ref_genes.list[["genes_immune"]]$genes_immunogram$SYMBOL))
 
 ##### Deal with no genes or when more than 10 genes are of interest
 if (length(genes) == 0) {
@@ -3959,7 +3959,10 @@ immunogram.expr.perc
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = immunogram.expr.perc, file = paste(exprTableDir, "immunogram.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = immunogram.expr.perc,
+    file = file.path(exprTableDir, "immunogram.expr.perc.html")
+  )
 }
 
 ##### Clean the space
@@ -4001,9 +4004,24 @@ immunogram.expr.z
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = immunogram.expr.z, file = paste(exprTableDir, "immunogram.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = immunogram.expr.z,
+    file = file.path(exprTableDir, "immunogram.expr.z.html")
+  )
 }
 ```
+
+## Chunk Runtimes + Exit
+
+```{r}
+all_chunk_runtimes |>
+  unlist() |>
+  tibble::enframe() |>
+  dplyr::mutate(value = round(value, 0)) |>
+  knitr::kable()
+knitr::knit_exit()
+```
+
 
 ## HRD genes
 

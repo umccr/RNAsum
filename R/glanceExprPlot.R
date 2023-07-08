@@ -16,7 +16,6 @@
 #' @param scaling Scaling type.
 #' @param report_dir Reprot directory.
 #'
-#' @importFrom magrittr %>%
 #' @return Boxplot presenting expression profiles for selected set of genes.
 #' @export
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, hexcode, type = "z", sort = "diff", scaling = "gene-wise", report_dir) {
@@ -79,25 +78,33 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
     group.colours <- c(I("black"), "red", "cornflowerblue")
   }
 
-  p <- plotly::plot_ly(gene.expr.df, x = ~Gene, y = ~Expression, color = ~Group, type = "box", colors = group.colours, opacity = 0.3, showlegend = TRUE, width = 800, height = 400) %>%
-    plotly::add_markers(x = ~ Gene[gene.expr.df$Group %in% "Patient"], y = ~ Expression[gene.expr.df$Group %in% "Patient"], color = ~ Group[gene.expr.df$Group %in% "Patient"], marker = list(size = 7), opacity = 1, showlegend = FALSE) %>%
-    plotly::layout(boxmode = "group", xaxis = list(title = ""), yaxis = list(title = y_title), legend = list(orientation = "h", y = max(gene.expr.df$Expression), yancho = "top", bgcolor = "white"))
+  p <- plotly::plot_ly(
+    gene.expr.df,
+    x = ~Gene, y = ~Expression, color = ~Group, type = "box",
+    colors = group.colours, opacity = 0.3, showlegend = TRUE,
+    width = 800, height = 400
+  ) |>
+    plotly::add_markers(
+      x = ~ Gene[gene.expr.df$Group %in% "Patient"],
+      y = ~ Expression[gene.expr.df$Group %in% "Patient"],
+      color = ~ Group[gene.expr.df$Group %in% "Patient"],
+      marker = list(size = 7), opacity = 1, showlegend = FALSE
+    ) |>
+    plotly::layout(
+      # boxmode = "group", # layout don't have boxmode attribute
+      xaxis = list(title = ""), yaxis = list(title = y_title),
+      legend = list(
+        orientation = "h", y = max(gene.expr.df$Expression),
+        yancho = "top", bgcolor = "white"
+      )
+    )
 
   ##### Create directory for "at glance" plots
-  PlotsDir <- paste(report_dir, "glanceExprPlots", sep = "/")
-
-  if (!file.exists(PlotsDir)) {
-    dir.create(PlotsDir, recursive = TRUE)
-  }
-
+  PlotsDir <- file.path(report_dir, "glanceExprPlots")
+  fs::dir_create(PlotsDir)
   ##### Save interactive plot as html file
-  saveWidgetFix(p, file = paste(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"), sep = "/"))
-
+  RNAsum::saveWidgetFix(
+    widget = p, file = file.path(PlotsDir, paste0(hexcode, "_glance_expr_plot.", type, ".html"))
+  )
   return(p)
-
-  ##### Clean the space and return output
-  rm(targets, data, sampleName, data.z, y_title, genes, comp_cancer.medians, comp_cancer.medians.diff, gene.expr.df, group.colours)
-
-  #### Clear plots to free up some memory
-  if (!is.null(grDevices::dev.list())) invisible(grDevices::dev.off())
 }
