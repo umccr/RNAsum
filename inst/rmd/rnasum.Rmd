@@ -4208,26 +4208,16 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ------------------------------------------------------------------------
 
-## Chunk Runtimes + Exit
-
-```{r}
-all_chunk_runtimes |>
-  unlist() |>
-  tibble::enframe() |>
-  dplyr::mutate(value = round(value, 0)) |>
-  knitr::kable()
-knitr::knit_exit()
-```
-
-
-
 ## Cancer genes
 
-mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources [*UMCCR cancer genes*](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv), [*OncoKB*](http://oncokb.org/#/cancerGenes), [*MSK-IMPACT*](https://www.mskcc.org/msk-impact), [*MSK-HEME*](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf), [*Foundation One*](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx), [*Foundation One Heme*](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme), [*Vogelstein*](http://science.sciencemag.org/content/339/6127/1546.full) and [*Sanger Cancer Gene Census*](https://www.sanger.ac.uk/science/data/cancer-gene-census) (CGC).
+Shown below are mRNA expression levels of cancer genes in the patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources [*UMCCR cancer genes*](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv), [*OncoKB*](http://oncokb.org/#/cancerGenes), [*MSK-IMPACT*](https://www.mskcc.org/msk-impact), [*MSK-HEME*](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf), [*Foundation One*](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx), [*Foundation One Heme*](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme), [*Vogelstein*](http://science.sciencemag.org/content/339/6127/1546.full) and [*Sanger Cancer Gene Census*](https://www.sanger.ac.uk/science/data/cancer-gene-census) (CGC).
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(!rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes, the expression of
+**`r sum(ref_genes.list[["genes_cancer"]][["Gene"]] %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))`**
+was reliably measured in the patient's sample. The remaining
+`r sum(!ref_genes.list[["genes_cancer"]][["Gene"]] %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 
@@ -4239,7 +4229,7 @@ mysql_populate_update <- paste0(mysql_populate_update, ",Cancer genes,All genes"
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- rownames(ref_genes.list[["genes_cancer"]])
+genes <- ref_genes.list[["genes_cancer"]][["Gene"]]
 
 ##### Deal with no genes
 if (length(genes) == 0) {
@@ -4268,7 +4258,10 @@ cancer_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = cancer_genes.expr.perc[[1]], file = paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = cancer_genes.expr.perc[[1]],
+    file = file.path(exprTableDir, "cancer_genes.expr.perc.html")
+  )
 }
 ```
 
@@ -4312,7 +4305,10 @@ cancer_genes.expr.z
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = cancer_genes.expr.z, file = paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = cancer_genes.expr.z,
+    file = file.path(exprTableDir, "cancer_genes.expr.z.html")
+  )
 }
 
 ##### Clean the space
@@ -4340,19 +4336,20 @@ Overview of expression profiles of 50 altered cancer genes with the greatest dif
 #### Percentiles
 
 ```{r glance_expr_plot_cancer_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 genes <- cancer_genes.expr.perc[[2]]$SYMBOL[1:50]
 
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling,
+    report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -4375,16 +4372,17 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 #### Z-scores
 
 ```{r glance_expr_plot_cancer_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling,
+    report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -4410,23 +4408,26 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ```{r drugs_table_dir, comment = NA, message=FALSE, warning=FALSE}
 ##### Create directory for tables
-drugsTableDir <- paste(results_dir, "drugsTables", sep = "/")
-if (!file.exists(drugsTableDir)) {
-  dir.create(drugsTableDir, recursive = TRUE)
-}
+drugsTableDir <- file.path(results_dir, "drugsTables")
+fs::dir_create(drugsTableDir)
 ```
 
 `r if ( params$drugs ) { c("### - Mutated genes -") }`
 
-`r if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample are **NOT AVAILABLE**.") }`
 
-`r if ( params$drugs && runPcgrChunk ) { paste0("**", length(mut_genes.expr.perc[[2]]$SYMBOL), "** genes with [PCGR](https://github.com/sigven/pcgr) [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") } else if ( params$drugs && !runPcgrChunk ) { paste0("**0** genes with [PCGR](https://github.com/sigven/pcgr) [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") }`
+`r if ( params$drugs && runPcgrChunk ) { paste0("**", length(mut_genes.expr.perc[[2]]$SYMBOL), "** genes with [PCGR](https://github.com/sigven/pcgr) tier 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") } else if ( params$drugs && !runPcgrChunk ) { paste0("**0** genes with [PCGR](https://github.com/sigven/pcgr) tier 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") }`
 
 ```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
 genes <- mut_genes.expr.perc[[2]]$SYMBOL
 
-drugsTable.mut_genes <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "mutation")
+drugsTable.mut_genes <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "mutation"
+)
 
 if (params$drugs) {
   drugsTable.mut_genes[[1]]
@@ -4434,7 +4435,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.mut_genes[[1]], file = paste(drugsTableDir, "drugsTable.mut_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.mut_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.mut_genes.html")
+  )
 }
 ```
 
@@ -4479,7 +4483,12 @@ cat(drugsTable_legend)
 genesA <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneA)
 genesB <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneB)
 
-drugsTable.fusion_genes <- civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "fusion")
+drugsTable.fusion_genes <- RNAsum::civicDrugTable(
+  genes = unique(c(genesA, genesB)),
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "fusion"
+)
 
 if (params$drugs) {
   drugsTable.fusion_genes[[1]]
@@ -4487,7 +4496,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.fusion_genes[[1]], file = paste(drugsTableDir, "drugsTable.fusion_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.fusion_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.fusion_genes.html")
+  )
 }
 ```
 
@@ -4505,13 +4517,18 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs && !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**.") }`
 
-`r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(manta_sv$Gene)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
+`r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(manta_sv$melted_variants$Genes)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
 
 ```{r drugs_predictive_sv_genes, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate table with drugs targeting dysregulated cancer genes
-genes <- unique(manta_sv$Gene)
+genes <- unique(manta_sv$melted_variants$Genes)
 
-drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = NULL)
+drugsTable.sv_genes <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = NULL
+)
 
 if (params$drugs) {
   drugsTable.sv_genes[[1]]
@@ -4519,7 +4536,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.sv_genes[[1]], file = paste(drugsTableDir, "drugsTable.sv_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.sv_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.sv_genes.html")
+  )
 }
 ```
 
@@ -4545,7 +4565,12 @@ cat(drugsTable_legend)
 ##### Generate table with drugs targeting CN altered genes
 genes <- cn_expr_genes.expr.gains.perc[[2]]$SYMBOL
 
-drugsTable.CN_altered_genes_gains <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "copy_gain")
+drugsTable.CN_altered_genes_gains <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "copy_gain"
+)
 
 if (params$drugs) {
   drugsTable.CN_altered_genes_gains[[1]]
@@ -4553,7 +4578,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.CN_altered_genes_gains[[1]], file = paste(drugsTableDir, "drugsTable.CN_altered_genes_gains.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.CN_altered_genes_gains[[1]],
+    file = file.path(drugsTableDir, "drugsTable.CN_altered_genes_gains.html")
+  )
 }
 ```
 
@@ -4573,7 +4601,12 @@ cat(drugsTable_legend)
 ##### Generate table with drugs targeting CN altered genes
 genes <- cn_expr_genes.expr.losses.perc[[2]]$SYMBOL
 
-drugsTable.CN_altered_genes_losses <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "copy_loss")
+drugsTable.CN_altered_genes_losses <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "copy_loss"
+)
 
 if (params$drugs) {
   drugsTable.CN_altered_genes_losses[[1]]
@@ -4581,7 +4614,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.CN_altered_genes_losses[[1]], file = paste(drugsTableDir, "drugsTable.CN_altered_genes_losses.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.CN_altered_genes_losses[[1]],
+    file = file.path(drugsTableDir, "drugsTable.CN_altered_genes_losses.html")
+  )
 }
 ```
 
@@ -4601,9 +4637,16 @@ cat(drugsTable_legend)
 
 ```{r drugs_predictive_hrd_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-genes <- hrd_genes.expr.perc[[2]]$SYMBOL[hrd_genes.expr.perc[[2]]$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])]
+genes <- hrd_genes.expr.perc[[2]] |>
+  dplyr::filter(.data$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) |>
+  dplyr::pull(.data$SYMBOL)
 
-drugsTable.hrd_genes <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "mutation")
+drugsTable.hrd_genes <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "mutation"
+)
 
 if (params$drugs) {
   drugsTable.hrd_genes[[1]]
@@ -4611,7 +4654,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.hrd_genes[[1]], file = paste(drugsTableDir, "drugsTable.hrd_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.hrd_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.hrd_genes.html")
+  )
 }
 ```
 
@@ -4637,7 +4683,12 @@ mysql_populate_update <- paste0(mysql_populate_update, ",Drug matching")
 ##### Generate table with drugs targeting dysregulated cancer genes
 genes <- cancer_genes.expr.perc[[2]]$SYMBOL[1:50]
 
-drugsTable.cancer_genes <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "expression")
+drugsTable.cancer_genes <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "expression"
+)
 
 if (params$drugs) {
   drugsTable.cancer_genes[[1]]
@@ -4645,7 +4696,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.cancer_genes[[1]], file = paste(drugsTableDir, "drugsTable.cancer_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.cancer_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.cancer_genes.html")
+  )
 }
 ```
 
@@ -4715,3 +4769,14 @@ devtools::session_info()
 </font>
 
 </details>
+
+## Chunk Runtimes + Exit
+
+```{r}
+all_chunk_runtimes |>
+  unlist() |>
+  tibble::enframe() |>
+  dplyr::mutate(value = round(value, 0)) |>
+  knitr::kable()
+knitr::knit_exit()
+```
