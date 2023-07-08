@@ -3927,7 +3927,8 @@ cat("\n***\n")
 
 `r if ( params$immunogram ) { c("##### Percentiles") }`
 
-```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
+```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = FALSE}
+# eval = params$immunogram (THIS IS OVERRIDEN HERE for dev DUE TO https://github.com/rstudio/rstudio/issues/6675)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 genes <- unique(unlist(ref_genes.list[["genes_immune"]]$genes_immunogram$SYMBOL))
@@ -3969,7 +3970,8 @@ if (params$save_tables) {
 rm(immunogram.expr.perc)
 ```
 
-```{r immunogram_table_legend_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+```{r immunogram_table_legend_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = FALSE, results="asis"}
+# eval = params$immunogram (THIS IS OVERRIDEN HERE for dev DUE TO https://github.com/rstudio/rstudio/issues/6675)
 cat("\n<details>\n")
 cat("\n<summary>Table legend</summary>\n")
 cat("\n<font size=\"2\">\n")
@@ -3981,7 +3983,8 @@ cat("\n***\n")
 
 `r if ( params$immunogram ) { c("##### Z-scores") }`
 
-```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
+```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = FALSE}
+# eval = params$immunogram (THIS IS OVERRIDEN HERE for dev DUE TO https://github.com/rstudio/rstudio/issues/6675)
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 immunogram.expr.z <- RNAsum::exprTable(
   genes = genes,
@@ -4011,24 +4014,17 @@ if (params$save_tables) {
 }
 ```
 
-## Chunk Runtimes + Exit
-
-```{r}
-all_chunk_runtimes |>
-  unlist() |>
-  tibble::enframe() |>
-  dplyr::mutate(value = round(value, 0)) |>
-  knitr::kable()
-knitr::knit_exit()
-```
-
-
 ## HRD genes
 
 Section presenting expression levels of homologous recombination deficiency (HRD) genes to assess how many of these demonstrate low expression, which may indicate potential promoter methylation events. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample.
-The remaining `r length(which(!ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r length(unique(ref_genes.list[["genes_hrd"]][["SYMBOL"]]))` HRD genes, the expression of
+**`r sum(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))`**
+was reliably measured in patient's sample.
+The remaining
+`r sum(!ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))`
+genes are either not expressed or their expression level is too low to be detected (indicated in
+[BLANK]{style="color:#808080"} cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -4042,7 +4038,7 @@ mysql_populate_update <- paste0(mysql_populate_update, ",HRD genes")
 ##### Generate expression summary table for hrd genes from Richqrd
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL))
+genes <- unique(ref_genes.list[["genes_hrd"]][["SYMBOL"]])
 
 ##### Deal with no genes
 if (length(genes) == 0) {
@@ -4070,7 +4066,10 @@ hrd_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = hrd_genes.expr.perc[[1]], file = paste(exprTableDir, "hrd_genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = hrd_genes.expr.perc[[1]],
+    file = file.path(exprTableDir, "hrd_genes.expr.perc.html")
+  )
 }
 ```
 
@@ -4080,7 +4079,7 @@ if (params$save_tables) {
 
 <font size="2">
 
-The [RED]{style="color:#ff0000"} colour range indicate relatively **high expression** (percentile) values and [BLUE]{style="color:#0000ff"} colour range indicate relatively **low expression** (percentile) values in individual sample group. The [BLANK]{style="color:#808080"} cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. *TSG* - tumour suppressor gene
+The [RED]{style="color:#ff0000"} colour range indicates relatively **high expression** (percentile) values and [BLUE]{style="color:#0000ff"} colour range indicates relatively **low expression** (percentile) values in individual sample group. The [BLANK]{style="color:#808080"} cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. *TSG* - tumour suppressor gene
 
 </font>
 
@@ -4113,7 +4112,10 @@ hrd_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = hrd_genes.expr.z[[1]], file = paste(exprTableDir, "hrd_genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = hrd_genes.expr.z[[1]],
+    file = file.path(exprTableDir, "hrd_genes.expr.z.html")
+  )
 }
 
 ##### Clean the space
@@ -4141,17 +4143,18 @@ Overview of HRD genes expression profiles in patient's sample and in samples fro
 #### Percentiles
 
 ```{r glance_expr_plot_hrd_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "hrd_genes", type = "perc", sort = "alphabetically",
+    scaling = scaling, report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -4174,17 +4177,18 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 #### Z-scores
 
 ```{r glance_expr_plot_hrd_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "hrd_genes", type = "z", sort = "alphabetically",
+    scaling = scaling, report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -4203,6 +4207,19 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 </details>
 
 ------------------------------------------------------------------------
+
+## Chunk Runtimes + Exit
+
+```{r}
+all_chunk_runtimes |>
+  unlist() |>
+  tibble::enframe() |>
+  dplyr::mutate(value = round(value, 0)) |>
+  knitr::kable()
+knitr::knit_exit()
+```
+
+
 
 ## Cancer genes
 
