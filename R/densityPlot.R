@@ -10,7 +10,6 @@
 #' @param distributions Distributions of interest.
 #' @param scaling Scaling.
 #'
-#' @importFrom magrittr %>%
 #' @return Density and expression distribution plots for selected gene.
 #' @export
 densityPlot <- function(gene, data, main_title, x_title, sampleName, distributions = NULL, scaling = "gene-wise") {
@@ -98,14 +97,14 @@ densityPlot <- function(gene, data, main_title, x_title, sampleName, distributio
   genes.colour <- getColours(rev(unique(data.df$gene)))
 
   ##### Generate interactive density plot
-  p <- plotly::plot_ly(data.df, x = ~expr, y = ~dens, type = 'scatter', mode = 'lines', color = ~gene, colors = genes.colour[[1]], width = 750, height = 200) %>%
+  p <- plotly::plot_ly(data.df, x = ~expr, y = ~dens, type = 'scatter', mode = 'lines', color = ~gene, colors = genes.colour[[1]], width = 750, height = 200) |>
     plotly::add_markers(y = data.df.selected$dens, x = data.df.selected$expr,
                 name = "Patient",
                 text = "Patient",
                 mode = 'markers',
                 marker = list(size = 8, colors = data.df.selected$sample, color = rep(I("black"), each = nrow(data.df.selected)), line = list(color = "grey", width = 2)),
                 showlegend = TRUE,
-                inherit = FALSE) %>%
+                inherit = FALSE) |>
     plotly::layout(title = main_title,
            xaxis = list(title = x_title, range = c(den.x[1],den.x[length(den.x)])),
            yaxis = list (title = 'Weight', range = c(den.y[1],den.y[length(den.y)]), side = "right"),

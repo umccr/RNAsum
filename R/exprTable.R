@@ -23,7 +23,7 @@
 #' @param civic_clin_evid civic_clin_evid tibble from reference genes.
 #' @param scaling Scaling
 #'
-#' @importFrom magrittr %>%
+#' @importFrom dplyr %>%
 #' @return Table with coloured cells indicating expression values for selected genes
 #' @export
 exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NULL, sv_data = NULL,

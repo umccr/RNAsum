@@ -9,7 +9,6 @@
 #' @param evid_type Evidence type.
 #' @param var_type Variant type.
 #'
-#' @importFrom magrittr %>%
 #' @return Table with drugs targeting selected set of genes.
 #' @export
 civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive", var_type = NULL) {
@@ -150,11 +149,11 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
   drug.info <- drug.info[ , c("Gene", "Variant", "Variant type", "Drugs", "Clinical trials", "Evidence level", "Evidence direction", "Clinical significance", "Trust rating", "Actionability score", "Disease", "Phenotypes", "PubMed ID",  "Representative transcript", "Representative transcript 2")]
 
   ##### Generate a table
-  dt.table <- DT::datatable( data = drug.info, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) %>%
-    DT::formatStyle( columns = names(drug.info), `font-size` = '12px', 'text-align' = 'center' ) %>%
+  dt.table <- DT::datatable( data = drug.info, filter = "none", rownames = FALSE, extensions = c('Buttons','Scroller'), options = list(pageLength = 10, dom = 'Bfrtip', buttons = c('excel', 'csv', 'pdf','copy','colvis'), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:grey; font-size:100% ;'), escape = FALSE) |>
+    DT::formatStyle( columns = names(drug.info), `font-size` = '12px', 'text-align' = 'center' ) |>
     ##### Colour cells according to evidence level and trust rating
     DT::formatStyle(columns = "Evidence level",
-                    backgroundColor = DT::styleEqual(c("A: Validated association", "B: Clinical evidence", "C: Case study", "D: Preclinical evidence", "E: Inferential association"), c("mediumseagreen", "deepskyblue", "mediumpurple", "darkorange", "coral")) )  %>%
+                    backgroundColor = DT::styleEqual(c("A: Validated association", "B: Clinical evidence", "C: Case study", "D: Preclinical evidence", "E: Inferential association"), c("mediumseagreen", "deepskyblue", "mediumpurple", "darkorange", "coral")) ) |>
     DT::formatStyle(columns = "Trust rating",
                     backgroundColor = DT::styleEqual(c(1:5), c("coral", "azure", "lightskyblue", "palegreen", "mediumseagreen")) )
 
