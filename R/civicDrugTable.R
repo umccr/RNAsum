@@ -13,9 +13,24 @@
 #' @export
 civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_type = "Predictive", var_type = NULL) {
   ##### Initialize data frame to the about drug-target info from CIViC
-  drug.info <- stats::setNames(data.frame(matrix(ncol = 18, nrow = 0)), c("Gene", "Variant", "variant_types", "drugs", "nct_ids", "evidence_level", "evidence_type", "evidence_direction", "clinical_significance", "rating", "civic_actionability_score", "Disease", "phenotypes", "pubmed_id", "variant_origin", "representative_transcript", "representative_transcript2", "last_review_date"))
+  drug.info <- stats::setNames(
+    data.frame(matrix(ncol = 18, nrow = 0)),
+    c(
+      "Gene", "Variant", "variant_types", "drugs", "nct_ids", "evidence_level",
+      "evidence_type", "evidence_direction", "clinical_significance", "rating",
+      "civic_actionability_score", "Disease", "phenotypes", "pubmed_id",
+      "variant_origin", "representative_transcript", "representative_transcript2",
+      "last_review_date"
+    )
+  )
 
-  evid_levels <- list("A" = "A: Validated association", "B" = "B: Clinical evidence", "C" = "C: Case study", "D" = "D: Preclinical evidence", "E" = "E: Inferential association")
+  evid_levels <- list(
+    "A" = "A: Validated association",
+    "B" = "B: Clinical evidence",
+    "C" = "C: Case study",
+    "D" = "D: Preclinical evidence",
+    "E" = "E: Inferential association"
+  )
 
   ##### Loop through each gene and check if they are druggable
   for (gene in genes) {
@@ -30,10 +45,12 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
       }
 
       ##### Subset table to include only variants with the evidence type of interest
-      clin.evid.info <- clin.evid.info[clin.evid.info$evidence_type == evid_type, ]
+      clin.evid.info <- clin.evid.info |>
+        dplyr::filter(.data$evidence_type == evid_type)
 
       if (nrow(clin.evid.info) > 0) {
         ##### Provide link to CIViC clinical evidence summary
+        # TODO (PD): update the CIViC files; URL is outdated and points to insecure link.
         clin.evid.info$drugs <- paste0("<a href='", clin.evid.info$evidence_civic_url, "' target='_blank'>", clin.evid.info$drugs, "</a>")
 
         ##### Provide link to CIViC clinical evidence summary
@@ -49,9 +66,24 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
 
         ##### Provide link to ClinicalTrials.gov variants summary based on NCT IDs
         for (nct_id in clin.evid.info$nct_ids) {
-          if (!is.empty(nct_id)) {
+          if (!is.na(nct_id)) {
             ##### Deal with multiple NCT IDs (separated by comma)
-            nct_id_url <- gsub(" '", "'", paste(gsub("/ ", "/", paste("<a href='https://clinicaltrials.gov/ct2/show/", unlist(strsplit(nct_id, split = ",", fixed = TRUE)), "' target='_blank'>", unlist(strsplit(nct_id, split = ",", fixed = TRUE)), "</a>")), collapse = ", "))
+            nct_id_url <- gsub(
+              " '", "'",
+              paste(
+                gsub(
+                  "/ ", "/",
+                  paste(
+                    "<a href='https://clinicaltrials.gov/ct2/show/",
+                    unlist(strsplit(nct_id, split = ",", fixed = TRUE)),
+                    "' target='_blank'>",
+                    unlist(strsplit(nct_id, split = ",", fixed = TRUE)),
+                    "</a>"
+                  )
+                ),
+                collapse = ", "
+              )
+            )
             clin.evid.info$nct_ids[clin.evid.info$nct_ids == nct_id] <- nct_id_url
           }
         }
@@ -64,10 +96,12 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
         names(clin.evid.info)[names(clin.evid.info) == "doid"] <- "Disease"
 
         ##### Extract info about all variants it that gene
-        var.info <- civic_var_summaries[civic_var_summaries$gene == gene, ]
-        var.info <- var.info[, c("variant", "variant_types", "civic_actionability_score")]
-        var.info[, "variant_types"] <- gsub("_", " ", var.info[, "variant_types"])
-        var.info[, "variant_types"] <- gsub(",", ", ", var.info[, "variant_types"])
+        var.info <- civic_var_summaries[civic_var_summaries$gene == gene, ] |>
+          dplyr::select("variant", "variant_types", "civic_actionability_score") |>
+          dplyr::mutate(
+            variant_types = gsub("_", " ", .data$variant_types),
+            variant_types = gsub(",", ", ", .data$variant_types)
+          )
 
         ##### Merge about all variants it that gene and clinical evidence info
         clin.evid.info <- merge(clin.evid.info, var.info, by = "variant", all.x = TRUE)
@@ -147,19 +181,30 @@ civicDrugTable <- function(genes, civic_var_summaries, civic_clin_evid, evid_typ
   drug.info <- drug.info[, c("Gene", "Variant", "Variant type", "Drugs", "Clinical trials", "Evidence level", "Evidence direction", "Clinical significance", "Trust rating", "Actionability score", "Disease", "Phenotypes", "PubMed ID", "Representative transcript", "Representative transcript 2")]
 
   ##### Generate a table
-  dt.table <- DT::datatable(data = drug.info, filter = "none", rownames = FALSE, extensions = c("Buttons", "Scroller"), options = list(pageLength = 10, dom = "Bfrtip", buttons = c("excel", "csv", "pdf", "copy", "colvis"), scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE), width = 800, caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"), escape = FALSE) |>
+  dt.table <- DT::datatable(
+    data = drug.info, filter = "none",
+    rownames = FALSE, extensions = c("Buttons", "Scroller"),
+    options = list(
+      pageLength = 10, dom = "Bfrtip",
+      buttons = c("excel", "csv", "pdf", "copy", "colvis"),
+      scrollX = TRUE, deferRender = TRUE, scrollY = "167px", scroller = TRUE
+    ), width = 800,
+    caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
+    escape = FALSE
+  ) |>
     DT::formatStyle(columns = names(drug.info), `font-size` = "12px", "text-align" = "center") |>
     ##### Colour cells according to evidence level and trust rating
     DT::formatStyle(
       columns = "Evidence level",
-      backgroundColor = DT::styleEqual(c("A: Validated association", "B: Clinical evidence", "C: Case study", "D: Preclinical evidence", "E: Inferential association"), c("mediumseagreen", "deepskyblue", "mediumpurple", "darkorange", "coral"))
+      backgroundColor = DT::styleEqual(
+        c("A: Validated association", "B: Clinical evidence", "C: Case study", "D: Preclinical evidence", "E: Inferential association"),
+        c("mediumseagreen", "deepskyblue", "mediumpurple", "darkorange", "coral")
+      )
     ) |>
     DT::formatStyle(
       columns = "Trust rating",
       backgroundColor = DT::styleEqual(c(1:5), c("coral", "azure", "lightskyblue", "palegreen", "mediumseagreen"))
     )
 
-  ##### Clean the space and return output
-  rm(genes, civic_var_summaries, civic_clin_evid, evid_levels, clin.evid.info, var.info, var_type.keep)
   return(list(dt.table, drug.info))
 }
