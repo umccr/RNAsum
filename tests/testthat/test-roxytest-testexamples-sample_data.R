@@ -22,12 +22,12 @@ test_that("Function read_sample_data() @ L36", {
     )
   )
   res <- read_sample_data(p, tempdir())
-  expect_equal(length(res), 6)
+  expect_equal(length(res), 5)
   expect_null(res$salmon)
 })
 
 
-test_that("Function read_wgs_data() @ L80", {
+test_that("Function read_wgs_data() @ L78", {
   
   p <- list(
     umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),

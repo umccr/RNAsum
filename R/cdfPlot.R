@@ -16,7 +16,6 @@
 #' @param scaling Gene-wise or sample-wise.
 #' @param report_dir Output directory.
 #'
-#' @importFrom magrittr %>%
 #' @return Cumulative distribution function (CDF) plot for selected gene.
 #' @export
 #'
@@ -104,7 +103,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   ##### Generate interactive CDF plot with plotly
   ##### Include the internal reference cohort in the plot
   if (comp_cancer == int_cancer) {
-    p1 <- plotly::plot_ly(group.z[[sampleName]], x = ~z, color = I("black"), width = 700, height = 200) %>%
+    p1 <- plotly::plot_ly(group.z[[sampleName]], x = ~z, color = I("black"), width = 700, height = 200) |>
       ##### Add sample data
       plotly::add_markers(
         y = group.z.gene[[sampleName]]$quantile, x = group.z.gene[[sampleName]]$z,
@@ -112,13 +111,13 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
         name = "Patient",
         marker = list(size = 12, color = "black"),
         showlegend = TRUE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = group.z[[sampleName]]$quantile, x = group.z[[sampleName]]$z,
         line = list(color = "grey"),
         text = rownames(group.z[[sampleName]]),
         name = "Patient", showlegend = FALSE
-      ) %>%
+      ) |>
       ##### Add int_cancer data
       plotly::add_markers(
         y = group.z.gene[[int_cancer]]$quantile, x = group.z.gene[[int_cancer]]$z,
@@ -126,13 +125,13 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
         name = int_cancer,
         marker = list(size = 12, opacity = 0.5, color = "red"),
         showlegend = TRUE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = group.z[[int_cancer]]$quantile, x = group.z[[int_cancer]]$z, opacity = 0.5,
         line = list(color = "red", dash = "dash"),
         text = rownames(group.z[[int_cancer]]),
         name = int_cancer, showlegend = FALSE
-      ) %>%
+      ) |>
       ##### Add ext_cancer data
       plotly::add_markers(
         y = group.z.gene[[ext_cancer]]$quantile, x = group.z.gene[[ext_cancer]]$z,
@@ -140,29 +139,29 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
         name = ext_cancer,
         marker = list(size = 12, opacity = 0.5, color = "cornflowerblue"),
         showlegend = TRUE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = group.z[[ext_cancer]]$quantile, x = group.z[[ext_cancer]]$z, opacity = 0.5,
         line = list(color = "cornflowerblue", dash = "dash"),
         text = rownames(group.z[[ext_cancer]]),
         name = ext_cancer, showlegend = FALSE
-      ) %>%
+      ) |>
       ##### Add quantile lines
       plotly::add_lines(
         y = seq(0, 100, 10), x = rep(stats::quantile(group.z[[sampleName]]$z)[2], 11), opacity = 0.5,
         line = list(color = "gray", dash = "dash"),
         name = "Q1", showlegend = FALSE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = seq(0, 100, 10), x = rep(stats::quantile(group.z[[sampleName]]$z)[3], 11), opacity = 0.5,
         line = list(color = "gray", dash = "dash"),
         name = "Q2", showlegend = FALSE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = seq(0, 100, 10), x = rep(stats::quantile(group.z[[sampleName]]$z)[4], 11), opacity = 0.5,
         line = list(color = "gray", dash = "dash"),
         name = "Q3", showlegend = FALSE
-      ) %>%
+      ) |>
       plotly::layout(
         title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[sampleName]]$z) - 1.5, max(group.z[[sampleName]]$z) + 1.5)),
         yaxis = list(title = "Percentile"),
@@ -171,7 +170,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
 
     ##### Skip the internal reference cohort in the plot
   } else {
-    p1 <- plotly::plot_ly(group.z[[sampleName]], x = ~z, color = I("black"), width = 700, height = 200) %>%
+    p1 <- plotly::plot_ly(group.z[[sampleName]], x = ~z, color = I("black"), width = 700, height = 200) |>
       ##### Add sample data
       plotly::add_markers(
         y = group.z.gene[[sampleName]]$quantile, x = group.z.gene[[sampleName]]$z,
@@ -179,13 +178,13 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
         name = "Patient",
         marker = list(size = 12, color = "black"),
         showlegend = TRUE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = group.z[[sampleName]]$quantile, x = group.z[[sampleName]]$z,
         line = list(color = "grey"),
         text = rownames(group.z[[sampleName]]),
         name = "Patient", showlegend = FALSE
-      ) %>%
+      ) |>
       ##### Add ext_cancer data
       plotly::add_markers(
         y = group.z.gene[[ext_cancer]]$quantile, x = group.z.gene[[ext_cancer]]$z,
@@ -193,29 +192,29 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
         name = ext_cancer,
         marker = list(size = 12, opacity = 0.5, color = "cornflowerblue"),
         showlegend = TRUE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = group.z[[ext_cancer]]$quantile, x = group.z[[ext_cancer]]$z, opacity = 0.5,
         line = list(color = "cornflowerblue", dash = "dash"),
         text = rownames(group.z[[ext_cancer]]),
         name = ext_cancer, showlegend = FALSE
-      ) %>%
+      ) |>
       ##### Add quantile lines
       plotly::add_lines(
         y = seq(0, 1, 0.1), x = rep(stats::quantile(group.z[[sampleName]]$z)[2], 11), opacity = 0.5,
         line = list(color = "gray", dash = "dash"),
         name = "Q1", showlegend = FALSE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = seq(0, 1, 0.1), x = rep(stats::quantile(group.z[[sampleName]]$z)[3], 11), opacity = 0.5,
         line = list(color = "gray", dash = "dash"),
         name = "Q2", showlegend = FALSE
-      ) %>%
+      ) |>
       plotly::add_lines(
         y = seq(0, 1, 0.1), x = rep(stats::quantile(group.z[[sampleName]]$z)[4], 11), opacity = 0.5,
         line = list(color = "gray", dash = "dash"),
         name = "Q3", showlegend = FALSE
-      ) %>%
+      ) |>
       plotly::layout(
         title = gene, xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[sampleName]]$z) - 1.5, max(group.z[[sampleName]]$z) + 1.5)),
         yaxis = list(title = "Percentile"),
@@ -225,7 +224,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
 
   ##### Combine CDF plot with boxplot if this option is selected
   if (addBoxPlot) {
-    p1_2 <- plotly::subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE, heights = c(0.7, 0.3)) %>%
+    p1_2 <- plotly::subplot(p1, p2, nrows = 2, shareX = TRUE, shareY = FALSE, titleY = TRUE, heights = c(0.7, 0.3)) |>
       plotly::layout(
         xaxis = list(title = "mRNA expression (Z-score)", zeroline = FALSE, range = c(min(group.z[[sampleName]]$z) - 1.5, max(group.z[[sampleName]]$z) + 1.5)),
         yaxis = list(title = "Percentile"),

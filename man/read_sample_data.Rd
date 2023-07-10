@@ -20,7 +20,7 @@ A list of the input sample data.
 }
 \description{
 Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
-DRAGEN fusions, and clinical info.
+and DRAGEN fusions.
 }
 \examples{
 p <- list(
