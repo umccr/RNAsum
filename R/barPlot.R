@@ -11,7 +11,6 @@
 #' @param int_cancer Internal cancer group.
 #' @param add_cancer Used for reordering groups.
 #'
-#' @importFrom magrittr %>%
 #' @return Bar-plot for selected genes, highlighting samples of interest.
 #' @export
 barPlot <- function(gene, data, targets, y_title = "Counts", sampleName, ext_cancer, int_cancer, add_cancer = NULL) {
@@ -40,7 +39,7 @@ barPlot <- function(gene, data, targets, y_title = "Counts", sampleName, ext_can
     data.df,
     x = ~Sample, y = ~Data, color = ~Group, type = "bar",
     colors = group.colours, width = 750, height = 200
-  ) %>%
+  ) |>
     plotly::layout(
       title = "",
       xaxis = list(title = "", showticklabels = FALSE),

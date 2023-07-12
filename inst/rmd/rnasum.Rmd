@@ -6,7 +6,6 @@ output:
   html_document:
     keep_md: yes
     code_download: true
-    code_folding: hide
     theme: readable
     toc: true
     toc_float: true
@@ -45,6 +44,24 @@ params:
   umccrise: NULL
 ---
 
+```{r prep_knitr_hooks, echo = FALSE}
+# Time chunks during knitting
+# https://bookdown.org/yihui/rmarkdown-cookbook/time-chunk.html
+all_chunk_runtimes <- list()
+knitr::knit_hooks$set(timeit = local({
+  now <- NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res <- difftime(Sys.time(), now)
+      all_chunk_runtimes[[options$label]] <<- res
+    }
+  }
+}))
+
+knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
+```
 
 ```{r echo=TRUE, message=FALSE}
 source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
@@ -78,25 +95,6 @@ source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
   # library(ggplot2)
   # library(ggforce)
 }
-```
-
-```{r prep_knitr_hooks, echo = FALSE}
-# Time chunks during knitting
-# https://bookdown.org/yihui/rmarkdown-cookbook/time-chunk.html
-all_chunk_runtimes <- list()
-knitr::knit_hooks$set(timeit = local({
-  now <- NULL
-  function(before, options) {
-    if (before) {
-      now <<- Sys.time()
-    } else {
-      res <- difftime(Sys.time(), now)
-      all_chunk_runtimes[[options$label]] <<- res
-    }
-  }
-}))
-
-knitr::opts_chunk$set(timeit = TRUE)
 ```
 
 ```{r read_data, message=FALSE, warning=FALSE, comment=NA}
@@ -230,7 +228,7 @@ for (gene in ref_genes.list[["genes_cancer"]][["symbol"]]) {
       "Foundation One Heme" = "", "Vogelstein" = "", "Sanger CGC" = "",
       "UMCCR" = "Yes", "Oncogene" = "", "TSG" = "", "Fusion" = "", "Germline" = ""
     )
-    tmpg <- bind_rows(tmpg, r1)
+    tmpg <- dplyr::bind_rows(tmpg, r1)
     tmpg[tmpg$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
     tmpg[tmpg$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
     tmpg[tmpg$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
@@ -309,12 +307,12 @@ ref_genes.list[["summary"]]$Immune <- RNAsum::immune_summary(
 
 # HRD (homologous recombination deficiency) genes
 ref_genes.list[["summary"]]$HRD <- ref_genes.list[["genes_hrd"]] |>
-  pull("SYMBOL") |>
+  dplyr::pull("SYMBOL") |>
   na.omit()
 
 # Cancer genes derived from UMCCR Cancer Gene list (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv) and from OncoKB portal (http://oncokb.org/#/cancerGenes)
 ref_genes.list[["summary"]]$Cancer <- ref_genes.list[["genes_cancer"]] |>
-  pull("Gene") |>
+  dplyr::pull("Gene") |>
   unique() |>
   na.omit()
 
@@ -353,7 +351,7 @@ genes2keep$EXP <- TRUE
 rm(gene_info)
 ```
 
-```{r library_size_plot, message = FALSE, warning = FALSE, echo = TRUE, fig.width = 12, fig.height = 9}
+```{r library_size_plot, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 9}
 # Generate bar-plot for library size. The colours indicate sample groups,
 # as provided in *Target* column in the sample annotation file
 target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
@@ -1703,7 +1701,7 @@ summary_table.df <- data.frame(
     nrow = length(summary_table.list), byrow = TRUE
   )
 ) |>
-  purrr::set_names(c(names(alt_genes.all.list), "Resources")) |>
+  rlang::set_names(c(names(alt_genes.all.list), "Resources")) |>
   dplyr::mutate(
     Gene = names(summary_table.list),
     Count = as.numeric(alt_genes.all),
@@ -2908,28 +2906,17 @@ rm(list = ls(pattern = "^output*"))
 rm(limit_genes)
 ```
 
-## Chunk Runtimes + Exit
-
-```{r}
-all_chunk_runtimes |>
-  unlist() |>
-  tibble::enframe() |>
-  dplyr::mutate(value = round(value, 0)) |>
-  knitr::kable()
-knitr::knit_exit()
-```
-
 `r if ( !runSVsChunk ) { c("***") } else { c(" ") }`
 
 ## CN altered genes
 
-Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)), as well as SNVs/indels and SVs data, if available.
+Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)), as well as SNVs/indels and SV data, if available.
 
 `r if ( !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
 
 ### - Genomic view
 
-`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][,1])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }`** of them (indicated by *various colours*) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }`. All other genes are marked in [*gray*]{style="color:#808080"} or *black*.
+`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) } else { length(NULL) }`** of them (indicated by *various colours*) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values <= ", cn_bottom, ")") }`. All other genes are marked in [*gray*]{style="color:#808080"} or *black*.
 
 ```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -2937,33 +2924,47 @@ mysql_populate <- paste0(mysql_populate, ",CN altered genes")
 mysql_populate_update <- paste0(mysql_populate_update, ",CN altered genes")
 
 ##### Generate genomic view plot with per-gene CN values (y-axis) along chromosomal coordinates (x-axis)
-suppressMessages(library(manhattanly))
-suppressMessages(library(plotly))
-
 dat1 <- ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]
 data.sub <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
 
-##### Add SNVs
-if (runPcgrChunk) {
-  dat1$Alterations <- as.character(dat1$Alterations)
-  data.sub$Alterations <- as.character(data.sub$Alterations)
-}
-
 ##### Add fusion genes
 if (runFusionChunk) {
-  ##### Change the alteration type to "fusion" for fusion genes
-  dat1$Alterations[dat1$Gene %in% fusions$geneA] <- paste0(dat1$Alterations[dat1$Gene %in% fusions$geneA], "; Fusion")
-  data.sub$Alterations[data.sub$Gene %in% fusions$geneA] <- paste0(data.sub$Alterations[data.sub$Gene %in% fusions$geneA], "; Fusion")
-  dat1$Alterations[dat1$Gene %in% fusions$geneB] <- paste0(dat1$Alterations[dat1$Gene %in% fusions$geneB], "; Fusion")
-  data.sub$Alterations[data.sub$Gene %in% fusions$geneB] <- paste0(data.sub$Alterations[data.sub$Gene %in% fusions$geneB], "; Fusion")
+  dat1 <- dat1 |>
+    dplyr::mutate(
+      Alterations = dplyr::if_else(
+        .data$Gene %in% c(fusions[["geneA"]], fusions[["geneB"]]),
+        paste0(.data$Alterations, "; Fusion"),
+        .data$Alterations
+      )
+    )
+  data.sub <- data.sub |>
+    dplyr::mutate(
+      Alterations = dplyr::if_else(
+        .data$Gene %in% c(fusions[["geneA"]], fusions[["geneB"]]),
+        paste0(.data$Alterations, "; Fusion"),
+        .data$Alterations
+      )
+    )
 }
 
-##### Add genes involved in SVs (if data available)
+##### Add SV genes
 if (runSVsChunk) {
-  ##### Change the alteration type to "fusion" for fusion genes
-  dat1$Alterations[dat1$Gene %in% unique(manta_sv$Gene)] <- paste0(dat1$Alterations[dat1$Gene %in% unique(manta_sv$Gene)], "; SV")
-  ##### Change the alteration type to "fusion" for fusion genes
-  data.sub$Alterations[data.sub$Gene %in% unique(manta_sv$Gene)] <- paste0(data.sub$Alterations[data.sub$Gene %in% unique(manta_sv$Gene)], "; SV")
+  dat1 <- dat1 |>
+    dplyr::mutate(
+      Alterations = dplyr::if_else(
+        .data$Gene %in% manta_sv[["melted_variants"]][["Genes"]],
+        paste0(.data$Alterations, "; SV"),
+        .data$Alterations
+      )
+    )
+  data.sub <- data.sub |>
+    dplyr::mutate(
+      Alterations = dplyr::if_else(
+        .data$Gene %in% manta_sv[["melted_variants"]][["Genes"]],
+        paste0(.data$Alterations, "; SV"),
+        .data$Alterations
+      )
+    )
 }
 
 ##### Remove altaration status "None" for gene which are not mutated but are involved in fusions or SVs
@@ -2972,52 +2973,74 @@ data.sub$Alterations <- gsub("None", "CN", data.sub$Alterations)
 
 ##### Prepare dataframe for manhattanly
 ##### Keep only genes for which both genes have gene symbol (and genomics location) available
-dat1 <- dat1[dat1$Gene %in% ref_dataset.list[[dataset]][["gene_annot"]]$SYMBOL, ]
+dat1 <- dat1 |>
+  dplyr::filter(.data$Gene %in% ref_dataset.list[[dataset]][["gene_annot"]][["SYMBOL"]])
 names(dat1)[match("CN", names(dat1))] <- "P"
 
 ##### Merge genes genomic coordinates info with their annotation and expression data
 data.annot <- merge(dat1, ref_dataset.list[[dataset]][["gene_annot"]], by.x = "Gene", by.y = "SYMBOL", all.x = FALSE)
-data.annot$SEQNAME <- as.numeric(data.annot$SEQNAME)
-data.annot$GENESEQSTART <- as.numeric(data.annot$GENESEQSTART)
-data.annot <- data.annot[!is.na(data.annot$SEQNAME), ]
+# need to change X, Y, MT to 23, 24, 25.
+data.annot <- data.annot |>
+  dplyr::mutate(
+    SEQNAME = dplyr::case_when(
+      .data$SEQNAME == "X" ~ "23",
+      .data$SEQNAME == "Y" ~ "24",
+      .data$SEQNAME %in% c("M", "MT") ~ "25",
+      .default = as.character(.data$SEQNAME)
+    ),
+    SEQNAME = as.integer(.data$SEQNAME)
+  )
 
 if (nrow(data.annot) > 0) {
   ##### Get plot results first to extract x-axis coordinated to annotate genes of interest
-  manhattanr.res <- manhattanr(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", logp = FALSE)
+  manhattanr.res <- manhattanly::manhattanr(
+    x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART",
+    p = "P", snp = "Gene", gene = "Diff_Z_score", annotation1 = "Diff_Perc",
+    annotation2 = "Alterations", logp = FALSE
+  )
 
   ##### Restrict the results to the genes of interest
-  # TODO (PD): check if the data should be dat1
-  manhattanr.res$data <- manhattanr.res$data[manhattanr.res$data$Gene %in% data.sub$Gene, ]
+  manhattanr.res$data <- manhattanr.res$data |>
+    dplyr::filter(.data$Gene %in% data.sub$Gene)
 
-  p <- manhattanly(x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART", p = "P", snp = "Gene", gene = "Z_score_diff", annotation1 = "Perc_diff", annotation2 = "Alterations", suggestiveline = cn_top, genomewideline = cn_bottom, suggestiveline_color = "gray", genomewideline_color = "gray", ylab = "CN value", showgrid = FALSE, title = "", logp = FALSE) %>%
-    add_markers(
-      y = manhattanr.res$data$P, x = manhattanr.res$data$pos,
+  p <- manhattanly::manhattanly(
+    x = data.annot, chr = "SEQNAME", bp = "GENESEQSTART",
+    p = "P", snp = "Gene", gene = "Diff_Z_score",
+    annotation1 = "Diff_Perc", annotation2 = "Alterations",
+    suggestiveline = cn_top, genomewideline = cn_bottom,
+    suggestiveline_color = "gray", genomewideline_color = "gray",
+    ylab = "CN value", showgrid = FALSE, title = "", logp = FALSE
+  ) |>
+    plotly::add_trace(
+      y = manhattanr.res$data$P,
+      x = manhattanr.res$data$pos,
       name = manhattanr.res$data$Gene,
-      text = paste0("Gene: ", manhattanr.res$data$Gene, "\nZ_score_diff: ", manhattanr.res$data$Z_score_diff, "\nPerc_diff: ", manhattanr.res$data$Perc_diff, "\nAlterations: ", manhattanr.res$data$Alterations, "\nchr: ", manhattanr.res$data$CHR),
+      text = paste0(
+        "Gene: ", manhattanr.res$data$Gene,
+        "\nDiff_Z_score: ", manhattanr.res$data$Diff_Z_score,
+        "\nDiff_Perc: ", manhattanr.res$data$Diff_Perc,
+        "\nAlterations: ", manhattanr.res$data$Alterations,
+        "\nchr: ", manhattanr.res$data$CHR
+      ),
+      marker = list(
+        color = "limegreen",
+        size = 10,
+        line = list(
+          color = "grey",
+          width = 1
+        )
+      ),
+      type = "scatter",
       mode = "markers",
-      marker = list(size = 10, symbol = "circle"),
-      color = manhattanr.res$data$Gene,
-      showlegend = TRUE,
-      legendtitle = TRUE,
       inherit = FALSE
-    ) %>%
-    add_annotations(
-      data = manhattanr.res$data, text = ~Gene,
-      x = ~pos, xanchor = "left",
-      y = ~P, yanchor = "top",
-      font = list(color = "Grey", size = 10),
-      legendtitle = TRUE,
-      showarrow = FALSE
     )
 
   ##### Create directory for the plots
-  PlotDir <- paste(results_dir, "cn_genomic_view", sep = "/")
-  if (!file.exists(PlotDir)) {
-    dir.create(PlotDir, recursive = TRUE)
-  }
+  PlotDir <- file.path(results_dir, "cn_genomic_view")
+  fs::dir_create(PlotDir)
 
   ##### Save interactive plot as html file
-  saveWidgetFix(p, file = paste(PlotDir, "cn_genomic_view.html", sep = "/"))
+  RNAsum::saveWidgetFix(widget = p, file = file.path(PlotDir, "cn_genomic_view.html"))
 
   #### Clear plots to free up some memory
   if (!is.null(dev.list())) invisible(dev.off())
@@ -3027,10 +3050,6 @@ if (nrow(data.annot) > 0) {
 }
 
 p
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:manhattanly", unload = FALSE)
-detach("package:plotly", unload = FALSE)
 ```
 
 ------------------------------------------------------------------------
@@ -3043,18 +3062,13 @@ detach("package:plotly", unload = FALSE)
 
 ```{r cn_data_distribution_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 12, fig.height = 4, eval = runPurpleChunk }
 ##### Generate a histogram illustrating CN data distribution
-suppressMessages(library(plotly))
 cn_dist_plot
 
 ##### Create directory for the plots
-PlotDir <- paste(results_dir, "cn_dist_plot", sep = "/")
-if (!file.exists(PlotDir)) {
-  dir.create(PlotDir, recursive = TRUE)
-}
-
+PlotDir <- file.path(results_dir, "cn_dist_plot")
+fs::dir_create(PlotDir)
 ##### Save interactive plot as html file
-saveWidgetFix(cn_dist_plot, file = paste(PlotDir, "cn_dist_plot.html", sep = "/"))
-detach("package:plotly", unload = FALSE)
+RNAsum::saveWidgetFix(widget = cn_dist_plot, file = file.path(PlotDir, "cn_dist_plot.html"))
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -3066,29 +3080,29 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 ### - Expression vs CN {.tabset}
 
-Scatterplot comparing the per-gene difference in **mRNA expression** of [Cancer genes] between patient's sample and cancer individuals (*y-axis*), and **CN values** (*x-axis*, from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)).
+Scatterplot comparing the per-gene difference in **mRNA expression** of [Cancer genes] between patient's sample and cancer individuals (*y-axis*), and **CN values** (*x-axis*, from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)).
 
 #### Percentiles
 
 ```{r cn_expr_data_plot_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
-suppressMessages(library(plotly))
 cn_genes <- data.sub$Gene
 
 if (runPcgrChunk && length(cn_genes) > 0) {
-  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir)
+  RNAsum::mutCNexprPlot(
+    data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top,
+    comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir
+  )
 } else if (length(cn_genes) > 0) {
   data.sub <- data.sub[data.sub$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir)
+  RNAsum::mutCNexprPlot(
+    data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top,
+    comp_cancer = comp_cancer_group, type = "perc", report_dir = results_dir
+  )
 } else {
   cn_genes <- NULL
   cat("None of the genes of interest are affected by changes in CN.")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
-
-#### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
 ```
 
@@ -3098,22 +3112,22 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 ```{r cn_expr_data_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 4, eval = runPurpleChunk}
 ##### Generate scatterplot with per-gene expression values (y-axis), CN values (x-axis) and mutation status info (colours)
-suppressMessages(library(plotly))
-
 if (runPcgrChunk && length(cn_genes) > 0) {
   data.sub <- data.sub[data.sub$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = results_dir)
+  RNAsum::mutCNexprPlot(
+    data = data.sub, alt_data = TRUE, cn_bottom = cn_bottom, cn_top = cn_top,
+    comp_cancer = comp_cancer_group, type = "z", report_dir = results_dir
+  )
 } else if (length(cn_genes) > 0) {
   data.sub <- data.sub[data.sub$Gene %in% cn_genes, ]
-  mutCNexprPlot(data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top, comp_cancer = comp_cancer_group, type = "z", report_dir = results_dir)
+  RNAsum::mutCNexprPlot(
+    data = data.sub, alt_data = FALSE, cn_bottom = cn_bottom, cn_top = cn_top,
+    comp_cancer = comp_cancer_group, type = "z", report_dir = results_dir
+  )
 } else {
   cn_genes <- NULL
   cat("None of the genes of interest are affected by changes in CN.")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
-
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
 ```
@@ -3122,21 +3136,27 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 ### - Summary table {.tabset}
 
-Out of the `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]][ ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN <= cn_bottom | ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]$CN >= cn_top, ][,1]) } else { cat("0") }` genes within gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }` regions `r if (runPurpleChunk) { length(ref_dataset.list[[dataset]][["expr_mut_cn_data"]][,1]) } else { length(NULL) }` are [Cancer genes]. The expression of **`r if (runPurpleChunk) { length(which(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** of these genes was reliably measured in patient's sample. The remaining `r if (runPurpleChunk) { length(which(!cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r if (runPurpleChunk) { ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]] |> dplyr::filter(CN <= cn_bottom | CN >= cn_top) |> nrow() } else { cat("0") }` genes within
+gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or
+lost `r if ( runPurpleChunk ) { paste0("(CN values =< ", cn_bottom, ")") }`
+regions `r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) } else { length(NULL) }` are [Cancer genes].
+The expression of **`r if (runPurpleChunk) { ref_dataset.list[[dataset]][["expr_mut_cn_data"]] |> dplyr::filter(Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) |> nrow() } else { length(NULL) }`**
+of these genes was reliably measured in the patient's sample. The remaining
+`r if (runPurpleChunk) { length(which(!cn_genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Gains {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values \>= `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values \>= `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
 
 ##### Percentiles
 
 ```{r cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN gains
-cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-cn_data <- cn_data[cn_data$CN >= cn_top, ]
-cn_data <- cn_data[, "CN", drop = FALSE]
-genes_gains <- as.character(cn_genes[cn_genes %in% rownames(cn_data)])
+cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]] |>
+  dplyr::filter(.data$CN >= cn_top) |>
+  dplyr::select("Gene", "CN")
+genes_gains <- as.character(cn_genes[cn_genes %in% cn_data[["Gene"]]])
 
 ##### Deal with no genes
 if (length(genes_gains) == 0) {
@@ -3199,7 +3219,10 @@ cn_expr_genes.expr.gains.perc[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = cn_expr_genes.expr.gains.perc[[1]], file = paste(exprTableDir, "cn_expr_genes.expr.gains.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = cn_expr_genes.expr.gains.perc[[1]],
+    file = file.path(exprTableDir, "cn_expr_genes.expr.gains.perc.html")
+  )
 }
 ```
 
@@ -3270,7 +3293,10 @@ cn_expr_genes.expr.gains.z[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = cn_expr_genes.expr.gains.z[[1]], file = paste(exprTableDir, "cn_expr_genes.expr.gains.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = cn_expr_genes.expr.gains.z[[1]],
+    file = file.path(exprTableDir, "cn_expr_genes.expr.gains.z.html")
+  )
 }
 
 ##### Clean the space
@@ -3295,17 +3321,17 @@ The [RED]{style="color:#ff0000"} colour range indicate relatively **high express
 
 #### Losses {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values =\< `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values =\< `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
 
 ##### Percentiles
 
 ```{r cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN losses
-cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
-cn_data <- cn_data[cn_data$CN <= cn_bottom, ]
-cn_data <- cn_data[, "CN", drop = FALSE]
-genes_losses <- as.character(cn_genes[cn_genes %in% rownames(cn_data)])
+cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]] |>
+  dplyr::filter(.data$CN <= cn_bottom) |>
+  dplyr::select("Gene", "CN")
+genes_losses <- as.character(cn_genes[cn_genes %in% cn_data[["Gene"]]])
 
 ##### Deal with no genes or when more than 10 genes are of interest
 if (length(genes_losses) == 0) {
@@ -3374,7 +3400,10 @@ cn_expr_genes.expr.losses.perc[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = cn_expr_genes.expr.losses.perc[[1]], file = paste(exprTableDir, "cn_expr_genes.expr.losses.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = cn_expr_genes.expr.losses.perc[[1]],
+    file = file.path(exprTableDir, "cn_expr_genes.expr.losses.perc.html")
+  )
 }
 ```
 
@@ -3446,7 +3475,10 @@ cn_expr_genes.expr.losses.z[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = cn_expr_genes.expr.losses.z[[1]], file = paste(exprTableDir, "cn_expr_genes.expr.losses.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = cn_expr_genes.expr.losses.z[[1]],
+    file = file.path(exprTableDir, "cn_expr_genes.expr.losses.z.html")
+  )
 }
 
 ##### Clean the space and return output
@@ -3476,27 +3508,40 @@ The [RED]{style="color:#ff0000"} colour range indicate relatively **high express
 #### Gains {.tabset}
 
 ```{r cdf_plot_cn_expr_gains, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk, results="asis"}
-suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
 output_counts <- list()
 output_density <- list()
-genes <- cn_expr_genes.expr.gains.perc[[2]]$SYMBOL
+genes <- cn_expr_genes.expr.gains.perc[[2]][["SYMBOL"]]
 
 ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample
 for (i in 1:genes_gains_no) {
   if (genes_gains_no > 0 && genes[i] %in% rownames(dat1)) {
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir)
+    output_cdf[[i]] <- RNAsum::cdfPlot(
+      gene = genes[i], data = dat1, targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+      comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+      addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir
+    )
 
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
-    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL == genes[i]]
-
-    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, add_cancer = add_cancer_group)
-
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]] |>
+      dplyr::filter(.data$SYMBOL == genes[i]) |>
+      dplyr::pull(.data$ENSEMBL)
+    output_counts[[i]] <- RNAsum::barPlot(
+      gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]],
+      y_title = "Counts", targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+      add_cancer = add_cancer_group
+    )
     ##### Density plot - expression distribution
-    output_density[[i]] <- densityPlot(gene = genes[i], data = dat1, main_title = "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
+    output_density[[i]] <- RNAsum::densityPlot(
+      gene = genes[i], data = dat1, main_title = "", x_title = "Z-score",
+      sampleName = sample_name, distributions = c("normal", "bimodal"),
+      scaling = scaling
+    )
   }
 }
 
@@ -3541,9 +3586,6 @@ if (genes_gains_no != 0) {
   cat("\n***\n")
 }
 
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
-
 ##### Clean the space
 rm(list = ls(pattern = "^output*"))
 ```
@@ -3553,27 +3595,42 @@ rm(list = ls(pattern = "^output*"))
 #### Losses {.tabset}
 
 ```{r cdf_plot_cn_expr_losses, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk, results="asis"}
-suppressMessages(library(plotly))
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
 output_counts <- list()
 output_density <- list()
-genes <- cn_expr_genes.expr.losses.perc[[2]]$SYMBOL
+genes <- cn_expr_genes.expr.losses.perc[[2]][["SYMBOL"]]
 
 ##### For each gene generate (1) CDF plot and add boxplot below to show the data variance for selected gene in individual groups, (2) bar-plot of read count data across all samples and (3) density plot to demonstrate expression distribution in investigated sample
 for (i in 1:genes_losses_no) {
   if (genes_losses_no > 0 && genes[i] %in% rownames(dat1)) {
     ##### CDF plot
-    output_cdf[[i]] <- cdfPlot(gene = genes[i], data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir)
+    output_cdf[[i]] <- RNAsum::cdfPlot(
+      gene = genes[i], data = dat1, targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+      comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+      addBoxPlot = TRUE, scaling = scaling, report_dir = results_dir
+    )
 
     ##### Bar-plot of read counts
     ##### First map the gene symbol to Ensmebl ID (used in the counts data)
-    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]]$ENSEMBL[ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL == genes[i]]
+    genes.ENSEMBL <- ref_dataset.list[[dataset]][["gene_annot_all"]] |>
+      dplyr::filter(.data$SYMBOL == genes[i]) |>
+      dplyr::pull(.data$ENSEMBL)
 
-    output_counts[[i]] <- barPlot(gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]], y_title = "Counts", targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, add_cancer = add_cancer_group)
+    output_counts[[i]] <- RNAsum::barPlot(
+      gene = genes.ENSEMBL, data = ref_dataset.list[[dataset]][["combined_data"]],
+      y_title = "Counts", targets = targets, sampleName = sample_name,
+      ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+      add_cancer = add_cancer_group
+    )
 
     ##### Density plot - expression distribution
-    output_density[[i]] <- densityPlot(gene = genes[i], data = dat1, main_title = "", x_title = "Z-score", sampleName = sample_name, distributions = c("normal", "bimodal"), scaling = scaling)
+    output_density[[i]] <- RNAsum::densityPlot(
+      gene = genes[i], data = dat1, main_title = "", x_title = "Z-score",
+      sampleName = sample_name, distributions = c("normal", "bimodal"),
+      scaling = scaling
+    )
   }
 }
 
@@ -3617,9 +3674,6 @@ if (genes_losses_no != 0) {
   cat("\nNo alterations were reported.\n")
   cat("\n***\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 ##### Clean the space
 rm(list = ls(pattern = "^output*"))
@@ -3675,7 +3729,10 @@ immune_genes.expr.perc
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = immune_genes.expr.perc, file = paste(exprTableDir, "immune_genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = immune_genes.expr.perc,
+    file = file.path(exprTableDir, "immune_genes.expr.perc.html")
+  )
 }
 
 ##### Clean the space
@@ -3721,7 +3778,10 @@ immune_genes.expr.z
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = immune_genes.expr.z, file = paste(exprTableDir, "immune_genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = immune_genes.expr.z,
+    file = file.path(exprTableDir, "immune_genes.expr.z.html")
+  )
 }
 
 ##### Clean the space
@@ -3749,17 +3809,18 @@ Overview of immune markers expression profiles in patient's sample and in sample
 #### Percentiles
 
 ```{r glance_expr_plot_immune_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "immune_genes", type = "perc", sort = "alphabetically",
+    scaling = scaling, report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -3782,17 +3843,18 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 #### Z-scores
 
 ```{r glance_expr_plot_immune_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "immune_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "immune_genes", type = "z", sort = "alphabetically",
+    scaling = scaling, report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for immune markers!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -3826,7 +3888,11 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 ##### NOTE: currently, the mean expression (Z-score) values of genes from each of the 7 CIC steps are presented rather than the normalized enrichment scores (NES) from GSEA analysis performed for each geneset (CIC step)
 
 ##### Preset cancer immunity status for the patient using web-plot
-webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = ncol(dat1), main = "", add = FALSE, col = "black")
+# TODO (PD): what does this return...
+RNAsum::webplot(
+  as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df),
+  data.row = ncol(dat1), main = "", add = FALSE, col = "black"
+)
 
 ##### Now add data for samples with specific immunogram patterns, e.g. T-cell–rich, T-cell–poor, T-cell–intermediate...
 # webplot(as.data.frame(ref_genes.list[["genes_immune"]]$immunogram.df), data.row = 5, main = "", add = TRUE, col = "powderblue", lty = 5)
@@ -3854,10 +3920,11 @@ cat("\n***\n")
 
 `r if ( params$immunogram ) { c("##### Percentiles") }`
 
-```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
+```{r immunogram_table_perc, comment = NA, message=FALSE, warning=FALSE, eval = FALSE}
+# eval = params$immunogram (THIS IS OVERRIDEN HERE for dev DUE TO https://github.com/rstudio/rstudio/issues/6675)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- unique(unlist(ref_genes.list[["genes_immune"]]$immunogram$SYMBOL))
+genes <- unique(unlist(ref_genes.list[["genes_immune"]]$genes_immunogram$SYMBOL))
 
 ##### Deal with no genes or when more than 10 genes are of interest
 if (length(genes) == 0) {
@@ -3886,14 +3953,18 @@ immunogram.expr.perc
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = immunogram.expr.perc, file = paste(exprTableDir, "immunogram.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = immunogram.expr.perc,
+    file = file.path(exprTableDir, "immunogram.expr.perc.html")
+  )
 }
 
 ##### Clean the space
 rm(immunogram.expr.perc)
 ```
 
-```{r immunogram_table_legend_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+```{r immunogram_table_legend_perc, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = FALSE, results="asis"}
+# eval = params$immunogram (THIS IS OVERRIDEN HERE for dev DUE TO https://github.com/rstudio/rstudio/issues/6675)
 cat("\n<details>\n")
 cat("\n<summary>Table legend</summary>\n")
 cat("\n<font size=\"2\">\n")
@@ -3905,7 +3976,8 @@ cat("\n***\n")
 
 `r if ( params$immunogram ) { c("##### Z-scores") }`
 
-```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
+```{r immunogram_table, comment = NA, message=FALSE, warning=FALSE, eval = FALSE}
+# eval = params$immunogram (THIS IS OVERRIDEN HERE for dev DUE TO https://github.com/rstudio/rstudio/issues/6675)
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 immunogram.expr.z <- RNAsum::exprTable(
   genes = genes,
@@ -3928,7 +4000,10 @@ immunogram.expr.z
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = immunogram.expr.z, file = paste(exprTableDir, "immunogram.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = immunogram.expr.z,
+    file = file.path(exprTableDir, "immunogram.expr.z.html")
+  )
 }
 ```
 
@@ -3936,8 +4011,13 @@ if (params$save_tables) {
 
 Section presenting expression levels of homologous recombination deficiency (HRD) genes to assess how many of these demonstrate low expression, which may indicate potential promoter methylation events. Their mRNA expression levels are presented in patient's sample along their average mRNA expression in samples from cancer cohorts.
 
-Out of the `r length(unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL)))` hrd genes the expression of **`r length(which(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample.
-The remaining `r length(which(!ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r length(unique(ref_genes.list[["genes_hrd"]][["SYMBOL"]]))` HRD genes, the expression of
+**`r sum(ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))`**
+was reliably measured in patient's sample.
+The remaining
+`r sum(!ref_genes.list[["summary"]]$HRD %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))`
+genes are either not expressed or their expression level is too low to be detected (indicated in
+[BLANK]{style="color:#808080"} cells with missing values).
 
 ### - Summary table {.tabset}
 
@@ -3951,7 +4031,7 @@ mysql_populate_update <- paste0(mysql_populate_update, ",HRD genes")
 ##### Generate expression summary table for hrd genes from Richqrd
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- unique(unlist(ref_genes.list[["genes_hrd"]]$SYMBOL))
+genes <- unique(ref_genes.list[["genes_hrd"]][["SYMBOL"]])
 
 ##### Deal with no genes
 if (length(genes) == 0) {
@@ -3979,7 +4059,10 @@ hrd_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = hrd_genes.expr.perc[[1]], file = paste(exprTableDir, "hrd_genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = hrd_genes.expr.perc[[1]],
+    file = file.path(exprTableDir, "hrd_genes.expr.perc.html")
+  )
 }
 ```
 
@@ -3989,7 +4072,7 @@ if (params$save_tables) {
 
 <font size="2">
 
-The [RED]{style="color:#ff0000"} colour range indicate relatively **high expression** (percentile) values and [BLUE]{style="color:#0000ff"} colour range indicate relatively **low expression** (percentile) values in individual sample group. The [BLANK]{style="color:#808080"} cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. *TSG* - tumour suppressor gene
+The [RED]{style="color:#ff0000"} colour range indicates relatively **high expression** (percentile) values and [BLUE]{style="color:#0000ff"} colour range indicates relatively **low expression** (percentile) values in individual sample group. The [BLANK]{style="color:#808080"} cells with missing values indicate genes with **no/low expression**. The **Diff** (**Patient vs `r comp_cancer_group`**) column illustrates the difference between percentiles in patient sample and reference cancer cohort for each HRD gene. Genes are ordered by **decreasing** absolute values in the **Diff** (**Patient vs `r comp_cancer_group`**) column. *TSG* - tumour suppressor gene
 
 </font>
 
@@ -4022,7 +4105,10 @@ hrd_genes.expr.z[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = hrd_genes.expr.z[[1]], file = paste(exprTableDir, "hrd_genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = hrd_genes.expr.z[[1]],
+    file = file.path(exprTableDir, "hrd_genes.expr.z.html")
+  )
 }
 
 ##### Clean the space
@@ -4050,17 +4136,18 @@ Overview of HRD genes expression profiles in patient's sample and in samples fro
 #### Percentiles
 
 ```{r glance_expr_plot_hrd_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "perc", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "hrd_genes", type = "perc", sort = "alphabetically",
+    scaling = scaling, report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -4083,17 +4170,18 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 #### Z-scores
 
 ```{r glance_expr_plot_hrd_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "hrd_genes", type = "z", sort = "alphabetically", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "hrd_genes", type = "z", sort = "alphabetically",
+    scaling = scaling, report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for HRD genes!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -4115,11 +4203,14 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ## Cancer genes
 
-mRNA expression levels of cancer genes in patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources [*UMCCR cancer genes*](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv), [*OncoKB*](http://oncokb.org/#/cancerGenes), [*MSK-IMPACT*](https://www.mskcc.org/msk-impact), [*MSK-HEME*](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf), [*Foundation One*](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx), [*Foundation One Heme*](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme), [*Vogelstein*](http://science.sciencemag.org/content/339/6127/1546.full) and [*Sanger Cancer Gene Census*](https://www.sanger.ac.uk/science/data/cancer-gene-census) (CGC).
+Shown below are mRNA expression levels of cancer genes in the patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources [*UMCCR cancer genes*](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv), [*OncoKB*](http://oncokb.org/#/cancerGenes), [*MSK-IMPACT*](https://www.mskcc.org/msk-impact), [*MSK-HEME*](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf), [*Foundation One*](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx), [*Foundation One Heme*](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme), [*Vogelstein*](http://science.sciencemag.org/content/339/6127/1546.full) and [*Sanger Cancer Gene Census*](https://www.sanger.ac.uk/science/data/cancer-gene-census) (CGC).
 
 ### - Summary table {.tabset}
 
-Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes the expression of **`r length(which(rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))`** was reliably measured in patient's sample. The remaining `r length(which(!rownames(ref_genes.list[["genes_cancer"]]) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r nrow(ref_genes.list[["genes_cancer"]])` cancer genes, the expression of
+**`r sum(ref_genes.list[["genes_cancer"]][["Gene"]] %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))`**
+was reliably measured in the patient's sample. The remaining
+`r sum(!ref_genes.list[["genes_cancer"]][["Gene"]] %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 
@@ -4131,7 +4222,7 @@ mysql_populate_update <- paste0(mysql_populate_update, ",Cancer genes,All genes"
 ##### Generate expression summary table for cancer genes from OncoKB and UMCCR (https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv)
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
-genes <- rownames(ref_genes.list[["genes_cancer"]])
+genes <- ref_genes.list[["genes_cancer"]][["Gene"]]
 
 ##### Deal with no genes
 if (length(genes) == 0) {
@@ -4160,7 +4251,10 @@ cancer_genes.expr.perc[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = cancer_genes.expr.perc[[1]], file = paste(exprTableDir, "cancer_genes.expr.perc.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = cancer_genes.expr.perc[[1]],
+    file = file.path(exprTableDir, "cancer_genes.expr.perc.html")
+  )
 }
 ```
 
@@ -4204,7 +4298,10 @@ cancer_genes.expr.z
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = cancer_genes.expr.z, file = paste(exprTableDir, "cancer_genes.expr.z.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = cancer_genes.expr.z,
+    file = file.path(exprTableDir, "cancer_genes.expr.z.html")
+  )
 }
 
 ##### Clean the space
@@ -4232,19 +4329,20 @@ Overview of expression profiles of 50 altered cancer genes with the greatest dif
 #### Percentiles
 
 ```{r glance_expr_plot_cancer_genes_perc, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 ##### Generate overview boxplot
 genes <- cancer_genes.expr.perc[[2]]$SYMBOL[1:50]
 
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "cancer_genes", type = "perc", sort = "none", scaling = scaling,
+    report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -4267,16 +4365,17 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 #### Z-scores
 
 ```{r glance_expr_plot_cancer_genes, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-suppressMessages(library(plotly))
-
 if (!is.null(genes)) {
-  glanceExprPlot(genes = genes, data = dat1, targets = targets, sampleName = sample_name, ext_cancer = ext_cancer_group, int_cancer = int_cancer_group, comp_cancer = comp_cancer_group, add_cancer = add_cancer_group, hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling, report_dir = results_dir)
+  RNAsum::glanceExprPlot(
+    genes = genes, data = dat1, targets = targets, sampleName = sample_name,
+    ext_cancer = ext_cancer_group, int_cancer = int_cancer_group,
+    comp_cancer = comp_cancer_group, add_cancer = add_cancer_group,
+    hexcode = "cancer_genes", type = "z", sort = "none", scaling = scaling,
+    report_dir = results_dir
+  )
 } else {
   cat("\nNo expression data is available for cancer genes!\n")
 }
-
-##### Detach plotly package. Otherwise it clashes with other graphics devices
-detach("package:plotly", unload = FALSE)
 
 #### Clear plots to free up some memory
 if (!is.null(dev.list())) invisible(dev.off())
@@ -4302,23 +4401,26 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ```{r drugs_table_dir, comment = NA, message=FALSE, warning=FALSE}
 ##### Create directory for tables
-drugsTableDir <- paste(results_dir, "drugsTables", sep = "/")
-if (!file.exists(drugsTableDir)) {
-  dir.create(drugsTableDir, recursive = TRUE)
-}
+drugsTableDir <- file.path(results_dir, "drugsTables")
+fs::dir_create(drugsTableDir)
 ```
 
 `r if ( params$drugs ) { c("### - Mutated genes -") }`
 
-`r if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample is **NOT AVAILABLE**.") }`
+`r if ( params$drugs && !runPcgrChunk ) { c("Mutation data for this sample are **NOT AVAILABLE**.") }`
 
-`r if ( params$drugs && runPcgrChunk ) { paste0("**", length(mut_genes.expr.perc[[2]]$SYMBOL), "** genes with [PCGR](https://github.com/sigven/pcgr) [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") } else if ( params$drugs && !runPcgrChunk ) { paste0("**0** genes with [PCGR](https://github.com/sigven/pcgr) [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") }`
+`r if ( params$drugs && runPcgrChunk ) { paste0("**", length(mut_genes.expr.perc[[2]]$SYMBOL), "** genes with [PCGR](https://github.com/sigven/pcgr) tier 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") } else if ( params$drugs && !runPcgrChunk ) { paste0("**0** genes with [PCGR](https://github.com/sigven/pcgr) tier 1-", params$pcgr_tier, " variants were screened for suitable drugs (see [Mutated genes] section).") }`
 
 ```{r drugs_predictive_mut_genes, comment = NA, message=FALSE, warning=FALSE, eval = runPcgrChunk}
 ##### Generate table with drugs targeting mutated cancer genes
 genes <- mut_genes.expr.perc[[2]]$SYMBOL
 
-drugsTable.mut_genes <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "mutation")
+drugsTable.mut_genes <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "mutation"
+)
 
 if (params$drugs) {
   drugsTable.mut_genes[[1]]
@@ -4326,7 +4428,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.mut_genes[[1]], file = paste(drugsTableDir, "drugsTable.mut_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.mut_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.mut_genes.html")
+  )
 }
 ```
 
@@ -4371,7 +4476,12 @@ cat(drugsTable_legend)
 genesA <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneA)
 genesB <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneB)
 
-drugsTable.fusion_genes <- civicDrugTable(genes = unique(c(genesA, genesB)), civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "fusion")
+drugsTable.fusion_genes <- RNAsum::civicDrugTable(
+  genes = unique(c(genesA, genesB)),
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "fusion"
+)
 
 if (params$drugs) {
   drugsTable.fusion_genes[[1]]
@@ -4379,7 +4489,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.fusion_genes[[1]], file = paste(drugsTableDir, "drugsTable.fusion_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.fusion_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.fusion_genes.html")
+  )
 }
 ```
 
@@ -4397,13 +4510,18 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs && !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**.") }`
 
-`r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(manta_sv$Gene)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
+`r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(manta_sv$melted_variants$Genes)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
 
 ```{r drugs_predictive_sv_genes, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate table with drugs targeting dysregulated cancer genes
-genes <- unique(manta_sv$Gene)
+genes <- unique(manta_sv$melted_variants$Genes)
 
-drugsTable.sv_genes <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = NULL)
+drugsTable.sv_genes <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = NULL
+)
 
 if (params$drugs) {
   drugsTable.sv_genes[[1]]
@@ -4411,7 +4529,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.sv_genes[[1]], file = paste(drugsTableDir, "drugsTable.sv_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.sv_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.sv_genes.html")
+  )
 }
 ```
 
@@ -4437,7 +4558,12 @@ cat(drugsTable_legend)
 ##### Generate table with drugs targeting CN altered genes
 genes <- cn_expr_genes.expr.gains.perc[[2]]$SYMBOL
 
-drugsTable.CN_altered_genes_gains <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "copy_gain")
+drugsTable.CN_altered_genes_gains <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "copy_gain"
+)
 
 if (params$drugs) {
   drugsTable.CN_altered_genes_gains[[1]]
@@ -4445,7 +4571,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.CN_altered_genes_gains[[1]], file = paste(drugsTableDir, "drugsTable.CN_altered_genes_gains.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.CN_altered_genes_gains[[1]],
+    file = file.path(drugsTableDir, "drugsTable.CN_altered_genes_gains.html")
+  )
 }
 ```
 
@@ -4465,7 +4594,12 @@ cat(drugsTable_legend)
 ##### Generate table with drugs targeting CN altered genes
 genes <- cn_expr_genes.expr.losses.perc[[2]]$SYMBOL
 
-drugsTable.CN_altered_genes_losses <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "copy_loss")
+drugsTable.CN_altered_genes_losses <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "copy_loss"
+)
 
 if (params$drugs) {
   drugsTable.CN_altered_genes_losses[[1]]
@@ -4473,7 +4607,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.CN_altered_genes_losses[[1]], file = paste(drugsTableDir, "drugsTable.CN_altered_genes_losses.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.CN_altered_genes_losses[[1]],
+    file = file.path(drugsTableDir, "drugsTable.CN_altered_genes_losses.html")
+  )
 }
 ```
 
@@ -4493,9 +4630,16 @@ cat(drugsTable_legend)
 
 ```{r drugs_predictive_hrd_genes, comment = NA, message=FALSE, warning=FALSE}
 ##### Generate table with drugs targeting mutated cancer genes
-genes <- hrd_genes.expr.perc[[2]]$SYMBOL[hrd_genes.expr.perc[[2]]$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])]
+genes <- hrd_genes.expr.perc[[2]] |>
+  dplyr::filter(.data$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) |>
+  dplyr::pull(.data$SYMBOL)
 
-drugsTable.hrd_genes <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "mutation")
+drugsTable.hrd_genes <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "mutation"
+)
 
 if (params$drugs) {
   drugsTable.hrd_genes[[1]]
@@ -4503,7 +4647,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.hrd_genes[[1]], file = paste(drugsTableDir, "drugsTable.hrd_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.hrd_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.hrd_genes.html")
+  )
 }
 ```
 
@@ -4529,7 +4676,12 @@ mysql_populate_update <- paste0(mysql_populate_update, ",Drug matching")
 ##### Generate table with drugs targeting dysregulated cancer genes
 genes <- cancer_genes.expr.perc[[2]]$SYMBOL[1:50]
 
-drugsTable.cancer_genes <- civicDrugTable(genes, civic_var_summaries = cancer_genes_annot.list[["civic_var_summaries"]], civic_clin_evid = cancer_genes_annot.list[["civic_clin_evid"]], evid_type = "Predictive", var_type = "expression")
+drugsTable.cancer_genes <- RNAsum::civicDrugTable(
+  genes,
+  civic_var_summaries = ref_genes.list[["civic_var_summaries"]],
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  evid_type = "Predictive", var_type = "expression"
+)
 
 if (params$drugs) {
   drugsTable.cancer_genes[[1]]
@@ -4537,7 +4689,10 @@ if (params$drugs) {
 
 ##### Save the expression table as html file
 if (params$save_tables) {
-  saveWidgetFix(widget = drugsTable.cancer_genes[[1]], file = paste(drugsTableDir, "drugsTable.cancer_genes.html", sep = "/"), selfcontained = TRUE)
+  RNAsum::saveWidgetFix(
+    widget = drugsTable.cancer_genes[[1]],
+    file = file.path(drugsTableDir, "drugsTable.cancer_genes.html")
+  )
 }
 ```
 
@@ -4562,48 +4717,79 @@ mysql_populate <- paste0(mysql_populate, "\n  ", mysql_populate_update, "\nSET @
 writeLines(mysql_populate, con = paste0(results_dir, "/", sample_name, ".RNAseq_report.sql"))
 ```
 
-## Addendum
+## Addendum {.tabset .tabset-pills}
 
 <details>
 
-<summary>Parameters</summary>
+<summary>Details</summary>
 
-<font size="2">
+### Params
 
-```{r params_info, comment = NA}
-for (i in 1:length(params)) {
-  cat(paste("Parameter: ", names(params)[i], "\nValue: ", paste(unlist(params[i]), collapse = ","), "\n\n", sep = ""))
-}
+```{r params_info}
+params |>
+  purrr::modify_if(is.null, \(x) "NULL", .else = as.character) |>
+  tibble::enframe(name = "Parameter", value = "Value") |>
+  tidyr::unnest("Value", keep_empty = TRUE) |>
+  knitr::kable()
 ```
 
-</font>
+### Runtimes
 
-</details>
+```{r step_runtimes}
+x <- all_chunk_runtimes |>
+  unlist() |>
+  tibble::enframe() |>
+  dplyr::mutate(
+    value = round(value, 0),
+    n = dplyr::row_number()
+  ) |>
+  dplyr::select("n", "name", "value")
+tot_sec <- sum(x$value)
+tot_min <- tot_sec %/% 60
+rem_sec <- floor(tot_sec %% 60)
+tot <- paste0(tot_min, "min:", rem_sec, "sec")
+x |>
+  dplyr::mutate(
+    value = as.character(value),
+    n = as.character(n)
+  ) |>
+  dplyr::bind_rows(tibble::tibble(n = "", name = "TOTAL", value = tot)) |>
+  knitr::kable()
+# knitr::knit_exit()
+```
 
-<details>
+### SessionInfo {.tabset .tabset-pills}
 
-<summary>Reporter details</summary>
+```{r si_prep}
+si <- RNAsum::session_info_tbls()
+si_pkg <- si$si_pkg
+si_pl <- si$si_pl
+```
 
-<font size="2">
+#### Platform
+
+```{r si_pl}
+si_pl |>
+  knitr::kable()
+```
+
+#### Packages
+
+```{r si_pkg}
+si_pkg |>
+  knitr::kable()
+```
+
+#### SysInfo
 
 ```{r reporter_details, comment = NA}
-cat(paste0("The report was generated by \"", Sys.info()["user"], "\" using \"", Sys.info()["nodename"], "\" node and \"", Sys.info()["sysname"], "\" operating system."))
+tibble::tribble(
+  ~Info, ~Value,
+  "Node", Sys.info()["nodename"],
+  "OS", Sys.info()["sysname"],
+  "User", Sys.info()["user"],
+) |>
+  knitr::kable()
 ```
-
-</font>
-
-</details>
-
-<details>
-
-<summary>Session information</summary>
-
-<font size="2">
-
-```{r session_info, comment = NA}
-devtools::session_info()
-```
-
-</font>
 
 </details>

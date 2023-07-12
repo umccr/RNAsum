@@ -8,7 +8,6 @@
 #' @param report_dir Report directory.
 #' @param suffix Suffix for output file.
 #'
-#' @importFrom magrittr %>%
 #' @return Outputs a list with data frame and samples colouring info ready for plotting.
 #' @export
 pca <- function(data, targets, title = "", report_dir, suffix = "") {

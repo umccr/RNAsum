@@ -23,7 +23,7 @@
 #' @param civic_clin_evid civic_clin_evid tibble from reference genes.
 #' @param scaling Scaling
 #'
-#' @importFrom magrittr %>%
+#' @importFrom dplyr %>%
 #' @return Table with coloured cells indicating expression values for selected genes
 #' @export
 exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NULL, sv_data = NULL,
@@ -183,9 +183,12 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
     ##### Now place the CN data after the "Diff" column
     if (length(genes) > 0) {
-      group.z <- tibble::add_column(group.z, round(cn_data[group.z$Gene, "CN"], digits = 2), .after = col_idx)
-      colnames(group.z)[col_idx + 1] <- "Patient (CN)"
-      cn_range <- base::range(group.z[, "Patient (CN)"], na.rm = TRUE)
+      group.z <- group.z |>
+        dplyr::left_join(cn_data, by = "Gene") |>
+        dplyr::mutate(CN = round(.data$CN, digits = 2)) |>
+        dplyr::relocate("CN", .after = col_idx) |>
+        dplyr::rename("Patient (CN)" = "CN")
+      cn_range <- base::range(group.z[["Patient (CN)"]], na.rm = TRUE)
     } else {
       group.z <- tibble::add_column(group.z, "", .after = col_idx)
       colnames(group.z)[col_idx + 1] <- "Patient (CN)"

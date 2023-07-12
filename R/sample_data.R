@@ -1,7 +1,7 @@
 #' Read Sample Data
 #'
 #' Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
-#' DRAGEN fusions, and clinical info.
+#' and DRAGEN fusions.
 #'
 #' @param p RNAsum params list.
 #' @param results_dir Directory to output extracted Arriba PNGs to (created
@@ -30,7 +30,7 @@
 #' )
 #' res <- read_sample_data(p, tempdir())
 #' @testexamples
-#' expect_equal(length(res), 6)
+#' expect_equal(length(res), 5)
 #' expect_null(res$salmon)
 #' @export
 read_sample_data <- function(p, results_dir, tx2gene = NULL) {
@@ -39,14 +39,12 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
     arriba_pdf_read(fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
   salmon <- salmon_counts(p[["salmon"]], tx2gene = tx2gene)
   dragen_fusions <- dragen_fusions_read(p[["dragen_fusions"]])
-  clininfo <- clinical_info_read(p[["clinical_info"]])
   wgs <- read_wgs_data(p)
   list(
     arriba_tsv = arriba_tsv,
     arriba_pdf = arriba_pdf,
     salmon = salmon,
     dragen_fusions = dragen_fusions,
-    clinical_info = clininfo,
     wgs = wgs
   )
 }
