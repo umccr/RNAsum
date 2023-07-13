@@ -1,21 +1,3 @@
-#' Create AnnotationHub object to extract ensmbldb
-#'
-#' Create AnnotationHub object to extract ensmbldb
-#' @param x AnnotationHub object
-#' @return Vector of gene and transcript ids
-#' @examples
-#' x <- get_ensembl_db(edb = ah)
-#' @export
-get_ensembl_db <- function(edb) {
-  # Find keys
-  keys_ah <- AnnotationDbi::keys(edb, keytype = "GENEID")
-  # Extract gene and transcript ids
-  tx_gene_id <- edb |>
-    AnnotationDbi::select(keys = keys_ah, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
-    dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
-  tx_gene_id
-}
-
 #' Get Reference Data File Paths
 #'
 #' Get a list of paths to internal and external reference data, based on a
