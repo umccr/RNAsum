@@ -12,7 +12,7 @@
 #' @export
 get_refdata <- function(dataset) {
   assertthat::assert_that(dataset %in% names(RNAsum::REFERENCE_DATASETS))
-  refdata_dir <- system.file("rawdata", package = "RNAsum")
+  refdata_dir <- system.file("extdata", package = "RNAsum.data")
   d_clean <- base::strsplit(dataset, split = "-", fixed = TRUE)[[1]][1]
 
   fn <- list(
@@ -38,16 +38,16 @@ get_refdata <- function(dataset) {
 #'
 #' @examples
 #' p <- list(
-#'   genes_cancer = system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv",
-#'     package = "RNAsum"
+#'   genes_cancer = system.file("extdata/genes/umccr_cancer_genes.2019-03-20.tsv.gz",
+#'     package = "RNAsum.data"
 #'   ),
 #'   genes_oncokb = system.file(
-#'     "rawdata/OncoKB/CancerGenesList.txt",
-#'     package = "RNAsum"
+#'     "extdata/OncoKB/CancerGenesList.txt.gz",
+#'     package = "RNAsum.data"
 #'   ),
 #'   civic_var_summaries = system.file(
-#'     "rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv",
-#'     package = "RNAsum"
+#'     "extdata/CIViC/01-Oct-2018-VariantSummaries.tsv.gz",
+#'     package = "RNAsum.data"
 #'   )
 #' )
 #' x <- get_refgenes(p)
@@ -60,17 +60,17 @@ get_refgenes <- function(p) {
     x |>
       readr::read_tsv(col_types = readr::cols(...))
   }
-  genes_cancer <- system.file("rawdata/genes/umccr_cancer_genes.2019-03-20.tsv", package = "RNAsum")
-  genes_oncokb <- system.file("rawdata/OncoKB/CancerGenesList.txt", package = "RNAsum")
-  genes_immune_markers <- system.file("rawdata/genes/Genes_immune_markers.txt", package = "RNAsum")
-  genes_immunogram <- system.file("rawdata/genes/Genes_immunogram.txt", package = "RNAsum")
-  genes_hrd <- system.file("rawdata/genes/Genes_HRD.txt", package = "RNAsum")
-  oncokb_clin_vars <- system.file("rawdata/OncoKB/allActionableVariants.txt", package = "RNAsum")
-  oncokb_all_vars <- system.file("rawdata/OncoKB/allAnnotatedVariants.txt", package = "RNAsum")
-  civic_var_summaries <- system.file("rawdata/CIViC/01-Oct-2018-VariantSummaries.tsv", package = "RNAsum")
-  civic_clin_evid <- system.file("rawdata/CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv", package = "RNAsum")
-  cancer_biomarkers_trans <- system.file("rawdata/cancer_biomarkers_database/cancer_genes_upon_trans.tsv", package = "RNAsum")
-  FusionGDB <- system.file("rawdata/FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt", package = "RNAsum")
+  genes_cancer <- system.file("extdata/genes/umccr_cancer_genes.2019-03-20.tsv.gz", package = "RNAsum.data")
+  genes_oncokb <- system.file("extdata/OncoKB/CancerGenesList.txt.gz", package = "RNAsum.data")
+  genes_immune_markers <- system.file("extdata/genes/Genes_immune_markers.txt", package = "RNAsum.data")
+  genes_immunogram <- system.file("extdata/genes/Genes_immunogram.txt", package = "RNAsum.data")
+  genes_hrd <- system.file("extdata/genes/Genes_HRD.txt", package = "RNAsum.data")
+  oncokb_clin_vars <- system.file("extdata/OncoKB/allActionableVariants.txt.gz", package = "RNAsum.data")
+  oncokb_all_vars <- system.file("extdata/OncoKB/allAnnotatedVariants.txt.gz", package = "RNAsum.data")
+  civic_var_summaries <- system.file("extdata/CIViC/01-Oct-2018-VariantSummaries.tsv.gz", package = "RNAsum.data")
+  civic_clin_evid <- system.file("extdata/CIViC/01-Oct-2018-ClinicalEvidenceSummaries.tsv.gz", package = "RNAsum.data")
+  cancer_biomarkers_trans <- system.file("extdata/cancer_biomarkers_database/cancer_genes_upon_trans.tsv.gz", package = "RNAsum.data")
+  FusionGDB <- system.file("extdata/FusionGDB/TCGA_ChiTaRS_combined_fusion_ORF_analyzed_gencode_h19v19_fgID.txt.gz", package = "RNAsum.data")
 
   genes_cancer <- p[["genes_cancer"]] |>
     .read(backup = genes_cancer, .default = "l", driver = "d", n = "i", symbol = "c", sources = "c")
