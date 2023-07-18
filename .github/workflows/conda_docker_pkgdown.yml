@@ -30,9 +30,8 @@ jobs:
           auto-update-conda: true
           add-pip-as-python-dependency: false # conda-lock goes crazy if pip pre-installed
           activate-environment: env1
-          miniforge-variant: Mambaforge
-          miniforge-version: "latest"
-          channels: "umccr,bioconda,conda-forge"
+          mamba-version: "*"
+          channels: "umccr,conda-forge,bioconda"
       - name: 🐍 Conda pkg build and upload
         run: |
           conda activate
@@ -61,8 +60,7 @@ jobs:
           conda activate
           mamba env create -n pkgdownenv -f ${env_yaml_path}/pkgdown.yaml
           conda activate pkgdownenv
-          rnasum.R --version
-          Rscript -e "pkgdown::deploy_to_branch(pkg = '.', commit_message = paste(pkgdown:::construct_commit_message('.'), '- see https://umccr.github.io/rnasum/'), branch = 'gh-pages', new_process = FALSE)"
+          Rscript -e "pkgdown::deploy_to_branch(pkg = '.', commit_message = paste(pkgdown:::construct_commit_message('.'), '- see https://umccr.github.io/RNAsum/'), branch = 'gh-pages', new_process = FALSE)"
 
       - name: 📥 Pull lock commit
         id: pull_lock_commit
@@ -70,7 +68,7 @@ jobs:
           git pull --no-rebase
           git --no-pager log --decorate=short --pretty=oneline -n3
           LATEST_COMMIT_HASH="$(git --no-pager log -1 --format='%H')"
-          echo "latest_commit_hash=${LATEST_COMMIT_HASH}" >> $GITHUB_OUTPUT
+          echo "latest_commit_hash=${LATEST_COMMIT_HASH}" >> ${GITHUB_OUTPUT}
       - name: 🔖 Create tag
         uses: actions/github-script@v6
         env:
@@ -106,10 +104,17 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🐣 Lowercase repo
+        id: repo_lowercase
+        run: |
+          echo "repo_nm=${{ github.event.repository.name }}" >>${GITHUB_ENV}
+          echo "repo_nm_lc=${repo_nm,,}" >> ${GITHUB_OUTPUT}
       - name: 🐳 Docker img build and push
         uses: docker/build-push-action@v3
+        env:
+          REPO_NAME_LC: ${{ steps.repo_lowercase.outputs.repo_nm_lc }}
         with:
-          tags: ghcr.io/${{ github.repository }}:${{ env.VERSION }}
+          tags: ghcr.io/${{ env.REPO_NAME_LC }}:${{ env.VERSION }}
           context: .
           push: true
           platforms: linux/amd64
