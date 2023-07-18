@@ -18,12 +18,12 @@ get_refdata <- function(dataset) {
   fn <- list(
     "ext_ref" = list(
       counts = file.path(refdata_dir, "ref_data", paste0("TCGA_", d_clean, "_Counts.exp.gz")),
-      target = file.path(refdata_dir, "ref_data", paste0("TCGA_", dataset, "_Target.txt")),
+      target = file.path(refdata_dir, "ref_data", paste0("TCGA_", dataset, "_Target.txt.gz")),
       dataset = paste0(d_clean, " (TCGA)")
     ),
     "int_ref" = list(
       counts = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Counts.exp.gz"),
-      target = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Target.txt"),
+      target = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Target.txt.gz"),
       dataset = "PAAD (UMCCR)"
     )
   )
