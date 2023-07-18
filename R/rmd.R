@@ -13,7 +13,9 @@
 #' @export
 rnasum_rmd <- function(out_file = NULL, quiet = FALSE, pars) {
   assertthat::assert_that(
-    !is.null(out_file), is.logical(quiet), is.list(pars),
+    length(out_file) == 1, !is.null(out_file),
+    is.logical(quiet),
+    is.list(pars),
     tools::file_ext(out_file) == "html", length(pars) > 0
   )
   tmp_dir <- tempdir()
