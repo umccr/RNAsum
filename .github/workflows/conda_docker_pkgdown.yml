@@ -60,6 +60,8 @@ jobs:
           conda activate
           mamba env create -n pkgdownenv -f ${env_yaml_path}/pkgdown.yaml
           conda activate pkgdownenv
+
+          rnasum.R --version
           Rscript -e "pkgdown::deploy_to_branch(pkg = '.', commit_message = paste(pkgdown:::construct_commit_message('.'), '- see https://umccr.github.io/RNAsum/'), branch = 'gh-pages', new_process = FALSE)"
 
       - name: 📥 Pull lock commit
@@ -105,16 +107,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: 🐣 Lowercase repo
-        id: repo_lowercase
+        env:
+          REPO_NM: ${{ github.repository }}
         run: |
-          echo "repo_nm=${{ github.event.repository.name }}" >>${GITHUB_ENV}
-          echo "repo_nm_lc=${repo_nm,,}" >> ${GITHUB_OUTPUT}
+          echo "repo_nm: ${REPO_NM}"
+          echo "REPO_NM_LC=${REPO_NM,,}" >> ${GITHUB_ENV}
       - name: 🐳 Docker img build and push
         uses: docker/build-push-action@v3
-        env:
-          REPO_NAME_LC: ${{ steps.repo_lowercase.outputs.repo_nm_lc }}
         with:
-          tags: ghcr.io/${{ env.REPO_NAME_LC }}:${{ env.VERSION }}
+          tags: ghcr.io/${{ env.REPO_NM_LC }}:${{ env.VERSION }}
           context: .
           push: true
           platforms: linux/amd64
