@@ -46,11 +46,12 @@ option_list <- list(
   make_option("--html_dir", type = "character", default = getwd(), help = "Directory path to output final HTML report. [def: current directory (%default)]")
 )
 
-opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list, formatter = optparse::TitledHelpFormatter))
+parser <- optparse::OptionParser(option_list = option_list, formatter = optparse::TitledHelpFormatter)
+opt <- optparse::parse_args(parser)
 
 if (opt$version) {
   cat(as.character(packageVersion("RNAsum")), "\n")
-  quit(save = "no")
+  quit("no", status = 0, runLast = FALSE)
 }
 # don't need these any more so NULLify to remove from params
 opt$version <- NULL
@@ -59,14 +60,14 @@ html_dir <- opt$html_dir
 opt$html_dir <- NULL
 
 ##### Check required args
-stopifnot(
-  "'--sample_name' and '--report_dir' are required" =
-    !is.null(opt$sample_name) && !is.null(opt$report_dir)
-)
-stopifnot(
-  "Invalid '--dataset'. Please see https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html" =
-    toupper(opt$dataset) %in% names(RNAsum::REFERENCE_DATASETS)
-)
+if (is.null(opt$sample_name) || is.null(opt$report_dir)) {
+  cat("'--sample_name' and '--report_dir' are required\n")
+  quit("no", status = 1, runLast = FALSE)
+}
+if (!toupper(opt$dataset) %in% names(RNAsum::REFERENCE_DATASETS)) {
+  cat("Invalid '--dataset'. Please see https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html")
+  quit("no", status = 1, runLast = FALSE)
+}
 
 ##### Make sure that TMM, TMMwzp, RLE or upperquartile normalisation is used for
 ##### CPM-tansformed data and quantile normalisation is used for TPM-tansformed data
