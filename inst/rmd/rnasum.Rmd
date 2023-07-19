@@ -64,8 +64,8 @@ knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
 ```
 
 ```{r echo=TRUE, message=FALSE}
-source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
-# source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
+#source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
+source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
 
 # start with more exotic pkgs, then get to core ones
 {
@@ -113,7 +113,10 @@ fs::dir_create(results_dir)
 #### Annotate transcripts with gene IDs
 #### Get genes annotation and genomic locations using AnnotationHub
 #### tx_gene_id_105.rds was generated using the ah_edb.R script under data-raw
-tx2ensembl <- readRDS(here::here("inst/extdata/tx_gene_id_105.rds"))
+tx_gene_id_105 <- readRDS(here::here("inst/extdata/tx_gene_id_105.rds"))
+tx2ensembl <- tx_gene_id_105 |>
+  dplyr::select("TXID", "GENEID") |>
+  dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
 
 # reference data
 ref_dataset_filepaths <- RNAsum::get_refdata(dataset)
@@ -152,7 +155,6 @@ if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
   comp_cancer_group <- int_cancer_group
 }
 ```
-`r knitr::knit_exit()`
 
 ```{r chunk_eval}
 # TODO (PD): put all chunks inside a function
@@ -324,9 +326,12 @@ genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
 ##### Get gene symbols for the genes of interest. These genes will not be filtered out due to low/insufficient expression
 
 ##### Get genes genomic coordinates
-gene_info <- edb |>
-  ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
+gene_info <- tx_gene_id_105 |>
+  dplyr::select("GENEID", "GENENAME") |>
   dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
+#gene_info <- edb |>
+#  ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
+#  dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
 
 ##### Limit genes annotation to the gene of interest, then
 ##### remove rows with duplicated ENSEMBL IDs
@@ -1067,16 +1072,21 @@ for (dataset in names(ref_dataset.list)) {
 
   ##### Get genes genomic coordiantes
   ##### Limit genes annotation to those genes for which sample expression measurements are available
-  gene_info <- edb |>
-    ensembldb::select(
-      keys = keys,
-      columns = c(
-        "GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME",
-        "GENESEQSTART", "GENESEQEND"
-      ), keytype = "GENEID"
-    ) |>
+  gene_info <- tx_gene_id_105 |>
+    dplyr::select("GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME",
+        "GENESEQSTART", "GENESEQEND") |>
     dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME") |>
     dplyr::filter(.data$ENSEMBL %in% data.df$ENSEMBL)
+  #gene_info <- edb |>
+  #  ensembldb::select(
+  #    keys = keys,
+  #    columns = c(
+  #      "GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME",
+  #      "GENESEQSTART", "GENESEQEND"
+  #    ), keytype = "GENEID"
+  #  ) |>
+  #  dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME") |>
+  #  dplyr::filter(.data$ENSEMBL %in% data.df$ENSEMBL)
 
   ##### Remove rows with duplicated ENSEMBL IDs
   gene_info <- gene_info[!duplicated(gene_info$ENSEMBL), ]
