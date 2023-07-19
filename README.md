@@ -1,18 +1,16 @@
 
-- <a href="#rnasum" id="toc-rnasum">RNAsum</a>
-  - <a href="#installation" id="toc-installation">Installation</a>
-  - <a href="#workflow" id="toc-workflow">Workflow</a>
-  - <a href="#reference-data" id="toc-reference-data">Reference data</a>
-    - <a href="#external-reference-cohorts"
-      id="toc-external-reference-cohorts">External reference cohorts</a>
-    - <a href="#internal-reference-cohort"
-      id="toc-internal-reference-cohort">Internal reference cohort</a>
-  - <a href="#input-data" id="toc-input-data">Input data</a>
-    - <a href="#wts" id="toc-wts">WTS</a>
-    - <a href="#wgs" id="toc-wgs">WGS</a>
-  - <a href="#usage" id="toc-usage">Usage</a>
-    - <a href="#examples" id="toc-examples">Examples</a>
-    - <a href="#output" id="toc-output">Output</a>
+- [RNAsum](#rnasum)
+  - [Installation](#installation)
+  - [Workflow](#workflow)
+  - [Reference data](#reference-data)
+    - [External reference cohorts](#external-reference-cohorts)
+    - [Internal reference cohort](#internal-reference-cohort)
+  - [Input data](#input-data)
+    - [WTS](#wts)
+    - [WGS](#wgs)
+  - [Usage](#usage)
+    - [Examples](#examples)
+    - [Output](#output)
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
@@ -58,7 +56,7 @@ docker pull ghcr.io/umccr/rnasum:latest
 The pipeline consists of five main components illustrated and briefly
 described below. For more details, see [workflow.md](/workflow.md).
 
-<img src="vignettes/img/RNAsum_workflow.png" width="100%">
+<img src="man/figures/RNAsum_workflow.png" width="100%">
 
 1.  Collect patient **WTS data** from the [DRAGEN
     RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)
@@ -223,7 +221,7 @@ export PATH="${rnasum_cli}:${PATH}"
     Usage
     =====
      
-    /Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
+    /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
 
 
     Options
@@ -236,12 +234,6 @@ export PATH="${rnasum_cli}:${PATH}"
 
     --batch_rm=BATCH_RM
             Remove batch-associated effects between datasets? [def: TRUE]
-
-    --clinical_id=CLINICAL_ID
-            ID required to match sample with the subject clinical information
-
-    --clinical_info=CLINICAL_INFO
-            File path to clinical information xlsx file
 
     --cn_gain=CN_GAIN
             CN threshold value to classify genes within gained regions [def: 95]
@@ -263,9 +255,6 @@ export PATH="${rnasum_cli}:${PATH}"
 
     --filter=FILTER
             Filter out low expressed genes? [def: TRUE]
-
-    --grch_version=GRCH_VERSION
-            Human reference genome version used for gene annotation [def: 38]
 
     --hide_code_btn=HIDE_CODE_BTN
             Hide "Code" button above code chunks in report? [def: TRUE]
