@@ -28,6 +28,7 @@ salmon_counts <- function(x, tx2gene = NULL) {
   txi_salmon <- tximport::tximport(files = x, type = "salmon", tx2gene = tx2gene)
   counts <- txi_salmon[["counts"]] |>
     tibble::as_tibble(rownames = "rowname", .name_repair = make.names) |>
-    dplyr::rename(count = .data$X)
+    dplyr::rename(count = .data$X) |>
+    gsub("\\..*", "", rowname)
   counts
 }
