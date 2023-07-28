@@ -25,13 +25,11 @@ salmon_counts <- function(x, tx2gene = NULL) {
     msg = "The tx2gene df object has incorrect column names."
   )
   # check if list.files returns a value or not based on 'gene' pattern in salmon output name
-  if (identical(
-    list.files(dirname(x), pattern = "\\.gene*"),
-    character(0)
-  )) {
+  if (grepl("genes.sf", basename(x), fixed = TRUE)) {
     counts <- read.table(x, sep="\t", as.is=TRUE, header=TRUE) |>
       dplyr::select(Name, NumReads) |>
-      dplyr::rename(rowname = Name, count = NumReads)
+      dplyr::rename(rowname = Name, count = NumReads) |>
+      dplyr::mutate(rowname = gsub("\\..*", "", rowname))
   } else {
     txi_salmon <- tximport::tximport(files = x, type = "salmon", tx2gene = tx2gene)
     counts <- txi_salmon[["counts"]] |>
