@@ -24,7 +24,7 @@ salmon_counts <- function(x, tx2gene = NULL) {
     all(colnames(tx2gene) == c("tx_name", "gene_id")),
     msg = "The tx2gene df object has incorrect column names."
   )
-  # check if list.files returns a value or not based on 'gene' pattern in salmon output name
+  # check if gene level counts are provided or transcript level
   if (grepl("genes.sf", basename(x), fixed = TRUE)) {
     counts <- read.table(x, sep="\t", as.is=TRUE, header=TRUE) |>
       dplyr::select(Name, NumReads) |>
