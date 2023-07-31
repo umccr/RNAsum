@@ -1,7 +1,7 @@
 #' Get Salmon Counts
 #'
 #' Get salmon counts via tximport.
-#' @param x Path to `quant.sf` file with abundances. See [tximport::tximport].
+#' @param x Path to `quant.sf` or `quant.genes.sf` file with abundances. See [tximport::tximport].
 #' @param tx2gene data.frame with tx_name and gene_id columns. See [tximport::tximport].
 #' @return Tibble with the counts per gene transcript, or NULL if any of the
 #'         input params are NULL.
@@ -24,10 +24,18 @@ salmon_counts <- function(x, tx2gene = NULL) {
     all(colnames(tx2gene) == c("tx_name", "gene_id")),
     msg = "The tx2gene df object has incorrect column names."
   )
-
-  txi_salmon <- tximport::tximport(files = x, type = "salmon", tx2gene = tx2gene)
-  counts <- txi_salmon[["counts"]] |>
-    tibble::as_tibble(rownames = "rowname", .name_repair = make.names) |>
-    dplyr::rename(count = .data$X)
+  # check if gene level counts are provided or transcript level
+  if (grepl("genes.sf", basename(x), fixed = TRUE)) {
+    counts <- readr::read_tsv(x, col_types = readr::cols(.default = "c", NumReads = "d")) |>
+      dplyr::select(Name, NumReads) |>
+      dplyr::rename(rowname = Name, count = NumReads)
+  } else {
+    txi_salmon <- tximport::tximport(files = x, type = "salmon", tx2gene = tx2gene)
+    counts <- txi_salmon[["counts"]] |>
+      tibble::as_tibble(rownames = "rowname", .name_repair = make.names) |>
+      dplyr::rename(count = .data$X)
+  }
+  counts |>
+    dplyr::mutate(rowname = sub("\\..*", "", rowname))
   counts
 }
