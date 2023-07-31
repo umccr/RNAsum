@@ -26,7 +26,7 @@ salmon_counts <- function(x, tx2gene = NULL) {
   )
   # check if gene level counts are provided or transcript level
   if (grepl("genes.sf", basename(x), fixed = TRUE)) {
-    counts <- read.table(x, sep="\t", as.is=TRUE, header=TRUE) |>
+    counts <- readr::read_tsv(x, col_types = readr::cols(.default = "c", NumReads = "d")) |>
       dplyr::select(Name, NumReads) |>
       dplyr::rename(rowname = Name, count = NumReads) |>
       dplyr::mutate(rowname = gsub("\\..*", "", rowname))
