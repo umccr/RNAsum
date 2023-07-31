@@ -1,7 +1,7 @@
 #' Get Salmon Counts
 #'
 #' Get salmon counts via tximport.
-#' @param x Path to `quant.sf` file with abundances. See [tximport::tximport].
+#' @param x Path to `quant.sf` or `quant.genes.sf` file with abundances. See [tximport::tximport].
 #' @param tx2gene data.frame with tx_name and gene_id columns. See [tximport::tximport].
 #' @return Tibble with the counts per gene transcript, or NULL if any of the
 #'         input params are NULL.
