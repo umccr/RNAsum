@@ -28,14 +28,14 @@ salmon_counts <- function(x, tx2gene = NULL) {
   if (grepl("genes.sf", basename(x), fixed = TRUE)) {
     counts <- readr::read_tsv(x, col_types = readr::cols(.default = "c", NumReads = "d")) |>
       dplyr::select(Name, NumReads) |>
-      dplyr::rename(rowname = Name, count = NumReads) |>
-      dplyr::mutate(rowname = gsub("\\..*", "", rowname))
+      dplyr::rename(rowname = Name, count = NumReads)
   } else {
     txi_salmon <- tximport::tximport(files = x, type = "salmon", tx2gene = tx2gene)
     counts <- txi_salmon[["counts"]] |>
       tibble::as_tibble(rownames = "rowname", .name_repair = make.names) |>
-      dplyr::rename(count = .data$X) |>
-      dplyr::mutate(rowname = gsub("\\..*", "", rowname))
+      dplyr::rename(count = .data$X)
   }
+  counts |>
+    dplyr::mutate(rowname = sub("\\..*", "", rowname))
   counts
 }
