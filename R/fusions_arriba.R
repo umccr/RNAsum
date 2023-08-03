@@ -88,11 +88,11 @@ arriba_summary_write <- function(x, file) {
   if (is.null(x)) {
     tibble::tibble(empty = character()) |>
       readr::write_tsv(file = file, col_names = FALSE)
-    return()
+  } else {
+    x |>
+      dplyr::select("nm") |>
+      readr::write_tsv(file = file, col_names = FALSE)
   }
-  x |>
-    dplyr::select("nm") |>
-    readr::write_tsv(file = file, col_names = FALSE)
 }
 
 #' Process Arriba Fusions
