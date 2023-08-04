@@ -2207,7 +2207,7 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 
 ### - Summary
 
-Out of the `r if ( runFusionChunk ) { nrow(fusions) } else { c("0") }` fusion event(s) [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support | fusions$geneB_dna_support, ]) } else { c("0") }`**]{style="color:#ff0000"} involve **DNA-supported** fusion genes (see [Structural variants] section), [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion, ]) } else { c("0") }`**]{style="color:#02d653"} are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** and [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$fusions_cancer, ]) } else { c("0") }`**]{style="color:#767689"} involve [**Cancer genes**].
+Out of the `r if ( runFusionChunk ) { nrow(fusions) } else { c("0") }` fusion event(s) [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support | fusions$geneB_dna_support, ]) } else { c("0") }`**]{style="color:#ff0000"} involve **DNA-supported** fusion genes (see [Structural variants] section), [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion, ]) } else { c("0") }`**]{style="color:#02d653"} are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** and [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$fusions_cancer, ]) } else { c("0") }`**]{style="color:#767689"} involve **[Cancer genes]**.
 
 **`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
 
@@ -2220,6 +2220,29 @@ if (runFusionChunk) {
 
   ##### Present gene fusion events in a table
   fusions.summary <- RNAsum::fusions_table(fusions = fusions)
+  fusions.summary
+} else {
+  ##### Create empty table
+  cnames <- c(
+    "Gene A", "Gene B", "Split reads", "Pair reads", "DNA support (A)",
+    "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)",
+    "Fusion gene (B)", "Breakpoint (A)", "Breakpoint (B)", "Genomic view"
+  )
+  fusions.table <- RNAsum::empty_tbl(cnames)
+  ##### Present gene fusion events in a table
+  fusions.summary <- DT::datatable(
+    data = fusions.table, filter = "none", rownames = FALSE,
+    extensions = c("Buttons", "Scroller"),
+    options = list(
+      pageLength = 10, dom = "Bfrtip",
+      buttons = c("excel", "csv", "pdf", "copy", "colvis"),
+      scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE
+    ),
+    width = 800, height = 490,
+    caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
+    escape = FALSE
+  ) |>
+    DT::formatStyle(columns = colnames(fusions.table), `font-size` = "12px", "text-align" = "center")
   fusions.summary
 }
 
@@ -2242,7 +2265,7 @@ rm(fusions.summary)
 
 <font size="2">
 
-Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in [GREEN]{style="color:#02d653"} indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)**, and cells in [GREY]{style="color:#767689"} indicate fusions containing [**Cancer genes**]. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB) are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) databases. *Breakpoint (A/B)* - genomic coordinates of the breakpoints in gene A/B; *Site (A/B)* - location of the breakpoints in gene A/B; *Type* - type of event based on the orientation of the supporting reads and the coordinates of breakpoints
+Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in [GREEN]{style="color:#02d653"} indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)**, and cells in [GREY]{style="color:#767689"} indicate fusions containing **[Cancer genes]**. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB) are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) databases. *Breakpoint (A/B)* - genomic coordinates of the breakpoints in gene A/B; *Site (A/B)* - location of the breakpoints in gene A/B; *Type* - type of event based on the orientation of the supporting reads and the coordinates of breakpoints
 
 Fusion events are ordered by the following columns:
 
@@ -2386,7 +2409,7 @@ if (nrow(fusion_annot_top) > 0) {
 
 <font size="2">
 
-Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in [GREEN]{style="color:#02d653"} indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)**, and cells hihglighted in [GREY]{style="color:#767689"} indicate fusions containing [**Cancer genes**]. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**. *DNA support (gene A/B)* - DNA-supported fusion gene(s) (see) [Structural variants] section); *Reported fusion* - fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB); *Cancer gene(s)* - gene fusion events involving [Cancer genes]
+Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in [GREEN]{style="color:#02d653"} indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)**, and cells hihglighted in [GREY]{style="color:#767689"} indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**. *DNA support (gene A/B)* - DNA-supported fusion gene(s) (see) [Structural variants] section); *Reported fusion* - fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB); *Cancer gene(s)* - gene fusion events involving [Cancer genes]
 
 </font>
 
@@ -2407,7 +2430,7 @@ if (nrow(fusion_annot_top) > 0 && params$save_tables) {
 
 ### - Top hits {.tabset}
 
-Expression profiles for gene fusion events involving **DNA-supported fusion** genes (see [Structural variants] section), gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** or [**Cancer genes**], indicated in [green]{style="color:#02d653"}, [red]{style="color:#ff0000"} and [grey]{style="color:#767689"} columns in the [Fusion genes] table, respectively, and with the highest *Split count* and *Pair count* values.
+Expression profiles for gene fusion events involving **DNA-supported fusion** genes (see [Structural variants] section), gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** or **[Cancer genes]**, indicated in [green]{style="color:#02d653"}, [red]{style="color:#ff0000"} and [grey]{style="color:#767689"} columns in the [Fusion genes] table, respectively, and with the highest *Split count* and *Pair count* values.
 
 [NOTE]{style="color:#ff0000"}: the *visualisation* is available only for fusion genes detected by
 [Arriba](https://arriba.readthedocs.io/en/latest/) (see the [- Summary] table).
@@ -4200,7 +4223,7 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ## Cancer genes
 
-Shown below are mRNA expression levels of cancer genes in the patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources [*UMCCR cancer genes*](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv), [*OncoKB*](http://oncokb.org/#/cancerGenes), [*MSK-IMPACT*](https://www.mskcc.org/msk-impact), [*MSK-HEME*](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf), [*Foundation One*](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx), [*Foundation One Heme*](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme), [*Vogelstein*](http://science.sciencemag.org/content/339/6127/1546.full) and [*Sanger Cancer Gene Census*](https://www.sanger.ac.uk/science/data/cancer-gene-census) (CGC).
+Shown below are mRNA expression levels of cancer genes in the patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources [*UMCCR cancer genes*](https://github.com/umccr/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.latest.tsv), [*OncoKB*](http://oncokb.org/#/cancerGenes), [*MSK-IMPACT*](https://www.mskcc.org/msk-impact), [*MSK-HEME*](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf), [*Foundation One*](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx), [*Foundation One Heme*](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme), [*Vogelstein*](http://science.sciencemag.org/content/339/6127/1546.full) and [*Sanger Cancer Gene Census*](https://www.sanger.ac.uk/science/data/cancer-gene-census) (CGC).
 
 ### - Summary table {.tabset}
 

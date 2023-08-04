@@ -35,7 +35,7 @@ salmon_counts <- function(x, tx2gene = NULL) {
       tibble::as_tibble(rownames = "rowname", .name_repair = make.names) |>
       dplyr::rename(count = .data$X)
   }
-  counts |>
+  counts <- counts |>
     dplyr::mutate(rowname = sub("\\..*", "", rowname))
-  counts
+  return(counts)
 }
