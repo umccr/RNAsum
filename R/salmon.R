@@ -24,11 +24,14 @@ salmon_counts <- function(x, tx2gene = NULL) {
     all(colnames(tx2gene) == c("tx_name", "gene_id")),
     msg = "The tx2gene df object has incorrect column names."
   )
-  # check if gene level counts are provided or transcript level
+  # check if gene level counts are provided or transcript level - we filter gene names with "PAR_Y" to avoid
+  # duplicate row.names issues when combining dataset
   if (grepl("genes.sf", basename(x), fixed = TRUE)) {
     counts <- readr::read_tsv(x, col_types = readr::cols(.default = "c", NumReads = "d")) |>
       dplyr::select(Name, NumReads) |>
-      dplyr::rename(rowname = Name, count = NumReads)
+      dplyr::rename(rowname = Name, count = NumReads) |>
+      dplyr::filter(!grepl('PAR_Y', rowname))
+
   } else {
     txi_salmon <- tximport::tximport(files = x, type = "salmon", tx2gene = tx2gene)
     counts <- txi_salmon[["counts"]] |>
