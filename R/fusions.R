@@ -158,7 +158,8 @@ fusions_table <- function(fusions) {
         glue::glue("{.data$geneB}")
       )
     ) |>
-    dplyr::select(
+    dplyr::select(dplyr::any_of(
+      # any_of handles cases when Arriba fusions are missing so e.g. there is no split_readsA col
       c(
         "Gene A" = "geneA",
         "Gene B" = "geneB",
@@ -183,7 +184,7 @@ fusions_table <- function(fusions) {
         "soft_clipped_reads",
         "fusion_caller"
       )
-    )
+    ))
   tab1 |>
     DT::datatable(
       filter = "none", rownames = FALSE, width = 800, height = 490,
