@@ -1387,25 +1387,32 @@ known_translocations <- RNAsum::known_trans(
 )
 ```
 
-```{r fusions_arriba_processing, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
+```{r fusions_arriba_processing, comment = NA, message=FALSE, warning=FALSE}
 ##### Read in the arriba fusion calls
-fusions_arriba <- RNAsum::arriba_process(
-  arriba.fusions = sample_data.list[["arriba_tsv"]],
-  known_translocations = known_translocations,
-  genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
-)
+fusions_arriba <- NULL
+if (runArribaChunk) {
+  fusions_arriba <- RNAsum::arriba_process(
+    arriba.fusions = sample_data.list[["arriba_tsv"]],
+    known_translocations = known_translocations,
+    genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
+  )
+}
 ```
 
-```{r fusions_dragen_processing, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
+```{r fusions_dragen_processing, comment = NA, message=FALSE, warning=FALSE}
 ##### Read in the dragen fusion calls
-fusions_dragen <- RNAsum::dragen_fusions_process(
-  dragen.fusions = sample_data.list[["dragen_fusions"]],
-  known_translocations = known_translocations,
-  genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
-)
+fusions_dragen <- NULL
+if (runDragenFusionChunk) {
+  fusions_dragen <- RNAsum::dragen_fusions_process(
+    dragen.fusions = sample_data.list[["dragen_fusions"]],
+    known_translocations = known_translocations,
+    genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
+  )
+}
 ```
 
 ```{r fusions_merge, eval = runFusionChunk}
+# NULL gets ignored with bind_rows
 fusions <- dplyr::bind_rows(fusions_arriba, fusions_dragen)
 ##### Annotate fusion genes
 fusions_ann <- RNAsum::fusions_annot(
@@ -2232,15 +2239,10 @@ if (runFusionChunk) {
   ##### Present gene fusion events in a table
   fusions.summary <- DT::datatable(
     data = fusions.table, filter = "none", rownames = FALSE,
-    extensions = c("Buttons", "Scroller"),
     options = list(
-      pageLength = 10, dom = "Bfrtip",
-      buttons = c("excel", "csv", "pdf", "copy", "colvis"),
-      scrollX = TRUE, deferRender = TRUE, scrollY = "333px", scroller = TRUE
+      dom = "Bfrtip", scrollX = TRUE, deferRender = TRUE, scrollY = "100px", scroller = TRUE
     ),
-    width = 800, height = 490,
-    caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;"),
-    escape = FALSE
+    width = 800, height = 490
   ) |>
     DT::formatStyle(columns = colnames(fusions.table), `font-size` = "12px", "text-align" = "center")
   fusions.summary
