@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/145483241.svg)](https://zenodo.org/badge/latestdoi/145483241)
+
 # RNAsum <!-- omit in toc -->
 
 RNA-seq reporting workflow designed to post-process, summarise and visualise an output from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[Dragen RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipelines. Its main application is to complement genome-based findings from [umccrise](https://github.com/umccr/umccrise) pipeline and to provide additional evidence for detected alterations.
