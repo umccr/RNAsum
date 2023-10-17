@@ -117,7 +117,7 @@ read_wgs_data <- function(p) {
   manta_tsv <- .read(
     p = p,
     subdir = "structural", pat = "manta\\.tsv$",
-    nm = "manta_tsv", func = gpgr::process_sv
+    nm = "manta_tsv", func = manta_gpgr_process
   )
 
   list(
@@ -126,7 +126,6 @@ read_wgs_data <- function(p) {
     manta_tsv = manta_tsv
   )
 }
-
 
 #' Get Mutated Genes from PCGR
 #'

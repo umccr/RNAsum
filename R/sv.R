@@ -1,3 +1,13 @@
+manta_gpgr_process <- function(x) {
+  res <- gpgr::process_sv(x)
+  if (!is.null(res[["melted"]])) {
+    # filter out variants with empty Genes field
+    res[["melted"]] <- res[["melted"]] |>
+      dplyr::filter(.data$Genes != "")
+  }
+  res
+}
+
 #' Process Manta Object
 #'
 #' @param manta_tsv_obj Manta list object read via `gpgr::process_sv`.
