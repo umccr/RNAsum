@@ -154,7 +154,7 @@ genes_pcgr_summary <- function(pcgr_tbl, tiers = c(1:4), splice_vars = TRUE) {
       ) |>
       dplyr::pull("SYMBOL")
   }
-  res <- unique(res1, res2) |> stats::na.omit()
+  res <- unique(c(res1, res2)) |> stats::na.omit()
   if (length(res) == 0) {
     return(NULL)
   }
@@ -252,7 +252,7 @@ purple_cnv_summary <- function(tbl, cancer_genes_symbol, cn_bottom, cn_top) {
   dat <- dat |>
     dplyr::filter(.data$MeanCopyNumber <= cn_bottom | .data$MeanCopyNumber >= cn_top) |>
     dplyr::pull("gene") |>
-    base::unique() |>
+    unique() |>
     stats::na.omit()
   if (length(dat) == 0) {
     dat <- NULL
@@ -292,6 +292,6 @@ immune_summary <- function(tbl_imarkers, tbl_igram = NULL, igram_param = TRUE) {
   if (igram_param) {
     res2 <- tbl_igram[["SYMBOL"]]
   }
-  res <- base::unique(res1, res2) |> stats::na.omit()
+  res <- unique(res1, res2) |> stats::na.omit()
   res
 }
