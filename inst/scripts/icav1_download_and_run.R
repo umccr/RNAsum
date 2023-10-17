@@ -5,11 +5,13 @@ require(readr)
 require(glue, include.only = "glue")
 require(here, include.only = "here")
 date1 <- "2023-10-10"
+# grab glims
 lims_rds <- here::here(glue("nogit/data_portal/lims/{date1}.rds"))
 # lims_raw <- dracarys::glims_read()
 # saveRDS(lims_raw, file = lims_rds)
 lims_raw <- readr::read_rds(lims_rds)
 
+# grab rnasum workflow metadata from Athena
 athena_rnasum <- function(sbj) {
   RAthena::RAthena_options(clear_s3_resource = FALSE)
   con <- DBI::dbConnect(
@@ -27,11 +29,9 @@ athena_rnasum <- function(sbj) {
     dracarys::meta_rnasum()
 }
 
-
-
+# SBJ IDs of interest
 sbj <- c("SBJ04215", "SBJ04371", "SBJ04378", "SBJ04379")
 pmeta_rds <- here::here(glue("nogit/data_portal/workflows/{date1}.rds"))
-# grab last X RNAsum runs via portal API
 # pmeta_raw <- athena_rnasum(sbj)
 # saveRDS(pmeta_raw, file = pmeta_rds)
 pmeta_raw <- readr::read_rds(pmeta_rds)
@@ -101,7 +101,7 @@ meta_rnasum <- pmeta |>
   dplyr::ungroup()
 
 # saveRDS(meta_rnasum, here(glue("nogit/patient_data/down_{date1}.rds")))
-# down <- here::here("nogit/patient_data/down_{date1}.rds") |> readr::read_rds()
+# meta_rnasum <- here::here(glue("nogit/patient_data/down_{date1}.rds")) |> readr::read_rds()
 rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, manta_tsv,
                               pcgr_tiers_tsv, purple_gene_tsv, report_dir, salmon,
                               sample_name, subject_id) {
@@ -159,9 +159,9 @@ d |>
         salmon = DragenWtsQuantSfFile, sample_name = glue::glue("{SubjectID}_{LibraryID}"), subject_id = SubjectID
       )
     ),
-    rnasum_rmd = RNAsum::rnasum_rmd(
-      out_file = here::here(glue::glue("nogit/patient_data/reports_html/{SubjectID}_{LibraryID}_{rnasum_dataset}.html")),
-      quiet = FALSE, pars = params
-    )
+    # rnasum_rmd = RNAsum::rnasum_rmd(
+    #   out_file = here::here(glue::glue("nogit/patient_data/reports_html/{SubjectID}_{LibraryID}_{rnasum_dataset}.html")),
+    #   quiet = FALSE, pars = params
+    # )
   ) |>
   dplyr::ungroup()
