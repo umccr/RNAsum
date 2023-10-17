@@ -197,7 +197,8 @@ sv_manta_summary <- function(tbl) {
     dplyr::pull("Genes") |>
     base::strsplit(",") |>
     base::unlist() |>
-    stats::na.omit()
+    stats::na.omit() |>
+    base::unique()
 
   if (length(res) == 0) {
     return(NULL)
