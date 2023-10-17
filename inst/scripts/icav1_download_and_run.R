@@ -69,7 +69,7 @@ rnasum_download <- function(gdsdir, outdir, token, page_size = 200, regexes) {
       dname = sub("gds://", "", .data$dname),
       local_outdir = fs::dir_create(file.path(outdir, .data$dname)),
       outfile = file.path(local_outdir, .data$bname),
-      out_dl = gds_file_download_api(.data$file_id, .data$outfile, token)
+      out_dl = dracarys::gds_file_download_api(.data$file_id, .data$outfile, token)
     ) |>
     dplyr::ungroup()
 }
