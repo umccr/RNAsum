@@ -117,7 +117,7 @@ read_wgs_data <- function(p) {
   manta_tsv <- .read(
     p = p,
     subdir = "structural", pat = "manta\\.tsv$",
-    nm = "manta_tsv", func = manta_gpgr_process
+    nm = "manta_tsv", func = sv_prioritize_old
   )
 
   list(
@@ -195,7 +195,7 @@ sv_manta_summary <- function(tbl) {
   res <- tbl |>
     dplyr::filter(.data$Genes != "") |>
     dplyr::pull("Genes") |>
-    base::strsplit(",") |>
+    base::strsplit(split = "&", fixed = TRUE) |>
     base::unlist() |>
     stats::na.omit() |>
     base::unique()
