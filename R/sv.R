@@ -8,20 +8,20 @@
 #' - genes involved in multi-gene events
 #' @export
 manta_process <- function(manta_tsv_obj) {
-  assertthat::assert_that(all(c("melted", "unmelted") %in% names(manta_tsv_obj)))
-  total_variants <- nrow(manta_tsv_obj[["unmelted"]])
+  total_variants <- manta_tsv_obj[["total_variants"]]
   melted <- manta_tsv_obj[["melted"]]
   multigenes <- melted |>
-    dplyr::mutate(multigene = grepl(", ", .data$Genes)) |>
+    dplyr::mutate(multigene = grepl("&", .data$Genes)) |>
     dplyr::filter(.data$multigene)
   if (nrow(multigenes) > 0) {
     multigenes <- multigenes |>
       dplyr::rowwise() |>
-      dplyr::mutate(g = list(unlist(strsplit(.data$Genes, split = ", ", fixed = TRUE)[[1]]))) |>
+      dplyr::mutate(g = list(unlist(strsplit(.data$Genes, split = "&", fixed = TRUE)[[1]]))) |>
       dplyr::pull("g") |>
       unlist() |>
       unique() |>
-      tibble::as_tibble_col(column_name = "Genes")
+      tibble::as_tibble_col(column_name = "Genes") |>
+      dplyr::arrange(.data$Genes)
   } else {
     multigenes <- empty_tbl(cnames = "Genes")
   }
