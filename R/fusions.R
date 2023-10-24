@@ -105,6 +105,7 @@ fusions_preprocess <- function(d, known_translocations, genes_cancer) {
       gene_cmp2 = dplyr::if_else(.data$geneA < .data$geneB, .data$geneB, .data$geneA),
       gene_pair = glue::glue("{gene_cmp1}--{gene_cmp2}")
     ) |>
+    dplyr::rowwise() |>
     dplyr::mutate(
       reported_fusion = .data$gene_pair %in% k[["gene_pair"]],
       FGID = fgid_from_fgname[.data$gene_pair],
