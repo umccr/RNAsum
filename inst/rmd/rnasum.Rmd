@@ -62,7 +62,7 @@ knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
 ```
 
 ```{r load_pkgs, message=FALSE}
-source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
+# source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
 # source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
 ensembl_version <- 86L
 ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
@@ -194,7 +194,7 @@ mysql_populate_update <- paste0(
 ```
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
-tmpg <- ref_genes.list[["genes_oncokb"]] |>
+g1 <- ref_genes.list[["genes_oncokb"]] |>
   dplyr::mutate(UMCCR = "No", Oncogene = "-", TSG = "-", Fusion = "-", Germline = "-") |>
   dplyr::rename(occurrence_num = "# of occurence within resources")
 ##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
@@ -208,49 +208,47 @@ ref_genes.list[["genes_cancer"]] <- ref_genes.list[["genes_cancer"]] |>
 
 for (gene in ref_genes.list[["genes_cancer"]][["symbol"]]) {
   ##### Check if the UMCCR genes is already reported in OncoKB
-  if (gene %in% tmpg$Hugo_Symbol) {
-    tmpg[tmpg$Hugo_Symbol == gene, ]$UMCCR <- "Yes"
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, "occurrence_num"] <- as.integer(tmpg[tmpg$Hugo_Symbol == gene, "occurrence_num"]) + 1L
+  if (gene %in% g1$Hugo_Symbol) {
+    g1[g1$Hugo_Symbol == gene, ]$UMCCR <- "Yes"
+    g1[g1$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, "occurrence_num"] <- as.integer(g1[g1$Hugo_Symbol == gene, "occurrence_num"]) + 1L
   } else {
     ##### Add if not present
-    r1 <- tibble(
+    r1 <- tibble::tibble(
       "Hugo_Symbol" = gene, "occurrence_num" = 1L,
       "OncoKB Annotated" = "No", "OncoKB Oncogene" = "", "OncoKB TSG" = "",
       "MSK-IMPACT" = "", "MSK-HEME" = "", "Foundation One" = "",
       "Foundation One Heme" = "", "Vogelstein" = "", "Sanger CGC" = "",
       "UMCCR" = "Yes", "Oncogene" = "", "TSG" = "", "Fusion" = "", "Germline" = ""
     )
-    tmpg <- dplyr::bind_rows(tmpg, r1)
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1 <- dplyr::bind_rows(g1, r1)
+    g1[g1$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
   }
 }
 
 ##### Make the data frame look nicer
-colnames(tmpg) <- c(
+colnames(g1) <- c(
   "Gene", "Gene panels no.", "OncoKB", "Oncogene (OncoKB)", "TSG (OncoKB)",
   "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme",
   "Vogelstein", "Sanger CGC", "UMCCR", "Oncogene", "TSG", "Fusion", "Germline"
 )
-tmpg <- tmpg |>
+g1 <- g1 |>
   dplyr::select(
     "Gene", "Oncogene", "TSG", "Fusion", "Germline", "Gene panels no.",
     "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One",
     "Foundation One Heme", "Vogelstein", "Sanger CGC"
   )
-tmpg[tmpg == "No" | tmpg == ""] <- "-"
-ref_genes.list[["genes_cancer"]] <- tmpg
-# dplyr::select(-c("Gene"))
-ref_genes.list[["genes_oncokb"]] <- tmpg |>
+g1[g1 == "No" | g1 == ""] <- "-"
+ref_genes.list[["genes_cancer"]] <- g1
+ref_genes.list[["genes_oncokb"]] <- g1 |>
   dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]][["Hugo_Symbol"]])
-# dplyr::select(-c("Gene"))
-rm(tmpg, r1)
+rm(g1, r1)
 ```
 
 ```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -421,7 +419,7 @@ summarise_comb_data <- function(f, comb_data) {
 cpm.min <- summarise_comb_data(min, comb_data)
 cpm.max <- summarise_comb_data(max, comb_data)
 ##### Create lists with processed data each group
-y <- vector("list", length(targets_mod.list)) |> set_names(targets_mod.list)
+y <- vector("list", length(targets_mod.list)) |> purrr::set_names(targets_mod.list)
 
 #### For each group...
 for (group in targets_mod.list) {
@@ -535,7 +533,7 @@ for (group in targets_mod.list) {
       y[[group]]$transformed <- RNAsum::tpm_from_rpkm(y[[group]]$transformed)
     }
   }
-}
+} # for end
 
 ##### Now combine DGEList objects created for each group
 y[["comb"]]$transformed <- cbind(
@@ -2700,7 +2698,9 @@ rm(list = ls(pattern = "^output*"))
 
 ## Structural variants
 
-mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta) SV caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
+mRNA expression levels of genes located within detected structural variants (SVs),
+obtained from the [Manta](https://github.com/Illumina/manta) SV caller,
+in the patient's sample and their average mRNA expression in samples from cancer cohorts.
 
 `r if ( !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**") }`
 
