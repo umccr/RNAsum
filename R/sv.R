@@ -124,7 +124,9 @@ sv_prioritize_old <- function(sv_file) {
     ) %>%
     tidyr::separate(Effect, c("Effect", "Other effects"), sep = "&", fill = "right", extra = "merge") %>%
     dplyr::select(Tier = tier, Event = svtype, Genes = Gene, Effect = Effect, Detail = Detail, Location = location, AF = AF_PURPLE, `CN chg` = CN_change_PURPLE, SR, PR, CN = CN_PURPLE, Ploidy = Ploidy_PURPLE, PURPLE_status, `SR (ref)`, `PR (ref)`, PE, `PE (ref)`, `Somatic score` = somaticscore, Transcript = Transcript, `Other effects`, `Other affected genes`, `AF at breakpoint 1` = AF_PURPLE1, `AF at breakpoint 2` = AF_PURPLE2, `CN at breakpoint 1` = CN_PURPLE1, `CN at breakpoint 2` = CN_PURPLE2, `CN change at breakpoint 1` = CN_change_PURPLE1, `CN change at breakpoint 2` = CN_change_PURPLE2, `AF before adjustment, bp 1` = AF_BPI1, `AF before adjustment, bp 2` = AF_BPI2) %>%
-    dplyr::distinct()
+    dplyr::distinct() |>
+    # filter out empty gene rows
+    dplyr::filter(Genes != "")
   total_melted <- nrow(sv_all)
   return(list(
     melted = sv_all,
