@@ -62,7 +62,7 @@ knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
 ```
 
 ```{r load_pkgs, message=FALSE}
-# source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
+source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
 # source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
 ensembl_version <- 86L
 ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
@@ -78,6 +78,8 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
   library(ensembldb, include.only = c("lengthOf"))
   library(fs, include.only = c("dir_create"))
   library(glue, include.only = c("glue"))
+  library(ggforce, include.only = c("geom_sina"))
+  library(ggplot2, include.only = c("ggplot", "aes"))
   library(htmltools, include.only = c("renderTags"))
   library(limma, include.only = c("removeBatchEffect"))
   library(manhattanly, include.only = c("manhattanly"))
@@ -352,44 +354,26 @@ target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
   mutate(Target = if_else(.data$Target == sample_name, "Patient", .data$Target))
 rownames(target)[rownames(target) == sample_name] <- "Patient"
 
-# Change the datasets levels order
-target$Target <- factor(target$Target, levels = unique(target$Target))
-
-# Assign colours to targets and datasets
-targets.colour <- RNAsum::getColours(target$Target)
-
 # Prepare data frame
-data.df <- tibble(
+d <- tibble::tibble(
   Sample = rownames(target),
   Library_size = as.numeric(colSums(comb_data) * 1e-6),
   Target = target[["Target"]]
 )
 
-# The default order will be alphabetized unless specified as below
-data.df[["Sample"]] <- factor(data.df[["Sample"]], levels = data.df[["Sample"]])
-max_libsize <- max(data.df[["Library_size"]])
-# TODO (PD):
-# - Does this need to be interactive? Its size is fairly big (>3MB for test set)
-# - Does it need to be a barplot?
-# - Should the bars be sorted instead of mixed?
-
-library_size <- data.df |>
-  plotly::plot_ly(
-    x = ~Sample, y = ~Library_size, color = ~Target,
-    colors = targets.colour[[1]], type = "bar",
-    width = 800, height = 400
-  ) |>
-  plotly::layout(
-    title = "",
-    xaxis = list(tickfont = list(size = 10), title = "", showticklabels = FALSE),
-    yaxis = list(title = "Library size (millions)"),
-    margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4),
-    autosize = FALSE, showlegend = TRUE,
-    legend = list(orientation = "h", y = max_libsize, bgcolor = "white")
-  )
+patient_libsize <- d |>
+  dplyr::filter(Target == "Patient") |>
+  dplyr::pull(Library_size)
+library_size <- d |>
+  ggplot2::ggplot(aes(x = "", y = Library_size)) +
+  ggplot2::geom_violin(fill = "transparent", colour = "grey80", alpha = 0.04) +
+  ggforce::geom_sina(aes(colour = Target, group = 1), seed = 42, na.rm = TRUE) +
+  ggplot2::geom_hline(yintercept = patient_libsize, colour = "blue", size = 1.2) +
+  ggplot2::theme_minimal() +
+  ggplot2::scale_y_continuous(breaks = scales::breaks_pretty(8))
 
 PlotsDir <- file.path(results_dir, "InputDataPlots")
-RNAsum::saveWidgetFix(widget = library_size, file = file.path(PlotsDir, "library_size.html"))
+ggplot2::ggsave(file = file.path(PlotsDir, "library_size.png"), plot = library_size)
 ```
 
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -1748,7 +1732,6 @@ NOTE, the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_da
 Bar-plot illustrating library size for each sample.
 
 ```{r library_size, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-# TODO (PD): this plot is 3.6 MB
 library_size
 ```
 
