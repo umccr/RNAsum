@@ -147,18 +147,20 @@ fusions_annot <- function(fusions, gene_ann) {
 fusions_table <- function(fusions) {
   tab1 <- fusions |>
     ##### Provide link to FusionGDB
+    dplyr::rowwise() |>
     dplyr::mutate(
       geneA = dplyr::if_else(
         .data$reported_fusion,
-        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}'>{.data$geneA}</a>"),
         glue::glue("{.data$geneA}")
       ),
       geneB = dplyr::if_else(
         .data$reported_fusion,
-        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}'>{.data$geneB}</a>"),
         glue::glue("{.data$geneB}")
       )
     ) |>
+    dplyr::ungroup() |>
     dplyr::select(dplyr::any_of(
       # any_of handles cases when Arriba fusions are missing so e.g. there is no split_readsA col
       c(
