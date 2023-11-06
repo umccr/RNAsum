@@ -1403,16 +1403,17 @@ fusions_ann <- RNAsum::fusions_annot(
 ```
 
 ```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-##### Add row for gene fusion events so that there is one row per gene
 manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]] |>
   RNAsum::manta_process()
 
 ##### Compare fusion genes called by MANTA
 ##### First limit MANTA output to fusions only
 if (runFusionChunk) {
-  manta_fusions <- manta_sv[["multigenes"]] |>
+  manta_fusions <- manta_sv[["melted_variants"]] |>
+    dplyr::filter(.data$is_fusion) |>
     dplyr::filter(.data$Genes %in% unique(c(fusions[["geneA"]], fusions[["geneB"]]))) |>
-    dplyr::pull(.data$Genes)
+    dplyr::pull(.data$Genes) |>
+    unique()
 
   ##### Flag fusions that were also reported in MANTA
   cond1 <- length(manta_fusions) > 0
@@ -2693,7 +2694,7 @@ in the patient's sample and their average mRNA expression in samples from cancer
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { nrow(manta_sv$all_genes) }` genes affected by `r if ( runSVsChunk ) { manta_sv$total_variants }` SVs, the expression of **`r if ( runSVsChunk ) { sum(manta_sv$all_genes$Genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) } else { length(NULL) }`** was reliably measured in the patient's sample. The remaining `r if ( runSVsChunk ) { sum(!manta_sv$all_genes$Genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r if ( runSVsChunk ) { nrow(manta_sv$genes_all) }` genes affected by `r if ( runSVsChunk ) { manta_sv$total_variants }` SVs, the expression of **`r if ( runSVsChunk ) { sum(manta_sv$genes_all$Genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) } else { length(NULL) }`** was reliably measured in the patient's sample. The remaining `r if ( runSVsChunk ) { sum(!manta_sv$genes_all$Genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 
@@ -2707,7 +2708,7 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Consider only SVs with known genes and those in MANTA output for which the expression levels were measured
-genes <- unique(manta_sv$melted_variants$Genes)
+genes <- manta_sv$genes_all$Genes
 genes <- genes[genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL]
 
 ##### Deal with no genes or when more than 10 genes are of interest

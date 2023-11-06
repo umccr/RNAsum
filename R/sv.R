@@ -9,45 +9,32 @@
 #' @export
 manta_process <- function(manta_tsv_obj) {
   total_variants <- manta_tsv_obj[["total_variants"]]
-  melted <- manta_tsv_obj[["melted"]]
-  m1 <- melted |>
-    dplyr::mutate(multigene = grepl("&", .data$Genes))
-  multigenes <- m1 |>
-    dplyr::filter(.data$multigene)
-  nomultigenes <- m1 |>
-    dplyr::filter(!.data$multigene)
-  if (nrow(multigenes) > 0) {
-    multigenes <- multigenes |>
-      dplyr::rowwise() |>
-      dplyr::mutate(g = list(unlist(strsplit(.data$Genes, split = "&", fixed = TRUE)[[1]]))) |>
-      dplyr::pull("g") |>
-      unlist() |>
-      unique() |>
-      tibble::as_tibble_col(column_name = "Genes") |>
-      dplyr::arrange(.data$Genes)
+  melted <- manta_tsv_obj[["melted"]] |>
+    dplyr::mutate(
+      is_fusion = grepl("&", .data$Genes),
+      fusion_genes = dplyr::if_else(is_fusion, .data$Genes, "")
+    )
+  fus <- melted |>
+    dplyr::filter(.data$is_fusion)
+  nofus <- melted |>
+    dplyr::filter(!.data$is_fusion)
+  if (nrow(fus) > 0) {
+    # split fusions into two rows, one per gene
+    fus <- fus |>
+      tidyr::separate_longer_delim(cols = "Genes", delim = "&")
   } else {
-    multigenes <- empty_tbl(cnames = "Genes")
-  }
-  if (nrow(nomultigenes) > 0) {
-    nomultigenes <- nomultigenes |>
-      dplyr::select("Genes")
-  } else {
-    nomultigenes <- empty_tbl(cnames = "Genes")
+    fus <- empty_tbl(cnames = colnames(melted))
   }
 
-  all_genes <- dplyr::bind_rows(
-    multigenes, nomultigenes
-  ) |>
+  melted <- dplyr::bind_rows(fus, nofus)
+  genes_all <- melted |>
+    dplyr::select("Genes") |>
     dplyr::distinct(.data$Genes)
 
-
-
-
   list(
-    all_genes = all_genes,
+    genes_all = genes_all,
     total_variants = total_variants,
-    melted_variants = melted,
-    multigenes = multigenes
+    melted_variants = melted
   )
 }
 

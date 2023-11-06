@@ -262,9 +262,9 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
 
     ##### Order the data by MANTA increasing Tier (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py), event type and then by the highest absolute values for Patient vs [comp_cancer] difference
   } else if (!is.null(sv_data) && length(genes) > 0) {
-    group.z <- group.z[order(abs(group.z[, "Diff"]), decreasing = TRUE), ]
-    group.z <- group.z[order(group.z$"Fusion", decreasing = TRUE), ]
-    group.z <- group.z[order(group.z$Tier), ]
+    group.z <- group.z[order(abs(group.z[["Diff"]]), decreasing = TRUE), ]
+    group.z <- group.z[order(group.z[["fusion_genes"]], decreasing = TRUE), ]
+    group.z <- group.z[order(group.z[["Tier"]]), ]
 
     ##### Otherwise order table by the highest absolute values for Patient vs [comp_cancer] difference
   } else if (length(genes) > 0) {
