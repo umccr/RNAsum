@@ -1,6 +1,6 @@
 #' Process Manta Object
 #'
-#' @param manta_tsv_obj Manta list object read via `gpgr::process_sv`.
+#' @param manta_tsv_obj Manta list object read via `sv_prioritize_old`.
 #'
 #' @return List with:
 #' - total Manta (unmelted) variants
