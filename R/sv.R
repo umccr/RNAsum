@@ -10,9 +10,12 @@
 manta_process <- function(manta_tsv_obj) {
   total_variants <- manta_tsv_obj[["total_variants"]]
   melted <- manta_tsv_obj[["melted"]]
-  multigenes <- melted |>
-    dplyr::mutate(multigene = grepl("&", .data$Genes)) |>
+  m1 <- melted |>
+    dplyr::mutate(multigene = grepl("&", .data$Genes))
+  multigenes <- m1 |>
     dplyr::filter(.data$multigene)
+  nomultigenes <- m1 |>
+    dplyr::filter(!.data$multigene)
   if (nrow(multigenes) > 0) {
     multigenes <- multigenes |>
       dplyr::rowwise() |>
@@ -25,8 +28,23 @@ manta_process <- function(manta_tsv_obj) {
   } else {
     multigenes <- empty_tbl(cnames = "Genes")
   }
+  if (nrow(nomultigenes) > 0) {
+    nomultigenes <- nomultigenes |>
+      dplyr::select("Genes")
+  } else {
+    nomultigenes <- empty_tbl(cnames = "Genes")
+  }
+
+  all_genes <- dplyr::bind_rows(
+    multigenes, nomultigenes
+  ) |>
+    dplyr::distinct(.data$Genes)
+
+
+
 
   list(
+    all_genes = all_genes,
     total_variants = total_variants,
     melted_variants = melted,
     multigenes = multigenes
@@ -78,7 +96,7 @@ sv_prioritize_old <- function(sv_file) {
     return(sv_all)
   }
   sv_all <- readr::read_tsv(sv_file, col_names = TRUE) |>
-    dplyr::select(-caller, -sample) |>
+    dplyr::select(-c("caller", "sample")) |>
     split_sv_field(AF_BPI, is_pct = T) |>
     split_sv_field(AF_PURPLE, is_pct = T) |>
     split_sv_field(CN_PURPLE) |>

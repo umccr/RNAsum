@@ -28,10 +28,9 @@ salmon_counts <- function(x, tx2gene = NULL) {
   # duplicate row.names issues when combining dataset
   if (grepl("genes.sf", basename(x), fixed = TRUE)) {
     counts <- readr::read_tsv(x, col_types = readr::cols(.default = "c", NumReads = "d")) |>
-      dplyr::select(Name, NumReads) |>
+      dplyr::select("Name", "NumReads") |>
       dplyr::rename(rowname = Name, count = NumReads) |>
-      dplyr::filter(!grepl('PAR_Y', rowname))
-
+      dplyr::filter(!grepl("PAR_Y", .data$rowname))
   } else {
     txi_salmon <- tximport::tximport(files = x, type = "salmon", tx2gene = tx2gene)
     counts <- txi_salmon[["counts"]] |>
