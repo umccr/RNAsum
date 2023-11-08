@@ -19,6 +19,10 @@
 #'     "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
 #'     package = "RNAsum"
 #'   ),
+#'   dragen_mapping_metrics = system.file(
+#'     "rawdata/test_data/dragen/test.mapping_metrics.csv",
+#'     package = "RNAsum"
+#'   ),
 #'   umccrise = system.file(
 #'     "rawdata/test_data/umccrised/test_sample_WGS",
 #'     package = "RNAsum"
@@ -39,12 +43,14 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
     arriba_pdf_read(fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
   salmon <- salmon_counts(p[["salmon"]], tx2gene = tx2gene)
   dragen_fusions <- dragen_fusions_read(p[["dragen_fusions"]])
+  dragen_mapping_metrics <- dragen_mapping_metrics_read(p[["dragen_mapping_metrics"]])
   wgs <- read_wgs_data(p)
   list(
     arriba_tsv = arriba_tsv,
     arriba_pdf = arriba_pdf,
     salmon = salmon,
     dragen_fusions = dragen_fusions,
+    dragen_mapping_metrics = dragen_mapping_metrics,
     wgs = wgs
   )
 }
