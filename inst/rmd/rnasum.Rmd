@@ -19,6 +19,7 @@ params:
   dataset: 'PANCAN'
   dataset_name_incl: FALSE
   dragen_fusions: NULL
+  dragen_mapping_metrics: NULL
   drugs: FALSE
   filter: TRUE
   immunogram: FALSE
@@ -62,7 +63,7 @@ knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
 ```
 
 ```{r load_pkgs, message=FALSE}
-# source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
+source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
 # source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
 ensembl_version <- 86L
 ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
@@ -103,6 +104,7 @@ sample_name <- paste0(
   params$sample_name,
   if_else(dataset_name_incl == "", "", paste0("_", dataset))
 )
+sample_report_title <- sample_name
 results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
 fs::dir_create(results_dir)
 # Annotate transcripts with gene IDs
@@ -121,7 +123,7 @@ ref_dataset.list <- vector("list", length(dataset)) |> set_names(dataset)
 ref_genes.list <- RNAsum::get_refgenes(params)
 # sample WTS/WGS data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
-arriba_summary_out <- glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
+arriba_summary_out <- glue("{sample_name}.RNAseq_report.arriba_fusions.txt")
 RNAsum::arriba_summary_write(
   sample_data.list[["arriba_pdf"]],
   file = file.path(results_dir, arriba_summary_out)
@@ -156,11 +158,20 @@ if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
 # TODO (PD): put all chunks inside a function
 runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
 runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
+runDragenMappingMetricsChunk <- !is.null(sample_data.list[["dragen_mapping_metrics"]])
 runFusionChunk <- runArribaChunk || runDragenFusionChunk
 runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
 runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
 runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
   nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
+```
+
+```{r dragen_mapping_metrics, eval=runDragenMappingMetricsChunk}
+dragen_mapping_metrics <- sample_data.list[["dragen_mapping_metrics"]]
+dragen_reads_tot_input <- dragen_mapping_metrics |>
+  dplyr::filter(.data$var == "Total input reads") |>
+  dplyr::pull(.data$count)
+sample_report_title <- glue("{sample_report_title}, Library size: {round(dragen_reads_tot_input / 1e6, 1)} M reads")
 ```
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
@@ -1705,6 +1716,8 @@ summary_table.df <- data.frame(
 ##### Clean the space and return output
 rm(summary_table.list)
 ```
+
+Transcriptome summary for patient sample **`r sample_report_title`**.
 
 ------------------------------------------------------------------------
 
