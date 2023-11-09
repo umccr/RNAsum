@@ -105,6 +105,7 @@ fusions_preprocess <- function(d, known_translocations, genes_cancer) {
       gene_cmp2 = dplyr::if_else(.data$geneA < .data$geneB, .data$geneB, .data$geneA),
       gene_pair = glue::glue("{gene_cmp1}--{gene_cmp2}")
     ) |>
+    dplyr::rowwise() |>
     dplyr::mutate(
       reported_fusion = .data$gene_pair %in% k[["gene_pair"]],
       FGID = fgid_from_fgname[.data$gene_pair],
@@ -146,18 +147,20 @@ fusions_annot <- function(fusions, gene_ann) {
 fusions_table <- function(fusions) {
   tab1 <- fusions |>
     ##### Provide link to FusionGDB
+    dplyr::rowwise() |>
     dplyr::mutate(
       geneA = dplyr::if_else(
         .data$reported_fusion,
-        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}'>{.data$geneA}</a>"),
         glue::glue("{.data$geneA}")
       ),
       geneB = dplyr::if_else(
         .data$reported_fusion,
-        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}"),
+        glue::glue("<a href='https://ccsm.uth.edu/FusionGDB/gene_search_result.cgi?page=page&type=quick_search&quick_search={.data$FGID}'>{.data$geneB}</a>"),
         glue::glue("{.data$geneB}")
       )
     ) |>
+    dplyr::ungroup() |>
     dplyr::select(dplyr::any_of(
       # any_of handles cases when Arriba fusions are missing so e.g. there is no split_readsA col
       c(

@@ -19,6 +19,10 @@
 #'     "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
 #'     package = "RNAsum"
 #'   ),
+#'   dragen_mapping_metrics = system.file(
+#'     "rawdata/test_data/dragen/test.mapping_metrics.csv",
+#'     package = "RNAsum"
+#'   ),
 #'   umccrise = system.file(
 #'     "rawdata/test_data/umccrised/test_sample_WGS",
 #'     package = "RNAsum"
@@ -39,12 +43,14 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
     arriba_pdf_read(fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
   salmon <- salmon_counts(p[["salmon"]], tx2gene = tx2gene)
   dragen_fusions <- dragen_fusions_read(p[["dragen_fusions"]])
+  dragen_mapping_metrics <- dragen_mapping_metrics_read(p[["dragen_mapping_metrics"]])
   wgs <- read_wgs_data(p)
   list(
     arriba_tsv = arriba_tsv,
     arriba_pdf = arriba_pdf,
     salmon = salmon,
     dragen_fusions = dragen_fusions,
+    dragen_mapping_metrics = dragen_mapping_metrics,
     wgs = wgs
   )
 }
@@ -117,7 +123,7 @@ read_wgs_data <- function(p) {
   manta_tsv <- .read(
     p = p,
     subdir = "structural", pat = "manta\\.tsv$",
-    nm = "manta_tsv", func = gpgr::process_sv
+    nm = "manta_tsv", func = sv_prioritize_old
   )
 
   list(
@@ -126,7 +132,6 @@ read_wgs_data <- function(p) {
     manta_tsv = manta_tsv
   )
 }
-
 
 #' Get Mutated Genes from PCGR
 #'
@@ -154,7 +159,7 @@ genes_pcgr_summary <- function(pcgr_tbl, tiers = c(1:4), splice_vars = TRUE) {
       ) |>
       dplyr::pull("SYMBOL")
   }
-  res <- unique(res1, res2) |> stats::na.omit()
+  res <- unique(c(res1, res2)) |> stats::na.omit()
   if (length(res) == 0) {
     return(NULL)
   }
@@ -196,9 +201,10 @@ sv_manta_summary <- function(tbl) {
   res <- tbl |>
     dplyr::filter(.data$Genes != "") |>
     dplyr::pull("Genes") |>
-    base::strsplit(",") |>
+    base::strsplit(split = "&", fixed = TRUE) |>
     base::unlist() |>
-    stats::na.omit()
+    stats::na.omit() |>
+    base::unique()
 
   if (length(res) == 0) {
     return(NULL)
@@ -252,7 +258,7 @@ purple_cnv_summary <- function(tbl, cancer_genes_symbol, cn_bottom, cn_top) {
   dat <- dat |>
     dplyr::filter(.data$MeanCopyNumber <= cn_bottom | .data$MeanCopyNumber >= cn_top) |>
     dplyr::pull("gene") |>
-    base::unique() |>
+    unique() |>
     stats::na.omit()
   if (length(dat) == 0) {
     dat <- NULL
@@ -292,6 +298,6 @@ immune_summary <- function(tbl_imarkers, tbl_igram = NULL, igram_param = TRUE) {
   if (igram_param) {
     res2 <- tbl_igram[["SYMBOL"]]
   }
-  res <- base::unique(res1, res2) |> stats::na.omit()
+  res <- unique(c(res1, res2)) |> stats::na.omit()
   res
 }

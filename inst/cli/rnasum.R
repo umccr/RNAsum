@@ -21,6 +21,7 @@ option_list <- list(
   make_option("--dataset", default = "PANCAN", type = "character", help = "Dataset to be used as external reference cohort. [def: %default]"),
   make_option("--dataset_name_incl", action = "store_true", default = FALSE, help = "Include dataset in report name? [def: %default]"),
   make_option("--dragen_fusions", type = "character", help = "File path to DRAGEN RNA-seq 'fusion_candidates.final' output."),
+  make_option("--dragen_mapping_metrics", type = "character", help = "File path to DRAGEN RNA-seq 'mapping_metrics.csv' output."),
   make_option("--drugs", action = "store_true", default = FALSE, help = "Include drug matching section in report? [def: %default]"),
   make_option("--filter", action = "store_false", default = TRUE, help = "Filter out low expressed genes? [def: %default]"),
   make_option("--immunogram", action = "store_true", default = FALSE, help = "Include immunogram in report? [def: %default]"),

@@ -2,7 +2,7 @@
 
 # File R/sample_data.R: @testexamples
 
-test_that("Function read_sample_data() @ L36", {
+test_that("Function read_sample_data() @ L40", {
   
   p <- list(
     dragen_rnaseq = system.file("rawdata/test_data/dragen", package = "RNAsum"),
@@ -10,6 +10,10 @@ test_that("Function read_sample_data() @ L36", {
     arriba_tsv = system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum"),
     dragen_fusions = system.file(
       "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
+      package = "RNAsum"
+    ),
+    dragen_mapping_metrics = system.file(
+      "rawdata/test_data/dragen/test.mapping_metrics.csv",
       package = "RNAsum"
     ),
     umccrise = system.file(
@@ -27,7 +31,7 @@ test_that("Function read_sample_data() @ L36", {
 })
 
 
-test_that("Function read_wgs_data() @ L78", {
+test_that("Function read_wgs_data() @ L84", {
   
   p <- list(
     umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),

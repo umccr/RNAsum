@@ -39,7 +39,7 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir) {
   colnames(count_int) <- glue::glue("{ref_data[['int_ref']][['dataset']]}.{colnames(count_int)}")
   datasets.comb <- base::merge(datasets.comb, count_ext, by = 1, all = FALSE, sort = TRUE)
   datasets.comb <- base::merge(datasets.comb, count_int, by = 1, all = FALSE, sort = TRUE)
-  gene_list <- base::unique(c(sample_counts[["rowname"]], count_ext[[1]], count_int[[1]]))
+  gene_list <- unique(c(sample_counts[["rowname"]], count_ext[[1]], count_int[[1]]))
 
   # TODO: refactor this a bit better
   ##### Use gene IDs as rownames

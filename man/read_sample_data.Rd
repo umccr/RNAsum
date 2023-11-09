@@ -31,6 +31,10 @@ p <- list(
     "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
     package = "RNAsum"
   ),
+  dragen_mapping_metrics = system.file(
+    "rawdata/test_data/dragen/test.mapping_metrics.csv",
+    package = "RNAsum"
+  ),
   umccrise = system.file(
     "rawdata/test_data/umccrised/test_sample_WGS",
     package = "RNAsum"
