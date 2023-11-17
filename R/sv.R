@@ -125,8 +125,7 @@ sv_prioritize_old <- function(sv_file) {
     tidyr::separate_wider_delim(cols = "paired_support_PE", names = c("PE (ref)", "PE (alt)"), delim = ",", too_few = "align_start") |>
     dplyr::mutate(
       SR = as.integer(.data$`SR (alt)`), PR = as.integer(.data$`PR (alt)`), PE = as.integer(.data$`PE (alt)`)
-    ) |>
-    dplyr::filter(.data$svtype != "BND" | is.na(.data$SR) | .data$PR > .data$SR) # remove BND with split read support higher than paired
+    )
   total_variants <- nrow(sv_all)
   sv_all <- sv_all |>
     # Unpack multiple annotations per region
