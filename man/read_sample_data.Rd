@@ -20,27 +20,14 @@ A list of the input sample data.
 }
 \description{
 Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
-and DRAGEN fusions.
+DRAGEN fusions, DRAGEN mapping metrics, Manta SVs, PURPLE CNVs, and PCGR SNVs.
 }
 \examples{
 p <- list(
-  dragen_rnaseq = system.file("rawdata/test_data/dragen", package = "RNAsum"),
-  arriba_pdf = system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum"),
-  arriba_tsv = system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum"),
-  dragen_fusions = system.file(
-    "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
-    package = "RNAsum"
-  ),
-  dragen_mapping_metrics = system.file(
-    "rawdata/test_data/dragen/test.mapping_metrics.csv",
-    package = "RNAsum"
-  ),
+  dragen_wts_dir = system.file("rawdata/test_data/dragen", package = "RNAsum"),
+  arriba_dir = system.file("rawdata/test_data/dragen/arriba", package = "RNAsum"),
   umccrise = system.file(
     "rawdata/test_data/umccrised/test_sample_WGS",
-    package = "RNAsum"
-  ),
-  manta_tsv = system.file(
-    "rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv",
     package = "RNAsum"
   )
 )

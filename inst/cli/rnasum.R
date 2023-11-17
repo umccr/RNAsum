@@ -23,6 +23,7 @@ option_list <- list(
   make_option("--dataset_name_incl", action = "store_true", help = "Include dataset in report name."),
   make_option("--dragen_fusions", type = "character", help = "File path to DRAGEN RNA-seq 'fusion_candidates.final' output."),
   make_option("--dragen_mapping_metrics", type = "character", help = "File path to DRAGEN RNA-seq 'mapping_metrics.csv' output."),
+  make_option("--dragen_wts_dir", type = "character", help = "Directory path to DRAGEN RNA-seq results."),
   make_option("--drugs", action = "store_true", help = "Include drug matching section in report."),
   make_option("--filter", action = "store_true", help = "Filter out low expressed genes."),
   make_option("--immunogram", action = "store_true", help = "Include immunogram in report."),
