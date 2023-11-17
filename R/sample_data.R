@@ -34,7 +34,7 @@
 #' )
 #' res <- read_sample_data(p, tempdir())
 #' @testexamples
-#' expect_equal(length(res), 5)
+#' expect_equal(length(res), 6)
 #' expect_null(res$salmon)
 #' @export
 read_sample_data <- function(p, results_dir, tx2gene = NULL) {

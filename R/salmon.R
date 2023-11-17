@@ -29,7 +29,7 @@ salmon_counts <- function(x, tx2gene = NULL) {
   if (grepl("genes.sf", basename(x), fixed = TRUE)) {
     counts <- readr::read_tsv(x, col_types = readr::cols(.default = "c", NumReads = "d")) |>
       dplyr::select("Name", "NumReads") |>
-      dplyr::rename(rowname = Name, count = NumReads) |>
+      dplyr::rename(rowname = "Name", count = "NumReads") |>
       dplyr::filter(!grepl("PAR_Y", .data$rowname))
   } else {
     txi_salmon <- tximport::tximport(files = x, type = "salmon", tx2gene = tx2gene)
@@ -38,6 +38,6 @@ salmon_counts <- function(x, tx2gene = NULL) {
       dplyr::rename(count = .data$X)
   }
   counts <- counts |>
-    dplyr::mutate(rowname = sub("\\..*", "", rowname))
+    dplyr::mutate(rowname = sub("\\..*", "", .data$rowname))
   return(counts)
 }

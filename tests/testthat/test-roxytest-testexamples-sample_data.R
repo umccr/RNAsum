@@ -26,7 +26,7 @@ test_that("Function read_sample_data() @ L40", {
     )
   )
   res <- read_sample_data(p, tempdir())
-  expect_equal(length(res), 5)
+  expect_equal(length(res), 6)
   expect_null(res$salmon)
 })
 

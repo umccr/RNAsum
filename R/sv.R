@@ -12,7 +12,7 @@ manta_process <- function(manta_tsv_obj) {
   melted <- manta_tsv_obj[["melted"]] |>
     dplyr::mutate(
       is_fusion = grepl("&", .data$Genes),
-      fusion_genes = dplyr::if_else(is_fusion, .data$Genes, "")
+      fusion_genes = dplyr::if_else(.data$is_fusion, .data$Genes, "")
     )
   fus <- melted |>
     dplyr::filter(.data$is_fusion)
@@ -112,21 +112,21 @@ sv_prioritize_old <- function(sv_file) {
   ctypes <- paste(col_types_tab$Type, collapse = "")
   sv_all <- readr::read_tsv(sv_file, col_names = TRUE, col_types = ctypes) |>
     dplyr::select(-c("caller", "sample")) |>
-    split_sv_field(AF_BPI, is_pct = T) |>
-    split_sv_field(AF_PURPLE, is_pct = T) |>
-    split_sv_field(CN_PURPLE) |>
-    split_sv_field(CN_change_PURPLE) |>
+    split_sv_field("AF_BPI", is_pct = T) |>
+    split_sv_field("AF_PURPLE", is_pct = T) |>
+    split_sv_field("CN_PURPLE") |>
+    split_sv_field("CN_change_PURPLE") |>
     dplyr::mutate(
-      Ploidy_PURPLE = as.double(Ploidy_PURPLE),
-      Ploidy_PURPLE = format(Ploidy_PURPLE, nsmall = 2)
+      Ploidy_PURPLE = as.double(.data$Ploidy_PURPLE),
+      Ploidy_PURPLE = format(.data$Ploidy_PURPLE, nsmall = 2)
     ) |>
-    tidyr::separate(split_read_support, c("SR (ref)", "SR (alt)"), ",", fill = "right") |>
-    dplyr::mutate(SR = as.integer(`SR (alt)`)) |>
-    tidyr::separate(paired_support_PR, c("PR (ref)", "PR (alt)"), ",", fill = "right") |>
-    dplyr::mutate(PR = as.integer(`PR (alt)`)) |>
-    tidyr::separate(paired_support_PE, c("PE (ref)", "PE (alt)"), ",", fill = "right") |>
-    dplyr::mutate(PE = as.integer(`PE (alt)`)) |>
-    dplyr::filter(svtype != "BND" | is.na(SR) | PR > SR) # remove BND with split read support higher than paired
+    tidyr::separate_wider_delim(cols = "split_read_support", names = c("SR (ref)", "SR (alt)"), delim = ",", too_few = "align_start") |>
+    tidyr::separate_wider_delim(cols = "paired_support_PR", names = c("PR (ref)", "PR (alt)"), delim = ",", too_few = "align_start") |>
+    tidyr::separate_wider_delim(cols = "paired_support_PE", names = c("PE (ref)", "PE (alt)"), delim = ",", too_few = "align_start") |>
+    dplyr::mutate(
+      SR = as.integer(.data$`SR (alt)`), PR = as.integer(.data$`PR (alt)`), PE = as.integer(.data$`PE (alt)`)
+    ) |>
+    dplyr::filter(.data$svtype != "BND" | is.na(.data$SR) | .data$PR > .data$SR) # remove BND with split read support higher than paired
   total_variants <- nrow(sv_all)
   sv_all <- sv_all |>
     # Unpack multiple annotations per region
@@ -137,21 +137,21 @@ sv_prioritize_old <- function(sv_file) {
       names = c("Event", "Effect", "Genes", "Transcript", "Detail", "Tier"), too_few = "align_start"
     ) |>
     dplyr::mutate(
-      start = format(start, big.mark = ",", trim = T),
-      end = format(end, big.mark = ",", trim = T),
-      location = stringr::str_c(chrom, ":", start, sep = ""),
-      location = ifelse(is.na(end), location, stringr::str_c(location))
+      start = format(.data$start, big.mark = ",", trim = T),
+      end = format(.data$end, big.mark = ",", trim = T),
+      location = stringr::str_c(.data$chrom, ":", .data$start, sep = ""),
+      location = ifelse(is.na(.data$end), .data$location, stringr::str_c(.data$location))
     ) |>
     dplyr::mutate(
-      Gene = subset_genes(Genes, c(1, 2)),
-      Gene = ifelse((stringr::str_split(Genes, "&") |> purrr::map_int(length)) > 2,
-        stringr::str_c(Gene, "...", sep = ", "),
-        Gene
+      Gene = subset_genes(.data$Genes, c(1, 2)),
+      Gene = ifelse((stringr::str_split(.data$Genes, "&") |> purrr::map_int(base::length)) > 2,
+        stringr::str_c(.data$Gene, "...", sep = ", "),
+        .data$Gene
       ),
-      `Other affected genes` = subset_genes(Genes, -c(1, 2)) |> stringr::str_replace_all("&", ", "),
-      Gene = ifelse(stringr::str_detect(Effect, "gene_fusion"),
-        Gene,
-        Gene |> stringr::str_replace_all("&", ", ")
+      `Other affected genes` = subset_genes(.data$Genes, -c(1, 2)) |> stringr::str_replace_all("&", ", "),
+      Gene = ifelse(stringr::str_detect(.data$Effect, "gene_fusion"),
+        .data$Gene,
+        .data$Gene |> stringr::str_replace_all("&", ", ")
       )
     ) |>
     tidyr::separate_wider_delim(
@@ -172,7 +172,7 @@ sv_prioritize_old <- function(sv_file) {
       `AF before adjustment, bp 2` = "AF_BPI2"
     ) |>
     # filter out empty gene rows
-    dplyr::filter(Genes != "") |>
+    dplyr::filter(.data$Genes != "") |>
     dplyr::distinct() |>
     dplyr::arrange(.data$Tier, .data$Effect, dplyr::desc(.data$AF), .data$Genes)
   total_melted <- nrow(sv_all)
