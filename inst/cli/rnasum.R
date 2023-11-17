@@ -13,6 +13,7 @@ suppressMessages(library(glue, include.only = "glue"))
 suppressMessages(library(fs, include.only = "dir_create"))
 
 option_list <- list(
+  make_option("--arriba_dir", type = "character", help = "Directory path to Arriba results containing fusions.pdf and fusions.tsv."),
   make_option("--arriba_pdf", type = "character", help = "File path of Arriba PDF output."),
   make_option("--arriba_tsv", type = "character", help = "File path of Arriba TSV output."),
   make_option("--batch_rm", action = "store_true", help = "Remove batch-associated effects between datasets."),

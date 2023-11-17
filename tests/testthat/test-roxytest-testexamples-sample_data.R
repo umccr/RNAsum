@@ -31,7 +31,7 @@ test_that("Function read_sample_data() @ L40", {
 })
 
 
-test_that("Function read_wgs_data() @ L84", {
+test_that("Function read_wgs_data() @ L91", {
   
   p <- list(
     umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),

@@ -38,9 +38,16 @@
 #' expect_null(res$salmon)
 #' @export
 read_sample_data <- function(p, results_dir, tx2gene = NULL) {
-  arriba_tsv <- arriba_tsv_read(p[["arriba_tsv"]])
-  arriba_pdf <- p[["arriba_pdf"]] |>
-    arriba_pdf_read(fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
+  # if only arriba_dir is provided, construct the paths to pdf and tsv
+  arriba_tsv <- p[["arriba_tsv"]]
+  arriba_pdf <- p[["arriba_pdf"]]
+  arriba_dir <- p[["arriba_dir"]]
+  if (is.null(arriba_tsv) && is.null(arriba_pdf) && !is.null(arriba_dir)) {
+    arriba_tsv <- file.path(arriba_dir, "fusions.tsv")
+    arriba_pdf <- file.path(arriba_dir, "fusions.pdf")
+  }
+  arriba_tsv <- arriba_tsv_read(x = arriba_tsv)
+  arriba_pdf <- arriba_pdf_read(pdf = arriba_pdf, fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
   salmon <- salmon_counts(p[["salmon"]], tx2gene = tx2gene)
   dragen_fusions <- dragen_fusions_read(p[["dragen_fusions"]])
   dragen_mapping_metrics <- dragen_mapping_metrics_read(p[["dragen_mapping_metrics"]])
