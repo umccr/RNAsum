@@ -95,6 +95,9 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
 ```{r read_data, message=FALSE, warning=FALSE, comment=NA}
 dataset <- toupper(params$dataset)
 dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
+# Define Z-transformation direction
+scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene-wise", "group-wise")
+
 ##### Grab umccrise SBJ for MySQL insert command.
 # TODO (PD): revisit subjectID
 subjectID <- ifelse(!is.null(params$subject_id), params$subject_id, "")
@@ -1179,9 +1182,6 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
-# Define Z-transformation direction
-scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene-wise", "group-wise")
-
 genes.expr.perc <- RNAsum::exprTable(
   type = "perc",
   data = dat1,
