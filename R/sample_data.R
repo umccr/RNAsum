@@ -1,7 +1,7 @@
 #' Read Sample Data
 #'
 #' Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
-#' and DRAGEN fusions.
+#' DRAGEN fusions, DRAGEN mapping metrics, Manta SVs, PURPLE CNVs, and PCGR SNVs.
 #'
 #' @param p RNAsum params list.
 #' @param results_dir Directory to output extracted Arriba PNGs to (created
@@ -12,38 +12,57 @@
 #' @return A list of the input sample data.
 #' @examples
 #' p <- list(
-#'   dragen_rnaseq = system.file("rawdata/test_data/dragen", package = "RNAsum"),
-#'   arriba_pdf = system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum"),
-#'   arriba_tsv = system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum"),
-#'   dragen_fusions = system.file(
-#'     "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
-#'     package = "RNAsum"
-#'   ),
-#'   dragen_mapping_metrics = system.file(
-#'     "rawdata/test_data/dragen/test.mapping_metrics.csv",
-#'     package = "RNAsum"
-#'   ),
+#'   dragen_wts_dir = system.file("rawdata/test_data/dragen", package = "RNAsum"),
+#'   arriba_dir = system.file("rawdata/test_data/dragen/arriba", package = "RNAsum"),
 #'   umccrise = system.file(
 #'     "rawdata/test_data/umccrised/test_sample_WGS",
-#'     package = "RNAsum"
-#'   ),
-#'   manta_tsv = system.file(
-#'     "rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv",
 #'     package = "RNAsum"
 #'   )
 #' )
 #' res <- read_sample_data(p, tempdir())
 #' @testexamples
-#' expect_equal(length(res), 5)
-#' expect_null(res$salmon)
+#' expect_equal(length(res), 6)
+#' expect_null(res$salmon) # because tx2gene in NULL
 #' @export
 read_sample_data <- function(p, results_dir, tx2gene = NULL) {
-  arriba_tsv <- arriba_tsv_read(p[["arriba_tsv"]])
-  arriba_pdf <- p[["arriba_pdf"]] |>
-    arriba_pdf_read(fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
-  salmon <- salmon_counts(p[["salmon"]], tx2gene = tx2gene)
-  dragen_fusions <- dragen_fusions_read(p[["dragen_fusions"]])
-  dragen_mapping_metrics <- dragen_mapping_metrics_read(p[["dragen_mapping_metrics"]])
+  #---- Arriba ----#
+  # if any of arriba tsv/pdf missing and arriba_dir is provided,
+  # construct the paths to files from that.
+  arriba_tsv <- p[["arriba_tsv"]]
+  arriba_pdf <- p[["arriba_pdf"]]
+  arriba_dir <- p[["arriba_dir"]]
+  if (!is.null(arriba_dir) && (list(NULL) %in% list(arriba_tsv, arriba_pdf))) {
+    arriba_tsv <- file.path(arriba_dir, "fusions.tsv")
+    arriba_pdf <- file.path(arriba_dir, "fusions.pdf")
+  }
+  arriba_tsv <- arriba_tsv_read(x = arriba_tsv)
+  arriba_pdf <- arriba_pdf_read(pdf = arriba_pdf, fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
+
+  #---- DragenWTS ----#
+  # if any of salmon, fusions, mapmetrics missing and dragen_wts_dir is provided,
+  # construct the paths to files from that.
+  salmon <- p[["salmon"]]
+  dragen_fusions <- p[["dragen_fusions"]]
+  dragen_mapping_metrics <- p[["dragen_mapping_metrics"]]
+  dragen_wts_dir <- p[["dragen_wts_dir"]]
+  if (!is.null(dragen_wts_dir) && (list(NULL) %in% list(salmon, dragen_fusions, dragen_mapping_metrics))) {
+    salmon <- list.files(dragen_wts_dir, pattern = "quant\\.genes\\.sf", full.names = TRUE)
+    dragen_mapping_metrics <- list.files(dragen_wts_dir, pattern = "mapping_metrics\\.csv", full.names = TRUE)
+    dragen_fusions <- list.files(dragen_wts_dir, pattern = "fusion_candidates\\.final", full.names = TRUE)
+    if (length(salmon) != 1) {
+      salmon <- NULL
+    }
+    if (length(dragen_mapping_metrics) != 1) {
+      dragen_mapping_metrics <- NULL
+    }
+    if (length(dragen_fusions) != 1) {
+      dragen_fusions <- NULL
+    }
+  }
+  salmon <- salmon_counts(salmon, tx2gene = tx2gene)
+  dragen_fusions <- dragen_fusions_read(dragen_fusions)
+  dragen_mapping_metrics <- dragen_mapping_metrics_read(dragen_mapping_metrics)
+  #---- WGS ----#
   wgs <- read_wgs_data(p)
   list(
     arriba_tsv = arriba_tsv,

@@ -4,13 +4,13 @@ author: 'UMCCR'
 date: '`r date()`'
 output:
   html_document:
-    code_download: true
     theme: readable
     toc: true
     toc_float: true
   rmdformats::material:
     highlight: kate
 params:
+  arriba_dir: NULL
   arriba_pdf: NULL
   arriba_tsv: NULL
   batch_rm: TRUE
@@ -20,6 +20,7 @@ params:
   dataset_name_incl: FALSE
   dragen_fusions: NULL
   dragen_mapping_metrics: NULL
+  dragen_wts_dir: NULL
   drugs: FALSE
   filter: TRUE
   immunogram: FALSE
@@ -63,7 +64,7 @@ knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
 ```
 
 ```{r load_pkgs, message=FALSE}
-source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
+# source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
 # source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
 ensembl_version <- 86L
 ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
@@ -96,6 +97,9 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
 ```{r read_data, message=FALSE, warning=FALSE, comment=NA}
 dataset <- toupper(params$dataset)
 dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
+# Define Z-transformation direction
+scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene-wise", "group-wise")
+
 ##### Grab umccrise SBJ for MySQL insert command.
 # TODO (PD): revisit subjectID
 subjectID <- ifelse(!is.null(params$subject_id), params$subject_id, "")
@@ -379,7 +383,7 @@ library_size <- d |>
   ggplot2::ggplot(aes(x = "", y = Library_size)) +
   ggplot2::geom_violin(fill = "transparent", colour = "grey80", alpha = 0.04) +
   ggforce::geom_sina(aes(colour = Target, group = 1), seed = 42, na.rm = TRUE) +
-  ggplot2::geom_hline(yintercept = patient_libsize, colour = "blue", size = 1.2) +
+  ggplot2::geom_hline(yintercept = patient_libsize, colour = "blue", alpha = 0.2, linewidth = 1.2) +
   ggplot2::theme_minimal() +
   ggplot2::scale_y_continuous(breaks = scales::breaks_pretty(8))
 
@@ -1180,9 +1184,6 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
-# Define Z-transformation direction
-scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene-wise", "group-wise")
-
 genes.expr.perc <- RNAsum::exprTable(
   type = "perc",
   data = dat1,
@@ -1751,7 +1752,7 @@ NOTE, the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_da
 
 Violin plot illustrating library size for each sample.
 
-```{r library_size, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
+```{r library_size, comment = NA, message=FALSE, warning=FALSE, fig.width = 5, fig.height = 5}
 library_size
 ```
 
@@ -2939,7 +2940,7 @@ Section overlaying the mRNA expression data with per-gene somatic copy-number (C
 
 ### - Genomic view
 
-`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) } else { length(NULL) }`** of them (indicated by *various colours*) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values <= ", cn_bottom, ")") }`. All other genes are marked in [*gray*]{style="color:#808080"} or *black*.
+`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) } else { length(NULL) }`** of them (indicated by [*red*]{style="color:#FF0000"}) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values <= ", cn_bottom, ")") }`. All other genes are marked in [*gray*]{style="color:#808080"}/*black* (alternating per chromosome).
 
 ```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -3046,10 +3047,11 @@ if (nrow(data.annot) > 0) {
         "\nchr: ", manhattanr.res$data$CHR
       ),
       marker = list(
-        color = "limegreen",
+        color = "red",
         size = 10,
+        opacity = 0.5,
         line = list(
-          color = "grey",
+          color = "black",
           width = 1
         )
       ),
@@ -4778,7 +4780,6 @@ x |>
   ) |>
   dplyr::bind_rows(tibble::tibble(n = "", name = "TOTAL", value = tot)) |>
   knitr::kable()
-# knitr::knit_exit()
 ```
 
 ### SessionInfo {.tabset .tabset-pills}

@@ -4,12 +4,6 @@ require(dplyr)
 require(readr)
 require(glue, include.only = "glue")
 require(here, include.only = "here")
-date1 <- "2023-10-10"
-# grab glims
-lims_rds <- here::here(glue("nogit/data_portal/lims/{date1}.rds"))
-# lims_raw <- dracarys::glims_read()
-# saveRDS(lims_raw, file = lims_rds)
-lims_raw <- readr::read_rds(lims_rds)
 
 # grab rnasum workflow metadata from Athena
 athena_rnasum <- function(sbj) {
@@ -29,10 +23,36 @@ athena_rnasum <- function(sbj) {
     dracarys::meta_rnasum()
 }
 
+# download gds files to a local structure reflecting the gds path starting from
+# the outdir as the fs root.
+rnasum_download <- function(gdsdir, outdir, token, page_size = 200, regexes) {
+  dracarys::gds_files_list(gdsdir = gdsdir, token = token, page_size = page_size) |>
+    dplyr::mutate(type = purrr::map_chr(.data$bname, \(x) dracarys::match_regex(x, regexes))) |>
+    dplyr::select("file_id", "type", "size", "path", "bname") |>
+    dplyr::filter(!is.na(.data$type)) |>
+    dplyr::rowwise() |>
+    dplyr::mutate(
+      dname = dirname(.data$path),
+      dname = sub("gds://", "", .data$dname),
+      local_outdir = fs::dir_create(file.path(outdir, .data$dname)),
+      outfile = file.path(local_outdir, .data$bname),
+      out_dl = dracarys::gds_file_download_api(.data$file_id, .data$outfile, token)
+    ) |>
+    dplyr::ungroup()
+}
+
 # SBJ IDs of interest
-sbj <- c("SBJ04215", "SBJ04371", "SBJ04378", "SBJ04379")
+sbj1 <- c("SBJ04215", "SBJ04371", "SBJ04378", "SBJ04379")
+sbj2 <- c("SBJ04388", "SBJ04391", "SBJ04387", "SBJ03190")
+date1 <- "2023-11-09"
+# grab glims
+lims_rds <- here::here(glue("nogit/data_portal/lims/{date1}.rds"))
+# lims_raw <- dracarys::glims_read()
+# saveRDS(lims_raw, file = lims_rds)
+lims_raw <- readr::read_rds(lims_rds)
+
 pmeta_rds <- here::here(glue("nogit/data_portal/workflows/{date1}.rds"))
-# pmeta_raw <- athena_rnasum(sbj)
+# pmeta_raw <- athena_rnasum(c(sbj1, sbj2))
 # saveRDS(pmeta_raw, file = pmeta_rds)
 pmeta_raw <- readr::read_rds(pmeta_rds)
 
@@ -56,24 +76,6 @@ pmeta <- pmeta_raw |>
   # just keep PANCAN to get rid of dups
   dplyr::filter(rnasum_dataset == "PANCAN")
 
-# download gds files to a local structure reflecting the gds path starting from
-# the outdir as the fs root.
-rnasum_download <- function(gdsdir, outdir, token, page_size = 200, regexes) {
-  dracarys::gds_files_list(gdsdir = gdsdir, token = token, page_size = page_size) |>
-    dplyr::mutate(type = purrr::map_chr(.data$bname, \(x) dracarys::match_regex(x, regexes))) |>
-    dplyr::select("file_id", "type", "size", "path", "bname") |>
-    dplyr::filter(!is.na(.data$type)) |>
-    dplyr::rowwise() |>
-    dplyr::mutate(
-      dname = dirname(.data$path),
-      dname = sub("gds://", "", .data$dname),
-      local_outdir = fs::dir_create(file.path(outdir, .data$dname)),
-      outfile = file.path(local_outdir, .data$bname),
-      out_dl = dracarys::gds_file_download_api(.data$file_id, .data$outfile, token)
-    ) |>
-    dplyr::ungroup()
-}
-
 # patterns of files to fish out
 rnasum_file_regex <- tibble::tribble(
   ~regex, ~fun,
@@ -85,6 +87,7 @@ rnasum_file_regex <- tibble::tribble(
   "somatic\\.pcgr\\.snvs_indels\\.tiers\\.tsv$", "PcgrTiersTsvFile",
   "purple\\.cnv\\.gene\\.tsv$", "PurpleCnvGeneTsvFile",
   "manta\\.tsv$", "MantaTsvFile",
+  "mapping_metrics\\.csv$", "MapMetricsFile"
 )
 token <- dracarys::ica_token_validate()
 outdir <- here::here("nogit/patient_data")
@@ -102,7 +105,7 @@ meta_rnasum <- pmeta |>
 
 # saveRDS(meta_rnasum, here(glue("nogit/patient_data/down_{date1}.rds")))
 # meta_rnasum <- here::here(glue("nogit/patient_data/down_{date1}.rds")) |> readr::read_rds()
-rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, manta_tsv,
+rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, dragen_mapping_metrics, manta_tsv,
                               pcgr_tiers_tsv, purple_gene_tsv, report_dir, salmon,
                               sample_name, subject_id) {
   params <- list(
@@ -112,8 +115,9 @@ rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, m
     cn_gain = 95,
     cn_loss = 5,
     dataset = dataset,
-    dataset_name_incl = TRUE,
+    dataset_name_incl = FALSE,
     dragen_fusions = dragen_fusions,
+    dragen_mapping_metrics = dragen_mapping_metrics,
     drugs = FALSE,
     filter = TRUE,
     immunogram = FALSE,
@@ -140,28 +144,36 @@ rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, m
 }
 
 # now unmelt to have one row per run
-d <- meta_rnasum |>
+d_runs <- meta_rnasum |>
   tidyr::unnest(down) |>
   dplyr::select(SubjectID, LibraryID, rnasum_dataset, type, outfile) |>
+  dplyr::filter(SubjectID != "SBJ03190") |>
   tidyr::pivot_wider(names_from = type, values_from = outfile)
 
 # slice to whichever run you want from d
-d |>
-  dplyr::slice(4) |>
+d_runs |>
+  dplyr::slice(2) |>
   dplyr::rowwise() |>
   dplyr::mutate(
     params = list(
       rnasum_params_set(
-        arriba_pdf = ArribaFusionsPdfFile, arriba_tsv = ArribaFusionsTsvFile, dataset = rnasum_dataset,
-        dragen_fusions = DragenWtsFusionsFinalFile, manta_tsv = MantaTsvFile,
-        pcgr_tiers_tsv = PcgrTiersTsvFile, purple_gene_tsv = PurpleCnvGeneTsvFile,
+        arriba_pdf = ArribaFusionsPdfFile,
+        arriba_tsv = ArribaFusionsTsvFile,
+        dataset = rnasum_dataset,
+        dragen_fusions = DragenWtsFusionsFinalFile,
+        dragen_mapping_metrics = MapMetricsFile,
+        manta_tsv = MantaTsvFile,
+        pcgr_tiers_tsv = PcgrTiersTsvFile,
+        purple_gene_tsv = PurpleCnvGeneTsvFile,
         report_dir = here::here(glue::glue("nogit/patient_data/reports/{SubjectID}_{LibraryID}_{rnasum_dataset}")),
-        salmon = DragenWtsQuantSfFile, sample_name = glue::glue("{SubjectID}_{LibraryID}"), subject_id = SubjectID
+        salmon = DragenWtsQuantGenesSfFile,
+        sample_name = glue::glue("{SubjectID}_{LibraryID}"),
+        subject_id = SubjectID
       )
     ),
-    # rnasum_rmd = RNAsum::rnasum_rmd(
-    #   out_file = here::here(glue::glue("nogit/patient_data/reports_html/{SubjectID}_{LibraryID}_{rnasum_dataset}.html")),
-    #   quiet = FALSE, pars = params
-    # )
+    rnasum_rmd = RNAsum::rnasum_rmd(
+      out_file = here::here(glue::glue("nogit/patient_data/reports_html/{SubjectID}_{LibraryID}_{rnasum_dataset}.html")),
+      quiet = FALSE, pars = params
+    )
   ) |>
   dplyr::ungroup()
