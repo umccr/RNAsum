@@ -3,6 +3,7 @@ name: conda-docker-docs
 on:
   push:
     branches:
+      - deploy_0.5.0
       - rnasum-rpackage
 env:
   atoken: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
@@ -34,14 +35,17 @@ jobs:
           conda mambabuild ${recipe_path} --token ${atoken}
       - name: 🔒 Conda lock
         run: |
-          conda-lock --file ${env_yaml_path}/rnasum.yaml --platform linux-64
-          mv conda-lock.yml ${env_lock_path}/conda-lock.yml
+          # 1. generate a combined lock file
+          # 2. render platform-specific locks
+          conda-lock lock --file ${env_yaml_path}/rnasum.yaml -p osx-64 -p linux-64
+          conda-lock render --kind explicit -p osx-64 -p linux-64 conda-lock.yml --filename-template 'rnasum-{platform}.lock' && rm conda-lock.yml
+          mv rnasum-*.lock ${env_lock_path}/
       - name: 💾 Commit lockfile
         run: |
           git status
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
-          MSG="[bot] Updating conda-lock file (v${VERSION})"
+          MSG="[bot] Updating conda-lock files (v${VERSION})"
           git add .
           git commit -m "${MSG}"
           git push
