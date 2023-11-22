@@ -27,7 +27,7 @@ option_list <- list(
   make_option("--drugs", action = "store_true", help = "Include drug matching section in report."),
   make_option("--filter", action = "store_true", help = "Filter out low expressed genes."),
   make_option("--immunogram", action = "store_true", help = "Include immunogram in report."),
-  make_option("--log", action = "store_true", default = TRUE, help = "Log2 transform data before normalisation."),
+  make_option("--log", action = "store_true", help = "Log2 transform data before normalisation."),
   make_option("--manta_tsv", type = "character", help = "File path to umccrise 'manta.tsv' output."),
   make_option("--norm", type = "character", help = "Normalisation method."),
   make_option("--pcgr_splice_vars", action = "store_true", help = "Include non-coding splice region variants reported in PCGR."),
