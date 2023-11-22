@@ -12,10 +12,10 @@ RUN mamba config \
     mamba clean --all --force-pkgs-dirs
 
 ARG ENV_NAME="rnasum_env"
-COPY ./deploy/conda/env/lock/conda-lock.yml .
-RUN conda-lock install --name ${ENV_NAME} conda-lock.yml && \
-    mamba clean --all --force-pkgs-dirs && \
-    rm conda-lock.yml
+ARG LOCK_FILE="rnasum-linux-64.lock"
+COPY ./deploy/conda/env/lock/${LOCK_FILE} .
+RUN conda-lock install --name ${ENV_NAME} ${LOCK_FILE} && \
+    mamba clean --all --force-pkgs-dirs
 
 ARG MAMBA_PREFIX="/opt/conda"
 ENV PATH="${MAMBA_PREFIX}/envs/${ENV_NAME}/bin:${PATH}"

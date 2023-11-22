@@ -3,13 +3,14 @@ name: conda-docker-docs
 on:
   push:
     branches:
-      - conda
+      - deploy_0.5.0
+      - rnasum-rpackage
 env:
   atoken: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
   recipe_path: deploy/conda/recipe
   env_yaml_path: deploy/conda/env/yaml
   env_lock_path: deploy/conda/env/lock
-  VERSION: '0.4.9' # versioned by bump2version
+  VERSION: '0.5.0' # versioned by bump2version
 
 jobs:
   condarise-dockerise-document:
@@ -27,21 +28,23 @@ jobs:
       - name: Micromamba setup
         uses: mamba-org/setup-micromamba@v1
         with:
-          micromamba-version: '1.4.9-0'
           environment-file: ${{ env.env_yaml_path }}/condabuild.yaml
       - name: 🐍 Conda pkg build and upload
         run: |
-          conda mambabuild --R 4.2 ${recipe_path} --token ${atoken}
+          conda mambabuild ${recipe_path} -c umccr -c conda-forge -c bioconda --token ${atoken}
       - name: 🔒 Conda lock
         run: |
-          conda-lock --file ${env_yaml_path}/rnasum.yaml --platform linux-64
-          mv conda-lock.yml ${env_lock_path}/conda-lock.yml
+          # 1. generate a combined lock file
+          # 2. render platform-specific locks
+          conda-lock lock --file ${env_yaml_path}/rnasum.yaml -p osx-64 -p linux-64
+          conda-lock render --kind explicit -p osx-64 -p linux-64 conda-lock.yml --filename-template 'rnasum-{platform}.lock' && rm conda-lock.yml
+          mv rnasum-*.lock ${env_lock_path}/
       - name: 💾 Commit lockfile
         run: |
           git status
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
-          MSG="[bot] Updating conda-lock file (v${VERSION})"
+          MSG="[bot] Updating conda-lock files (v${VERSION})"
           git add .
           git commit -m "${MSG}"
           git push
