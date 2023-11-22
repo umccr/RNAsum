@@ -45,8 +45,7 @@ option_list <- list(
   make_option("--top_genes", default = 5, type = "integer", help = "Number of top ranked genes to be presented in report."),
   make_option("--transform", default = "CPM", type = "character", help = "Transformation method to be used when converting read counts. [def: %default]"),
   make_option("--umccrise", type = "character", help = "Directory path of the corresponding WGS-related umccrise data."),
-  make_option(c("--version", "-v"), action = "store_true", help = "Print RNAsum version and exit."),
-  make_option("--html_dir", type = "character", default = getwd(), help = "Directory path to output final HTML report. [def: current directory (%default)]")
+  make_option(c("--version", "-v"), action = "store_true", help = "Print RNAsum version and exit.")
 )
 
 parser <- optparse::OptionParser(option_list = option_list, formatter = optparse::TitledHelpFormatter)
@@ -59,8 +58,6 @@ if (!is.null(opt$version)) {
 # don't need these any more so NULLify to remove from params
 opt$version <- NULL
 opt$help <- NULL
-html_dir <- opt$html_dir
-opt$html_dir <- NULL
 
 ##### Convert missing flags to FALSE
 flags <- c("batch_rm", "dataset_name_incl", "drugs", "filter", "immunogram", "log", "pcgr_splice_vars", "save_tables")
@@ -114,7 +111,7 @@ if (opt$transform == "TPM" && !(opt$norm %in% c("quantile", "none"))) {
 dataset_name_incl <- ifelse(opt$dataset_name_incl, glue::glue("_{opt$dataset}"), "")
 out_file_base <- glue::glue("{opt$sample_name}{toupper(dataset_name_incl)}.RNAseq_report")
 out_html <- RNAsum::rnasum_rmd(
-  out_file = file.path(html_dir, glue::glue("{out_file_base}.html")),
+  out_file = file.path(opt$report_dir, glue::glue("{out_file_base}.html")),
   pars = opt
 )
 message(glue::glue("RNAsum HTML output at: {out_html}"))
