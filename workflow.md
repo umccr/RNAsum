@@ -153,8 +153,8 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 ### Somatic SNVs and small indels
 
 * Check if **[PCGR](https://github.com/sigven/pcgr)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)) is available
-* **Extract** expression level **information** and genome-based findings for genes with detected genomic variants (use ```--pcgr_tier``` [argument](README.md/#arguments) to define [tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg) threshold value)
-* **Ordered genes** by increasing variants **[tier](https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
+* **Extract** expression level **information** and genome-based findings for genes with detected genomic variants (use ```--pcgr_tier``` [argument](README.md/#arguments) to define [tier]([https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg](https://sigven.github.io/pcgr/articles/variant_classification.html) threshold value)
+* **Ordered genes** by increasing variants **[tier]([https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg](https://sigven.github.io/pcgr/articles/variant_classification.html)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
 
 ### Structural variants
 
