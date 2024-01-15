@@ -166,7 +166,7 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### Somatic CNVs
 
-* Check if **[PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purity-ploidy-estimator)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv)) is available
+* Check if **[PURPLE](https://github.com/hartwigmedical/hmftools/blob/master/purple/README.md)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv)) is available
 * **Extract** expression level **information** and genome-based findings for genes located within detected CNVs (use ```--cn_loss ``` and ```--cn_gain ``` [arguments](README.md/#arguments) to define CN threshold values to classify genes within lost and gained regions)
 * **Ordered genes** by increasing (for genes within lost regions) or decreasing (for genes within gained regions) **[CN](https://github.com/umccr/umccrise/blob/master/workflow.md#somatic-cnv)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
 
