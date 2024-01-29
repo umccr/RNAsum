@@ -32,6 +32,7 @@ regex <- tibble::tribble(
   "^genes\\.expr\\.perc\\.html$", "foo1",
   "^genes\\.expr\\.z\\.html$", "foo2",
 )
+# try one first
 # dracarys::dr_gds_download(gdsdir = s$gdsdir[1], outdir = s$outdir[1], token = s$token[1], page_size = 200, dryrun = TRUE, regexes = regex)
 x <- s |>
   rowwise() |>
@@ -47,19 +48,27 @@ d <- s |>
     exprz = file.path(outdir, "z.csv")
   ) |>
   select(sbj, namespace, exprp, exprz) |>
-  pivot_longer(cols = c("exprp", "exprz"), names_to = "ftype", values_to = "fpath")
+  pivot_longer(cols = c("exprp", "exprz"), names_to = "ftype", values_to = "fpath") |>
+  pivot_wider(names_from = "namespace", values_from = "fpath")
 
-dev <- readr::read_csv("dev/dev_datatables.csv")
-pro <- readr::read_csv("prod/pro_datatables.csv")
 
+i <- 6
+dev <- readr::read_csv(d$dev[i])
+pro <- readr::read_csv(d$pro[i])
+
+# now explore expression differences in reference and patient columns
+# between dev and prod.
 dplyr::left_join(dev, pro, by = "Gene", suffix = c(".dev", ".pro")) |>
   dplyr::mutate(
-    Ref_equal = `KIRP (TCGA).dev` == `KIRP (TCGA).pro`,
+    # Ref_equal = `KIRP (TCGA).dev` == `KIRP (TCGA).pro`,
+    # Ref_equal = `PANCAN (TCGA).dev` == `PANCAN (TCGA).pro`,
+    # Ref_equal = `PAAD (TCGA).dev` == `PAAD (TCGA).pro`,
     Pat_equal = Patient.dev == Patient.pro,
-    Ref_diff = abs(`KIRP (TCGA).dev` - `KIRP (TCGA).pro`),
+    # Ref_diff = abs(`PANCAN (TCGA).dev` - `PANCAN (TCGA).pro`),
+    # Ref_diff = abs(`PAAD (TCGA).dev` - `PAAD (TCGA).pro`),
     Pat_diff = abs(Patient.dev - Patient.pro)
   ) |>
-  dplyr::select(Gene, contains("PANCAN"), contains("Patient"), contains("diff"), everything()) |>
-  dplyr::filter(Pat_diff > 0 | Ref_diff > 0) |>
+  dplyr::select(Gene, contains("KIRP"), contains("PANCAN"), contains("Patient"), contains("diff"), everything()) |>
+  dplyr::filter(Pat_diff > 0) |>
   dplyr::arrange(desc(Pat_diff)) |>
   dplyr::arrange(desc(Ref_diff))
