@@ -156,7 +156,7 @@ cn_subset <- function(gene.mut = NULL, cn_data, expr_data.z, expr_data.perc) {
   d <- cn_data.sub |>
     dplyr::left_join(expr_data.perc.sub, by = c("gene" = "SYMBOL")) |>
     dplyr::left_join(expr_data.z.sub, by = c("gene" = "SYMBOL"), suffix = c("_Perc", "_Z_score")) |>
-    dplyr::rename("CN" = "MeanCopyNumber", "Gene" = "gene")
+    dplyr::rename("CN" = "MeanCopyNumber", "Gene" = "gene", "Diff_Perc" = 3, "Diff_Z_score" = 4)
   if (!is.null(gene.mut)) {
     d <- d |>
       dplyr::left_join(gene.mut.sub, by = c("Gene" = "gene")) |>

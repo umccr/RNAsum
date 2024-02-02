@@ -7,7 +7,7 @@
 salmon_counts(x, tx2gene = NULL)
 }
 \arguments{
-\item{x}{Path to \code{quant.sf} file with abundances. See \link[tximport:tximport]{tximport::tximport}.}
+\item{x}{Path to \code{quant.sf} or \code{quant.genes.sf} file with abundances. See \link[tximport:tximport]{tximport::tximport}.}
 
 \item{tx2gene}{data.frame with tx_name and gene_id columns. See \link[tximport:tximport]{tximport::tximport}.}
 }

@@ -7,7 +7,7 @@
 manta_process(manta_tsv_obj)
 }
 \arguments{
-\item{manta_tsv_obj}{Manta list object read via \code{gpgr::process_sv}.}
+\item{manta_tsv_obj}{Manta list object read via \code{sv_prioritize_old}.}
 }
 \value{
 List with:

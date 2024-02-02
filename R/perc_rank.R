@@ -7,5 +7,5 @@
 #' @return Vector of percentiles
 #' @export
 perc_rank <- function(x) {
-  base::trunc(base::rank(x))*100/base::length(x)
+  base::trunc(base::rank(x)) * 100 / base::length(x)
 }

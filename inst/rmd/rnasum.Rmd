@@ -1,17 +1,16 @@
 ---
 title: 'Patient Transcriptome Summary'
 author: 'UMCCR'
-date: '`r Sys.Date()`'
+date: '`r date()`'
 output:
   html_document:
-    keep_md: yes
-    code_download: true
     theme: readable
     toc: true
     toc_float: true
   rmdformats::material:
     highlight: kate
 params:
+  arriba_dir: NULL
   arriba_pdf: NULL
   arriba_tsv: NULL
   batch_rm: TRUE
@@ -20,9 +19,10 @@ params:
   dataset: 'PANCAN'
   dataset_name_incl: FALSE
   dragen_fusions: NULL
+  dragen_mapping_metrics: NULL
+  dragen_wts_dir: NULL
   drugs: FALSE
   filter: TRUE
-  hide_code_btn: TRUE
   immunogram: FALSE
   log: TRUE
   manta_tsv: NULL
@@ -34,7 +34,7 @@ params:
   purple_gene_tsv: NULL
   report_dir: NULL
   salmon: NULL
-  sample_name: 'test_sample_WTS'
+  sample_name: NULL
   sample_source: '-'
   save_tables: TRUE
   scaling: 'gene-wise'
@@ -73,9 +73,20 @@ knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
   library(BSgenome.Hsapiens.UCSC.hg38)
   library(AnnotationDbi, include.only = c("keys"))
   library(AnnotationFilter, include.only = c("GeneIdFilter"))
+  library(DT, include.only = c("datatable"))
+  library(dplyr, include.only = c("mutate", "select", "filter", "if_else"))
   library(EDASeq, include.only = c("plotRLE"))
-  library(edgeR, include.only = c("DGEList", "cpm", "rpkm", "calcNormFactors"))
-  library(ensembldb, include.only = c("select", "lengthOf"))
+  library(edgeR, include.only = c("DGEList"))
+  library(ensdb_pkg, character.only = TRUE, include.only = ensdb_pkg)
+  library(ensembldb, include.only = c("lengthOf"))
+  library(fs, include.only = c("dir_create"))
+  library(glue, include.only = c("glue"))
+  library(ggforce, include.only = c("geom_sina"))
+  library(ggplot2, include.only = c("ggplot", "aes"))
+  library(htmltools, include.only = c("renderTags"))
+  library(limma, include.only = c("removeBatchEffect"))
+  library(manhattanly, include.only = c("manhattanly"))
+  library(plotly, include.only = c("plot_ly"))
   library(preprocessCore, include.only = c("normalize.quantiles"))
   library(plotly, include.only = c("plot_ly", "layout", "add_trace"))
   library(htmltools, include.only = c("renderTags"))
@@ -100,6 +111,9 @@ knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
 ```{r read_data, message=FALSE, warning=FALSE, comment=NA}
 dataset <- toupper(params$dataset)
 dataset_name_incl <- if_else(params$dataset_name_incl, glue("_{params$dataset}"), "")
+# Define Z-transformation direction
+scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene-wise", "group-wise")
+
 ##### Grab umccrise SBJ for MySQL insert command.
 # TODO (PD): revisit subjectID
 subjectID <- ifelse(!is.null(params$subject_id), params$subject_id, "")
@@ -108,6 +122,7 @@ sample_name <- paste0(
   params$sample_name,
   if_else(dataset_name_incl == "", "", paste0("_", dataset))
 )
+sample_report_title <- sample_name
 results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
 fs::dir_create(results_dir)
 #### Annotate transcripts with gene IDs
@@ -124,8 +139,7 @@ ref_dataset.list <- vector("list", length(dataset)) |> set_names(dataset)
 ref_genes.list <- RNAsum::get_refgenes(params)
 # sample WTS/WGS data
 sample_data.list <- RNAsum::read_sample_data(params, results_dir, tx2gene = tx2ensembl)
-
-arriba_summary_out <- glue("{sample_name}{dataset_name_incl}.RNAseq_report.arriba_fusions.txt")
+arriba_summary_out <- glue("{sample_name}.RNAseq_report.arriba_fusions.txt")
 RNAsum::arriba_summary_write(
   sample_data.list[["arriba_pdf"]],
   file = file.path(results_dir, arriba_summary_out)
@@ -160,11 +174,20 @@ if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
 # TODO (PD): put all chunks inside a function
 runArribaChunk <- !is.null(sample_data.list[["arriba_tsv"]])
 runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
+runDragenMappingMetricsChunk <- !is.null(sample_data.list[["dragen_mapping_metrics"]])
 runFusionChunk <- runArribaChunk || runDragenFusionChunk
 runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
 runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
 runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
   nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
+```
+
+```{r dragen_mapping_metrics, eval=runDragenMappingMetricsChunk}
+dragen_mapping_metrics <- sample_data.list[["dragen_mapping_metrics"]]
+dragen_reads_tot_input <- dragen_mapping_metrics |>
+  dplyr::filter(.data$var == "Total input reads") |>
+  dplyr::pull(.data$count)
+sample_report_title <- glue("{sample_report_title}, Library size: {round(dragen_reads_tot_input / 1e6, 1)} M reads")
 ```
 
 ```{r mysql_populate, message=FALSE, warning=FALSE}
@@ -200,7 +223,7 @@ mysql_populate_update <- paste0(
 ```
 
 ```{r cancer_genes_prep, comment = NA, message=FALSE, warning=FALSE}
-tmpg <- ref_genes.list[["genes_oncokb"]] |>
+g1 <- ref_genes.list[["genes_oncokb"]] |>
   dplyr::mutate(UMCCR = "No", Oncogene = "-", TSG = "-", Fusion = "-", Germline = "-") |>
   dplyr::rename(occurrence_num = "# of occurence within resources")
 ##### Flag Oncogenes, TSGs and fusion genes in the UMCCR cancer genes list
@@ -214,49 +237,47 @@ ref_genes.list[["genes_cancer"]] <- ref_genes.list[["genes_cancer"]] |>
 
 for (gene in ref_genes.list[["genes_cancer"]][["symbol"]]) {
   ##### Check if the UMCCR genes is already reported in OncoKB
-  if (gene %in% tmpg$Hugo_Symbol) {
-    tmpg[tmpg$Hugo_Symbol == gene, ]$UMCCR <- "Yes"
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, "occurrence_num"] <- as.integer(tmpg[tmpg$Hugo_Symbol == gene, "occurrence_num"]) + 1L
+  if (gene %in% g1$Hugo_Symbol) {
+    g1[g1$Hugo_Symbol == gene, ]$UMCCR <- "Yes"
+    g1[g1$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, "occurrence_num"] <- as.integer(g1[g1$Hugo_Symbol == gene, "occurrence_num"]) + 1L
   } else {
     ##### Add if not present
-    r1 <- tibble(
+    r1 <- tibble::tibble(
       "Hugo_Symbol" = gene, "occurrence_num" = 1L,
       "OncoKB Annotated" = "No", "OncoKB Oncogene" = "", "OncoKB TSG" = "",
       "MSK-IMPACT" = "", "MSK-HEME" = "", "Foundation One" = "",
       "Foundation One Heme" = "", "Vogelstein" = "", "Sanger CGC" = "",
       "UMCCR" = "Yes", "Oncogene" = "", "TSG" = "", "Fusion" = "", "Germline" = ""
     )
-    tmpg <- dplyr::bind_rows(tmpg, r1)
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
-    tmpg[tmpg$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1 <- dplyr::bind_rows(g1, r1)
+    g1[g1$Hugo_Symbol == gene, ]$Oncogene <- ref_genes.list[["genes_cancer"]]$oncogene[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$TSG <- ref_genes.list[["genes_cancer"]]$tumorsuppressor[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$Fusion <- ref_genes.list[["genes_cancer"]]$fusion[ref_genes.list[["genes_cancer"]]$symbol == gene]
+    g1[g1$Hugo_Symbol == gene, ]$Germline <- ref_genes.list[["genes_cancer"]]$germ[ref_genes.list[["genes_cancer"]]$symbol == gene]
   }
 }
 
 ##### Make the data frame look nicer
-colnames(tmpg) <- c(
+colnames(g1) <- c(
   "Gene", "Gene panels no.", "OncoKB", "Oncogene (OncoKB)", "TSG (OncoKB)",
   "MSK-IMPACT", "MSK-HEME", "Foundation One", "Foundation One Heme",
   "Vogelstein", "Sanger CGC", "UMCCR", "Oncogene", "TSG", "Fusion", "Germline"
 )
-tmpg <- tmpg |>
+g1 <- g1 |>
   dplyr::select(
     "Gene", "Oncogene", "TSG", "Fusion", "Germline", "Gene panels no.",
     "UMCCR", "OncoKB", "MSK-IMPACT", "MSK-HEME", "Foundation One",
     "Foundation One Heme", "Vogelstein", "Sanger CGC"
   )
-tmpg[tmpg == "No" | tmpg == ""] <- "-"
-ref_genes.list[["genes_cancer"]] <- tmpg
-# dplyr::select(-c("Gene"))
-ref_genes.list[["genes_oncokb"]] <- tmpg |>
+g1[g1 == "No" | g1 == ""] <- "-"
+ref_genes.list[["genes_cancer"]] <- g1
+ref_genes.list[["genes_oncokb"]] <- g1 |>
   dplyr::filter(Gene %in% ref_genes.list[["genes_oncokb"]][["Hugo_Symbol"]])
-# dplyr::select(-c("Gene"))
-rm(tmpg, r1)
+rm(g1, r1)
 ```
 
 ```{r goi_summary, comment = NA, message=FALSE, warning=FALSE}
@@ -357,50 +378,32 @@ rm(gene_info)
 ```
 
 ```{r library_size_plot, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 9}
-# Generate bar-plot for library size. The colours indicate sample groups,
+# Generate violin plot for library size. The colours indicate sample groups,
 # as provided in *Target* column in the sample annotation file
 target <- ref_dataset.list[[dataset]][["sample_annot"]] |>
   mutate(Target = if_else(.data$Target == sample_name, "Patient", .data$Target))
 rownames(target)[rownames(target) == sample_name] <- "Patient"
 
-# Change the datasets levels order
-target$Target <- factor(target$Target, levels = unique(target$Target))
-
-# Assign colours to targets and datasets
-targets.colour <- RNAsum::getColours(target$Target)
-
 # Prepare data frame
-data.df <- tibble(
+d <- tibble::tibble(
   Sample = rownames(target),
   Library_size = as.numeric(colSums(comb_data) * 1e-6),
   Target = target[["Target"]]
 )
 
-# The default order will be alphabetized unless specified as below
-data.df[["Sample"]] <- factor(data.df[["Sample"]], levels = data.df[["Sample"]])
-max_libsize <- max(data.df[["Library_size"]])
-# TODO (PD):
-# - Does this need to be interactive? Its size is fairly big (>3MB for test set)
-# - Does it need to be a barplot?
-# - Should the bars be sorted instead of mixed?
-
-library_size <- data.df |>
-  plotly::plot_ly(
-    x = ~Sample, y = ~Library_size, color = ~Target,
-    colors = targets.colour[[1]], type = "bar",
-    width = 800, height = 400
-  ) |>
-  plotly::layout(
-    title = "",
-    xaxis = list(tickfont = list(size = 10), title = "", showticklabels = FALSE),
-    yaxis = list(title = "Library size (millions)"),
-    margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4),
-    autosize = FALSE, showlegend = TRUE,
-    legend = list(orientation = "h", y = max_libsize, bgcolor = "white")
-  )
+patient_libsize <- d |>
+  dplyr::filter(Target == "Patient") |>
+  dplyr::pull(Library_size)
+library_size <- d |>
+  ggplot2::ggplot(aes(x = "", y = Library_size)) +
+  ggplot2::geom_violin(fill = "transparent", colour = "grey80", alpha = 0.04) +
+  ggforce::geom_sina(aes(colour = Target, group = 1), seed = 42, na.rm = TRUE) +
+  ggplot2::geom_hline(yintercept = patient_libsize, colour = "blue", alpha = 0.2, linewidth = 1.2) +
+  ggplot2::theme_minimal() +
+  ggplot2::scale_y_continuous(breaks = scales::breaks_pretty(8))
 
 PlotsDir <- file.path(results_dir, "InputDataPlots")
-RNAsum::saveWidgetFix(widget = library_size, file = file.path(PlotsDir, "library_size.html"))
+ggplot2::ggsave(file = file.path(PlotsDir, "library_size.png"), plot = library_size)
 ```
 
 ```{r data_transformation_filtering, comment = NA, message=FALSE, warning=FALSE}
@@ -430,7 +433,7 @@ summarise_comb_data <- function(f, comb_data) {
 cpm.min <- summarise_comb_data(min, comb_data)
 cpm.max <- summarise_comb_data(max, comb_data)
 ##### Create lists with processed data each group
-y <- vector("list", length(targets_mod.list)) |> set_names(targets_mod.list)
+y <- vector("list", length(targets_mod.list)) |> purrr::set_names(targets_mod.list)
 
 #### For each group...
 for (group in targets_mod.list) {
@@ -550,7 +553,7 @@ for (group in targets_mod.list) {
       y[[group]]$transformed <- RNAsum::tpm_from_rpkm(y[[group]]$transformed)
     }
   }
-}
+} # for end
 
 ##### Now combine DGEList objects created for each group
 y[["comb"]]$transformed <- cbind(
@@ -1207,9 +1210,6 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Percentiles
-# Define Z-transformation direction
-scaling <- if_else(tolower(params$scaling) == "gene-wise", "gene-wise", "group-wise")
-
 genes.expr.perc <- RNAsum::exprTable(
   type = "perc",
   data = dat1,
@@ -1340,7 +1340,7 @@ cn_data <- cn_data |>
 
 ##### Add mutation data if available. If PCGR is NULL, returns NULL for gene.mut
 ##### and unmodified expr_data.z/perc
-pcgr_expr1 <- pcgr_expr(
+pcgr_expr1 <- RNAsum::pcgr_expr(
   pcgr = sample_data.list[["wgs"]][["pcgr_tiers_tsv"]],
   expr_data.z = expr_data.z,
   expr_data.perc = expr_data.perc
@@ -1406,25 +1406,32 @@ known_translocations <- RNAsum::known_trans(
 )
 ```
 
-```{r fusions_arriba_processing, comment = NA, message=FALSE, warning=FALSE, eval = runArribaChunk}
+```{r fusions_arriba_processing, comment = NA, message=FALSE, warning=FALSE}
 ##### Read in the arriba fusion calls
-fusions_arriba <- RNAsum::arriba_process(
-  arriba.fusions = sample_data.list[["arriba_tsv"]],
-  known_translocations = known_translocations,
-  genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
-)
+fusions_arriba <- NULL
+if (runArribaChunk) {
+  fusions_arriba <- RNAsum::arriba_process(
+    arriba.fusions = sample_data.list[["arriba_tsv"]],
+    known_translocations = known_translocations,
+    genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
+  )
+}
 ```
 
-```{r fusions_dragen_processing, comment = NA, message=FALSE, warning=FALSE, eval = runDragenFusionChunk}
+```{r fusions_dragen_processing, comment = NA, message=FALSE, warning=FALSE}
 ##### Read in the dragen fusion calls
-fusions_dragen <- RNAsum::dragen_fusions_process(
-  dragen.fusions = sample_data.list[["dragen_fusions"]],
-  known_translocations = known_translocations,
-  genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
-)
+fusions_dragen <- NULL
+if (runDragenFusionChunk) {
+  fusions_dragen <- RNAsum::dragen_fusions_process(
+    dragen.fusions = sample_data.list[["dragen_fusions"]],
+    known_translocations = known_translocations,
+    genes_cancer = ref_genes.list[["genes_cancer"]][["Gene"]]
+  )
+}
 ```
 
 ```{r fusions_merge, eval = runFusionChunk}
+# NULL gets ignored with bind_rows
 fusions <- dplyr::bind_rows(fusions_arriba, fusions_dragen)
 ##### Annotate fusion genes
 fusions_ann <- RNAsum::fusions_annot(
@@ -1434,16 +1441,17 @@ fusions_ann <- RNAsum::fusions_annot(
 ```
 
 ```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-##### Add row for gene fusion events so that there is one row per gene
 manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]] |>
   RNAsum::manta_process()
 
 ##### Compare fusion genes called by MANTA
 ##### First limit MANTA output to fusions only
 if (runFusionChunk) {
-  manta_fusions <- manta_sv[["multigenes"]] |>
+  manta_fusions <- manta_sv[["melted_variants"]] |>
+    dplyr::filter(.data$is_fusion) |>
     dplyr::filter(.data$Genes %in% unique(c(fusions[["geneA"]], fusions[["geneB"]]))) |>
-    dplyr::pull(.data$Genes)
+    dplyr::pull(.data$Genes) |>
+    unique()
 
   ##### Flag fusions that were also reported in MANTA
   cond1 <- length(manta_fusions) > 0
@@ -1484,7 +1492,8 @@ fusions <- fusions |>
   )
 ```
 
-```{r immunogram_table_prep, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram}
+```{r immunogram_table_prep, comment = NA, message=FALSE, warning=FALSE, eval = FALSE}
+####### TODO: CHANGE eval above to params$immunogram
 ##### Extract data for Immunogram genes
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 dat1 <- dat1[rownames(dat1) %in% ref_genes.list[["genes_immune"]][["genes_immunogram"]][["SYMBOL"]], ]
@@ -1684,8 +1693,14 @@ for (gene in names(alt_genes.all)) {
   )
 
   ##### Provide link to OncoKB
-  if (gene %in% rownames(ref_genes.list[["genes_oncokb"]])) {
-    if (ref_genes.list[["genes_oncokb"]][gene, "OncoKB"] == "Yes") {
+  if (gene %in% ref_genes.list[["genes_oncokb"]][["Gene"]]) {
+    if (
+      all(
+        ref_genes.list[["genes_oncokb"]] |>
+          dplyr::filter(.data$Gene == gene) |>
+          dplyr::pull("OncoKB") == "Yes"
+      )
+    ) {
       summary_table.list[[gene]][length(summary_table.list[[gene]])] <- paste(
         summary_table.list[[gene]][length(summary_table.list[[gene]])],
         paste0("<a href='http://oncokb.org/#/gene/", gene, "' >OncoKB</a>"),
@@ -1723,11 +1738,13 @@ summary_table.df <- data.frame(
     Count = as.numeric(alt_genes.all),
     Gene = glue("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={.data$Gene}'>{.data$Gene}</a>")
   ) |>
-  dplyr::select("Gene", dplyr::everything())
+  dplyr::select("Gene", dplyr::any_of(c("Mutated", "Fusion", "SV", "CN", "Immune", "HRD", "Resources", "Count")), dplyr::everything())
 
 ##### Clean the space and return output
 rm(summary_table.list)
 ```
+
+Transcriptome summary for patient sample **`r sample_report_title`**.
 
 ------------------------------------------------------------------------
 
@@ -1759,10 +1776,9 @@ NOTE, the `r if (params$filter) { nrow(ref_dataset.list[[dataset]][["combined_da
 
 **Library size**
 
-Bar-plot illustrating library size for each sample.
+Violin plot illustrating library size for each sample.
 
-```{r library_size, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3}
-# TODO (PD): this plot is 3.6 MB
+```{r library_size, comment = NA, message=FALSE, warning=FALSE, fig.width = 5, fig.height = 5}
 library_size
 ```
 
@@ -2226,7 +2242,7 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 
 ### - Summary
 
-Out of the `r if ( runFusionChunk ) { nrow(fusions) } else { c("0") }` fusion event(s) [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support | fusions$geneB_dna_support, ]) } else { c("0") }`**]{style="color:#ff0000"} involve **DNA-supported** fusion genes (see [Structural variants] section), [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion, ]) } else { c("0") }`**]{style="color:#02d653"} are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** and [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$fusions_cancer, ]) } else { c("0") }`**]{style="color:#767689"} involve [**Cancer genes**].
+Out of the `r if ( runFusionChunk ) { nrow(fusions) } else { c("0") }` fusion event(s) [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support | fusions$geneB_dna_support, ]) } else { c("0") }`**]{style="color:#ff0000"} involve **DNA-supported** fusion genes (see [Structural variants] section), [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion, ]) } else { c("0") }`**]{style="color:#02d653"} are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** and [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$fusions_cancer, ]) } else { c("0") }`**]{style="color:#767689"} involve **[Cancer genes]**.
 
 **`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
 
@@ -2239,6 +2255,24 @@ if (runFusionChunk) {
 
   ##### Present gene fusion events in a table
   fusions.summary <- RNAsum::fusions_table(fusions = fusions)
+  fusions.summary
+} else {
+  ##### Create empty table
+  cnames <- c(
+    "Gene A", "Gene B", "Split reads", "Pair reads", "DNA support (A)",
+    "DNA support (B)", "Reported fusion", "Cancer gene(s)", "Fusion gene (A)",
+    "Fusion gene (B)", "Breakpoint (A)", "Breakpoint (B)", "Genomic view"
+  )
+  fusions.table <- RNAsum::empty_tbl(cnames)
+  ##### Present gene fusion events in a table
+  fusions.summary <- DT::datatable(
+    data = fusions.table, filter = "none", rownames = FALSE,
+    options = list(
+      dom = "Bfrtip", scrollX = TRUE, deferRender = TRUE, scrollY = "100px", scroller = TRUE
+    ),
+    width = 800, height = 490
+  ) |>
+    DT::formatStyle(columns = colnames(fusions.table), `font-size` = "12px", "text-align" = "center")
   fusions.summary
 }
 
@@ -2256,12 +2290,10 @@ rm(fusions.summary)
 
 
 <details>
-
 <summary>Table legend</summary>
-
 <font size="2">
 
-Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in [GREEN]{style="color:#02d653"} indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)**, and cells in [GREY]{style="color:#767689"} indicate fusions containing [**Cancer genes**]. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB) are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) databases. *Breakpoint (A/B)* - genomic coordinates of the breakpoints in gene A/B; *Site (A/B)* - location of the breakpoints in gene A/B; *Type* - type of event based on the orientation of the supporting reads and the coordinates of breakpoints
+Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in [GREEN]{style="color:#02d653"} indicate fusion events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)**, and cells in [GREY]{style="color:#767689"} indicate fusions containing **[Cancer genes]**. Gene fusions reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB) are hyperlinked. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) databases. *Breakpoint (A/B)* - genomic coordinates of the breakpoints in gene A/B; *Site (A/B)* - location of the breakpoints in gene A/B; *Type* - type of event based on the orientation of the supporting reads and the coordinates of breakpoints
 
 Fusion events are ordered by the following columns:
 
@@ -2393,9 +2425,8 @@ if (nrow(fusion_annot_top) > 0) {
         c(FALSE, TRUE), c("transparent", "lightgreen")
       )
     )
-
-  fusions.genomicView
   rm(fusion_annot_top.clean)
+  fusions.genomicView
 }
 ```
 
@@ -2405,7 +2436,7 @@ if (nrow(fusion_annot_top) > 0) {
 
 <font size="2">
 
-Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in [GREEN]{style="color:#02d653"} indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)**, and cells hihglighted in [GREY]{style="color:#767689"} indicate fusions containing [**Cancer genes**]. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**. *DNA support (gene A/B)* - DNA-supported fusion gene(s) (see) [Structural variants] section); *Reported fusion* - fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB); *Cancer gene(s)* - gene fusion events involving [Cancer genes]
+Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (see [Structural variants] section), cells in [GREEN]{style="color:#02d653"} indicate gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)**, and cells hihglighted in [GREY]{style="color:#767689"} indicate fusions containing **[Cancer genes]**. Genes known to be involved in gene fusions are flagged based on information provided in [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [Cancer Genome Interpreter](https://www.cancergenomeinterpreter.org/biomarkers) (CGI) databases. Fusion events are ordered by **genomic coordinates** of **Gene A** and then **Gene B**. *DNA support (gene A/B)* - DNA-supported fusion gene(s) (see) [Structural variants] section); *Reported fusion* - fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB); *Cancer gene(s)* - gene fusion events involving [Cancer genes]
 
 </font>
 
@@ -2426,7 +2457,7 @@ if (nrow(fusion_annot_top) > 0 && params$save_tables) {
 
 ### - Top hits {.tabset}
 
-Expression profiles for gene fusion events involving **DNA-supported fusion** genes (see [Structural variants] section), gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** or [**Cancer genes**], indicated in [green]{style="color:#02d653"}, [red]{style="color:#ff0000"} and [grey]{style="color:#767689"} columns in the [Fusion genes] table, respectively, and with the highest *Split count* and *Pair count* values.
+Expression profiles for gene fusion events involving **DNA-supported fusion** genes (see [Structural variants] section), gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** or **[Cancer genes]**, indicated in [green]{style="color:#02d653"}, [red]{style="color:#ff0000"} and [grey]{style="color:#767689"} columns in the [Fusion genes] table, respectively, and with the highest *Split count* and *Pair count* values.
 
 [NOTE]{style="color:#ff0000"}: the *visualisation* is available only for fusion genes detected by
 [Arriba](https://arriba.readthedocs.io/en/latest/) (see the [- Summary] table).
@@ -2541,7 +2572,7 @@ for (i in seq_len(genes_no)) {
     genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Germline")],
-    fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
+    fusion_genes = unique(c(known_translocations$geneA, known_translocations$geneB)),
     scaling = scaling,
     civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
   )[[1]]
@@ -2560,7 +2591,7 @@ for (i in seq_len(genes_no)) {
     genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Germline")],
-    fusion_genes = unique(known_translocations$geneA, known_translocations$geneB),
+    fusion_genes = unique(c(known_translocations$geneA, known_translocations$geneB)),
     scaling = scaling,
     civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
   )[[1]]
@@ -2694,13 +2725,15 @@ rm(list = ls(pattern = "^output*"))
 
 ## Structural variants
 
-mRNA expression levels of genes located within detected structural variants (SVs), obtained from [Manta](https://github.com/Illumina/manta) SV caller, in patient's sample and their average mRNA expression in samples from cancer cohorts.
+mRNA expression levels of genes located within detected structural variants (SVs),
+obtained from the [Manta](https://github.com/Illumina/manta) SV caller,
+in the patient's sample and their average mRNA expression in samples from cancer cohorts.
 
 `r if ( !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**") }`
 
 ### - Summary table {.tabset}
 
-Out of the `r if ( runSVsChunk ) { length(unique(manta_sv$melted_variants$Genes)) }` genes affected by `r if ( runSVsChunk ) { manta_sv$total_variants }` SVs, the expression of **`r if ( runSVsChunk ) { length(which(unique(manta_sv$melted_variants$Genes) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) } else { length(NULL) }`** was reliably measured in the patient's sample. The remaining `r if ( runSVsChunk ) { length(which(!unique(manta_sv$melted_variants$Genes) %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
+Out of the `r if ( runSVsChunk ) { nrow(manta_sv$genes_all) }` genes affected by `r if ( runSVsChunk ) { manta_sv$total_variants }` SVs, the expression of **`r if ( runSVsChunk ) { sum(manta_sv$genes_all$Genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) } else { length(NULL) }`** was reliably measured in the patient's sample. The remaining `r if ( runSVsChunk ) { sum(!manta_sv$genes_all$Genes %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) }` genes are either not expressed or their expression level is too low to be detected (indicated in [BLANK]{style="color:#808080"} cells with missing values).
 
 #### Percentiles
 
@@ -2714,7 +2747,7 @@ targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
 ##### Consider only SVs with known genes and those in MANTA output for which the expression levels were measured
-genes <- unique(manta_sv$melted_variants$Genes)
+genes <- manta_sv$genes_all$Genes
 genes <- genes[genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL]
 
 ##### Deal with no genes or when more than 10 genes are of interest
@@ -2932,7 +2965,7 @@ Section overlaying the mRNA expression data with per-gene somatic copy-number (C
 
 ### - Genomic view
 
-`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) } else { length(NULL) }`** of them (indicated by *various colours*) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values <= ", cn_bottom, ")") }`. All other genes are marked in [*gray*]{style="color:#808080"} or *black*.
+`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]])} else { cat("0") }` genes with available CN data (*y-axis*) are presented in the genomic context (*x-axis*). **`r if (runPurpleChunk) { nrow(ref_dataset.list[[dataset]][["expr_mut_cn_data"]]) } else { length(NULL) }`** of them (indicated by [*red*]{style="color:#FF0000"}) are [Cancer genes] and are gained `r if ( runPurpleChunk ) { paste0("(CN values >= ", cn_top, ")") }` or lost `r if ( runPurpleChunk ) { paste0("(CN values <= ", cn_bottom, ")") }`. All other genes are marked in [*gray*]{style="color:#808080"}/*black* (alternating per chromosome).
 
 ```{r cn_genomic_view, comment = NA, message=FALSE, warning=FALSE, fig.width = 8.3, fig.height = 4, eval = runPurpleChunk}
 ##### Update MySQL commend to populate RNA-seq data portal
@@ -3039,10 +3072,11 @@ if (nrow(data.annot) > 0) {
         "\nchr: ", manhattanr.res$data$CHR
       ),
       marker = list(
-        color = "limegreen",
+        color = "red",
         size = 10,
+        opacity = 0.5,
         line = list(
-          color = "grey",
+          color = "black",
           width = 1
         )
       ),
@@ -3896,7 +3930,7 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 `r if ( params$immunogram ) { c("#### Plot") }`
 
-```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 6, fig.height = 6, eval = params$immunogram}
+```{r immunogram_plot, comment = NA, message=FALSE, warning=FALSE, fig.width = 6, fig.height = 6, eval = F}
 ##### Generate spider web plot to present the patient cancer immunity status. For more info about immunogram see the following papers
 # https://www.sciencedirect.com/science/article/pii/S1556086417300084
 # https://www.sciencedirect.com/science/article/pii/S1556086417302125
@@ -3924,7 +3958,7 @@ RNAsum::webplot(
 
 `r if ( params$immunogram ) { c("#### Table {.tabset}") }`
 
-```{r immunogram_table_legend, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = params$immunogram, results="asis"}
+```{r immunogram_table_legend, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, eval = F, results="asis"}
 cat("\n<details>\n")
 cat("\n<summary>Table legend</summary>\n")
 cat("\n<font size=\"2\">\n")
@@ -4219,7 +4253,7 @@ The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_gro
 
 ## Cancer genes
 
-Shown below are mRNA expression levels of cancer genes in the patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources [*UMCCR cancer genes*](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.2019-03-20.tsv), [*OncoKB*](http://oncokb.org/#/cancerGenes), [*MSK-IMPACT*](https://www.mskcc.org/msk-impact), [*MSK-HEME*](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf), [*Foundation One*](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx), [*Foundation One Heme*](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme), [*Vogelstein*](http://science.sciencemag.org/content/339/6127/1546.full) and [*Sanger Cancer Gene Census*](https://www.sanger.ac.uk/science/data/cancer-gene-census) (CGC).
+Shown below are mRNA expression levels of cancer genes in the patient's sample and their average mRNA expression in samples from cancer cohorts. These include genes reported in the following gene panels/resources [*UMCCR cancer genes*](https://github.com/umccr/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/umccr_cancer_genes.latest.tsv), [*OncoKB*](http://oncokb.org/#/cancerGenes), [*MSK-IMPACT*](https://www.mskcc.org/msk-impact), [*MSK-HEME*](http://www.islh.org/Presentation_Upload/presentation_uploads/12_52_0900-Zehir.pdf), [*Foundation One*](https://www.foundationmedicine.com/genomic-testing/foundation-one-cdx), [*Foundation One Heme*](https://www.foundationmedicine.com/genomic-testing/foundation-one-heme), [*Vogelstein*](http://science.sciencemag.org/content/339/6127/1546.full) and [*Sanger Cancer Gene Census*](https://www.sanger.ac.uk/science/data/cancer-gene-census) (CGC).
 
 ### - Summary table {.tabset}
 
@@ -4514,7 +4548,7 @@ if (params$save_tables) {
 
 `r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_fusion_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
+```{r drugsTable_legend_fusion_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=F}
 cat(drugsTable_legend)
 ```
 
@@ -4554,7 +4588,7 @@ if (params$save_tables) {
 
 `r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_sv_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
+```{r drugsTable_legend_sv_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=F}
 cat(drugsTable_legend)
 ```
 
@@ -4596,7 +4630,7 @@ if (params$save_tables) {
 
 `r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_cn_gains_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
+```{r drugsTable_legend_cn_gains_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=F}
 cat(drugsTable_legend)
 ```
 
@@ -4632,7 +4666,7 @@ if (params$save_tables) {
 
 `r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_cn_losses_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
+```{r drugsTable_legend_cn_losses_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=F}
 cat(drugsTable_legend)
 ```
 
@@ -4672,7 +4706,7 @@ if (params$save_tables) {
 
 `r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_hrd_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
+```{r drugsTable_legend_hrd_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=F}
 cat(drugsTable_legend)
 ```
 
@@ -4714,7 +4748,7 @@ if (params$save_tables) {
 
 `r if ( params$drugs ) { c("<details>\n<summary>Table legend</summary>\n<font size=\"2\">") }`
 
-```{r drugsTable_legend_cancer_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=params$drugs}
+```{r drugsTable_legend_cancer_genes, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, results="asis", eval=F}
 cat(drugsTable_legend)
 ```
 
@@ -4771,7 +4805,6 @@ x |>
   ) |>
   dplyr::bind_rows(tibble::tibble(n = "", name = "TOTAL", value = tot)) |>
   knitr::kable()
-# knitr::knit_exit()
 ```
 
 ### SessionInfo {.tabset .tabset-pills}

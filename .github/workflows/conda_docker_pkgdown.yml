@@ -1,0 +1,113 @@
+name: conda-docker-docs
+
+on:
+  push:
+    branches:
+      - deploy_0.5.0
+      - rnasum-rpackage
+env:
+  atoken: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
+  recipe_path: deploy/conda/recipe
+  env_yaml_path: deploy/conda/env/yaml
+  env_lock_path: deploy/conda/env/lock
+  VERSION: '0.5.0.9001' # versioned by bump2version
+
+jobs:
+  condarise-dockerise-document:
+    # When merging to main and the commit message starts with 'Bump version:'
+    if: "startsWith(github.event.head_commit.message, 'Bump version:')"
+    name: Conda Docker Docs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v3
+      - name: Micromamba setup
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: ${{ env.env_yaml_path }}/condabuild.yaml
+      - name: 🐍 Conda pkg build and upload
+        run: |
+          conda mambabuild ${recipe_path} -c umccr -c conda-forge -c bioconda --token ${atoken}
+      - name: 🔒 Conda lock
+        run: |
+          # 1. generate a combined lock file
+          # 2. render platform-specific locks
+          conda-lock lock --file ${env_yaml_path}/rnasum.yaml -p osx-64 -p linux-64
+          conda-lock render --kind explicit -p osx-64 -p linux-64 conda-lock.yml --filename-template 'rnasum-{platform}.lock' && rm conda-lock.yml
+          mv rnasum-*.lock ${env_lock_path}/
+      - name: 💾 Commit lockfile
+        run: |
+          git status
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          MSG="[bot] Updating conda-lock files (v${VERSION})"
+          git add .
+          git commit -m "${MSG}"
+          git push
+
+      - name: 🌐 Website publish
+        run: |
+          micromamba env create -n pkgdownenv -f ${env_yaml_path}/pkgdown.yaml
+          micromamba activate pkgdownenv
+          rnasum.R --version
+          Rscript -e "pkgdown::deploy_to_branch(pkg = '.', commit_message = paste(pkgdown:::construct_commit_message('.'), '- see https://umccr.github.io/RNAsum/'), branch = 'gh-pages', new_process = FALSE)"
+
+      - name: 📥 Pull lock commit
+        id: pull_lock_commit
+        run: |
+          git pull --no-rebase
+          git --no-pager log --decorate=short --pretty=oneline -n3
+          LATEST_COMMIT_HASH="$(git --no-pager log -1 --format='%H')"
+          echo "latest_commit_hash=${LATEST_COMMIT_HASH}" >> ${GITHUB_OUTPUT}
+      - name: 🔖 Create tag
+        uses: actions/github-script@v6
+        env:
+          LATEST_COMMIT_HASH: ${{ steps.pull_lock_commit.outputs.latest_commit_hash }}
+        with:
+          script: |
+            const the_tag_name = 'refs/tags/v' + process.env.VERSION
+            const the_sha = process.env.LATEST_COMMIT_HASH
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: the_tag_name,
+              sha: the_sha
+            })
+
+      # work with tag from above
+      - name: Code checkout
+        uses: actions/checkout@v3
+        with:
+          ref: v${{ env.VERSION }}
+      - name: 🏰 QEMU setup
+        uses: docker/setup-qemu-action@v2
+      - name: 🏯 Buildx setup
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+          config-inline: |
+            [worker.oci]
+              max-parallelism = 2
+      - name: 🐙 GitHub CR login
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🐣 Lowercase repo
+        env:
+          REPO_NM: ${{ github.repository }}
+        run: |
+          echo "repo_nm: ${REPO_NM}"
+          echo "REPO_NM_LC=${REPO_NM,,}" >> ${GITHUB_ENV}
+      - name: 🐳 Docker img build and push
+        uses: docker/build-push-action@v4
+        with:
+          tags: ghcr.io/${{ env.REPO_NM_LC }}:${{ env.VERSION }}
+          context: .
+          push: true
+          platforms: linux/amd64

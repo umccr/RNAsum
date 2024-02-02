@@ -41,7 +41,7 @@ session_info_kable <- function(pkgs = NULL) {
 #' the specified packages.
 #' @export
 session_info_tbls <- function(pkgs = NULL) {
-  si <- devtools::session_info(include_base = TRUE)
+  si <- sessioninfo::session_info(include_base = TRUE)
   assertthat::assert_that(all(c("platform", "packages") %in% names(si)))
   si_pl <- unclass(si[["platform"]]) |>
     unlist() |>

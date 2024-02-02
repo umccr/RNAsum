@@ -2,32 +2,23 @@
 
 # File R/sample_data.R: @testexamples
 
-test_that("Function read_sample_data() @ L36", {
+test_that("Function read_sample_data() @ L27", {
   
   p <- list(
-    dragen_rnaseq = system.file("rawdata/test_data/dragen", package = "RNAsum"),
-    arriba_pdf = system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNAsum"),
-    arriba_tsv = system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum"),
-    dragen_fusions = system.file(
-      "rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final",
-      package = "RNAsum"
-    ),
+    dragen_wts_dir = system.file("rawdata/test_data/dragen", package = "RNAsum"),
+    arriba_dir = system.file("rawdata/test_data/dragen/arriba", package = "RNAsum"),
     umccrise = system.file(
       "rawdata/test_data/umccrised/test_sample_WGS",
-      package = "RNAsum"
-    ),
-    manta_tsv = system.file(
-      "rawdata/test_data/umccrised/test_sample_WGS/structural/manta.tsv",
       package = "RNAsum"
     )
   )
   res <- read_sample_data(p, tempdir())
-  expect_equal(length(res), 5)
-  expect_null(res$salmon)
+  expect_equal(length(res), 6)
+  expect_null(res$salmon) # because tx2gene in NULL
 })
 
 
-test_that("Function read_wgs_data() @ L78", {
+test_that("Function read_wgs_data() @ L103", {
   
   p <- list(
     umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),
