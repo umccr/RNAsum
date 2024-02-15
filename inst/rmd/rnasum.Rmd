@@ -63,11 +63,11 @@ knitr::knit_hooks$set(timeit = local({
 knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
 ```
 
-```{r load_pkgs, message=FALSE}
-# source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
-# source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
-ensembl_version <- 86L
-ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
+```{r echo=TRUE, message=FALSE}
+#source(here::here("inst/rmd/params/pd.R")) # for use with 'Run All Chunks Above'
+#source(here::here("inst/rmd/params/sk.R")) # for use with 'Run All Chunks Above'
+
+# start with more exotic pkgs, then get to core ones
 {
   library(conflicted) # checks for pkg function conflicts
   library(AnnotationDbi, include.only = c("keys"))
@@ -76,7 +76,6 @@ ensdb_pkg <- paste0("EnsDb.Hsapiens.v", ensembl_version)
   library(dplyr, include.only = c("mutate", "select", "filter", "if_else"))
   library(EDASeq, include.only = c("plotRLE"))
   library(edgeR, include.only = c("DGEList"))
-  library(ensdb_pkg, character.only = TRUE, include.only = ensdb_pkg)
   library(ensembldb, include.only = c("lengthOf"))
   library(fs, include.only = c("dir_create"))
   library(glue, include.only = c("glue"))
@@ -111,14 +110,12 @@ sample_name <- paste0(
 sample_report_title <- sample_name
 results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
 fs::dir_create(results_dir)
-# Annotate transcripts with gene IDs
-# These could probably go into refdata
-##### Get genes annotation and genomic locations
-##### Get keytypes for gene SYMBOL
-edb <- eval(parse(text = ensdb_pkg))
-keys <- AnnotationDbi::keys(edb, keytype = "GENEID")
-tx2ensembl <- edb |>
-  ensembldb::select(keys = keys, columns = c("TXID", "GENEID"), keytype = "GENEID") |>
+#### Annotate transcripts with gene IDs
+#### Get genes annotation and genomic locations using AnnotationHub
+#### tx_gene_id_105.rds was generated using the ah_edb.R script under data-raw
+tx_gene_id_105 <- system.file("extdata/ensembl/tx_gene_id_105.rds", package = "RNAsum.data")
+tx2ensembl <- tx_gene_id_105 |>
+  dplyr::select("TXID", "GENEID") |>
   dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
 
 # reference data
@@ -335,9 +332,12 @@ genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
 ##### Get gene symbols for the genes of interest. These genes will not be filtered out due to low/insufficient expression
 
 ##### Get genes genomic coordinates
-gene_info <- edb |>
-  ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
+gene_info <- tx_gene_id_105 |>
+  dplyr::select("GENEID", "GENENAME") |>
   dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
+#gene_info <- edb |>
+#  ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
+#  dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
 
 ##### Limit genes annotation to the gene of interest, then
 ##### remove rows with duplicated ENSEMBL IDs
@@ -467,7 +467,10 @@ for (group in targets_mod.list) {
     ##### TPM transformation with filtering
   } else if (params$filter && params$transform == "TPM") {
     ##### Get genes lengths
-    gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
+    #gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
+    gene.length <- setNames(as.integer(tx_gene_id_105$GENELENGTH), tx_gene_id_105$GENEID)
+    # Select distinct gene ids
+    gene.length <- gene.length[!duplicated(names(gene.length))]
 
     ##### Check for which genes the lenght info is not available and remove them from the data
     genes.no_length <- rownames(dat1)[!rownames(dat1) %in% names(gene.length)]
@@ -513,7 +516,10 @@ for (group in targets_mod.list) {
     ##### TPM transformation without filtering
   } else if (!params$filter && params$transform == "TPM") {
     ##### Get genes lengths
-    gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
+    #gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
+    gene.length <- setNames(as.integer(tx_gene_id_105$GENELENGTH), tx_gene_id_105$GENEID)
+    # Select distinct gene ids
+    gene.length <- gene.length[!duplicated(names(gene.length))]
 
     ##### Check for which genes the lenght info is not available and remove them from the data
     genes.no_length <- rownames(dat1)[!rownames(dat1) %in% names(gene.length)]
@@ -1060,14 +1066,9 @@ for (dataset in names(ref_dataset.list)) {
 
   ##### Get genes genomic coordiantes
   ##### Limit genes annotation to those genes for which sample expression measurements are available
-  gene_info <- edb |>
-    ensembldb::select(
-      keys = keys,
-      columns = c(
-        "GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME",
-        "GENESEQSTART", "GENESEQEND"
-      ), keytype = "GENEID"
-    ) |>
+  gene_info <- tx_gene_id_105 |>
+    dplyr::select("GENEID", "GENEBIOTYPE", "GENENAME", "SEQNAME",
+        "GENESEQSTART", "GENESEQEND") |>
     dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME") |>
     dplyr::filter(.data$ENSEMBL %in% data.df$ENSEMBL)
 
