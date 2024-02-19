@@ -112,8 +112,9 @@ results_dir <- file.path(params$report_dir, glue::glue("{sample_name}.results"))
 fs::dir_create(results_dir)
 #### Annotate transcripts with gene IDs
 #### Get genes annotation and genomic locations using AnnotationHub
-#### tx_gene_id_105.rds was generated using the ah_edb.R script under data-raw
-tx_gene_id_105 <- system.file("extdata/ensembl/tx_gene_id_105.rds", package = "RNAsum.data")
+#### tx_gene_id_105.rds was generated using the ah_edb.R script in rnasum.data pkg
+tx_gene_id_105_rds <- system.file("extdata/ensembl/tx_gene_id_105.rds", package = "RNAsum.data")
+tx_gene_id_105 <- readr::read_rds(tx_gene_id_105_rds)
 tx2ensembl <- tx_gene_id_105 |>
   dplyr::select("TXID", "GENEID") |>
   dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
@@ -335,9 +336,6 @@ genes2keep <- unlist(ref_genes.list[["summary"]]) |> unique()
 gene_info <- tx_gene_id_105 |>
   dplyr::select("GENEID", "GENENAME") |>
   dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
-#gene_info <- edb |>
-#  ensembldb::select(keys = keys, columns = c("GENEID", "GENENAME"), keytype = "GENEID") |>
-#  dplyr::rename("ENSEMBL" = "GENEID", "SYMBOL" = "GENENAME")
 
 ##### Limit genes annotation to the gene of interest, then
 ##### remove rows with duplicated ENSEMBL IDs
@@ -467,7 +465,6 @@ for (group in targets_mod.list) {
     ##### TPM transformation with filtering
   } else if (params$filter && params$transform == "TPM") {
     ##### Get genes lengths
-    #gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
     gene.length <- setNames(as.integer(tx_gene_id_105$GENELENGTH), tx_gene_id_105$GENEID)
     # Select distinct gene ids
     gene.length <- gene.length[!duplicated(names(gene.length))]
@@ -516,7 +513,6 @@ for (group in targets_mod.list) {
     ##### TPM transformation without filtering
   } else if (!params$filter && params$transform == "TPM") {
     ##### Get genes lengths
-    #gene.length <- ensembldb::lengthOf(edb, filter = AnnotationFilter::GeneIdFilter(rownames(dat1)))
     gene.length <- setNames(as.integer(tx_gene_id_105$GENELENGTH), tx_gene_id_105$GENEID)
     # Select distinct gene ids
     gene.length <- gene.length[!duplicated(names(gene.length))]
