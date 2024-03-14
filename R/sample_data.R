@@ -39,7 +39,7 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
   arriba_pdf <- arriba_pdf_read(pdf = arriba_pdf, fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
 
   #---- DragenWTS ----#
-  # if any of salmon, fusions, mapmetrics missing and dragen_wts_dir is provided,
+  # if any of salmon, fusions, mapping metrics missing and dragen_wts_dir is provided,
   # construct the paths to files from that.
   salmon <- p[["salmon"]]
   dragen_fusions <- p[["dragen_fusions"]]
@@ -47,6 +47,10 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
   dragen_wts_dir <- p[["dragen_wts_dir"]]
   if (!is.null(dragen_wts_dir) && (list(NULL) %in% list(salmon, dragen_fusions, dragen_mapping_metrics))) {
     salmon <- list.files(dragen_wts_dir, pattern = "quant\\.genes\\.sf", full.names = TRUE)
+    if (length(salmon) != 1) {
+      # check for quant.sf file
+      salmon <- list.files(dragen_wts_dir, pattern = "quant\\.sf", full.names = TRUE)
+    }
     dragen_mapping_metrics <- list.files(dragen_wts_dir, pattern = "mapping_metrics\\.csv", full.names = TRUE)
     dragen_fusions <- list.files(dragen_wts_dir, pattern = "fusion_candidates\\.final", full.names = TRUE)
     if (length(salmon) != 1) {
