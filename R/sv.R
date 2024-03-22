@@ -23,7 +23,7 @@ manta_process <- function(manta_tsv_obj) {
     fus <- fus |>
       tidyr::separate_longer_delim(cols = "Genes", delim = "&")
   } else {
-    fus <- empty_tbl(cnames = colnames(melted))
+    fus <- NULL # bind_rows(NULL, x) returns x
   }
 
   melted <- dplyr::bind_rows(fus, nofus)
