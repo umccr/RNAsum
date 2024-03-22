@@ -140,7 +140,7 @@ read_wgs_data <- function(p) {
   purple_gene_tsv <- .read(
     p = p,
     subdir = "purple", pat = "purple\\.cnv\\.gene\\.tsv$",
-    nm = "purple_gene_tsv", func = gpgr::purple_cnv_som_gene_read
+    nm = "purple_gene_tsv", func = ppl_cnv_som_gene_read
   )
 
   manta_tsv <- .read(
@@ -323,4 +323,34 @@ immune_summary <- function(tbl_imarkers, tbl_igram = NULL, igram_param = TRUE) {
   }
   res <- unique(c(res1, res2)) |> stats::na.omit()
   res
+}
+
+#' Read PURPLE CNV Gene File
+#'
+#' Reads the `purple.cnv.gene.tsv` file, which summarises copy number
+#' alterations of each gene in the HMF panel
+#' (see https://github.com/hartwigmedical/hmftools/tree/master/purple#gene-copy-number-file).
+#'
+#' @param x Path to `purple.cnv.gene.tsv` file.
+#'
+#' @return The input file as a tibble.
+#'
+#' @export
+ppl_cnv_som_gene_read <- function(x) {
+  nm <- c(
+    "chromosome" = "c", "start" = "i", "end" = "i", "gene" = "c",
+    "minCopyNumber" = "d", "maxCopyNumber" = "d",
+    "unused" = "c", "somaticRegions" = "d", "germlineHomDeletionRegions" = "d",
+    "germlineHetToHomDeletionRegions" = "d",
+    "transcriptId" = "c", "transcriptVersion" = "c", "chromosomeBand" = "c",
+    "minRegions" = "d", "minRegionStart" = "i", "minRegionEnd" = "i",
+    "minRegionStartSupport" = "c", "minRegionEndSupport" = "c",
+    "minRegionMethod" = "c", "minMinorAlleleCopyNumber" = "d"
+  )
+
+  ctypes <- paste(nm, collapse = "")
+  purple_cnv_gene <- readr::read_tsv(x, col_types = ctypes)
+  assertthat::assert_that(ncol(purple_cnv_gene) == length(nm))
+  assertthat::assert_that(all(colnames(purple_cnv_gene) == names(nm)))
+  purple_cnv_gene
 }
