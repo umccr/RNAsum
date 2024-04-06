@@ -1,7 +1,7 @@
 # Contributing to RNAsum
 
 This outlines how to propose a change to RNAsum.
-For a detailed discussion on contributing to this and other tidyverse packages, please see the [development contributing guide](https://rstd.io/tidy-contrib) and our [code review principles](https://code-review.tidyverse.org/).
+For a detailed discussion on contributing to this and other packages, please see the [development contributing guide](https://rstd.io/tidy-contrib) and [code review principles](https://code-review.tidyverse.org/) from the tidyverse team.
 
 ## Fixing typos
 
