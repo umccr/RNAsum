@@ -16,6 +16,9 @@
   # devtools::install_github("umccr/dracarys")
   require(rportal, include.only = "awsvault_profile")
   require(dracarys, include.only = "ica_token_validate")
+  require(tibble, include.only = "tribble")
+  require(tidyr, include.only = "pivot_wider")
+  require(stringr, include.only = "str_replace")
 }
 
 # keep long functions in separate file
@@ -63,10 +66,10 @@ rnasum_file_regex <- tibble::tribble(
 # of interest, and fish out files of interest from each of them and grab
 # presigned URLs
 urls <- pmeta_tidy |>
-  tidyr::pivot_longer(dplyr::contains("gds_indir"), names_to = "folder_type", values_to = "gds_indir") |>
-  dplyr::select("SubjectID", "LibraryID", "rnasum_dataset", "folder_type", "gds_indir") |>
-  dplyr::rowwise() |>
-  dplyr::mutate(
+  tidyr::pivot_longer(contains("gds_indir"), names_to = "folder_type", values_to = "gds_indir") |>
+  select("SubjectID", "LibraryID", "rnasum_dataset", "folder_type", "gds_indir") |>
+  rowwise() |>
+  mutate(
     rnasum_files = list(
       dracarys::gds_files_list_filter_relevant(
         gdsdir = gds_indir, token = token_prod, include = "PresignedUrl",
