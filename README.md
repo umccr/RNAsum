@@ -215,106 +215,115 @@ export PATH="${rnasum_cli}:${PATH}"
 ```
 
     $ rnasum.R --version
-    rnasum.R x.x.x
+    1.0.0 
 
     $ rnasum.R --help
     Usage
     =====
      
-    /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
+    /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
 
 
     Options
     =======
+    --arriba_dir=ARRIBA_DIR
+            Directory path to Arriba results containing fusions.pdf and fusions.tsv.
+
     --arriba_pdf=ARRIBA_PDF
-            File path of Arriba PDF output
+            File path of Arriba PDF output.
 
     --arriba_tsv=ARRIBA_TSV
-            File path of Arriba TSV output
+            File path of Arriba TSV output.
 
-    --batch_rm=BATCH_RM
-            Remove batch-associated effects between datasets? [def: TRUE]
+    --batch_rm
+            Remove batch-associated effects between datasets.
 
     --cn_gain=CN_GAIN
-            CN threshold value to classify genes within gained regions [def: 95]
+            CN threshold value to classify genes within gained regions. [def: 95]
 
     --cn_loss=CN_LOSS
-            CN threshold value to classify genes within lost regions [def: 5]
+            CN threshold value to classify genes within lost regions. [def: 5]
 
     --dataset=DATASET
-            Dataset to be used as external reference cohort [def: PANCAN]
+            Dataset to be used as external reference cohort. [def: PANCAN]
 
-    --dataset_name_incl=DATASET_NAME_INCL
-            Include dataset in report name? [def: FALSE]
+    --dataset_name_incl
+            Include dataset in report name.
 
     --dragen_fusions=DRAGEN_FUSIONS
-            File path to DRAGEN RNA-seq 'fusion_candidates.final' output
+            File path to DRAGEN RNA-seq 'fusion_candidates.final' output.
 
-    --drugs=DRUGS
-            Include drug matching section in report? [def: FALSE]
+    --dragen_mapping_metrics=DRAGEN_MAPPING_METRICS
+            File path to DRAGEN RNA-seq 'mapping_metrics.csv' output.
 
-    --filter=FILTER
-            Filter out low expressed genes? [def: TRUE]
+    --dragen_wts_dir=DRAGEN_WTS_DIR
+            Directory path to DRAGEN RNA-seq results.
 
-    --hide_code_btn=HIDE_CODE_BTN
-            Hide "Code" button above code chunks in report? [def: TRUE]
+    --drugs
+            Include drug matching section in report.
 
-    --immunogram=IMMUNOGRAM
-            Include immunogram in report? [def: FALSE]
+    --filter
+            Filter out low expressed genes.
 
-    --log=LOG
-            Log2 transform data before normalisation? [def: TRUE]
+    --immunogram
+            Include immunogram in report.
+
+    --log
+            Log2 transform data before normalisation.
 
     --manta_tsv=MANTA_TSV
-            File path to umccrise 'manta.tsv' output
+            File path to umccrise 'manta.tsv' output.
 
     --norm=NORM
-            Normalisation method
+            Normalisation method.
 
-    --pcgr_splice_vars=PCGR_SPLICE_VARS
-            Include non-coding splice region variants reported in PCGR? [def: TRUE]
+    --pcgr_splice_vars
+            Include non-coding splice region variants reported in PCGR.
 
     --pcgr_tier=PCGR_TIER
-            Tier threshold for reporting variants reported in PCGR [def: 4]
+            Tier threshold for reporting variants reported in PCGR. [def: 4]
 
     --pcgr_tiers_tsv=PCGR_TIERS_TSV
-            File path to PCGR 'snvs_indels.tiers.tsv' output
+            File path to PCGR 'snvs_indels.tiers.tsv' output.
 
     --project=PROJECT
-            Project name
+            Project name, used for annotation purposes only.
 
     --purple_gene_tsv=PURPLE_GENE_TSV
-            File path to PURPLE 'purple.cnv.gene.tsv' output
+            File path to PURPLE 'purple.cnv.gene.tsv' output.
 
     --report_dir=REPORT_DIR
-            Directory path to output report
+            Directory path to output report.
 
     --salmon=SALMON
-            File path to salmon 'quant.sf' output
+            File path to salmon 'quant.genes.sf' output.
 
     --sample_name=SAMPLE_NAME
-            Sample name to be presented in report
+            Sample name to be presented in report.
 
     --sample_source=SAMPLE_SOURCE
-            Type of investigated sample [def: -]
+            Type of investigated sample. [def: -]
 
-    --save_tables=SAVE_TABLES
-            Save interactive summary tables as HTML? [def: TRUE]
+    --save_tables
+            Save interactive summary tables as HTML.
 
     --scaling=SCALING
-            Scaling for z-score transformation (gene-wise or group-wise) [def: gene-wise]
+            Scaling for z-score transformation (gene-wise or group-wise). [def: gene-wise]
 
     --subject_id=SUBJECT_ID
-            Subject ID
+            Subject ID.
 
     --top_genes=TOP_GENES
-            Number of top ranked genes to be presented in report
+            Number of top ranked genes to be presented in report.
 
     --transform=TRANSFORM
-            Transformation method to be used when converting read counts [def: CPM]
+            Transformation method to be used when converting read counts. [def: CPM]
 
     --umccrise=UMCCRISE
-            Directory path of the corresponding WGS-related data
+            Directory path of the corresponding WGS-related umccrise data.
+
+    --version, -v
+            Print RNAsum version and exit.
 
     --help, -h
             Show this help message and exit
@@ -471,3 +480,7 @@ prioritisation and visualisation is available
 
 The `results` folder contains intermediate files, including plots and
 tables that are presented in the HTML report.
+
+#### Code of Conduct
+
+The code of conduct can be accessed [here](./CODE_OF_CONDUCT.md).
