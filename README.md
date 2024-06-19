@@ -56,7 +56,7 @@ docker pull ghcr.io/umccr/rnasum:latest
 The pipeline consists of five main components illustrated and briefly
 described below. For more details, see [workflow.md](/workflow.md).
 
-<img src="man/figures/RNAsum_workflow.png" width="100%">
+<img src="man/figures/RNAsum_workflow_updated.png" width="100%">
 
 1.  Collect patient **WTS data** from the [DRAGEN
     RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)
