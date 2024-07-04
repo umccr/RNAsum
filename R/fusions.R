@@ -161,11 +161,6 @@ fusions_table <- function(fusions) {
       )
     ) |>
     dplyr::ungroup() |>
-    # use desc since values are True (1) / False (0), so go from high (1) to low (0)
-    dplyr::arrange(
-      dplyr::desc(.data$geneA_dna_support), dplyr::desc(.data$geneB_dna_support),
-      dplyr::desc(.data$reported_fusion), .data$fusion_caller
-    ) |>
     dplyr::select(dplyr::any_of(
       # any_of handles cases when Arriba fusions are missing so e.g. there is no split_readsA col
       c(
