@@ -1130,7 +1130,7 @@ for (dataset in names(ref_dataset.list)) {
 }
 
 ##### Clean the space
-rm(dat1, data.df, edb, keys)
+rm(dat1, data.df)
 ```
 
 ```{r gene_annot_processed_data, comment = NA, message=FALSE, warning=FALSE}
@@ -1434,7 +1434,16 @@ if (runFusionChunk) {
       geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% manta_fusions, FALSE),
       geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% manta_fusions, FALSE)
     ) |>
-    dplyr::ungroup()
+    dplyr::ungroup() |>
+    # use desc since values are True (1) / False (0), so go from high (1) to low (0)
+    dplyr::arrange(
+      dplyr::desc(.data$geneA_dna_support),
+      dplyr::desc(.data$geneB_dna_support),
+      dplyr::desc(.data$reported_fusion),
+      dplyr::desc(.data$fusions_cancer),
+      dplyr::desc(.data$split_reads),
+      .data$fusion_caller
+    )
   fusions_ann <- fusions_ann |>
     dplyr::rowwise() |>
     dplyr::mutate(
@@ -2270,13 +2279,11 @@ Cells in [RED]{style="color:#ff0000"} indicate **DNA-supported** fusion genes (s
 
 Fusion events are ordered by the following columns:
 
-- **DNA support (A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section)
-- **Confidence** level from [Arriba](https://arriba.readthedocs.io/en/latest/) tool
-- **Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)
-- **Split count**: the number of supporting split reads
-- **Pair count**: the number of supporting pair reads
-- **Cancer gene(s)**: gene fusion events involving [Cancer genes]
-- **Fusion gene (A/B)**: gene(s) known to be involved in tumorigenesis across cancer types based on [FusionGDB](https://ccsm.uth.edu/FusionGDB) and [CGI](https://www.cancergenomeinterpreter.org/biomarkers) databases
+- **DNA support (A/B)**: DNA-supported fusion gene(s) (see [Structural variants] section).
+- **Reported fusion**: fusion event reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB).
+- **Cancer gene(s)**: gene fusion events involving [Cancer genes].
+- **Split count**: the total number of supporting split reads.
+- **Fusion caller**: Arriba first, then DRAGEN.
 
 </font>
 
@@ -2451,7 +2458,8 @@ output_density_B <- list()
 output_table_Z <- list()
 output_table_perc <- list()
 
-##### Deal with no genes or when more than 10 genes are of interest
+##### Deal with no genes or when more than X genes are of interest
+# This assumes the fusions df has been sorted accordingly
 if (length(genes) == 0) {
   genes <- NULL
   genes_no <- 0
