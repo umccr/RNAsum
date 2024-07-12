@@ -5,15 +5,15 @@ require(glue)
 require(tibble)
 require(tidyr)
 
-dev <- readr::read_csv("~/UMCCR/data/wts/RNAsum/reference_update_comp/SBJ04426/dev/genes.expr.perc.csv")
-pro <- readr::read_csv("~/UMCCR/data/wts/RNAsum/reference_update_comp/SBJ04426/pro/genes.expr.perc.csv")
-dev <- readr::read_csv("~/UMCCR/data/wts/RNAsum/reference_update_comp/SBJ04187/dev/genes.expr.perc.csv")
-pro <- readr::read_csv("~/UMCCR/data/wts/RNAsum/reference_update_comp/SBJ04187/pro/genes.expr.perc.csv")
+SBJ04426_dev <- readr::read_csv("~/UMCCR/data/wts/RNAsum/reference_update_comp/SBJ04426/dev/genes.expr.perc.csv")
+SBJ04426_pro <- readr::read_csv("~/UMCCR/data/wts/RNAsum/reference_update_comp/SBJ04426/pro/genes.expr.perc.csv")
+SBJ04187_dev <- readr::read_csv("~/UMCCR/data/wts/RNAsum/reference_update_comp/SBJ04187/dev/genes.expr.perc.csv")
+SBJ04187_pro <- readr::read_csv("~/UMCCR/data/wts/RNAsum/reference_update_comp/SBJ04187/pro/genes.expr.perc.csv")
 cancer_genes <- readr::read_tsv("~/UMCCR/research/data/cancer_gene_list/somatic_panel-v24.03.0.tsv")
 
 # now explore expression differences in reference and patient columns
 # between dev and prod.
-df <- dplyr::left_join(dev, pro, by = "Gene", suffix = c(".dev", ".pro")) |>
+SBJ04426_df <- dplyr::left_join(SBJ04426_dev, SBJ04426_pro, by = "Gene", suffix = c(".dev", ".pro")) |>
   dplyr::mutate(
     # Ref_equal = `KIRP (TCGA).dev` == `KIRP (TCGA).pro`,
     # Ref_equal = `PANCAN (TCGA).dev` == `PANCAN (TCGA).pro`,
@@ -31,4 +31,4 @@ df <- dplyr::left_join(dev, pro, by = "Gene", suffix = c(".dev", ".pro")) |>
   datatable()
 
 # plot Ref_diff values
-hist(df$Ref_diff, breaks = 100)
+hist(SBJ04426_df$Ref_diff, breaks = 100)
