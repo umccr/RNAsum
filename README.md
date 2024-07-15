@@ -371,7 +371,7 @@ dataset is used as reference cohort (`--dataset TEST`).
 rnasum.R \
   --sample_name test_sample_WTS \
   --dataset TEST \
-  --dragen_rnaseq inst/rawdata/test_data/dragen \
+  --dragen_wts_dir inst/rawdata/test_data/dragen \
   --report_dir inst/rawdata/test_data/dragen/RNAsum \
   --umccrise inst/rawdata/test_data/umccrised/test_sample_WGS \
   --save_tables FALSE
@@ -396,7 +396,7 @@ pancreatic adenocarcinoma dataset is used as the reference cohort
 rnasum.R \
   --sample_name test_sample_WTS \
   --dataset TEST \
-  --dragen_rnaseq inst/rawdata/test_data/dragen \
+  --dragen_wts_dir inst/rawdata/test_data/dragen \
   --report_dir inst/rawdata/test_data/dragen/RNAsum \
   --save_tables FALSE
 ```
@@ -422,7 +422,7 @@ dataset is used as the reference cohort (`--dataset TEST`).
 rnasum.R \
   --sample_name test_sample_WTS \
   --dataset TEST \
-  --dragen_rnaseq $(pwd)/../rawdata/test_data/dragen \
+  --dragen_wts_dir $(pwd)/../rawdata/test_data/dragen \
   --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum \
   --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS \
   --save_tables FALSE \
