@@ -31,7 +31,7 @@ provide additional evidence for detected alterations.
   source](https://github.com/umccr/RNAsum):
 
 ``` r
-remotes::install_github("umccr/RNAsum") # latest master commit
+remotes::install_github("umccr/RNAsum") # latest main commit
 remotes::install_github("umccr/RNAsum@v0.0.X") # version 0.0.X
 remotes::install_github("umccr/RNAsum@abcde") # commit abcde
 remotes::install_github("umccr/RNAsum#123") # PR 123
@@ -88,7 +88,7 @@ The reference expression data are available for **33 cancer types** and
 were derived from [external](#external-reference-cohorts)
 ([TCGA](https://tcga-data.nci.nih.gov/)) and
 [internal](#internal-reference-cohort)
-([UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group))
+([UMCCR](https://mdhs.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group))
 resources.
 
 ### External reference cohorts
@@ -150,62 +150,44 @@ There are two rationales for using the internal reference cohort:
 
 ## Input data
 
-`RNAsum` accepts [WTS](#wts) data processed by the `DRAGEN RNA`
-pipeline. Additionally, the WTS data can be integrated with
-[WGS](#wgs)-based data processed using the `umccrise` pipeline. In the
-latter case, the genome-based findings from the corresponding patient
+`RNAsum` accepts [WTS](#wts) data processed by the state-of-the-art
+bioinformatic tools such as kallisto and salmon for quantification and
+Arriba for fusion calling. RNAsum can aso process and combine fusion
+output from Illumina’s Dragen pipeline. Additionally, the WTS data can
+be integrated with [WGS](#wgs)-based data processed using the tools
+discussed in the section [WGS](#wgs).
+
+In the latter case, the genome-based findings from the corresponding
 sample are incorporated into the report and are used as a primary source
 for expression profile prioritisation.
 
 ### WTS
 
 The only required WTS input data are **read counts** provided in a
-quantification file from the `DRAGEN RNA` pipeline.
+quantification file.
 
-#### DRAGEN RNA
+#### RNA
 
 The table below lists all input data accepted in `RNAsum`:
 
-| Input file                           | Tool                                                                                                                                                 | Example                                                                                                | Required |
-|--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|----------|
-| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [TEST.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf)                                          | **Yes**  |
-| **Fusion gene** list                 | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [TEST.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No       |
-
-These files are expected to be organised in the following structure:
-
-``` text
-|
-|____<SampleName>
-  |____<SampleName>quant.sf
-  |____<SampleName>.fusion_candidates.final
-```
+| Input file | Tool | Example | Required |
+|----|----|----|----|
+| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf) | **Yes** |
+| Quantified gene **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.gene.sf](/inst/rawdata/test_data/dragen/TEST.quant.gene.sf) | **Yes** |
+| **Fusion gene** list | [Arriba](https://arriba.readthedocs.io/en/latest/) | [fusions.tsv](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No |
+| **Fusion gene** list | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [\*.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No |
 
 ### WGS
 
-`RNAsum` is designed to be compatible with WGS outputs generated from
-`umccrise`.
+`RNAsum` is designed to be compatible with WGS outputs.
 
 The table below lists all input data accepted in `RNAsum`:
 
-| Input file      | Tool                                                                    | Example                                                                                                                   | Required |
-|-----------------|-------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
-| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr)                                  | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No       |
-| **CNVs**        | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv)                           | No       |
-| **SVs**         | [Manta](https://github.com/Illumina/manta)                              | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv)           | No       |
-
-These files are expected to be organised in the following structure:
-
-``` text
-|
-|____umccrised
-  |____<SampleName>
-    |____pcgr
-    | |____<SampleName>-somatic.pcgr.snvs_indels.tiers.tsv
-    |____purple
-    | |____<SampleName>.purple.gene.cnv
-    |____structural
-      |____<SampleName>-manta.tsv
-```
+| Input file | Tool | Example | Required |
+|----|----|----|----|
+| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr) | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No |
+| **CNVs** | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv) | No |
+| **SVs** | [Manta](https://github.com/Illumina/manta) | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv) | No |
 
 ## Usage
 
@@ -215,7 +197,7 @@ export PATH="${rnasum_cli}:${PATH}"
 ```
 
     $ rnasum.R --version
-    1.0.0 
+    1.1.0 
 
     $ rnasum.R --help
     Usage
@@ -332,7 +314,7 @@ export PATH="${rnasum_cli}:${PATH}"
 
 Human reference genome
 ***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)***
-(*Ensembl* based annotation version ***86***) is used for gene
+(*Ensembl* based annotation version ***105***) is used for gene
 annotation by default. GRCh37 is no longer supported.
 
 ### Examples
@@ -340,15 +322,15 @@ annotation by default. GRCh37 is no longer supported.
 Below are `RNAsum` CLI commands for generating HTML reports under
 different data availability scenarios:
 
-1.  [WTS data only](#1-wts-data-only)
-2.  [WTS and WGS data](#2-wts-and-wgs-data)
+1.  [WTS and WGS data](#1-wts-and-wgs-data)
+2.  [WTS data only](#2-wts-data-only)
 3.  [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
 
 **Note**
 
 - Example data is provided in the `/inst/rawdata/test_data` folder of
   the GitHub [repo](https://github.com/umccr/RNAsum).
-- The `RNAsum` runtime should be less than **20 minutes** using **16GB
+- The `RNAsum` runtime should be less than **15 minutes** using **16GB
   RAM** memory and **1 CPU**.
 
 #### 1. WTS and WGS data
@@ -357,9 +339,8 @@ This is the **most frequent and preferred case**, in which the
 [WGS](#wgs)-based findings will be used as a primary source for
 expression profile prioritisation. The genome-based results can be
 incorporated into the report by specifying the location of the
-corresponding `umccrise` output files (including results from `PCGR`,
-`PURPLE`, and `Manta`) using the `--umccrise` argument. The
-**`Mutated genes`**, **`Structural variants`** and
+corresponding output files (including results from `PCGR`, `PURPLE`, and
+`Manta`). The **`Mutated genes`**, **`Structural variants`** and
 **`CN altered genes`** report sections will contain information about
 expression levels of the mutated genes, genes located within detected
 SVs and CN altered regions, respectively. The results in the
@@ -384,7 +365,7 @@ The HTML report `test_sample_WTS.RNAsum.html` will be created in the
 
 In this scenario, only [WTS](#wts) data will be used and only expression
 levels of key
-**[`UMCCR Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**,
+**[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**,
 **`Fusion genes`**, **`Immune markers`** and homologous recombination
 deficiency genes (**`HRD genes`**) will be reported. Moreover, gene
 fusions reported in the `Fusion genes` report section will not contain
