@@ -80,7 +80,7 @@ described below. For more details, see
 5.  The final product is an interactive HTML report with searchable
     tables and plots presenting expression levels of the genes of
     interest. The report consists of several sections described
-    [here](./isnt/articles/report_structure.md).
+    [here](./inst/articles/report_structure.md).
 
 ## Reference data
 
