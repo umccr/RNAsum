@@ -455,7 +455,7 @@ argument
 
 Detailed description of the report structure, including result
 prioritisation and visualisation is available
-[here](report_structure.md).
+[here](./inst/articles/report_structure.md).
 
 #### Results
 
