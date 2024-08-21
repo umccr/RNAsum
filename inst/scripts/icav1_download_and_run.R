@@ -2,25 +2,20 @@
 require(dracarys)
 require(dplyr)
 require(readr)
+require(rportal, include.only = "portaldb_query_workflow")
 require(glue, include.only = "glue")
 require(here, include.only = "here")
 
 # grab rnasum workflow metadata from Athena
 athena_rnasum <- function(sbj) {
-  RAthena::RAthena_options(clear_s3_resource = FALSE)
-  con <- DBI::dbConnect(
-    RAthena::athena(),
-    work_group = "data_portal",
-    rstudio_conn_tab = FALSE
-  )
   q_quote <- shQuote(paste(glue("rnasum__{sbj}"), collapse = "|"))
-  q1 <- glue(
-    'SELECT * FROM "data_portal"."data_portal"."data_portal_workflow" where REGEXP_LIKE("wfr_name", {q_quote});'
-  )
-  d <- RAthena::dbGetQuery(con, q1) |>
-    tibble::as_tibble()
-  d |>
-    dracarys::meta_rnasum()
+  query1 <- glue('WHERE REGEXP_LIKE("wfr_name", {q_quote});')
+  rportal::portaldb_query_workflow(query1)
+}
+
+athena_lims <- function(libid) {
+  query1 <- glue("WHERE REGEXP_LIKE(\"library_id\", '{libid}');")
+  rportal::portaldb_query_limsrow(query1)
 }
 
 # download gds files to a local structure reflecting the gds path starting from
@@ -42,39 +37,28 @@ rnasum_download <- function(gdsdir, outdir, token, page_size = 200, regexes) {
 }
 
 # SBJ IDs of interest
-sbj1 <- c("SBJ04215", "SBJ04371", "SBJ04378", "SBJ04379")
-sbj2 <- c("SBJ04388", "SBJ04391", "SBJ04387", "SBJ03190")
-date1 <- "2023-11-09"
-# grab glims
-lims_rds <- here::here(glue("nogit/data_portal/lims/{date1}.rds"))
-# lims_raw <- dracarys::glims_read()
-# saveRDS(lims_raw, file = lims_rds)
-lims_raw <- readr::read_rds(lims_rds)
-
-pmeta_rds <- here::here(glue("nogit/data_portal/workflows/{date1}.rds"))
-# pmeta_raw <- athena_rnasum(c(sbj1, sbj2))
-# saveRDS(pmeta_raw, file = pmeta_rds)
-pmeta_raw <- readr::read_rds(pmeta_rds)
-
+sbj <- "SBJ04426"
+lib <- "L2301428"
+date1 <- "2024-08-20"
+lims_raw <- athena_lims(lib)
+pmeta_raw <- athena_rnasum(sbj) |>
+  rportal::meta_rnasum()
 lims <- lims_raw |>
-  dplyr::select(
-    Timestamp, SubjectID, SampleID, SampleName, LibraryID, ExternalSubjectID, ExternalSampleID,
-    ProjectOwner, ProjectName, Type, Assay, Phenotype, Source, Quality, Topup, Workflow
-  )
+  dplyr::select(library_id, sample_id, subject_id)
 
 # generate tidy rnasum metadata from portal workflows table, and join against glims
 pmeta <- pmeta_raw |>
-  dplyr::left_join(lims, by = c("LibraryID", "SampleID", "SubjectID")) |>
+  dplyr::left_join(lims, by = c("LibraryID" = "library_id", "SampleID" = "sample_id", "SubjectID" = "subject_id")) |>
   dplyr::select(
     gds_indir_dragen, gds_indir_umccrise, gds_indir_arriba,
-    SubjectID, LibraryID, SampleID, Phenotype, rnasum_dataset,
+    SubjectID, LibraryID, SampleID,
+    rnasum_dataset,
     end_status,
-    # ExternalSubjectID, ProjectOwner, ProjectName, Type, Assay, Source, Quality, Workflow,
     wfr_id, start, end, gds_outfile_rnasum_html,
   ) |>
   dplyr::arrange(desc(SubjectID), start) |>
-  # just keep PANCAN to get rid of dups
-  dplyr::filter(rnasum_dataset == "PANCAN")
+  dplyr::filter(rnasum_dataset == "BRCA") |>
+  dplyr::slice_head(n = 1)
 
 # patterns of files to fish out
 rnasum_file_regex <- tibble::tribble(
@@ -147,12 +131,11 @@ rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, d
 d_runs <- meta_rnasum |>
   tidyr::unnest(down) |>
   dplyr::select(SubjectID, LibraryID, rnasum_dataset, type, outfile) |>
-  dplyr::filter(SubjectID != "SBJ03190") |>
   tidyr::pivot_wider(names_from = type, values_from = outfile)
 
 # slice to whichever run you want from d
 d_runs |>
-  dplyr::slice(2) |>
+  dplyr::slice(1) |>
   dplyr::rowwise() |>
   dplyr::mutate(
     params = list(
