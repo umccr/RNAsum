@@ -197,7 +197,7 @@ export PATH="${rnasum_cli}:${PATH}"
 ```
 
     $ rnasum.R --version
-    0.6.1 
+    1.1.0 
 
     $ rnasum.R --help
     Usage
