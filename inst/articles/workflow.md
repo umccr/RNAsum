@@ -176,7 +176,7 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### Key cancer genes
 
-* [UMCCR key cancer genes set](https://github.com/vladsaveliev/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/make_umccr_cancer_genes.Rmd) build of off several sources:
+* [UMCCR key cancer genes set](https://github.com/umccr/NGS_Utils/blob/master/ngs_utils/reference_data/key_genes/make_umccr_cancer_genes.Rmd) build of off several sources:
 	* [Cancermine](http://bionlp.bcgsc.ca/cancermine/) with at least 2 publication with at least 3 citations
 	* [NCG known cancer genes](http://ncg.kcl.ac.uk/)
 	* Tier 1 [COSMIC Cancer Gene Census](https://cancer.sanger.ac.uk/census) (CGC)

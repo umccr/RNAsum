@@ -19,8 +19,8 @@
 `RNAsum` is an R package that can post-process, summarise and visualise
 outputs primarily from [DRAGEN
 RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)
-pipelines. Its main application is to complement genome-based findings
-and to provide additional evidence for detected alterations.
+pipelines. Its main application is to complement whole-genome based
+findings and to provide additional evidence for detected alterations.
 
 **DOCS**: <https://umccr.github.io/RNAsum>
 
@@ -101,7 +101,7 @@ of **33 cancer datasets** from TCGA can be used as a reference cohort
 for comparing expression changes in genes of interest of the patient.
 Additionally, 10 samples from each of the 33 TCGA datasets were combined
 to create the **[Pan-Cancer
-dataset](./inst/articles/articles/tcga_projects_summary.md#pan-cancer-dataset)**,
+dataset](./inst/articles/tcga_projects_summary.md#pan-cancer-dataset)**,
 and for some cohorts **[extended
 sets](./inst/articles/tcga_projects_summary.md#extended-datasets)** are
 also available. All available datasets are listed in the **[TCGA
