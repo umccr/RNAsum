@@ -19,9 +19,8 @@
 `RNAsum` is an R package that can post-process, summarise and visualise
 outputs primarily from [DRAGEN
 RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)
-pipelines. Its main application is to complement genome-based findings
-from the [umccrise](https://github.com/umccr/umccrise) pipeline and to
-provide additional evidence for detected alterations.
+pipelines. Its main application is to complement whole-genome based
+findings and to provide additional evidence for detected alterations.
 
 **DOCS**: <https://umccr.github.io/RNAsum>
 
@@ -54,7 +53,8 @@ docker pull ghcr.io/umccr/rnasum:latest
 ## Workflow
 
 The pipeline consists of five main components illustrated and briefly
-described below. For more details, see [workflow.md](/workflow.md).
+described below. For more details, see
+[workflow.md](./inst/articles/workflow.md).
 
 <img src="man/figures/RNAsum_workflow_updated.png" width="100%">
 
@@ -80,7 +80,7 @@ described below. For more details, see [workflow.md](/workflow.md).
 5.  The final product is an interactive HTML report with searchable
     tables and plots presenting expression levels of the genes of
     interest. The report consists of several sections described
-    [here](./articles/report_structure.md).
+    [here](./inst/articles/report_structure.md).
 
 ## Reference data
 
@@ -101,12 +101,12 @@ of **33 cancer datasets** from TCGA can be used as a reference cohort
 for comparing expression changes in genes of interest of the patient.
 Additionally, 10 samples from each of the 33 TCGA datasets were combined
 to create the **[Pan-Cancer
-dataset](./articles/tcga_projects_summary.md#pan-cancer-dataset)**, and
-for some cohorts **[extended
-sets](./articles/tcga_projects_summary.md#extended-datasets)** are also
-available. All available datasets are listed in the **[TCGA projects
-summary table](./articles/tcga_projects_summary.md)**. These datasets
-have been processed using methods described in the
+dataset](./inst/articles/tcga_projects_summary.md#pan-cancer-dataset)**,
+and for some cohorts **[extended
+sets](./inst/articles/tcga_projects_summary.md#extended-datasets)** are
+also available. All available datasets are listed in the **[TCGA
+projects summary table](./inst/articles/tcga_projects_summary.md)**.
+These datasets have been processed using methods described in the
 [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data)
 repository. The dataset of interest can be specified by using one of the
 TCGA project IDs for the `RNAsum` `--dataset` argument (see
@@ -122,7 +122,7 @@ may include samples from tissue material of lower quality and
 cellularity compared to samples processed using local protocols. To
 address these issues, we have built a high-quality internal reference
 cohort processed using the same pipelines as input data (see [data
-pre-processing](./articles/workflow.md#data-processing)).
+pre-processing](./inst/articles/workflow.md#data-processing)).
 
 This internal reference set of **40 pancreatic cancer samples** is based
 on WTS data generated at
@@ -170,12 +170,12 @@ quantification file.
 
 The table below lists all input data accepted in `RNAsum`:
 
-| Input file | Tool | Example | Required |
-|----|----|----|----|
-| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf) | **Yes** |
-| Quantified gene **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.gene.sf](/inst/rawdata/test_data/dragen/TEST.quant.gene.sf) | **Yes** |
-| **Fusion gene** list | [Arriba](https://arriba.readthedocs.io/en/latest/) | [fusions.tsv](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No |
-| **Fusion gene** list | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [\*.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No |
+| Input file                           | Tool                                                                                                                                                 | Example                                                                                              | Required |
+|--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|----------|
+| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf)                                          | **Yes**  |
+| Quantified gene **abundances**       | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.gene.sf](/inst/rawdata/test_data/dragen/TEST.quant.gene.sf)                                | **Yes**  |
+| **Fusion gene** list                 | [Arriba](https://arriba.readthedocs.io/en/latest/)                                                                                                   | [fusions.tsv](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final)                | No       |
+| **Fusion gene** list                 | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [\*.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No       |
 
 ### WGS
 
@@ -183,11 +183,11 @@ The table below lists all input data accepted in `RNAsum`:
 
 The table below lists all input data accepted in `RNAsum`:
 
-| Input file | Tool | Example | Required |
-|----|----|----|----|
-| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr) | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No |
-| **CNVs** | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv) | No |
-| **SVs** | [Manta](https://github.com/Illumina/manta) | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv) | No |
+| Input file      | Tool                                                                    | Example                                                                                                                   | Required |
+|-----------------|-------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
+| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr)                                  | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No       |
+| **CNVs**        | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv)                           | No       |
+| **SVs**         | [Manta](https://github.com/Illumina/manta)                              | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv)           | No       |
 
 ## Usage
 
@@ -203,7 +203,7 @@ export PATH="${rnasum_cli}:${PATH}"
     Usage
     =====
      
-    /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
+    /Library/Frameworks/R.framework/Versions/4.2/Resources/library/RNAsum/cli/rnasum.R [options]
 
 
     Options
@@ -455,7 +455,7 @@ argument
 
 Detailed description of the report structure, including result
 prioritisation and visualisation is available
-[here](report_structure.md).
+[here](./inst/articles/report_structure.md).
 
 #### Results
 
