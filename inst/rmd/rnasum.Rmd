@@ -268,11 +268,18 @@ rm(g1, r1)
 # PCGR annotation of mutated genes in given patient based on PCGR report, including only those with variants classified according to user-defined tier
 # Also include splice region variants if specified
 if (runPcgrChunk) {
-  ref_genes.list[["summary"]]$Mutated <- RNAsum::genes_pcgr_summary(
-    pcgr_tbl = sample_data.list[["wgs"]][["pcgr_tiers_tsv"]],
-    tiers = 1:params$pcgr_tier,
-    splice_vars = params$pcgr_splice_vars
-  )
+  # check if there are any tiered variants in pcgr
+  tmp <- sample_data.list[["wgs"]][["pcgr_tiers_tsv"]] |>
+    dplyr::filter(.data$TIER %in% 1:params$pcgr_tier)
+  if (nrow(tmp) > 0) {
+    ref_genes.list[["summary"]]$Mutated <- RNAsum::genes_pcgr_summary(
+      pcgr_tbl = sample_data.list[["wgs"]][["pcgr_tiers_tsv"]],
+      tiers = 1:params$pcgr_tier,
+      splice_vars = params$pcgr_splice_vars
+    )
+  } else {
+    runPcgrChunk <- FALSE
+  }
 }
 
 # ARRIBA annotation of gene fusion events detected in given patient
