@@ -21,7 +21,7 @@ athena_lims <- function(libid) {
 # download gds files to a local structure reflecting the gds path starting from
 # the outdir as the fs root.
 rnasum_download <- function(gdsdir, outdir, token, page_size = 200, regexes) {
-  dracarys::gds_files_list(gdsdir = gdsdir, token = token, page_size = page_size) |>
+  dracarys::gds_list_files_dir(gdsdir = gdsdir, token = token, page_size = page_size) |>
     dplyr::mutate(type = purrr::map_chr(.data$bname, \(x) dracarys::match_regex(x, regexes))) |>
     dplyr::select("file_id", "type", "size", "path", "bname") |>
     dplyr::filter(!is.na(.data$type)) |>
@@ -37,12 +37,12 @@ rnasum_download <- function(gdsdir, outdir, token, page_size = 200, regexes) {
 }
 
 # SBJ IDs of interest
-sbj <- "SBJ04426"
-lib <- "L2301428"
-date1 <- "2024-08-20"
+sbj <- "SBJ05637"
+lib <- "L2401376"
+date1 <- "2024-09-16"
 lims_raw <- athena_lims(lib)
 pmeta_raw <- athena_rnasum(sbj) |>
-  rportal::meta_rnasum()
+  rportal::meta_rnasum(status = "Failed")
 lims <- lims_raw |>
   dplyr::select(library_id, sample_id, subject_id)
 
@@ -56,9 +56,7 @@ pmeta <- pmeta_raw |>
     end_status,
     wfr_id, start, end, gds_outfile_rnasum_html,
   ) |>
-  dplyr::arrange(desc(SubjectID), start) |>
-  dplyr::filter(rnasum_dataset == "BRCA") |>
-  dplyr::slice_head(n = 1)
+  dplyr::arrange(desc(SubjectID), start)
 
 # patterns of files to fish out
 rnasum_file_regex <- tibble::tribble(
