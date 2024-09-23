@@ -1,7 +1,7 @@
 #' Read Sample Data
 #'
 #' Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
-#' DRAGEN fusions, DRAGEN mapping metrics, Manta SVs, PURPLE CNVs, and PCGR SNVs.
+#' DRAGEN fusions, DRAGEN mapping metrics, SVs, PURPLE CNVs, and PCGR SNVs.
 #'
 #' @param p RNAsum params list.
 #' @param results_dir Directory to output extracted Arriba PNGs to (created
@@ -80,8 +80,8 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
 
 #' Read WGS Data
 #'
-#' Reads WGS data, including PCGR `tiers.tsv`, PURPLE `cnv.gene.tsv`, and Manta
-#' `manta.tsv`. If the file path has been specified in the RNAsum params and is
+#' Reads WGS data, including PCGR `tiers.tsv`, PURPLE `cnv.gene.tsv`, and
+#' `sv.prioritised.tsv`. If the file path has been specified in the RNAsum params and is
 #' valid, it is returned. As a fallback, if the umccrise directory param has
 #' been specified, then there is an attempt to detect the file pattern in there.
 #'
@@ -95,8 +95,8 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
 #'     "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
 #'     package = "RNAsum"
 #'   ),
-#'   manta_tsv = system.file(
-#'     "rawdata/test_data/umccrised/test_sample_WGS/structural/TEST-prioritize-manta.tsv",
+#'   sash_tsv = system.file(
+#'     "rawdata/test_data/test_sample_WGS/structural/TEST.sv.prioritised.tsv",
 #'     package = "RNAsum"
 #'   )
 #' )
@@ -143,16 +143,16 @@ read_wgs_data <- function(p) {
     nm = "purple_gene_tsv", func = ppl_cnv_som_gene_read
   )
 
-  manta_tsv <- .read(
+  sv_tsv <- .read(
     p = p,
-    subdir = "structural", pat = "manta\\.tsv$",
-    nm = "manta_tsv", func = sv_prioritize_old
+    subdir = "structural", pat = "prioritised\\.tsv$",
+    nm = "sv_tsv", func = sv_prioritize
   )
 
   list(
     pcgr_tiers_tsv = pcgr_tiers_tsv,
     purple_gene_tsv = purple_gene_tsv,
-    manta_tsv = manta_tsv
+    sv_tsv = sv_tsv
   )
 }
 
@@ -212,12 +212,12 @@ fusions_summary <- function(tbl = NULL) {
   res
 }
 
-#' Get Manta SV Summary
+#' Get SV Summary
 #'
-#' @param tbl Tibble with melted SVs from umccrise, containing 'Genes' column.
+#' @param tbl Tibble with melted SVs from sash, containing 'Genes' column.
 #' @return Character vector of Genes.
 #' @export
-sv_manta_summary <- function(tbl) {
+sv_summary <- function(tbl) {
   assertthat::assert_that(
     inherits(tbl, "data.frame"), (c("Genes") %in% names(tbl))
   )
