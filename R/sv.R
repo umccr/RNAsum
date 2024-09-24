@@ -53,14 +53,13 @@ sv_prioritize <- function(sv_file){
 
   # Check file is not empty
   sv_all <- NULL
-  if (length(readLines(con = sv_file_sash, n = 2)) <= 1) {
+  if (length(readLines(con = sv_file, n = 2)) <= 1) {
     return(sv_all)
   }
 
-  sv_all <- readr::read_tsv(sv_file_sash, col_names = TRUE)
+  sv_all <- readr::read_tsv(sv_file, col_names = TRUE)
   total_variants <- nrow(sv_all)
   sv_all <- sv_all |>
-    split_sv_field("AF_PURPLE", is_pct = T) |>
     dplyr::mutate(
       start = format(.data$start, big.mark = ",", trim = T),
       location = stringr::str_c(.data$chrom, ":", .data$start, sep = ""),

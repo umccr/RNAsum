@@ -10,7 +10,7 @@ output:
   rmdformats::material:
     highlight: kate
 params:
-  arriba_dir: NULL
+  arriba_dir: '~/UMCCR/data/wts/RNAsum/SBJ05566_MDX240288_L2401281/wts/arriba'
   arriba_pdf: NULL
   arriba_tsv: NULL
   batch_rm: TRUE
@@ -20,21 +20,21 @@ params:
   dataset_name_incl: FALSE
   dragen_fusions: NULL
   dragen_mapping_metrics: NULL
-  dragen_wts_dir: NULL
+  dragen_wts_dir: '~/UMCCR/data/wts/RNAsum/SBJ05566_MDX240288_L2401281/wts'
   drugs: FALSE
   filter: TRUE
   immunogram: FALSE
   log: TRUE
-  manta_tsv: NULL
+  sv_tsv: '~/UMCCR/data/wts/RNAsum/SBJ05566_MDX240288_L2401281/wgs/sv/SBJ05566__MDX240287-manta.tsv'
   norm: TMM
   pcgr_splice_vars: TRUE
   pcgr_tier: 4
-  pcgr_tiers_tsv: NULL
+  pcgr_tiers_tsv: '~/UMCCR/data/wts/RNAsum/SBJ05566_MDX240288_L2401281/wgs/small_variants/SBJ05566__MDX240287-somatic.pcgr.snvs_indels.tiers.tsv'
   project: NULL
-  purple_gene_tsv: NULL
-  report_dir: NULL
+  purple_gene_tsv: '~/UMCCR/data/wts/RNAsum/SBJ05566_MDX240288_L2401281/wgs/purple/SBJ05566__MDX240287.purple.cnv.gene.tsv'
+  report_dir: '~/UMCCR/data/wts/RNAsum/SBJ05566_MDX240288_L2401281/'
   salmon: NULL
-  sample_name: NULL
+  sample_name: "test_sv"
   sample_source: '-'
   save_tables: TRUE
   scaling: 'gene-wise'
@@ -161,8 +161,8 @@ runDragenMappingMetricsChunk <- !is.null(sample_data.list[["dragen_mapping_metri
 runFusionChunk <- runArribaChunk || runDragenFusionChunk
 runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
 runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
-runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["manta_tsv"]]) &&
-  nrow(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]] > 0))
+runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["sv_tsv"]]) &&
+  nrow(sample_data.list[["wgs"]][["sv_tsv"]][["melted"]] > 0))
 ```
 
 ```{r dragen_mapping_metrics, eval=runDragenMappingMetricsChunk}
@@ -292,9 +292,9 @@ if (runFusionChunk) {
     na.omit()
 }
 
-# MANTA annotation of structural variants (SVs) with affected genes in given patient based on MANTA results
+# Annotation of structural variants (SVs) with affected genes in given patient based on SV results
 if (runSVsChunk) {
-  ref_genes.list[["summary"]]$SV <- RNAsum::sv_manta_summary(sample_data.list[["wgs"]][["manta_tsv"]][["melted"]])
+  ref_genes.list[["summary"]]$SV <- RNAsum::sv_summary(sample_data.list[["wgs"]][["sv_tsv"]][["melted"]])
 }
 
 # PURPLE annotation of copy-number (CN) altered genes in given patient based on
@@ -1418,26 +1418,26 @@ fusions_ann <- RNAsum::fusions_annot(
 )
 ```
 
-```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]] |>
-  RNAsum::manta_process()
+```{r fusions_and_sv_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+sv <- sample_data.list[["wgs"]][["sv_tsv"]] |>
+  RNAsum::sv_process()
 
-##### Compare fusion genes called by MANTA
-##### First limit MANTA output to fusions only
+##### Compare fusion genes called by SV caller
+##### First limit SV output to fusions only
 if (runFusionChunk) {
-  manta_fusions <- manta_sv[["melted_variants"]] |>
+  sv_fusions <- sv[["melted_variants"]] |>
     dplyr::filter(.data$is_fusion) |>
     dplyr::filter(.data$Genes %in% unique(c(fusions[["geneA"]], fusions[["geneB"]]))) |>
     dplyr::pull(.data$Genes) |>
     unique()
 
   ##### Flag fusions that were also reported in MANTA
-  cond1 <- length(manta_fusions) > 0
+  cond1 <- length(sv_fusions) > 0
   fusions <- fusions |>
     dplyr::rowwise() |>
     dplyr::mutate(
-      geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% manta_fusions, FALSE),
-      geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% manta_fusions, FALSE)
+      geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% sv_fusions, FALSE),
+      geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% sv_fusions, FALSE)
     ) |>
     dplyr::ungroup() |>
     # use desc since values are True (1) / False (0), so go from high (1) to low (0)
@@ -1452,11 +1452,11 @@ if (runFusionChunk) {
   fusions_ann <- fusions_ann |>
     dplyr::rowwise() |>
     dplyr::mutate(
-      geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% manta_fusions, FALSE),
-      geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% manta_fusions, FALSE)
+      geneA_dna_support = dplyr::if_else(cond1, .data$geneA %in% sv_fusions, FALSE),
+      geneB_dna_support = dplyr::if_else(cond1, .data$geneB %in% sv_fusions, FALSE)
     ) |>
     dplyr::ungroup()
-  rm(manta_fusions, cond1)
+  rm(sv_fusions, cond1)
 }
 ```
 
@@ -2708,7 +2708,6 @@ rm(list = ls(pattern = "^output*"))
 ```
 
 ------------------------------------------------------------------------
-
 ## Structural variants
 
 mRNA expression levels of genes located within detected structural variants (SVs),
@@ -2732,8 +2731,8 @@ mysql_populate_update <- paste0(mysql_populate_update, ",Structural variants")
 targets <- ref_dataset.list[[dataset]][["sample_annot"]]
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
-##### Consider only SVs with known genes and those in MANTA output for which the expression levels were measured
-genes <- manta_sv$genes_all$Genes
+##### Consider only SVs with known genes and those in SV output for which the expression levels were measured
+genes <- sv$genes_all$Genes
 genes <- genes[genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL]
 
 ##### Deal with no genes or when more than 10 genes are of interest
@@ -2753,7 +2752,7 @@ sv_genes.expr.perc <- RNAsum::exprTable(
   type = "perc",
   data = dat1,
   genes = genes,
-  sv_data = manta_sv[["melted_variants"]],
+  sv_data = sv[["melted_variants"]],
   targets = targets,
   sampleName = sample_name,
   ext_cancer = ext_cancer_group,
@@ -2805,7 +2804,7 @@ sv_genes.expr.z <- RNAsum::exprTable(
   type = "z",
   data = dat1,
   genes = genes,
-  sv_data = manta_sv[["melted_variants"]],
+  sv_data = sv[["melted_variants"]],
   targets = targets,
   sampleName = sample_name,
   ext_cancer = ext_cancer_group,
@@ -2987,7 +2986,7 @@ if (runSVsChunk) {
   dat1 <- dat1 |>
     dplyr::mutate(
       Alterations = dplyr::if_else(
-        .data$Gene %in% manta_sv[["melted_variants"]][["Genes"]],
+        .data$Gene %in% sv[["melted_variants"]][["Genes"]],
         paste0(.data$Alterations, "; SV"),
         .data$Alterations
       )
@@ -2995,7 +2994,7 @@ if (runSVsChunk) {
   data.sub <- data.sub |>
     dplyr::mutate(
       Alterations = dplyr::if_else(
-        .data$Gene %in% manta_sv[["melted_variants"]][["Genes"]],
+        .data$Gene %in% sv[["melted_variants"]][["Genes"]],
         paste0(.data$Alterations, "; SV"),
         .data$Alterations
       )
@@ -4546,11 +4545,11 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs && !runSVsChunk ) { c("SVs information for this sample is **NOT AVAILABLE**.") }`
 
-`r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(manta_sv$melted_variants$Genes)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
+`r if ( params$drugs && runSVsChunk ) { paste0("**", length(unique(sv$melted_variants$Genes)), "** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") } else if ( params$drugs && !runSVsChunk ) { paste0("**0** genes affected by structural variants (SVs) were screened for suitable drugs (see [Structural variants] section).") }`
 
 ```{r drugs_predictive_sv_genes, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
 ##### Generate table with drugs targeting dysregulated cancer genes
-genes <- unique(manta_sv$melted_variants$Genes)
+genes <- unique(sv$melted_variants$Genes)
 
 drugsTable.sv_genes <- RNAsum::civicDrugTable(
   genes,
