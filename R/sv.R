@@ -60,10 +60,6 @@ sv_prioritize <- function(sv_file){
   sv_all <- readr::read_tsv(sv_file, col_names = TRUE)
   total_variants <- nrow(sv_all)
   sv_all <- sv_all |>
-    dplyr::mutate(
-      start = format(.data$start, big.mark = ",", trim = T),
-      location = stringr::str_c(.data$chrom, ":", .data$start, sep = ""),
-    ) |>
     # Unpack multiple annotations per region
     dplyr::mutate(annotation = strsplit(.data$annotation, ",")) |>
     tidyr::unnest("annotation") |>
@@ -84,7 +80,7 @@ sv_prioritize <- function(sv_file){
       )
     ) |>
     dplyr::select(
-      Genes = "Gene", Location = "location"
+      Genes = "Gene"
     ) |>
     # filter out empty gene rows
     dplyr::filter(.data$Genes != "") |>
