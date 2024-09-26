@@ -59,45 +59,47 @@ sv_prioritize <- function(sv_file){
 
   sv_all <- readr::read_tsv(sv_file, col_names = TRUE)
   total_variants <- nrow(sv_all)
-  sv_all <- sv_all |>
-    # Check if user has provided a tsv with Gene as first column
-    if(colnames(sv_all)[1] == "Gene"){
-      return(list(
-        melted = sv_all,
-        total_variants = total_variants
-      ))
-    }
-    if(!"Gene" %in% colnames(sv_all)){
-      # Assume it's an internal input. Unpack multiple annotations per region
-      dplyr::mutate(annotation = strsplit(.data$annotation, ",")) |>
-        tidyr::unnest("annotation") |>
-        tidyr::separate_wider_delim(
-          cols = "annotation", delim = "|",
-          names = c("Event", "Effect", "Genes", "Transcript", "Detail", "Tier"), too_few = "align_start"
-        ) |>
-        dplyr::mutate(
-          Gene = subset_genes(.data$Genes, c(1, 2)),
-          Gene = ifelse((stringr::str_split(.data$Genes, "&") |> purrr::map_int(base::length)) > 2,
-                        stringr::str_c(.data$Gene, "...", sep = ", "),
-                        .data$Gene
-          ),
-          `Other affected genes` = subset_genes(.data$Genes, -c(1, 2)) |> stringr::str_replace_all("&", ", "),
-          Gene = ifelse(stringr::str_detect(.data$Effect, "gene_fusion"),
-                        .data$Gene,
-                        .data$Gene |> stringr::str_replace_all("&", ", ")
-          )
-        ) |>
-        dplyr::select(
-          Genes = "Gene"
-        ) |>
-        # filter out empty gene rows
-        dplyr::filter(.data$Genes != "") |>
-        dplyr::distinct() |>
-        dplyr::arrange(.data$Genes)
 
-      return(list(
-        melted = sv_all,
-        total_variants = total_variants
-      ))
-    }
+  # Check if user has provided a tsv with Gene as first column
+  if(colnames(sv_all)[1] == "Gene"){
+    return(list(
+      melted = sv_all,
+      total_variants = total_variants
+    ))
+  }
+  if(!"Gene" %in% colnames(sv_all)){
+    # Assume it's an internal input. Unpack multiple annotations per region
+    sv_all <- sv_all |>
+      dplyr::mutate(annotation = strsplit(.data$annotation, ",")) |>
+      tidyr::unnest("annotation") |>
+      tidyr::separate_wider_delim(
+        cols = "annotation", delim = "|",
+        names = c("Event", "Effect", "Genes", "Transcript", "Detail", "Tier"), too_few = "align_start"
+      ) |>
+      dplyr::mutate(
+        Gene = subset_genes(.data$Genes, c(1, 2)),
+        Gene = ifelse((stringr::str_split(.data$Genes, "&") |> purrr::map_int(base::length)) > 2,
+                      stringr::str_c(.data$Gene, "...", sep = ", "),
+                      .data$Gene
+        ),
+        `Other affected genes` = subset_genes(.data$Genes, -c(1, 2)) |> stringr::str_replace_all("&", ", "),
+        Gene = ifelse(stringr::str_detect(.data$Effect, "gene_fusion"),
+                      .data$Gene,
+                      .data$Gene |> stringr::str_replace_all("&", ", ")
+        )
+      ) |>
+      dplyr::select(
+        Genes = "Gene"
+      ) |>
+      # filter out empty gene rows
+      dplyr::filter(.data$Genes != "") |>
+      dplyr::distinct() |>
+      dplyr::arrange(.data$Genes)
+
+    return(list(
+      melted = sv_all,
+      total_variants = total_variants
+    ))
+  }
 }
+
