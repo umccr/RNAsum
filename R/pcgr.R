@@ -1,7 +1,8 @@
-#' Read PCGR Tiers TSV File
+#' Read PCGR TSV File
 #'
-#' Reads the `snvs_indels.tiers.tsv` file output by PCGR.
-#' @param x Path to PCGR `snvs_indels.tiers.tsv` file.
+#' Reads the `snvs_indels.tiers.tsv` (or v2's `snv_indel_ann.tsv.gz`) file output
+#' by PCGR.
+#' @param x Path to PCGR `snvs_indels.tiers.tsv`/`snv_indel_ann.tsv.gz` file.
 #' @return A tibble with the contents of the input TSV file, or NULL if x is NULL.
 #'
 #' @examples
@@ -24,10 +25,25 @@ pcgr_tiers_tsv_read <- function(x = NULL) {
         .default = "c"
       )
     )
-
-  assertthat::assert_that(
-    all(c("CONSEQUENCE", "TIER", "AF_TUMOR") %in% colnames(d))
-  )
+  assertthat::assert_that("CONSEQUENCE" %in% colnames(d))
+  if (!"TIER" %in% colnames(d)) {
+    if ("ACTIONABILITY_TIER" %in% colnames(d)) {
+      # ACTIONABILITY_TIER does not have TIER prefix
+      d <- d |>
+        dplyr::rename(TIER = "ACTIONABILITY_TIER") |>
+        dplyr::mutate(TIER = paste0("TIER ", .data$TIER))
+    } else {
+      stop("PCGR output does not contain TIER or ACTIONABILITY_TIER column!")
+    }
+  }
+  if (!"AF_TUMOR" %in% colnames(d)) {
+    if ("VAF_TUMOR" %in% colnames(d)) {
+      d <- d |>
+        dplyr::rename(AF_TUMOR = "VAF_TUMOR")
+    } else {
+      stop("PCGR output does not contain AF_TUMOR or VAF_TUMOR column!")
+    }
+  }
 
   d |>
     dplyr::mutate(
