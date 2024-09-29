@@ -1,20 +1,27 @@
 # helpers for downloading GDS data for local testing
-require(dracarys)
+require(dracarys, include.only = "ica_token_validate")
 require(dplyr)
-require(readr)
 require(rportal, include.only = "portaldb_query_workflow")
 require(glue, include.only = "glue")
 require(here, include.only = "here")
 
+# make sure you have logged into AWS and ICA
+c("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION") |>
+  rportal::envvar_defined() |>
+  stopifnot()
+icav1_token <- Sys.getenv("ICA_ACCESS_TOKEN") |>
+  dracarys::ica_token_validate()
+# this helps keep annoying reticulate prompt away
+Sys.setenv(RETICULATE_PYTHON = Sys.getenv("CONDA_PYTHON_EXE"))
 # grab rnasum workflow metadata from Athena
 athena_rnasum <- function(sbj) {
   q_quote <- shQuote(paste(glue("rnasum__{sbj}"), collapse = "|"))
-  query1 <- glue('WHERE REGEXP_LIKE("wfr_name", {q_quote});')
+  query1 <- glue('WHERE "type_name" = \'rnasum\' AND REGEXP_LIKE("wfr_name", {q_quote});')
   rportal::portaldb_query_workflow(query1)
 }
 
 athena_lims <- function(libid) {
-  query1 <- glue("WHERE REGEXP_LIKE(\"library_id\", '{libid}');")
+  query1 <- glue('WHERE "type" = \'WTS\' AND REGEXP_LIKE("library_id", \'{libid}\');')
   rportal::portaldb_query_limsrow(query1)
 }
 
@@ -37,9 +44,9 @@ rnasum_download <- function(gdsdir, outdir, token, page_size = 200, regexes) {
 }
 
 # SBJ IDs of interest
-sbj <- "SBJ05637"
-lib <- "L2401376"
-date1 <- "2024-09-16"
+sbj <- "SBJ05690"
+lib <- "L2401448"
+date1 <- "2024-09-29"
 lims_raw <- athena_lims(lib)
 pmeta_raw <- athena_rnasum(sbj) |>
   rportal::meta_rnasum(status = "Failed")
@@ -71,7 +78,6 @@ rnasum_file_regex <- tibble::tribble(
   "manta\\.tsv$", "MantaTsvFile",
   "mapping_metrics\\.csv$", "MapMetricsFile"
 )
-token <- dracarys::ica_token_validate()
 outdir <- here::here("nogit/patient_data")
 
 # melt gds_indir columns to get a single column with paths to gds directories
@@ -81,7 +87,7 @@ meta_rnasum <- pmeta |>
   dplyr::select(SubjectID, LibraryID, rnasum_dataset, folder_type, gds_indir) |>
   dplyr::rowwise() |>
   dplyr::mutate(
-    down = list(rnasum_download(gdsdir = gds_indir, outdir = outdir, token = token, regexes = rnasum_file_regex))
+    down = list(rnasum_download(gdsdir = gds_indir, outdir = outdir, token = icav1_token, regexes = rnasum_file_regex))
   ) |>
   dplyr::ungroup()
 
