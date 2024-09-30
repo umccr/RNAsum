@@ -1418,12 +1418,18 @@ fusions_ann <- RNAsum::fusions_annot(
 )
 ```
 
-```{r fusions_and_sv_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
-sv <- sample_data.list[["wgs"]][["sv_tsv"]] |>
-  RNAsum::sv_process()
-
-##### Compare fusion genes called by SV caller
-##### First limit SV output to fusions only
+```{r fusions_and_manta_data_prep, comment = NA, message=FALSE, warning=FALSE, eval = runSVsChunk}
+manta_sv <- sample_data.list[["wgs"]][["manta_tsv"]] |>
+  RNAsum::manta_process()
+tmp_sv_genes <- manta_sv$genes_all$Genes
+tmp_expressed_sv_genes <- tmp_sv_genes[tmp_sv_genes %in% ref_dataset.list[[dataset]][["gene_annot_all"]]$SYMBOL]
+if (length(tmp_expressed_sv_genes) == 0) {
+  # from now on don't evaluate SV chunks
+  runSVsChunk <- FALSE
+}
+rm(tmp_sv_genes, tmp_expressed_sv_genes)
+##### Compare fusion genes called by MANTA
+##### First limit MANTA output to fusions only
 if (runFusionChunk) {
   sv_fusions <- sv[["melted_variants"]] |>
     dplyr::filter(.data$is_fusion) |>
