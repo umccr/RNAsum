@@ -40,17 +40,6 @@ sv_process <- function(sv_tsv_obj) {
 
 sv_prioritize <- function(sv_file){
 
-  subset_genes <- function(genes, ind) {
-    genes |>
-      stringr::str_split("&") %>%
-      purrr::map(
-        ~ .[ind] %>%
-          replace("", NA) %>%
-          .[!is.na(.)]
-      ) %>%
-      purrr::map_chr(~ ifelse(length(.) > 0, stringr::str_c(., collapse = "&"), ""))
-  }
-
   # Check file is not empty
   sv_all <- NULL
   if (length(readLines(con = sv_file, n = 2)) <= 1) {
@@ -70,31 +59,27 @@ sv_prioritize <- function(sv_file){
   if(!"Gene" %in% colnames(sv_all)){
     # Assume it's an internal input. Unpack multiple annotations per region
     sv_all <- sv_all |>
+      dplyr::select("annotation") |>
       dplyr::mutate(annotation = strsplit(.data$annotation, ",")) |>
       tidyr::unnest("annotation") |>
       tidyr::separate_wider_delim(
         cols = "annotation", delim = "|",
         names = c("Event", "Effect", "Genes", "Transcript", "Detail", "Tier"), too_few = "align_start"
       ) |>
+      dplyr::select("Effect", "Genes") |>
       dplyr::mutate(
-        Gene = subset_genes(.data$Genes, c(1, 2)),
-        Gene = ifelse((stringr::str_split(.data$Genes, "&") |> purrr::map_int(base::length)) > 2,
-                      stringr::str_c(.data$Gene, "...", sep = ", "),
-                      .data$Gene
-        ),
-        `Other affected genes` = subset_genes(.data$Genes, -c(1, 2)) |> stringr::str_replace_all("&", ", "),
-        Gene = ifelse(stringr::str_detect(.data$Effect, "gene_fusion"),
-                      .data$Gene,
-                      .data$Gene |> stringr::str_replace_all("&", ", ")
+        # if gene_fusion, keep as-is
+        gene_fusion_effect = grepl("gene_fusion", .data$Effect),
+        Gene = ifelse(
+          .data$gene_fusion_effect,
+          .data$Genes,
+          strsplit(.data$Genes, "&")
         )
       ) |>
-      dplyr::select(
-        Genes = "Gene"
-      ) |>
-      # filter out empty gene rows
-      dplyr::filter(.data$Genes != "") |>
+      dplyr::select("Gene") |>
+      tidyr::unnest_longer("Gene") |>
       dplyr::distinct() |>
-      dplyr::arrange(.data$Genes)
+      dplyr::arrange(.data$Gene)
 
     return(list(
       melted = sv_all,
