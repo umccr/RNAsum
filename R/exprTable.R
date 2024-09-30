@@ -196,9 +196,9 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     }
   }
 
-  ##### Add structural variants results from MANTA
+  ##### Add structural variants results
   if (!is.null(sv_data) && length(genes) > 0) {
-    ##### NOTE: when merging per-gene expression data with SV data from MANTA the "gene" column is used since multiple entries are possible for one gene in MANTA output
+    ##### NOTE: when merging per-gene expression data with SV data the "gene" column is used since multiple entries are possible for one gene
     group.z <- merge(group.z, sv_data, by.x = "Gene", by.y = "Genes", all = TRUE, sort = FALSE)
   }
 
@@ -260,11 +260,11 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
     group.z <- group.z[order(abs(group.z[, "Diff"]), decreasing = TRUE), ]
     group.z <- group.z[order(group.z$TIER), ]
 
-    ##### Order the data by MANTA increasing Tier (to prioritise SVs, based on https://github.com/AstraZeneca-NGS/simple_sv_annotation/blob/master/simple_sv_annotation.py), event type and then by the highest absolute values for Patient vs [comp_cancer] difference
+    ##### Order the data by event type and then by the highest absolute values for Patient vs [comp_cancer] difference
   } else if (!is.null(sv_data) && length(genes) > 0) {
     group.z <- group.z[order(abs(group.z[["Diff"]]), decreasing = TRUE), ]
     group.z <- group.z[order(group.z[["fusion_genes"]], decreasing = TRUE), ]
-    group.z <- group.z[order(group.z[["Tier"]]), ]
+    #group.z <- group.z[order(group.z[["Tier"]]), ]
 
     ##### Otherwise order table by the highest absolute values for Patient vs [comp_cancer] difference
   } else if (length(genes) > 0) {

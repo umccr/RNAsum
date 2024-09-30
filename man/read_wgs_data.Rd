@@ -13,8 +13,8 @@ read_wgs_data(p)
 A list of the input sample data.
 }
 \description{
-Reads WGS data, including PCGR \code{tiers.tsv}, PURPLE \code{cnv.gene.tsv}, and Manta
-\code{manta.tsv}. If the file path has been specified in the RNAsum params and is
+Reads WGS data, including PCGR \code{tiers.tsv}, PURPLE \code{cnv.gene.tsv}, and
+\code{sv.prioritised.tsv}. If the file path has been specified in the RNAsum params and is
 valid, it is returned. As a fallback, if the umccrise directory param has
 been specified, then there is an attempt to detect the file pattern in there.
 }
@@ -26,8 +26,8 @@ p <- list(
     "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
     package = "RNAsum"
   ),
-  manta_tsv = system.file(
-    "rawdata/test_data/umccrised/test_sample_WGS/structural/TEST-prioritize-manta.tsv",
+  sash_tsv = system.file(
+    "rawdata/test_data/test_sample_WGS/structural/TEST.sv.prioritised.tsv",
     package = "RNAsum"
   )
 )

@@ -20,7 +20,7 @@ A list of the input sample data.
 }
 \description{
 Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
-DRAGEN fusions, DRAGEN mapping metrics, Manta SVs, PURPLE CNVs, and PCGR SNVs.
+DRAGEN fusions, DRAGEN mapping metrics, SVs, PURPLE CNVs, and PCGR SNVs.
 }
 \examples{
 p <- list(

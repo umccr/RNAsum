@@ -27,8 +27,8 @@ test_that("Function read_wgs_data() @ L107", {
       "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
       package = "RNAsum"
     ),
-    manta_tsv = system.file(
-      "rawdata/test_data/umccrised/test_sample_WGS/structural/TEST-prioritize-manta.tsv",
+    sash_tsv = system.file(
+      "rawdata/test_data/test_sample_WGS/structural/TEST.sv.prioritised.tsv",
       package = "RNAsum"
     )
   )
