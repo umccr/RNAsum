@@ -2,18 +2,19 @@
 % Please edit documentation in R/pcgr.R
 \name{pcgr_tiers_tsv_read}
 \alias{pcgr_tiers_tsv_read}
-\title{Read PCGR Tiers TSV File}
+\title{Read PCGR TSV File}
 \usage{
 pcgr_tiers_tsv_read(x = NULL)
 }
 \arguments{
-\item{x}{Path to PCGR \code{snvs_indels.tiers.tsv} file.}
+\item{x}{Path to PCGR \code{snvs_indels.tiers.tsv}/\code{snv_indel_ann.tsv.gz} file.}
 }
 \value{
 A tibble with the contents of the input TSV file, or NULL if x is NULL.
 }
 \description{
-Reads the \code{snvs_indels.tiers.tsv} file output by PCGR.
+Reads the \code{snvs_indels.tiers.tsv} (or v2's \code{snv_indel_ann.tsv.gz}) file output
+by PCGR.
 }
 \examples{
 x <- system.file(

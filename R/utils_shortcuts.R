@@ -23,4 +23,6 @@ dummy1 <- function() {
   optparse::make_option
   preprocessCore::normalize.quantiles
   ragg::agg_png
+  purrr::map
+  stringr::str_detect
 }

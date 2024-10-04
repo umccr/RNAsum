@@ -337,20 +337,32 @@ immune_summary <- function(tbl_imarkers, tbl_igram = NULL, igram_param = TRUE) {
 #'
 #' @export
 ppl_cnv_som_gene_read <- function(x) {
-  nm <- c(
-    "chromosome" = "c", "start" = "i", "end" = "i", "gene" = "c",
+  ct <- list(
+    "chromosome" = "c", "start" = "d", "end" = "d", "gene" = "c",
     "minCopyNumber" = "d", "maxCopyNumber" = "d",
     "unused" = "c", "somaticRegions" = "d", "germlineHomDeletionRegions" = "d",
     "germlineHetToHomDeletionRegions" = "d",
     "transcriptId" = "c", "transcriptVersion" = "c", "chromosomeBand" = "c",
-    "minRegions" = "d", "minRegionStart" = "i", "minRegionEnd" = "i",
+    "minRegions" = "d", "minRegionStart" = "d", "minRegionEnd" = "d",
     "minRegionStartSupport" = "c", "minRegionEndSupport" = "c",
     "minRegionMethod" = "c", "minMinorAlleleCopyNumber" = "d"
   )
+  # PURPLE as of at least v3.9.2 (2023-09-05) has some different columns
+  ct2 <- list(
+    "chromosome" = "c", "start" = "d", "end" = "d", "gene" = "c",
+    "minCopyNumber" = "d", "maxCopyNumber" = "d",
+    "somaticRegions" = "d", "transcriptId" = "c", "isCanonical" = "c",
+    "chromosomeBand" = "c",
+    "minRegions" = "d", "minRegionStart" = "d", "minRegionEnd" = "d",
+    "minRegionStartSupport" = "c", "minRegionEndSupport" = "c",
+    "minRegionMethod" = "c", "minMinorAlleleCopyNumber" = "d",
+    "depthWindowCount" = "d"
+  )
 
-  ctypes <- paste(nm, collapse = "")
-  purple_cnv_gene <- readr::read_tsv(x, col_types = ctypes)
-  assertthat::assert_that(ncol(purple_cnv_gene) == length(nm))
-  assertthat::assert_that(all(colnames(purple_cnv_gene) == names(nm)))
-  purple_cnv_gene
+  hdr <- readr::read_tsv(x, n_max = 0, show_col_types = FALSE)
+  if (all(names(ct2) %in% colnames(hdr))) {
+    ct <- ct2
+  }
+  d <- readr::read_tsv(x, col_types = ct)
+  d[]
 }
