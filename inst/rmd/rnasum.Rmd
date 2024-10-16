@@ -1525,8 +1525,15 @@ if (!is.null(add_cancer_group)) {
 ##### ...gene fusion section: Include only those which are DNA-supported (see Structural variants section) or reported in FusionGDB
 ref_genes.list[["summary"]]$Fusion <- NULL
 if (runFusionChunk) {
-  ref_genes.list[["summary"]]$Fusion <- fusions |>
-    dplyr::filter(.data$reported_fusion | .data$geneA_dna_support | .data$geneB_dna_support) |>
+  tmp <- NULL
+  if (runSVsChunk) {
+    tmp <- fusions |>
+      dplyr::filter(.data$reported_fusion | .data$geneA_dna_support | .data$geneB_dna_support)
+  } else {
+    tmp <- fusions |>
+      dplyr::filter(.data$reported_fusion)
+  }
+  ref_genes.list[["summary"]]$Fusion <- tmp |>
     dplyr::select("geneA", "geneB") |>
     unlist() |>
     unique()
@@ -2235,7 +2242,7 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 
 ### - Summary
 
-Out of the `r if ( runFusionChunk ) { nrow(fusions) } else { c("0") }` fusion event(s) [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$geneA_dna_support | fusions$geneB_dna_support, ]) } else { c("0") }`**]{style="color:#ff0000"} involve **DNA-supported** fusion genes (see [Structural variants] section), [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion, ]) } else { c("0") }`**]{style="color:#02d653"} are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** and [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$fusions_cancer, ]) } else { c("0") }`**]{style="color:#767689"} involve **[Cancer genes]**.
+Out of the `r if ( runFusionChunk ) { nrow(fusions) } else { c("0") }` fusion event(s) [**`r if ( runFusionChunk && runSVsChunk ) { nrow(fusions[ fusions$geneA_dna_support | fusions$geneB_dna_support, ]) } else { c("0") }`**]{style="color:#ff0000"} involve **DNA-supported** fusion genes (see [Structural variants] section), [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion, ]) } else { c("0") }`**]{style="color:#02d653"} are **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** and [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$fusions_cancer, ]) } else { c("0") }`**]{style="color:#767689"} involve **[Cancer genes]**.
 
 **`r if ( !runFusionChunk ) { c("No fusion genes were detected!") }`**
 
@@ -2304,10 +2311,10 @@ Fusion events are ordered by the following columns:
 
 ### - Genomic view
 
-[**`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support | fusions$geneB_dna_support) & fusions$circos, ]) } else { c("0") }`**]{style="color:#ff0000"} **DNA-supported** fusion genes (see [Structural variants] section) and [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion & fusions$circos, ]) } else { c("0") }`**]{style="color:#02d653"} fusions events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** are presented in the genomic context. [*Red*]{style="color:#ff0000"} is used for links between positions of same chromosomes and [*blue*]{style="color:#0000ff"} for links between different chromosomes. The table at the bottom contains genomic coordinates of individual fusion genes sorted by their genomic location.
+[**`r if ( runFusionChunk && runSVsChunk ) { nrow(fusions[ (fusions$geneA_dna_support | fusions$geneB_dna_support) & fusions$circos, ]) } else { c("0") }`**]{style="color:#ff0000"} **DNA-supported** fusion genes (see [Structural variants] section) and [**`r if ( runFusionChunk ) { nrow(fusions[ fusions$reported_fusion & fusions$circos, ]) } else { c("0") }`**]{style="color:#02d653"} fusions events **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** are presented in the genomic context. [*Red*]{style="color:#ff0000"} is used for links between positions of same chromosomes and [*blue*]{style="color:#0000ff"} for links between different chromosomes. The table at the bottom contains genomic coordinates of individual fusion genes sorted by their genomic location.
 
 [NOTE]{style="color:#ff0000"}:
-**`r if ( runFusionChunk ) { nrow(fusions[ (fusions$geneA_dna_support | fusions$geneB_dna_support) & fusions$circos, ]) } else { c("0") }`** of such fusions do not have genomic information available and are not presented on the *circos plot* (see *Genomic view* column in the [- Summary] table).
+**`r if ( runFusionChunk && runSVsChunk ) { nrow(fusions[ (fusions$geneA_dna_support | fusions$geneB_dna_support) & fusions$circos, ]) } else { c("0") }`** of such fusions do not have genomic information available and are not presented on the *circos plot* (see *Genomic view* column in the [- Summary] table).
 
 `r if ( !runSVsChunk ) { c("Genomic data for this sample is **NOT AVAILABLE**.") }`
 
@@ -4510,12 +4517,17 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs && !runFusionChunk ) { c("Fusion genes information for this sample is **NOT AVAILABLE**.") }`
 
-`r if ( params$drugs && runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**", nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]), "**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**", nrow(fusions[ fusions$reported_fusion == "Yes" , ]), "**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** were screened for suitable drugs.") } else if ( params$drugs && !runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**0**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**0**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** were screened for suitable drugs.") }`
+`r if ( params$drugs && runFusionChunk && runSVsChunk ) { paste0("<span style=\"color:#ff0000\">**", nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]), "**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**", nrow(fusions[ fusions$reported_fusion == "Yes" , ]), "**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** were screened for suitable drugs.") } else if ( params$drugs && !runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**0**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**0**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** were screened for suitable drugs.") }`
 
 ```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
 ##### Generate table with drugs targeting fusion genes
-genesA <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneA)
-genesB <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneB)
+if (runSVsChunk) {
+  genesA <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneA)
+  genesB <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneB)
+} else {
+  genesA <- as.vector(fusions[fusions_ann$reported_fusion == "Yes", ]$geneA)
+  genesB <- as.vector(fusions[fusions_ann$reported_fusion == "Yes", ]$geneB)
+}
 
 drugsTable.fusion_genes <- RNAsum::civicDrugTable(
   genes = unique(c(genesA, genesB)),

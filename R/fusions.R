@@ -188,7 +188,7 @@ fusions_table <- function(fusions) {
         "fusion_caller"
       )
     ))
-  tab1 |>
+  res <- tab1 |>
     DT::datatable(
       filter = "none", rownames = FALSE, width = 800, height = 490,
       escape = FALSE, extensions = c("Buttons", "Scroller"),
@@ -202,9 +202,13 @@ fusions_table <- function(fusions) {
     DT::formatStyle(columns = names(tab1), `font-size` = "12px", "text-align" = "center") |>
     ##### Highlight rows with fusions involving cancer genes or DNA support from MANTA
     DT::formatStyle(columns = "Cancer gene(s)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgrey"))) |>
-    DT::formatStyle(columns = "DNA support (A)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral"))) |>
-    DT::formatStyle(columns = "DNA support (B)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral"))) |>
     DT::formatStyle(columns = "Reported fusion", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgreen")))
+  if (all(c("DNA support (A)", "DNA support (B)") %in% colnames(tab1))) {
+    res <- res |>
+      DT::formatStyle(columns = "DNA support (A)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral"))) |>
+      DT::formatStyle(columns = "DNA support (B)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "coral")))
+  }
+  return(res)
 }
 
 #' RCircos HG38 CytoBandIdeogram Object
