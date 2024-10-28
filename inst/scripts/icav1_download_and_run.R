@@ -11,8 +11,6 @@ c("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION") |>
   stopifnot()
 icav1_token <- Sys.getenv("ICA_ACCESS_TOKEN") |>
   dracarys::ica_token_validate()
-# this helps keep annoying reticulate prompt away
-Sys.setenv(RETICULATE_PYTHON = Sys.getenv("CONDA_PYTHON_EXE"))
 # grab rnasum workflow metadata from Athena
 athena_rnasum <- function(sbj) {
   q_quote <- shQuote(paste(glue("rnasum__{sbj}"), collapse = "|"))
@@ -44,18 +42,18 @@ rnasum_download <- function(gdsdir, outdir, token, page_size = 200, regexes) {
 }
 
 # SBJ IDs of interest
-sbj <- "SBJ05690"
-lib <- "L2401448"
-date1 <- "2024-09-29"
+sbj <- "SBJ05830"
+lib <- "L2401535"
+date1 <- "2024-10-28"
 lims_raw <- athena_lims(lib)
-pmeta_raw <- athena_rnasum(sbj) |>
+wf_raw <- athena_rnasum(sbj) |>
   rportal::meta_rnasum(status = "Failed")
 lims <- lims_raw |>
-  dplyr::select(library_id, sample_id, subject_id)
+  dplyr::select(LibraryID = "library_id", SampleID = "sample_id", SubjectID = "subject_id")
 
 # generate tidy rnasum metadata from portal workflows table, and join against glims
-pmeta <- pmeta_raw |>
-  dplyr::left_join(lims, by = c("LibraryID" = "library_id", "SampleID" = "sample_id", "SubjectID" = "subject_id")) |>
+wf <- wf_raw |>
+  dplyr::left_join(lims, by = c("LibraryID", "SampleID", "SubjectID")) |>
   dplyr::select(
     gds_indir_dragen, gds_indir_umccrise, gds_indir_arriba,
     SubjectID, LibraryID, SampleID,
@@ -82,7 +80,7 @@ outdir <- here::here("nogit/patient_data")
 
 # melt gds_indir columns to get a single column with paths to gds directories
 # of interest, and fish out files of interest from each of them, then download
-meta_rnasum <- pmeta |>
+meta_rnasum <- wf |>
   tidyr::pivot_longer(dplyr::contains("gds_indir"), names_to = "folder_type", values_to = "gds_indir") |>
   dplyr::select(SubjectID, LibraryID, rnasum_dataset, folder_type, gds_indir) |>
   dplyr::rowwise() |>
@@ -93,7 +91,7 @@ meta_rnasum <- pmeta |>
 
 # saveRDS(meta_rnasum, here(glue("nogit/patient_data/down_{date1}.rds")))
 # meta_rnasum <- here::here(glue("nogit/patient_data/down_{date1}.rds")) |> readr::read_rds()
-rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, dragen_mapping_metrics, manta_tsv,
+rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, dragen_mapping_metrics, sv_tsv,
                               pcgr_tiers_tsv, purple_gene_tsv, report_dir, salmon,
                               sample_name, subject_id) {
   params <- list(
@@ -110,7 +108,7 @@ rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, d
     filter = TRUE,
     immunogram = FALSE,
     log = TRUE,
-    manta_tsv = manta_tsv,
+    sv_tsv = sv_tsv,
     norm = "TMM",
     pcgr_splice_vars = TRUE,
     pcgr_tier = 4,
@@ -149,7 +147,7 @@ d_runs |>
         dataset = rnasum_dataset,
         dragen_fusions = DragenWtsFusionsFinalFile,
         dragen_mapping_metrics = MapMetricsFile,
-        manta_tsv = MantaTsvFile,
+        sv_tsv = MantaTsvFile,
         pcgr_tiers_tsv = PcgrTiersTsvFile,
         purple_gene_tsv = PurpleCnvGeneTsvFile,
         report_dir = here::here(glue::glue("nogit/patient_data/reports/{SubjectID}_{LibraryID}_{rnasum_dataset}")),
