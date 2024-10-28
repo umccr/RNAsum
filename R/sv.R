@@ -38,8 +38,7 @@ sv_process <- function(sv_tsv_obj) {
   )
 }
 
-sv_prioritize <- function(sv_file){
-
+sv_prioritize <- function(sv_file) {
   # Check file is not empty
   sv_all <- NULL
   if (length(readLines(con = sv_file, n = 2)) <= 1) {
@@ -50,13 +49,13 @@ sv_prioritize <- function(sv_file){
   total_variants <- nrow(sv_all)
 
   # Check if user has provided a tsv with Gene as first column
-  if(colnames(sv_all)[1] == "Gene"){
+  if (colnames(sv_all)[1] == "Gene") {
     return(list(
       melted = sv_all,
       total_variants = total_variants
     ))
   }
-  if(!"Gene" %in% colnames(sv_all)){
+  if (!"Gene" %in% colnames(sv_all)) {
     # Assume it's an internal input. Unpack multiple annotations per region
     sv_all <- sv_all |>
       dplyr::select("annotation") |>
@@ -76,10 +75,10 @@ sv_prioritize <- function(sv_file){
           strsplit(.data$Genes, "&")
         )
       ) |>
-      dplyr::select("Gene") |>
-      tidyr::unnest_longer("Gene") |>
+      dplyr::select(Genes = "Gene") |>
+      tidyr::unnest_longer("Genes") |>
       dplyr::distinct() |>
-      dplyr::arrange(.data$Gene)
+      dplyr::arrange(.data$Genes)
 
     return(list(
       melted = sv_all,
@@ -87,4 +86,3 @@ sv_prioritize <- function(sv_file){
     ))
   }
 }
-
