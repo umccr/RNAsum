@@ -197,7 +197,7 @@ export PATH="${rnasum_cli}:${PATH}"
 ```
 
     $ rnasum.R --version
-    1.1.4 
+    1.1.5 
 
     $ rnasum.R --help
     Usage
@@ -253,9 +253,6 @@ export PATH="${rnasum_cli}:${PATH}"
     --log
             Log2 transform data before normalisation.
 
-    --sv_tsv=SV_TSV
-            File path to text file with genes related to structural variation.
-
     --norm=NORM
             Normalisation method.
 
@@ -294,6 +291,9 @@ export PATH="${rnasum_cli}:${PATH}"
 
     --subject_id=SUBJECT_ID
             Subject ID.
+
+    --sv_tsv=SV_TSV
+            File path to text file with genes related to structural variation.
 
     --top_genes=TOP_GENES
             Number of top ranked genes to be presented in report.
