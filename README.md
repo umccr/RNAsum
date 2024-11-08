@@ -40,7 +40,7 @@ remotes::install_github("umccr/RNAsum#123") # PR 123
   channel](https://anaconda.org/umccr/r-rnasum):
 
 ``` bash
-conda install r-rnasum==0.0.X -c umccr -c conda-forge -c bioconda
+conda install r-rnasum==X.X.X -c umccr -c conda-forge -c bioconda
 ```
 
 - **Docker** image is available from the [GitHub Container
@@ -170,12 +170,12 @@ quantification file.
 
 The table below lists all input data accepted in `RNAsum`:
 
-| Input file                           | Tool                                                                                                                                                 | Example                                                                                              | Required |
-|--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|----------|
-| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf)                                          | **Yes**  |
-| Quantified gene **abundances**       | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.gene.sf](/inst/rawdata/test_data/dragen/TEST.quant.gene.sf)                                | **Yes**  |
-| **Fusion gene** list                 | [Arriba](https://arriba.readthedocs.io/en/latest/)                                                                                                   | [fusions.tsv](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final)                | No       |
-| **Fusion gene** list                 | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [\*.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No       |
+| Input file | Tool | Example | Required |
+|----|----|----|----|
+| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf) | **Yes** |
+| Quantified gene **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.gene.sf](/inst/rawdata/test_data/dragen/TEST.quant.gene.sf) | **Yes** |
+| **Fusion gene** list | [Arriba](https://arriba.readthedocs.io/en/latest/) | [fusions.tsv](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No |
+| **Fusion gene** list | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [\*.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No |
 
 ### WGS
 
@@ -183,11 +183,11 @@ The table below lists all input data accepted in `RNAsum`:
 
 The table below lists all input data accepted in `RNAsum`:
 
-| Input file      | Tool                                                                    | Example                                                                                                                   | Required |
-|-----------------|-------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
-| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr)                                  | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No       |
-| **CNVs**        | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv)                           | No       |
-| **SVs**         | [Manta](https://github.com/Illumina/manta)                              | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv)           | No       |
+| Input file | Tool | Example | Required |
+|----|----|----|----|
+| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr) | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No |
+| **CNVs** | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv) | No |
+| **SVs** | [Manta](https://github.com/Illumina/manta) | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv) | No |
 
 ## Usage
 
@@ -197,13 +197,13 @@ export PATH="${rnasum_cli}:${PATH}"
 ```
 
     $ rnasum.R --version
-    1.1.0 
+    1.1.4 
 
     $ rnasum.R --help
     Usage
     =====
      
-    /Library/Frameworks/R.framework/Versions/4.2/Resources/library/RNAsum/cli/rnasum.R [options]
+    /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
 
 
     Options
@@ -253,8 +253,8 @@ export PATH="${rnasum_cli}:${PATH}"
     --log
             Log2 transform data before normalisation.
 
-    --manta_tsv=MANTA_TSV
-            File path to umccrise 'manta.tsv' output.
+    --sv_tsv=SV_TSV
+            File path to text file with genes related to structural variation.
 
     --norm=NORM
             Normalisation method.
