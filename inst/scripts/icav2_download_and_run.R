@@ -1,4 +1,4 @@
-# helpers for downloading GDS data for local testing
+# helpers for downloading S3 data for local testing
 require(dracarys, include.only = "s3_list_files_dir")
 require(dplyr)
 require(rportal, include.only = "orca_query_url")
@@ -44,7 +44,7 @@ rnasum_file_regex <- tibble::tribble(
 )
 outdir <- here::here("nogit/patient_data")
 
-# melt gds_indir columns to get a single column with paths to gds directories
+# melt s3_indir columns to get a single column with paths to S3 directories
 # of interest, and fish out files of interest from each of them, then download
 meta_rnasum <- rnasum_inputs |>
   tibble::as_tibble_row() |>
