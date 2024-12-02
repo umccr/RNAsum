@@ -3198,24 +3198,28 @@ Table summarising the **mRNA expression** values in cancer and patient samples f
 
 ##### Percentiles
 
-```{r cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+```{r cn_expr_data_table_gains_check, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN gains
 cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]] |>
   dplyr::filter(.data$CN >= cn_top) |>
   dplyr::select("Gene", "CN")
 genes_gains <- as.character(cn_genes[cn_genes %in% cn_data[["Gene"]]])
-
+runPurpleGainsChunk <- TRUE
 ##### Deal with no genes
 if (length(genes_gains) == 0) {
   genes_gains <- NULL
   genes_gains_no <- 0
+  runPurpleGainsChunk <- FALSE
 } else if (length(genes_gains) > params$top_genes) {
   genes_gains_no <- params$top_genes
 } else {
   genes_gains_no <- length(genes_gains)
 }
+```
 
+
+```{r cn_expr_data_table_gains_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk & runPurpleGainsChunk}
 ##### Get expression data
 dat1 <- ref_dataset.list[[dataset]][["data_to_report"]]
 
@@ -3292,7 +3296,7 @@ The [RED]{style="color:#ff0000"} colour range indicate relatively **high express
 
 ##### Z-scores
 
-```{r cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk}
+```{r cn_expr_data_table_gains, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk & runPurpleGainsChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if (runPcgrChunk && runPurpleChunk) {
   cn_expr_genes.expr.gains.z <- RNAsum::exprTable(
@@ -3373,24 +3377,28 @@ Table summarising the **mRNA expression** values in cancer and patient samples f
 
 ##### Percentiles
 
-```{r cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+```{r cn_expr_data_table_losses_check, eval = runPurpleChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 ##### Keep only genes within CN losses
 cn_data <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]] |>
   dplyr::filter(.data$CN <= cn_bottom) |>
   dplyr::select("Gene", "CN")
 genes_losses <- as.character(cn_genes[cn_genes %in% cn_data[["Gene"]]])
-
+runPurpleLossesChunk <- TRUE
 ##### Deal with no genes or when more than 10 genes are of interest
 if (length(genes_losses) == 0) {
   genes_losses <- NULL
   genes_losses_no <- 0
+  runPurpleLossesChunk <- FALSE
 } else if (length(genes_losses) > params$top_genes) {
   genes_losses_no <- params$top_genes
 } else {
   genes_losses_no <- length(genes_losses)
 }
+```
 
+```{r cn_expr_data_table_losses_perc, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk & runPurpleLossesChunk}
+##### Deal with no genes or when more than 10 genes are of interest
 if (genes_gains_no + genes_losses_no > params$top_genes) {
   limit_genes <- TRUE
 } else {
@@ -3473,7 +3481,7 @@ The [RED]{style="color:#ff0000"} colour range indicate relatively **high express
 
 ##### Z-scores
 
-```{r cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+```{r cn_expr_data_table_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk & runPurpleLossesChunk}
 ##### Generate expression summary table for per-gene expression values CN values and mutation status info (colours)
 if (runPcgrChunk && runPurpleChunk) {
   cn_expr_genes.expr.losses.z <- RNAsum::exprTable(
@@ -3555,7 +3563,7 @@ The [RED]{style="color:#ff0000"} colour range indicate relatively **high express
 
 #### Gains {.tabset}
 
-```{r cdf_plot_cn_expr_gains, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk, results="asis"}
+```{r cdf_plot_cn_expr_gains, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk & runPurpleGainsChunk, results="asis"}
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
 output_counts <- list()
@@ -3642,7 +3650,7 @@ rm(list = ls(pattern = "^output*"))
 
 #### Losses {.tabset}
 
-```{r cdf_plot_cn_expr_losses, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk, results="asis"}
+```{r cdf_plot_cn_expr_losses, echo=FALSE, comment = NA, message=FALSE, warning=FALSE, fig.width = 8, fig.height = 3, eval = runPurpleChunk & runPurpleLossesChunk, results="asis"}
 ##### Generate empirical cumulative distribution function (ECDF) plot illustrating mRNA expression level for the genes of interest in the context of the overall mRNA expression distribution
 output_cdf <- list()
 output_counts <- list()
@@ -4607,7 +4615,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("#### Gains") }`
 
-```{r drugs_predictive_cn_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+```{r drugs_predictive_cn_altered_genes_gains, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk & runPurpleGainsChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- cn_expr_genes.expr.gains.perc[[2]]$SYMBOL
 
@@ -4643,7 +4651,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("#### Losses") }`
 
-```{r drugs_predictive_cn_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk}
+```{r drugs_predictive_cn_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk & runPurpleLossesChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- cn_expr_genes.expr.losses.perc[[2]]$SYMBOL
 
