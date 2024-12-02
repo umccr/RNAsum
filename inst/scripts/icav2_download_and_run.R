@@ -7,7 +7,7 @@ require(here, include.only = "here")
 require(tibble, include.only = "tibble")
 require(tidyr, include.only = "pivot_longer")
 
-# make sure you have logged into AWS and ICA
+# make sure you have logged into AWS
 c("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION") |>
   rportal::envvar_defined() |>
   stopifnot()
