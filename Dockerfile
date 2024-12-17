@@ -1,24 +1,33 @@
-FROM condaforge/mambaforge:23.1.0-4 as conda
-LABEL maintainer="https://github.com/pdiakumis"
+FROM ubuntu:20.04
+ARG MINIF="miniforge"
+ARG MINIF_VERSION="24.11.0-1"
+ARG MINIF_URL="https://github.com/conda-forge/${MINIF}/releases/download/${MINIF_VERSION}/Miniforge3-${MINIF_VERSION}-Linux-x86_64.sh"
 
-# install conda-lock
-RUN mamba config \
-      --set always_yes yes \
-      --set always_copy yes && \
-    mamba install \
-      -c conda-forge \
-      -c nodefaults \
-      conda-lock && \
-    mamba clean --all --force-pkgs-dirs
+# install core pkgs, miniforge
+RUN apt-get update && \
+    apt-get install --yes --no-install-recommends \
+    bash bzip2 curl less wget zip ca-certificates && \
+    apt-get clean && \
+    curl --silent -L "${MINIF_URL}" -o "${MINIF}.sh" && \
+    /bin/bash "${MINIF}.sh" -b -p "/opt/${MINIF}/" && \
+    rm "${MINIF}.sh"
 
-ARG ENV_NAME="rnasum_env"
-ARG LOCK_FILE="rnasum-linux-64.lock"
-COPY ./deploy/conda/env/lock/${LOCK_FILE} .
-RUN conda-lock install --name ${ENV_NAME} ${LOCK_FILE} && \
-    mamba clean --all --force-pkgs-dirs
+# create conda env
+ENV PATH="/opt/${MINIF}/bin:$PATH"
+ARG CONDA_ENV_DIR="/home/conda_envs"
+ARG PKG_LOCK="rnasum-linux-64.lock"
+COPY "./deploy/conda/env/lock/${PKG_LOCK}" "${CONDA_ENV_DIR}/"
+RUN conda create -n "rnasum_env" --file "${CONDA_ENV_DIR}/${PKG_LOCK}"
+RUN conda clean --all --force-pkgs-dirs --yes
 
-ARG MAMBA_PREFIX="/opt/conda"
-ENV PATH="${MAMBA_PREFIX}/envs/${ENV_NAME}/bin:${PATH}"
-ENV CONDA_PREFIX="${MAMBA_PREFIX}/envs/${ENV_NAME}"
+# Now copy env to smaller image
+FROM quay.io/bioconda/base-glibc-debian-bash:3.1
+COPY --from=0 "/opt/miniforge/envs/" "/opt/miniforge/envs/"
+
+# env is activated by default
+ARG MINIF="miniforge"
+ARG CONDA_ENV_NAME="rnasum_env"
+ENV PATH="/opt/${MINIF}/envs/${CONDA_ENV_NAME}/bin:${PATH}"
+ENV CONDA_PREFIX="/opt/${MINIF}/envs/${CONDA_ENV_NAME}"
 
 CMD [ "rnasum.R" ]
