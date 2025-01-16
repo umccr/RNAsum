@@ -36,6 +36,7 @@ option_list <- list(
   make_option("--purple_gene_tsv", type = "character", help = "File path to PURPLE 'purple.cnv.gene.tsv' output."),
   make_option("--report_dir", type = "character", help = "Directory path to output report."),
   make_option("--salmon", type = "character", help = "File path to salmon 'quant.genes.sf' output."),
+  make_option("--kallisto", type = "character", help = "File path to kallisto 'abundance.tsv' output."),
   make_option("--sample_name", type = "character", help = "Sample name to be presented in report."),
   make_option("--sample_source", default = "-", type = "character", help = "Type of investigated sample. [def: %default]"),
   make_option("--save_tables", action = "store_true", help = "Save interactive summary tables as HTML."),
