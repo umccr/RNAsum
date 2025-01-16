@@ -63,9 +63,18 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
       dragen_fusions <- NULL
     }
   }
-  salmon <- salmon_counts(salmon, tx2gene = tx2gene)
   dragen_fusions <- dragen_fusions_read(dragen_fusions)
   dragen_mapping_metrics <- dragen_mapping_metrics_read(dragen_mapping_metrics)
+  #---- Kallisto ----#
+  kallisto <- p[["kallisto"]]
+
+  # check which quant input is provided
+  if (!isnull(salmon)) {
+    counts <- salmon_counts(salmon, tx2gene = tx2gene)
+  } else if ((!isnull(kallisto))) {
+    counts <- kallisto_counts(kallisto, tx2gene = tx2gene)
+  }
+
   #---- WGS ----#
   wgs <- read_wgs_data(p)
   list(
