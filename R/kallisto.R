@@ -29,12 +29,11 @@ kallisto_counts <- function(x, tx2gene = NULL) {
   txi_kallisto <- tximport::tximport(files = x, type = "kallisto", tx2gene = tx2gene)
   counts <- txi_kallisto[["counts"]] |>
     tibble::as_tibble(rownames = "rowname", .name_repair = make.names) |>
-    dplyr::rename(count = X)
+    dplyr::rename(count = X) |>
+    dplyr::filter(!grepl("PAR_Y", .data$rowname))
 
   counts <- counts |>
     dplyr::mutate(rowname = sub("\\..*", "", .data$rowname)) |>
-    dplyr::mutate(across(
-      .cols = matches('count'),
-      .fns = ~ as.integer(.x)))
+    dplyr::mutate(count = as.integer(.data$count))
   return(counts)
 }
