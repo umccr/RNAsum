@@ -33,7 +33,9 @@ kallisto_counts <- function(x, tx2gene = NULL) {
     dplyr::filter(!grepl("PAR_Y", .data$rowname))
 
   counts <- counts |>
-    dplyr::mutate(rowname = sub("\\..*", "", .data$rowname)) |>
-    dplyr::mutate(count = as.integer(.data$count))
+    dplyr::mutate(
+      rowname = sub("\\..*", "", .data$rowname),
+      count = as.integer(.data$count)
+      )
   return(counts)
 }
