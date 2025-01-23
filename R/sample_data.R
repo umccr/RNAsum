@@ -69,10 +69,14 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
   kallisto <- p[["kallisto"]]
 
   # check which quant input is provided
-  if (is.null(salmon)) {
+  if (!is.null(salmon)) {
     counts <- salmon_counts(salmon, tx2gene = tx2gene)
-  } else if ((is.null(kallisto))) {
+  } else if (!is.null(kallisto)) {
     counts <- kallisto_counts(kallisto, tx2gene = tx2gene)
+  } else if (!is.null(kallisto) && !is.null(salmon)) {
+    counts <- NULL
+  } else {
+    counts <- NULL
   }
 
   #---- WGS ----#
@@ -80,7 +84,7 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
   list(
     arriba_tsv = arriba_tsv,
     arriba_pdf = arriba_pdf,
-    salmon = salmon,
+    counts = counts,
     dragen_fusions = dragen_fusions,
     dragen_mapping_metrics = dragen_mapping_metrics,
     wgs = wgs
