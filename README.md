@@ -170,12 +170,12 @@ quantification file.
 
 The table below lists all input data accepted in `RNAsum`:
 
-| Input file | Tool | Example | Required |
-|----|----|----|----|
-| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf) | **Yes** |
-| Quantified gene **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.gene.sf](/inst/rawdata/test_data/dragen/TEST.quant.gene.sf) | **Yes** |
-| **Fusion gene** list | [Arriba](https://arriba.readthedocs.io/en/latest/) | [fusions.tsv](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No |
-| **Fusion gene** list | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [\*.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No |
+| Input file                           | Tool                                                                                                                                                 | Example                                                                                              | Required |
+|--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|----------|
+| Quantified transcript **abundances** | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.sf](/inst/rawdata/test_data/dragen/TEST.quant.sf)                                          | **Yes**  |
+| Quantified gene **abundances**       | [salmon](https://salmon.readthedocs.io/en/latest/salmon.html) ([description](https://salmon.readthedocs.io/en/latest/file_formats.html#fileformats)) | [\*.quant.gene.sf](/inst/rawdata/test_data/dragen/TEST.quant.gene.sf)                                | **Yes**  |
+| **Fusion gene** list                 | [Arriba](https://arriba.readthedocs.io/en/latest/)                                                                                                   | [fusions.tsv](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final)                | No       |
+| **Fusion gene** list                 | [DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html) | [\*.fusion_candidates.final](/inst/rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final) | No       |
 
 ### WGS
 
@@ -183,11 +183,11 @@ The table below lists all input data accepted in `RNAsum`:
 
 The table below lists all input data accepted in `RNAsum`:
 
-| Input file | Tool | Example | Required |
-|----|----|----|----|
-| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr) | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No |
-| **CNVs** | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv) | No |
-| **SVs** | [Manta](https://github.com/Illumina/manta) | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv) | No |
+| Input file      | Tool                                                                    | Example                                                                                                                   | Required |
+|-----------------|-------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
+| **SNVs/Indels** | [PCGR](https://github.com/sigven/pcgr)                                  | [pcgr.snvs_indels.tiers.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/small_variants/pcgr.snvs_indels.tiers.tsv) | No       |
+| **CNVs**        | [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple) | [purple.cnv.gene.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/purple/purple.gene.cnv)                           | No       |
+| **SVs**         | [Manta](https://github.com/Illumina/manta)                              | [sv-prioritize-manta.tsv](/inst/rawdata/test_data/umccrised/test_sample_WGS/structural/sv-prioritize-manta.tsv)           | No       |
 
 ## Usage
 
@@ -197,13 +197,13 @@ export PATH="${rnasum_cli}:${PATH}"
 ```
 
     $ rnasum.R --version
-    1.1.5 
+    2.0.0 
 
     $ rnasum.R --help
     Usage
     =====
      
-    /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
+    /Library/Frameworks/R.framework/Versions/4.2/Resources/library/RNAsum/cli/rnasum.R [options]
 
 
     Options
@@ -276,6 +276,9 @@ export PATH="${rnasum_cli}:${PATH}"
 
     --salmon=SALMON
             File path to salmon 'quant.genes.sf' output.
+
+    --kallisto=KALLISTO
+            File path to kallisto 'abundance.tsv' output.
 
     --sample_name=SAMPLE_NAME
             Sample name to be presented in report.
@@ -477,10 +480,11 @@ To cite package ‘RNAsum’ in publications use:
 
 A BibTeX entry for LaTeX users is
 
-      @Unpublished{,
-        title = {RNAsum: An R package to comprehensively post-process, summarise and visualise genomics and transcriptomics data},
-        author = {Sehrish Kanwal and Jacek Marzec and Peter Diakumis and Oliver Hofmann and Sean Grimmond},
-        year = {2024},
-        note = {version 1.1.0},
-        url = {https://umccr.github.io/RNAsum/},
+      @article{kanwal2025rnasum,
+        title={RNAsum: A tool for personalised genome and transcriptome interpretation for improved cancer diagnostics},
+        author={Kanwal, Sehrish and Marzec, Jacek and Vissers, Joseph HA and Diakumis, Peter and Varghese, Leila and Tork, Luke and Hofmann, Oliver and Grimmond, Sean and Luen, Stephen J},
+        journal={medRxiv},
+        pages={2025--01},
+        year={2025},
+        publisher={Cold Spring Harbor Laboratory Press}
       }
