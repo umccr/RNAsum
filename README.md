@@ -203,7 +203,7 @@ export PATH="${rnasum_cli}:${PATH}"
     Usage
     =====
      
-    /Library/Frameworks/R.framework/Versions/4.2/Resources/library/RNAsum/cli/rnasum.R [options]
+    /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
 
 
     Options
@@ -276,9 +276,6 @@ export PATH="${rnasum_cli}:${PATH}"
 
     --salmon=SALMON
             File path to salmon 'quant.genes.sf' output.
-
-    --kallisto=KALLISTO
-            File path to kallisto 'abundance.tsv' output.
 
     --sample_name=SAMPLE_NAME
             Sample name to be presented in report.
@@ -473,10 +470,11 @@ The code of conduct can be accessed [here](./CODE_OF_CONDUCT.md).
 
 To cite package ‘RNAsum’ in publications use:
 
-> Kanwal S, Marzec J, Diakumis P, Hofmann O, Grimmond S (2024). “RNAsum:
-> An R package to comprehensively post-process, summarise and visualise
-> genomics and transcriptomics data.” version 1.1.0,
-> <https://umccr.github.io/RNAsum/>.
+> Kanwal, Sehrish, Jacek Marzec, Joseph HA Vissers, Peter Diakumis,
+> Leila Varghese, Luke Tork, Oliver Hofmann, Stephen J. Luen, and Sean
+> Grimmond. “RNAsum: A tool for personalised genome and transcriptome
+> interpretation for improved cancer diagnostics.” medRxiv (2025):
+> 2025-01.
 
 A BibTeX entry for LaTeX users is
 
