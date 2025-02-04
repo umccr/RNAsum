@@ -25,19 +25,6 @@
 #' expect_null(res$salmon) # because tx2gene in NULL
 #' @export
 read_sample_data <- function(p, results_dir, tx2gene = NULL) {
-  #---- Arriba ----#
-  # if any of arriba tsv/pdf missing and arriba_dir is provided,
-  # construct the paths to files from that.
-  arriba_tsv <- p[["arriba_tsv"]]
-  arriba_pdf <- p[["arriba_pdf"]]
-  arriba_dir <- p[["arriba_dir"]]
-  if (!is.null(arriba_dir) && (list(NULL) %in% list(arriba_tsv, arriba_pdf))) {
-    arriba_tsv <- file.path(arriba_dir, "fusions.tsv")
-    arriba_pdf <- file.path(arriba_dir, "fusions.pdf")
-  }
-  arriba_tsv <- arriba_tsv_read(x = arriba_tsv)
-  arriba_pdf <- arriba_pdf_read(pdf = arriba_pdf, fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
-
   #---- DragenWTS ----#
   # if any of salmon, fusions, mapping metrics missing and dragen_wts_dir is provided,
   # construct the paths to files from that.
@@ -63,21 +50,42 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
       dragen_fusions <- NULL
     }
   }
-  dragen_fusions <- dragen_fusions_read(dragen_fusions)
-  dragen_mapping_metrics <- dragen_mapping_metrics_read(dragen_mapping_metrics)
+
   #---- Kallisto ----#
   kallisto <- p[["kallisto"]]
 
   # check which quant input is provided
-  if (!is.null(salmon)) {
-    counts <- salmon_counts(salmon, tx2gene = tx2gene)
+  if (!is.null(kallisto) && !is.null(salmon)) {
+    counts <- NULL
   } else if (!is.null(kallisto)) {
     counts <- kallisto_counts(kallisto, tx2gene = tx2gene)
-  } else if (!is.null(kallisto) && !is.null(salmon)) {
-    counts <- NULL
+  } else if (!is.null(salmon)) {
+    counts <- salmon_counts(salmon, tx2gene = tx2gene)
   } else {
     counts <- NULL
   }
+  # produce an error message if both or none of salmon and kallisto are provided as input
+  assertthat::assert_that(
+    !is.null(counts),
+    msg = glue::glue("The 'counts' variable is NULL! Provide one of salmon or kallsito count files as input")
+  )
+
+  #---- Arriba ----#
+  # if any of arriba tsv/pdf missing and arriba_dir is provided,
+  # construct the paths to files from that.
+  arriba_tsv <- p[["arriba_tsv"]]
+  arriba_pdf <- p[["arriba_pdf"]]
+  arriba_dir <- p[["arriba_dir"]]
+  if (!is.null(arriba_dir) && (list(NULL) %in% list(arriba_tsv, arriba_pdf))) {
+    arriba_tsv <- file.path(arriba_dir, "fusions.tsv")
+    arriba_pdf <- file.path(arriba_dir, "fusions.pdf")
+  }
+  arriba_tsv <- arriba_tsv_read(x = arriba_tsv)
+  arriba_pdf <- arriba_pdf_read(pdf = arriba_pdf, fusions = arriba_tsv, outdir = file.path(results_dir, "arriba"))
+
+
+  dragen_fusions <- dragen_fusions_read(dragen_fusions)
+  dragen_mapping_metrics <- dragen_mapping_metrics_read(dragen_mapping_metrics)
 
   #---- WGS ----#
   wgs <- read_wgs_data(p)
