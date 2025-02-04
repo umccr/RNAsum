@@ -67,7 +67,7 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
   # produce an error message if both or none of salmon and kallisto are provided as input
   assertthat::assert_that(
     !is.null(counts),
-    msg = glue::glue("The 'counts' variable is NULL! Provide one of salmon or kallsito count files as input")
+    msg = glue::glue("Exactly one of salmon or kallisto count files are required")
   )
 
   #---- Arriba ----#
