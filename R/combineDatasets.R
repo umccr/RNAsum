@@ -23,23 +23,40 @@ combineDatasets <- function(sample_name, sample_counts, ref_data, report_dir) {
       tibble::as_tibble()
   }
   target_ext <- .read_target(targ = ref_data[["ext_ref"]][["target"]], ds = ref_data[["ext_ref"]][["dataset"]])
-  target_int <- .read_target(targ = ref_data[["int_ref"]][["target"]], ds = ref_data[["int_ref"]][["dataset"]])
-  target_all <- dplyr::bind_rows(target_ext, target_int) |>
+  
+  ##### Check if internal reference cohort is provided
+  if ( !is.null(ref_data[["int_ref"]]) ) {
+    target_int <- .read_target(targ = ref_data[["int_ref"]][["target"]], ds = ref_data[["int_ref"]][["dataset"]])
+    target_all <- dplyr::bind_rows(target_ext, target_int) |>
     dplyr::mutate(Sample_name = glue::glue("{.data$Dataset}.{.data$Sample_name}")) |>
     dplyr::bind_rows(
       tibble::tibble(Sample_name = sample_name, Target = sample_name, Dataset = sample_name)
     ) |>
     dplyr::mutate(Sample_name = make.names(.data$Sample_name))
-
-  datasets.comb <- sample_counts
-  names(datasets.comb) <- c("", sample_name)
-  count_ext <- .read_counts(ref_data[["ext_ref"]][["counts"]])
-  colnames(count_ext) <- glue::glue("{ref_data[['ext_ref']][['dataset']]}.{colnames(count_ext)}")
-  count_int <- .read_counts(ref_data[["int_ref"]][["counts"]])
-  colnames(count_int) <- glue::glue("{ref_data[['int_ref']][['dataset']]}.{colnames(count_int)}")
-  datasets.comb <- base::merge(datasets.comb, count_ext, by = 1, all = FALSE, sort = TRUE)
-  datasets.comb <- base::merge(datasets.comb, count_int, by = 1, all = FALSE, sort = TRUE)
-  gene_list <- unique(c(sample_counts[["rowname"]], count_ext[[1]], count_int[[1]]))
+    datasets.comb <- sample_counts
+    names(datasets.comb) <- c("", sample_name)
+    count_ext <- .read_counts(ref_data[["ext_ref"]][["counts"]])
+    colnames(count_ext) <- glue::glue("{ref_data[['ext_ref']][['dataset']]}.{colnames(count_ext)}")
+    count_int <- .read_counts(ref_data[["int_ref"]][["counts"]])
+    colnames(count_int) <- glue::glue("{ref_data[['int_ref']][['dataset']]}.{colnames(count_int)}")
+    datasets.comb <- base::merge(datasets.comb, count_ext, by = 1, all = FALSE, sort = TRUE)
+    datasets.comb <- base::merge(datasets.comb, count_int, by = 1, all = FALSE, sort = TRUE)
+    gene_list <- unique(c(sample_counts[["rowname"]], count_ext[[1]], count_int[[1]]))
+    
+  } else {
+    target_all <- dplyr::bind_rows(target_ext) |>
+      dplyr::mutate(Sample_name = glue::glue("{.data$Dataset}.{.data$Sample_name}")) |>
+      dplyr::bind_rows(
+        tibble::tibble(Sample_name = sample_name, Target = sample_name, Dataset = sample_name)
+      ) |>
+      dplyr::mutate(Sample_name = make.names(.data$Sample_name))
+    datasets.comb <- sample_counts
+    names(datasets.comb) <- c("", sample_name)
+    count_ext <- .read_counts(ref_data[["ext_ref"]][["counts"]])
+    colnames(count_ext) <- glue::glue("{ref_data[['ext_ref']][['dataset']]}.{colnames(count_ext)}")
+    datasets.comb <- base::merge(datasets.comb, count_ext, by = 1, all = FALSE, sort = TRUE)
+    gene_list <- unique(c(sample_counts[["rowname"]], count_ext[[1]]))
+  }
 
   # TODO: refactor this a bit better
   ##### Use gene IDs as rownames

@@ -23,6 +23,7 @@ exprGroupsStats_geneWise <- function(data, targets) {
 
   ##### Calculate cumulative sums and perform range standardization between 0 and 1
   data.cum <- t(apply(data, 1, cumsum_ordered))
+  colnames(data.cum) <- colnames(data.q)
 
   ##### Create lists with stats for each group and gene
   targets.list <- unique(targets$Target)

@@ -26,10 +26,10 @@ barPlot <- function(gene, data, targets, y_title = "Counts", sampleName, ext_can
 
   ##### Reorder groups and add colours
   if (!is.null(add_cancer)) {
-    data.df$Group <- factor(data.df$Group, levels = c(add_cancer, ext_cancer, int_cancer, "Patient"))
+    data.df$Group <- factor(data.df$Group, levels = c(add_cancer, unique(ext_cancer, int_cancer), "Patient"))
     group.colours <- c("forestgreen", "cornflowerblue", "red", "black")
   } else {
-    data.df$Group <- factor(data.df$Group, levels = c(ext_cancer, int_cancer, "Patient"))
+    data.df$Group <- factor(data.df$Group, levels = c(unique(ext_cancer, int_cancer), "Patient"))
     group.colours <- c("cornflowerblue", "red", "black")
   }
 
