@@ -102,8 +102,8 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   }
 
   ##### Generate interactive CDF plot with plotly
-  ##### Include the internal reference cohort in the plot
-  if (!is.null(int_cancer) && comp_cancer != int_cancer) {
+  ##### Include the internal reference cohort in the plot if the patient samples origins from the same tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
+  if (!is.null(int_cancer) && comp_cancer == int_cancer) {
     p1 <- plotly::plot_ly(group.z[[sampleName]], x = ~z, color = I("black"), width = 700, height = 200) |>
       ##### Add sample data
       plotly::add_markers(
