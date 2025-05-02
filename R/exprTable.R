@@ -31,7 +31,7 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
                       comp_cancer, add_cancer = NULL, genes_annot = NULL,
                       oncokb_annot = NULL, cancer_genes = NULL, mut_annot = NULL,
                       fusion_genes = NULL, type = "z", scaling = "gene-wise",
-                      civic_clin_evid = NULL) {
+                      civic_clin_evid = NULL, batch_rm = FALSE) {
   assertthat::assert_that(
     !is.null(genes), !is.null(data), !is.null(civic_clin_evid),
     is.matrix(data), is.data.frame(targets),
@@ -44,7 +44,12 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   genes.absent <- genes[!genes %in% rownames(data)]
 
   ##### Initiate dataframe for expression median values in each group
-  targets.list <- unique(targets$Target)
+  if ( batch_rm ) {
+    targets.list <- unique(targets$Target)
+  } else {
+    targets.list <- c(unique(targets$Target)[1], unique(targets$Target))
+  }
+  
   group.z <- as.data.frame(matrix(NA, ncol = length(targets.list), nrow = nrow(data)))
   colnames(group.z) <- targets.list
   rownames(group.z) <- rownames(data)
@@ -272,10 +277,12 @@ exprTable <- function(data = NULL, genes = NULL, keep_all = FALSE, cn_data = NUL
   }
 
   ##### Remove the internal reference cohort column if the patient samples origins from other tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
-  if (comp_cancer != int_cancer) {
-    group.z <- group.z[, !names(group.z) %in% int_cancer]
-    targets.list[match(int_cancer, targets.list)] <- "Patient"
-
+  if (comp_cancer != int_cancer || is.null(int_cancer)) {
+    if (!is.null(int_cancer)) {
+      group.z <- group.z[, !names(group.z) %in% int_cancer]
+      targets.list[match(int_cancer, targets.list)] <- "Patient"
+    }
+    
     ##### Get the position of "Diff" column
     diff_col_idx <- grep("Diff", names(group.z), fixed = TRUE)
   } else {

@@ -21,13 +21,14 @@
 #'
 cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, addBoxPlot = FALSE, scaling = "gene-wise", report_dir) {
   ##### Remove the internal reference cohort data if the patient samples origins from other tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
-  if (comp_cancer != int_cancer) {
+  if (!is.null(int_cancer) && comp_cancer != int_cancer) {
     targets <- targets[!targets$Target %in% int_cancer, ]
     data <- data[, rownames(targets)]
   }
 
   ##### Initiate lists with stats for each group
   targets.list <- unique(targets$Target)
+  
   group.z <- vector("list", length(targets.list))
   names(group.z) <- targets.list
 
@@ -63,7 +64,7 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
     group.z.gene[[ext_cancer]] <- group.z[[ext_cancer]][rownames(group.z[[ext_cancer]]) %in% gene, ]
 
     ##### Add info for internal cohort
-    if (comp_cancer == int_cancer) {
+    if (!is.null(int_cancer) && comp_cancer != int_cancer) {
       group.z[[int_cancer]] <- exprGroupStats_groupWise(data, targets, int_cancer)
       group.z.gene[[int_cancer]] <- group.z[[int_cancer]][rownames(group.z[[int_cancer]]) %in% gene, ]
     }
@@ -90,10 +91,10 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
 
     ##### Reorder groups
     if (!is.null(add_cancer)) {
-      gene.expr.df$Group <- factor(gene.expr.df$Group, levels = c(add_cancer, ext_cancer, int_cancer, "Patient"))
+      gene.expr.df$Group <- factor(gene.expr.df$Group, levels = c(add_cancer, unique(ext_cancer, int_cancer), "Patient"))
       group.colours <- c("forestgreen", "cornflowerblue", "red", "black")
     } else {
-      gene.expr.df$Group <- factor(gene.expr.df$Group, levels = c(ext_cancer, int_cancer, "Patient"))
+      gene.expr.df$Group <- factor(gene.expr.df$Group, levels = c(unique(ext_cancer, int_cancer), "Patient"))
       group.colours <- c("cornflowerblue", "red", "black")
     }
 
@@ -101,8 +102,8 @@ cdfPlot <- function(gene, data, targets, sampleName, int_cancer, ext_cancer, com
   }
 
   ##### Generate interactive CDF plot with plotly
-  ##### Include the internal reference cohort in the plot
-  if (comp_cancer == int_cancer) {
+  ##### Include the internal reference cohort in the plot if the patient samples origins from the same tissue. Of note, the internal reference cohort was only used to process the in-house data (including the investigated patient sample) and to correct batch-effects
+  if (!is.null(int_cancer) && comp_cancer == int_cancer) {
     p1 <- plotly::plot_ly(group.z[[sampleName]], x = ~z, color = I("black"), width = 700, height = 200) |>
       ##### Add sample data
       plotly::add_markers(

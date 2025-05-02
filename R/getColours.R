@@ -8,10 +8,12 @@
 #' @export
 getColours <- function(elements) {
   ##### Predefined selection of colours for elements
-  if (length(unique(elements)) == 3) {
-    elements.colours <- c("powderblue", "red", "gray50")
+  if (length(unique(elements)) == 2) {
+    elements.colours <- c("cornflowerblue", "black")
+  } else if (length(unique(elements)) == 3) {
+    elements.colours <- c("cornflowerblue", "red", "black")
   } else if (length(unique(elements)) == 4) {
-    elements.colours <- c("powderblue", "forestgreen", "red", "gray50")
+    elements.colours <- c("cornflowerblue", "forestgreen", "red", "black")
   } else {
     elements.colours <- grDevices::rainbow(length(elements))
   }

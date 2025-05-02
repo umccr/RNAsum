@@ -10,23 +10,34 @@
 #' @examples
 #' x <- get_refdata(dataset = "TEST")
 #' @export
-get_refdata <- function(dataset) {
+get_refdata <- function(dataset, batch_rm) {
   assertthat::assert_that(dataset %in% names(RNAsum::REFERENCE_DATASETS))
   refdata_dir <- system.file("extdata", package = "RNAsum.data")
   d_clean <- base::strsplit(dataset, split = "-", fixed = TRUE)[[1]][1]
-
-  fn <- list(
-    "ext_ref" = list(
-      counts = file.path(refdata_dir, "ref_data", paste0("TCGA_", d_clean, "_Counts.exp.gz")),
-      target = file.path(refdata_dir, "ref_data", paste0("TCGA_", dataset, "_Target.txt.gz")),
-      dataset = paste0(d_clean, " (TCGA)")
-    ),
-    "int_ref" = list(
-      counts = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Counts.exp.gz"),
-      target = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Target.txt.gz"),
-      dataset = "PAAD (UMCCR)"
+  
+  if ( batch_rm ) {
+    fn <- list(
+      "ext_ref" = list(
+        counts = file.path(refdata_dir, "ref_data", paste0("TCGA_", d_clean, "_Counts.exp.gz")),
+        target = file.path(refdata_dir, "ref_data", paste0("TCGA_", dataset, "_Target.txt.gz")),
+        dataset = paste0(d_clean, " (TCGA)")
+      ),
+      "int_ref" = list(
+        counts = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Counts.exp.gz"),
+        target = file.path(refdata_dir, "ref_data", "UMCCR_PDAC_Target.txt.gz"),
+        dataset = "PAAD (UMCCR)"
+      )
     )
-  )
+  } else {
+    fn <- list(
+      "ext_ref" = list(
+        counts = file.path(refdata_dir, "ref_data", paste0("TCGA_", d_clean, "_Counts.exp.gz")),
+        target = file.path(refdata_dir, "ref_data", paste0("TCGA_", dataset, "_Target.txt.gz")),
+        dataset = paste0(d_clean, " (TCGA)")
+      ),
+      "int_ref" = NULL
+    )
+  }
   fn
 }
 

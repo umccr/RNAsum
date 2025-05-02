@@ -19,7 +19,7 @@
 #' @return Boxplot presenting expression profiles for selected set of genes.
 #' @export
 glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_cancer, comp_cancer, add_cancer = NULL, hexcode, type = "z", sort = "diff", scaling = "gene-wise", report_dir) {
-  if (comp_cancer != int_cancer) {
+  if (!is.null(int_cancer) && comp_cancer != int_cancer) {
     targets <- targets[!targets$Target %in% int_cancer, ]
     data <- data[, rownames(targets)]
   }
@@ -71,10 +71,10 @@ glanceExprPlot <- function(genes, data, targets, sampleName, int_cancer, ext_can
 
   ##### Reorder groups
   if (!is.null(add_cancer)) {
-    gene.expr.df$Group <- factor(gene.expr.df$Group, levels = c("Patient", int_cancer, ext_cancer, add_cancer))
+    gene.expr.df$Group <- factor(gene.expr.df$Group, levels = c("Patient", unique(ext_cancer, int_cancer), add_cancer))
     group.colours <- c(I("black"), "red", "cornflowerblue", "forestgreen")
   } else {
-    gene.expr.df$Group <- factor(gene.expr.df$Group, levels = c("Patient", int_cancer, ext_cancer))
+    gene.expr.df$Group <- factor(gene.expr.df$Group, levels = c("Patient", unique(ext_cancer, int_cancer)))
     group.colours <- c(I("black"), "red", "cornflowerblue")
   }
 

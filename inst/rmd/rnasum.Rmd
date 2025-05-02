@@ -13,7 +13,7 @@ params:
   arriba_dir: NULL
   arriba_pdf: NULL
   arriba_tsv: NULL
-  batch_rm: TRUE
+  batch_rm: FALSE
   cn_gain: 95
   cn_loss: 5
   dataset: 'PANCAN'
@@ -73,6 +73,7 @@ knitr::opts_chunk$set(timeit = TRUE, echo = FALSE)
   library(conflicted) # checks for pkg function conflicts
   library(DT, include.only = c("datatable"))
   library(dplyr, include.only = c("mutate", "select", "filter", "if_else"))
+  library(magrittr, include.only = c("%>%"))
   library(EDASeq, include.only = c("plotRLE"))
   library(edgeR, include.only = c("DGEList"))
   library(fs, include.only = c("dir_create"))
@@ -118,7 +119,7 @@ tx2ensembl <- tx_gene_id_105 |>
   dplyr::rename(tx_name = "TXID", gene_id = "GENEID")
 
 # reference data
-ref_dataset_filepaths <- RNAsum::get_refdata(dataset)
+ref_dataset_filepaths <- RNAsum::get_refdata(dataset, params$batch_rm)
 ref_dataset.list <- vector("list", length(dataset)) |> set_names(dataset)
 ref_genes.list <- RNAsum::get_refgenes(params)
 # sample WTS/WGS data
@@ -139,8 +140,14 @@ ref_dataset.list[[dataset]] <- RNAsum::combineDatasets(
 )
 
 ##### Define internal, external and addition cancer group names based on the targets definition
-int_cancer_group <- ref_dataset_filepaths[["int_ref"]][["dataset"]]
 ext_cancer_group <- ref_dataset_filepaths[["ext_ref"]][["dataset"]]
+
+##### Check if internal reference cohort is provided
+if ( params$batch_rm ) {
+  int_cancer_group <- ref_dataset_filepaths[["int_ref"]][["dataset"]]
+} else {
+  int_cancer_group <- NULL
+}
 
 add_cancer_group <- NULL
 if (length(unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)) > 3) {
@@ -149,7 +156,7 @@ if (length(unique(ref_dataset.list[[dataset]][["sample_annot"]]$Target)) > 3) {
 
 ##### Define the cancer group to be used to compare per-gene expression values and report in the summary tables
 comp_cancer_group <- ext_cancer_group
-if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC")) {
+if (dataset %in% c("PAAD", "PAAD-IPMN", "PAAD-NET", "PAAD-ACC") && params$batch_rm) {
   comp_cancer_group <- int_cancer_group
 }
 ```
@@ -400,14 +407,25 @@ ggplot2::ggsave(filename = file.path(PlotsDir, "library_size.png"), plot = libra
 
 ##### Transformation to CPM or TPM scale (see these blogs for details https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/ and https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/ ).  CPM = Counts Per Million,  TPM = Transcripts Per Kilobase Million.
 
-##### For counts data processing consider the investigated sample and internal reference cohort as one group  (regardless of the investigated patient tissue origin), and TCGA data (of any cancer type) as another group. This is to facilitate batch-effects (related with technical aspects) correction process
-target_mod <- ref_dataset.list[[dataset]][["sample_annot"]] |>
-  dplyr::mutate(
-    Dataset = if_else(.data$Dataset == sample_name,
-      int_cancer_group, .data$Dataset
+if ( params$batch_rm ) {
+  ##### For counts data processing consider the investigated sample and internal reference cohort as one group  (regardless of the investigated patient tissue origin), and TCGA data (of any cancer type) as another group. This is to facilitate batch-effects (related with technical aspects) correction process
+  target_mod <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+    dplyr::mutate(
+      Dataset = if_else(.data$Dataset == sample_name,
+        int_cancer_group, .data$Dataset
+      )
     )
-  )
-targets_mod.list <- unique(target_mod$Dataset)
+  targets_mod.list <- unique(target_mod$Dataset)
+
+} else {
+    target_mod <- ref_dataset.list[[dataset]][["sample_annot"]] |>
+    dplyr::mutate(
+      Dataset = if_else(.data$Dataset == sample_name,
+        ext_cancer_group, .data$Dataset
+      )
+    )
+  targets_mod.list <- unique(target_mod$Dataset)
+}
 
 ##### Keep info about samples with the lowest and greatest counts for defined CPM threshold
 # numerical summary given a max/min function
@@ -543,36 +561,46 @@ for (group in targets_mod.list) {
 } # for end
 
 ##### Now combine DGEList objects created for each group
-y[["comb"]]$transformed <- cbind(
-  y[[targets_mod.list[1]]]$transformed,
-  y[[targets_mod.list[2]]]$transformed
-)
-y[["comb"]]$samples <- rbind(
-  y[[targets_mod.list[1]]]$samples,
-  y[[targets_mod.list[2]]]$samples
-)
+if ( params$batch_rm ) {
+  y[["comb"]]$transformed <- cbind(
+    y[[targets_mod.list[1]]]$transformed,
+    y[[targets_mod.list[2]]]$transformed
+  )
+  y[["comb"]]$samples <- rbind(
+    y[[targets_mod.list[1]]]$samples,
+    y[[targets_mod.list[2]]]$samples
+  )
+  
+  if (params$filter) {
+    ##### Keep only genes present in all sets
+    genes_mod <- base::intersect(
+      rownames(y[[targets_mod.list[1]]]$filtered),
+      rownames(y[[targets_mod.list[2]]]$filtered)
+    )
+    y[[targets_mod.list[1]]]$filtered <- y[[targets_mod.list[1]]]$filtered[rownames(y[[targets_mod.list[1]]]$filtered) %in% genes_mod, ]
+    y[[targets_mod.list[2]]]$filtered <- y[[targets_mod.list[2]]]$filtered[rownames(y[[targets_mod.list[2]]]$filtered) %in% genes_mod, ]
+    y[[targets_mod.list[1]]]$filtered.transformed <- y[[targets_mod.list[1]]]$filtered.transformed[rownames(y[[targets_mod.list[1]]]$filtered.transformed) %in% genes_mod, ]
+    y[[targets_mod.list[2]]]$filtered.transformed <- y[[targets_mod.list[2]]]$filtered.transformed[rownames(y[[targets_mod.list[2]]]$filtered.transformed) %in% genes_mod, ]
+  
+    y[["comb"]]$filtered <- cbind(
+      y[[targets_mod.list[1]]]$filtered,
+      y[[targets_mod.list[2]]]$filtered
+    )
+    y[["comb"]]$filtered.transformed <- cbind(
+      y[[targets_mod.list[1]]]$filtered.transformed,
+      y[[targets_mod.list[2]]]$filtered.transformed
+    )
+  }
+} else {
+  y[["comb"]]$transformed <- y[[targets_mod.list[1]]]$transformed
+  y[["comb"]]$samples <- y[[targets_mod.list[1]]]$samples
 
-if (params$filter) {
-  ##### Keep only genes present in all sets
-  genes_mod <- base::intersect(
-    rownames(y[[targets_mod.list[1]]]$filtered),
-    rownames(y[[targets_mod.list[2]]]$filtered)
-  )
-  y[[targets_mod.list[1]]]$filtered <- y[[targets_mod.list[1]]]$filtered[rownames(y[[targets_mod.list[1]]]$filtered) %in% genes_mod, ]
-  y[[targets_mod.list[2]]]$filtered <- y[[targets_mod.list[2]]]$filtered[rownames(y[[targets_mod.list[2]]]$filtered) %in% genes_mod, ]
-  y[[targets_mod.list[1]]]$filtered.transformed <- y[[targets_mod.list[1]]]$filtered.transformed[rownames(y[[targets_mod.list[1]]]$filtered.transformed) %in% genes_mod, ]
-  y[[targets_mod.list[2]]]$filtered.transformed <- y[[targets_mod.list[2]]]$filtered.transformed[rownames(y[[targets_mod.list[2]]]$filtered.transformed) %in% genes_mod, ]
+  if (params$filter) {
+    y[["comb"]]$filtered <- y[[targets_mod.list[1]]]$filtered
+    y[["comb"]]$filtered.transformed <- y[[targets_mod.list[1]]]$filtered.transformed
+  }
 
-  y[["comb"]]$filtered <- cbind(
-    y[[targets_mod.list[1]]]$filtered,
-    y[[targets_mod.list[2]]]$filtered
-  )
-  y[["comb"]]$filtered.transformed <- cbind(
-    y[[targets_mod.list[1]]]$filtered.transformed,
-    y[[targets_mod.list[2]]]$filtered.transformed
-  )
 }
-
 ##### Clean the space
 rm(dat1, target, target_mod, genes_mod, keep)
 ```
@@ -627,9 +655,9 @@ if (params$filter) {
 
   ##### Save interactive plot as html file
   RNAsum::saveWidgetFix(counts_vs_transformed, file = file.path(PlotsDir, "counts_vs_transformed.html"))
-
+  
   plot_legend1 <- c(ext_cancer_group, add_cancer_group, int_cancer_group, "Patient")
-
+  
   ##### Before filtering
   par(mfrow = c(1, 2))
 
@@ -1204,7 +1232,8 @@ genes.expr.perc <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )
 
 ##### Z-scores
@@ -1223,7 +1252,8 @@ genes.expr.z <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )
 
 ##### Create directory for saving tables
@@ -1257,7 +1287,8 @@ expr_data.perc <- RNAsum::exprTable(
   comp_cancer = comp_cancer_group,
   add_cancer = add_cancer_group,
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )[[2]]
 
 expr_genes <- expr_data.perc[["SYMBOL"]]
@@ -1275,11 +1306,12 @@ expr_data.z <- RNAsum::exprTable(
   comp_cancer = comp_cancer_group,
   add_cancer = add_cancer_group,
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )[[2]]
 
 col1 <- "Diff"
-if (comp_cancer_group == int_cancer_group) {
+if (!is.null(int_cancer_group) && comp_cancer_group == int_cancer_group) {
   col1 <- paste0("Patient vs ", comp_cancer_group)
 }
 expr_sel <- function(d) {
@@ -1757,12 +1789,11 @@ Transcriptome summary for patient sample **`r sample_report_title`**.
 
 The following reference patient cohorts were used for the analysis:
 
--   **`r glue("{ref_ext_cancer} {ext_cancer_group}")`** samples from [The Cancer Genome Atlas][tcga] project ([related publication][tcga-pub])
--   **`r glue("{ref_int_cancer} {int_cancer_group}")`** samples from [The University of Melbourne Centre for Cancer Research][umccr]
+-   **`r glue("{ref_ext_cancer} {ext_cancer_group}")`** external reference samples from [The Cancer Genome Atlas][tcga] project ([related publication][tcga-pub])
+`r if (params$batch_rm) { glue("-   **{ref_int_cancer} {int_cancer_group}** internal reference samples") }`
 
 [tcga]: https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html
 [tcga-pub]: https://www.nature.com/articles/ng.2764
-[umccr]: https://mdhs.unimelb.edu.au/centre-for-cancer-research
 
 **Input genes**
 
@@ -2028,7 +2059,8 @@ mut_genes.expr.perc <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )
 
 ##### Present the expression summary table
@@ -2075,7 +2107,8 @@ mut_genes.expr.z <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )[[1]]
 
 ##### Present the expression summary table
@@ -2574,7 +2607,8 @@ for (i in seq_len(genes_no)) {
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Germline")],
     fusion_genes = unique(c(known_translocations$geneA, known_translocations$geneB)),
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )[[1]]
 
   ##### Percentiles
@@ -2593,7 +2627,8 @@ for (i in seq_len(genes_no)) {
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Germline")],
     fusion_genes = unique(c(known_translocations$geneA, known_translocations$geneB)),
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )[[1]]
 }
 #### Clear plots to free up some memory
@@ -2777,7 +2812,8 @@ sv_genes.expr.perc <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )
 
 ##### Present the expression summary table
@@ -2829,7 +2865,8 @@ sv_genes.expr.z <- RNAsum::exprTable(
   cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )
 
 ##### Present the expression summary table
@@ -3242,7 +3279,8 @@ if (runPcgrChunk && runPurpleChunk) {
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )
 
   ##### Generate expression summary table for per-gene expression values and CN values
@@ -3263,7 +3301,8 @@ if (runPcgrChunk && runPurpleChunk) {
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )
 }
 
@@ -3317,7 +3356,8 @@ if (runPcgrChunk && runPurpleChunk) {
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )
 
   ##### Generate expression summary table for per-gene expression values and CN values
@@ -3337,7 +3377,8 @@ if (runPcgrChunk && runPurpleChunk) {
     genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )
 }
 
@@ -3427,7 +3468,8 @@ if (runPcgrChunk && runPurpleChunk) {
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )
 
   ##### Generate expression summary table for per-gene expression values and CN values
@@ -3448,7 +3490,8 @@ if (runPcgrChunk && runPurpleChunk) {
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )
 }
 
@@ -3502,7 +3545,8 @@ if (runPcgrChunk && runPurpleChunk) {
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )
 
   ##### Generate expression summary table for per-gene expression values and CN values
@@ -3523,7 +3567,8 @@ if (runPcgrChunk && runPurpleChunk) {
     oncokb_annot = ref_genes.list[["genes_oncokb"]],
     cancer_genes = ref_genes.list[["genes_cancer"]][, c("Gene", "Oncogene", "TSG", "Fusion", "Germline")],
     scaling = scaling,
-    civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+    civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+    batch_rm = params$batch_rm
   )
 }
 
@@ -3778,7 +3823,8 @@ immune_genes.expr.perc <- RNAsum::exprTable(
   genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")],
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )[[1]]
 
 ##### Present the expression summary table
@@ -3827,7 +3873,8 @@ immune_genes.expr.z <- RNAsum::exprTable(
   genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "Immune_Cycle_Role")],
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )[[1]]
 
 ##### Present the expression summary table
@@ -3889,7 +3936,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 <font size="2">
 
-The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered **alphabetically**.
+The individual box(es) represent the `r if ( !is.null(int_cancer_group) && int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered **alphabetically**.
 
 </font>
 
@@ -3923,7 +3970,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 <font size="2">
 
-The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered **alphabetically**.
+The individual box(es) represent the `r if ( !is.null(int_cancer_group) && int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered **alphabetically**.
 
 </font>
 
@@ -4002,7 +4049,8 @@ immunogram.expr.perc <- RNAsum::exprTable(
   genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL", "CIC")],
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )[[1]]
 
 ##### Present the expression summary table
@@ -4049,7 +4097,8 @@ immunogram.expr.z <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   type = "z",
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )[[1]]
 
 ##### Present the expression summary table
@@ -4108,7 +4157,8 @@ hrd_genes.expr.perc <- RNAsum::exprTable(
   genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )
 
 ##### Present the expression summary table
@@ -4154,7 +4204,8 @@ hrd_genes.expr.z <- RNAsum::exprTable(
   genes_annot = ref_dataset.list[[dataset]][["gene_annot_all"]][, c("SYMBOL", "ENSEMBL")],
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )
 
 ##### Present the expression summary table
@@ -4216,7 +4267,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 <font size="2">
 
-The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered **alphabetically**.
+The individual box(es) represent the `r if ( !is.null(int_cancer_group) && int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered **alphabetically**.
 
 </font>
 
@@ -4250,7 +4301,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 <font size="2">
 
-The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered **alphabetically**.
+The individual box(es) represent the `r if ( !is.null(int_cancer_group) && int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered **alphabetically**.
 
 </font>
 
@@ -4300,7 +4351,8 @@ cancer_genes.expr.perc <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )
 
 ##### Present the expression summary table
@@ -4347,7 +4399,8 @@ cancer_genes.expr.z <- RNAsum::exprTable(
   oncokb_annot = ref_genes.list[["genes_oncokb"]],
   cancer_genes = ref_genes.list[["genes_cancer"]],
   scaling = scaling,
-  civic_clin_evid = ref_genes.list[["civic_clin_evid"]]
+  civic_clin_evid = ref_genes.list[["civic_clin_evid"]],
+  batch_rm = params$batch_rm
 )[[1]]
 
 ##### Present the expression summary table
@@ -4411,7 +4464,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 <font size="2">
 
-The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** comparison.
+The individual box(es) represent the `r if ( !is.null(int_cancer_group) && int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (percentile) values for each gene in the patient sample. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** comparison.
 
 </font>
 
@@ -4444,7 +4497,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 <font size="2">
 
-The individual box(es) represent the `r if ( int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** comparison.
+The individual box(es) represent the `r if ( !is.null(int_cancer_group) && int_cancer_group == comp_cancer_group ) { paste0(int_cancer_group, " and") } else { cat("") }` `r ext_cancer_group` `r if ( !is.null(add_cancer_group) ) { paste0("and ", add_cancer_group) } else { cat("") }` reference cancer cohort(s), and the **BLACK** dots indicate expression (Z-score) values for each gene in the patient sample. Genes are ordered by **decreasing** absolute values in the **Patient vs `r comp_cancer_group`** comparison.
 
 </font>
 
@@ -4528,7 +4581,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs && runFusionChunk && runSVsChunk ) { paste0("<span style=\"color:#ff0000\">**", nrow(fusions[ fusions$geneA_dna_support == "Yes" | fusions$geneB_dna_support == "Yes" , ]), "**</span> **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**", nrow(fusions[ fusions$reported_fusion == "Yes" , ]), "**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** were screened for suitable drugs.") } else if ( params$drugs && !runFusionChunk ) { paste0("<span style=\"color:#ff0000\">**0**</span> involving **DNA-supported** fusion genes (see [Structural variants] section) and <span style=\"color:#02d653\">**0**</span> gene fusions **reported in [FusionGDB](https://ccsm.uth.edu/FusionGDB)** were screened for suitable drugs.") }`
 
-```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = runFusionChunk}
+```{r drugs_predictive_fusion_genes, comment = NA, message=FALSE, warning=FALSE, eval = params$drugs}
 ##### Generate table with drugs targeting fusion genes
 if (runSVsChunk) {
   genesA <- as.vector(fusions[fusions_ann$reported_fusion == "Yes" | fusions_ann$geneA_dna_support == "Yes" | fusions_ann$geneB_dna_support == "Yes", ]$geneA)
@@ -4545,9 +4598,7 @@ drugsTable.fusion_genes <- RNAsum::civicDrugTable(
   evid_type = "Predictive", var_type = "fusion"
 )
 
-if (params$drugs) {
-  drugsTable.fusion_genes[[1]]
-}
+drugsTable.fusion_genes[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
@@ -4652,6 +4703,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { c("#### Losses") }`
 
+<<<<<<< Updated upstream
 ```{r drugs_predictive_cn_altered_genes_losses, comment = NA, message=FALSE, warning=FALSE, eval = runPurpleChunk & runPurpleLossesChunk}
 ##### Generate table with drugs targeting CN altered genes
 genes <- cn_expr_genes.expr.losses.perc[[2]]$SYMBOL
@@ -4663,9 +4715,7 @@ drugsTable.CN_altered_genes_losses <- RNAsum::civicDrugTable(
   evid_type = "Predictive", var_type = "copy_loss"
 )
 
-if (params$drugs) {
-  drugsTable.CN_altered_genes_losses[[1]]
-}
+drugsTable.CN_altered_genes_losses[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
@@ -4690,7 +4740,7 @@ cat(drugsTable_legend)
 
 `r if ( params$drugs ) { paste0("**", length(which(hrd_genes.expr.perc[[2]]$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]))), "** reliably measured [HRD genes] were screened for suitable drugs (see [HRD genes] section).") }`
 
-```{r drugs_predictive_hrd_genes, comment = NA, message=FALSE, warning=FALSE}
+```{r drugs_predictive_hrd_genes, comment = NA, message=FALSE, warning=FALSE, eval = params$drugs}
 ##### Generate table with drugs targeting mutated cancer genes
 genes <- hrd_genes.expr.perc[[2]] |>
   dplyr::filter(.data$SYMBOL %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]])) |>
@@ -4703,9 +4753,7 @@ drugsTable.hrd_genes <- RNAsum::civicDrugTable(
   evid_type = "Predictive", var_type = "mutation"
 )
 
-if (params$drugs) {
-  drugsTable.hrd_genes[[1]]
-}
+drugsTable.hrd_genes[[1]]
 
 ##### Save the expression table as html file
 if (params$save_tables) {
