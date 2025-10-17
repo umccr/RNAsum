@@ -50,6 +50,10 @@ conda install r-rnasum==X.X.X -c umccr -c conda-forge -c bioconda
 docker pull ghcr.io/umccr/rnasum:latest
 ```
 
+## Example reports
+
+https://doi.org/10.5281/zenodo.17353511
+
 ## Workflow
 
 The pipeline consists of five main components illustrated and briefly
