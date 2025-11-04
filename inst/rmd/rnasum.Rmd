@@ -2359,11 +2359,8 @@ if (runSVsChunk) {
 } else {
   fusion_annot_top <- fusions_ann[fusions_ann$reported_fusion, ]
 }
-
+msg <- "None of the transcriptome-based fusion events have supporting evidence from DNA data or was previously reported."
 if (nrow(fusion_annot_top) > 0) {
-  ##### Create folder for fusion plots
-  fusionsPlotDir <- file.path(results_dir, "fusionsPlot")
-  fs::dir_create(fusionsPlotDir)
   cyto.info <- RNAsum::rcircos_cyto_info38()
   fusion_annot_top.circos.pairs <- fusion_annot_top |>
     dplyr::select(
@@ -2382,29 +2379,37 @@ if (nrow(fusion_annot_top) > 0) {
     ) |>
     tidyr::drop_na() |>
     as.data.frame()
-  colnames(fusion_annot_top.circos.pairs) <- sub("(.*).gene[AB]", "\\1", colnames(fusion_annot_top.circos.pairs))
-  colnames(fusion_annot_top.circos.pairs) <- sub("SEQNAME", "Chromosome", colnames(fusion_annot_top.circos.pairs))
-  colnames(fusion_annot_top.circos.pairs) <- sub("GENESEQSTART", "chromStart", colnames(fusion_annot_top.circos.pairs))
-  colnames(fusion_annot_top.circos.pairs) <- sub("GENESEQEND", "chromEnd", colnames(fusion_annot_top.circos.pairs))
-  fusion_annot_top.circos <- rbind(
-    fusion_annot_top.circos.pairs[, 1:4],
-    fusion_annot_top.circos.pairs[, 5:8]
-  ) |> as.data.frame()
-  fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[, !colnames(fusion_annot_top.circos.pairs) == "Gene"]
+  if (nrow(fusion_annot_top.circos.pairs) > 0) {
+    colnames(fusion_annot_top.circos.pairs) <- sub("(.*).gene[AB]", "\\1", colnames(fusion_annot_top.circos.pairs))
+    colnames(fusion_annot_top.circos.pairs) <- sub("SEQNAME", "Chromosome", colnames(fusion_annot_top.circos.pairs))
+    colnames(fusion_annot_top.circos.pairs) <- sub("GENESEQSTART", "chromStart", colnames(fusion_annot_top.circos.pairs))
+    colnames(fusion_annot_top.circos.pairs) <- sub("GENESEQEND", "chromEnd", colnames(fusion_annot_top.circos.pairs))
+    fusion_annot_top.circos <- rbind(
+      fusion_annot_top.circos.pairs[, 1:4],
+      fusion_annot_top.circos.pairs[, 5:8]
+    ) |> as.data.frame()
+    fusion_annot_top.circos.pairs <- fusion_annot_top.circos.pairs[, !colnames(fusion_annot_top.circos.pairs) == "Gene"]
 
-  ##### Generate circos for viewing in HTML report
-  RNAsum::rcircos_plot(
-    df_circos = fusion_annot_top.circos, df_circos_pairs = fusion_annot_top.circos.pairs, cyto.info = cyto.info
-  )
-  ##### Generate and save circos into a png file
-  png(filename = file.path(fusionsPlotDir, "circosPlot.png"), width = 800, height = 800, units = "px", pointsize = 24)
-  RNAsum::rcircos_plot(
-    df_circos = fusion_annot_top.circos, df_circos_pairs = fusion_annot_top.circos.pairs, cyto.info = cyto.info
-  )
-  invisible(dev.off())
-  rm(fusion_annot_top.circos, fusion_annot_top.circos.pairs)
+    ##### Generate circos for viewing in HTML report
+    RNAsum::rcircos_plot(
+      df_circos = fusion_annot_top.circos, df_circos_pairs = fusion_annot_top.circos.pairs, cyto.info = cyto.info
+    )
+    ##### Create folder for fusion plots
+    fusionsPlotDir <- file.path(results_dir, "fusionsPlot")
+    fs::dir_create(fusionsPlotDir)
+    ##### Generate and save circos into a png file
+    png(filename = file.path(fusionsPlotDir, "circosPlot.png"), width = 800, height = 800, units = "px", pointsize = 24)
+    RNAsum::rcircos_plot(
+      df_circos = fusion_annot_top.circos, df_circos_pairs = fusion_annot_top.circos.pairs, cyto.info = cyto.info
+    )
+    invisible(dev.off())
+    rm(fusion_annot_top.circos, fusion_annot_top.circos.pairs)
+  } else {
+    rm(fusion_annot_top.circos.pairs)
+    cat(msg)
+  }
 } else {
-  cat("None of the transcriptome-based fusion events have supporting evidence from DNA data or was previously reported.")
+  cat(msg)
 }
 ```
 
