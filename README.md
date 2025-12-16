@@ -1,6 +1,11 @@
 
 - [RNAsum](#rnasum)
   - [Installation](#installation)
+    - [1. System Dependencies
+      (Prerequisites)](#1-system-dependencies-prerequisites)
+    - [2. Install R Package](#2-install-r-package)
+    - [Alternative Installation
+      Methods](#alternative-installation-methods)
   - [Workflow](#workflow)
   - [Reference data](#reference-data)
     - [External reference cohorts](#external-reference-cohorts)
@@ -29,12 +34,60 @@ findings and to provide additional evidence for detected alterations.
 - **R** package can be installed directly from the [GitHub
   source](https://github.com/umccr/RNAsum):
 
+### 1. System Dependencies (Prerequisites)
+
+`RNAsum` depends on `pdftools`, which requires system-level libraries
+(poppler, cairo, etc.) to be installed before installing the R package.
+
+**For Linux (Ubuntu/Debian):**
+
+``` bash
+sudo apt-get install libpoppler-cpp-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libcairo2-dev libpango1.0-dev
+```
+
+**For macOS:**
+
+``` bash
+brew install poppler
+```
+
+**For Conda / HPC Environments** If you do not have root access (e.g.,
+on a cluster), creating a fresh Conda environment is the most reliable
+way to provide necessary system libraries:
+
+``` bash
+# Create a dedicated environment with R and system libraries
+conda create -n rnasum_env -c conda-forge -c bioconda \
+  r-base=4.3 \
+  poppler harfbuzz fribidi freetype pkg-config cairo openssl pango make gxx_linux-64
+
+# Activate the environment
+conda activate rnasum_env
+```
+
+### 2. Install R Package
+
+Once system dependencies are met, you can install the package directly
+from GitHub.
+
+**Note**: The reference data package (RNAsum.data) is large. It is
+recommended to increase the download timeout limit before installation.
+
 ``` r
+# 1. Increase timeout to prevent download failure for RNAsum.data
+options(timeout = 600)
+
+# 2. Install via remotes
+# (This will automatically resolve CRAN, Bioconductor, and GitHub dependencies)
+if (!require("remotes")) install.packages("remotes")
+
 remotes::install_github("umccr/RNAsum") # latest main commit
 remotes::install_github("umccr/RNAsum@v0.0.X") # version 0.0.X
 remotes::install_github("umccr/RNAsum@abcde") # commit abcde
 remotes::install_github("umccr/RNAsum#123") # PR 123
 ```
+
+### Alternative Installation Methods
 
 - **Conda** package is available from the Anaconda [umccr
   channel](https://anaconda.org/umccr/r-rnasum):
@@ -49,7 +102,6 @@ conda install r-rnasum==X.X.X -c umccr -c conda-forge -c bioconda
 ``` bash
 docker pull ghcr.io/umccr/rnasum:latest
 ```
-
 ## Example reports
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1234567.svg)](https://doi.org/10.5281/zenodo.17353511)
@@ -60,12 +112,12 @@ The pipeline consists of five main components illustrated and briefly
 described below. For more details, see
 [workflow.md](./inst/articles/workflow.md).
 
-<img src="man/figures/RNAsum_workflow_updated.png" width="100%">
+<img src="man/figures/RNAsum_workflow_updated.png" width="100%"/>
 
 1.  Collect patient **WTS data** from the [DRAGEN
     RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)
     pipeline including per-gene read counts and gene fusions.
-2.  Add expression data from **[reference cohorts](#reference-data)** to
+2.  Add expression data from [**reference cohorts**](#reference-data) to
     get an idea about the expression levels of genes of interest in
     other cancer patient cohorts. The read counts are normalised,
     transformed and converted into a scale that allows to present the
@@ -104,12 +156,12 @@ Depending on the tissue from which the patient’s sample was taken, one
 of **33 cancer datasets** from TCGA can be used as a reference cohort
 for comparing expression changes in genes of interest of the patient.
 Additionally, 10 samples from each of the 33 TCGA datasets were combined
-to create the **[Pan-Cancer
-dataset](./inst/articles/tcga_projects_summary.md#pan-cancer-dataset)**,
-and for some cohorts **[extended
-sets](./inst/articles/tcga_projects_summary.md#extended-datasets)** are
-also available. All available datasets are listed in the **[TCGA
-projects summary table](./inst/articles/tcga_projects_summary.md)**.
+to create the [**Pan-Cancer
+dataset**](./inst/articles/tcga_projects_summary.md#pan-cancer-dataset),
+and for some cohorts [**extended
+sets**](./inst/articles/tcga_projects_summary.md#extended-datasets) are
+also available. All available datasets are listed in the [**TCGA
+projects summary table**](./inst/articles/tcga_projects_summary.md).
 These datasets have been processed using methods described in the
 [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data)
 repository. The dataset of interest can be specified by using one of the
@@ -130,7 +182,7 @@ pre-processing](./inst/articles/workflow.md#data-processing)).
 
 This internal reference set of **40 pancreatic cancer samples** is based
 on WTS data generated at
-**[UMCCR](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)**
+[**UMCCR**](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)
 and processed with the **bcbio-nextgen RNA-seq** pipeline to minimise
 potential batch effects between investigated samples and the reference
 cohort and to make sure the data are comparable. The internal reference
@@ -200,124 +252,129 @@ rnasum_cli=$(Rscript -e 'x = system.file("cli", package = "RNAsum"); cat(x, "\n"
 export PATH="${rnasum_cli}:${PATH}"
 ```
 
-    $ rnasum.R --version
-    1.1.5 
+``` bash
+$ RNAsum --version
+2.0.0
 
-    $ rnasum.R --help
-    Usage
-    =====
-     
-    /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
+$ RNAsum --help
+Usage
+=====
+ 
+/Users/jiajunzhan/Library/R/arm64/4.5/library/RNAsum/cli/rnasum.R [options]
 
 
-    Options
-    =======
-    --arriba_dir=ARRIBA_DIR
-            Directory path to Arriba results containing fusions.pdf and fusions.tsv.
+Options
+=======
+--arriba_dir=ARRIBA_DIR
+                Directory path to Arriba results containing fusions.pdf and fusions.tsv.
 
-    --arriba_pdf=ARRIBA_PDF
-            File path of Arriba PDF output.
+--arriba_pdf=ARRIBA_PDF
+                File path of Arriba PDF output.
 
-    --arriba_tsv=ARRIBA_TSV
-            File path of Arriba TSV output.
+--arriba_tsv=ARRIBA_TSV
+                File path of Arriba TSV output.
 
-    --batch_rm
-            Remove batch-associated effects between datasets.
+--batch_rm
+                Remove batch-associated effects between datasets.
 
-    --cn_gain=CN_GAIN
-            CN threshold value to classify genes within gained regions. [def: 95]
+--cn_gain=CN_GAIN
+                CN threshold value to classify genes within gained regions. [def: 95]
 
-    --cn_loss=CN_LOSS
-            CN threshold value to classify genes within lost regions. [def: 5]
+--cn_loss=CN_LOSS
+                CN threshold value to classify genes within lost regions. [def: 5]
 
-    --dataset=DATASET
-            Dataset to be used as external reference cohort. [def: PANCAN]
+--dataset=DATASET
+                Dataset to be used as external reference cohort. [def: PANCAN]
 
-    --dataset_name_incl
-            Include dataset in report name.
+--dataset_name_incl
+                Include dataset in report name.
 
-    --dragen_fusions=DRAGEN_FUSIONS
-            File path to DRAGEN RNA-seq 'fusion_candidates.final' output.
+--dragen_fusions=DRAGEN_FUSIONS
+                File path to DRAGEN RNA-seq 'fusion_candidates.final' output.
 
-    --dragen_mapping_metrics=DRAGEN_MAPPING_METRICS
-            File path to DRAGEN RNA-seq 'mapping_metrics.csv' output.
+--dragen_mapping_metrics=DRAGEN_MAPPING_METRICS
+                File path to DRAGEN RNA-seq 'mapping_metrics.csv' output.
 
-    --dragen_wts_dir=DRAGEN_WTS_DIR
-            Directory path to DRAGEN RNA-seq results.
+--dragen_wts_dir=DRAGEN_WTS_DIR
+                Directory path to DRAGEN RNA-seq results.
 
-    --drugs
-            Include drug matching section in report.
+--drugs
+                Include drug matching section in report.
 
-    --filter
-            Filter out low expressed genes.
+--filter
+                Filter out low expressed genes.
 
-    --immunogram
-            Include immunogram in report.
+--immunogram
+                Include immunogram in report.
 
-    --log
-            Log2 transform data before normalisation.
+--log
+                Log2 transform data before normalisation.
 
-    --norm=NORM
-            Normalisation method.
+--norm=NORM
+                Normalisation method.
 
-    --pcgr_splice_vars
-            Include non-coding splice region variants reported in PCGR.
+--pcgr_splice_vars
+                Include non-coding splice region variants reported in PCGR.
 
-    --pcgr_tier=PCGR_TIER
-            Tier threshold for reporting variants reported in PCGR. [def: 4]
+--pcgr_tier=PCGR_TIER
+                Tier threshold for reporting variants reported in PCGR. [def: 4]
 
-    --pcgr_tiers_tsv=PCGR_TIERS_TSV
-            File path to PCGR 'snvs_indels.tiers.tsv' output.
+--pcgr_tiers_tsv=PCGR_TIERS_TSV
+                File path to PCGR 'snvs_indels.tiers.tsv' output.
 
-    --project=PROJECT
-            Project name, used for annotation purposes only.
+--project=PROJECT
+                Project name, used for annotation purposes only.
 
-    --purple_gene_tsv=PURPLE_GENE_TSV
-            File path to PURPLE 'purple.cnv.gene.tsv' output.
+--purple_gene_tsv=PURPLE_GENE_TSV
+                File path to PURPLE 'purple.cnv.gene.tsv' output.
 
-    --report_dir=REPORT_DIR
-            Directory path to output report.
+--report_dir=REPORT_DIR
+                Directory path to output report.
 
-    --salmon=SALMON
-            File path to salmon 'quant.genes.sf' output.
+--salmon=SALMON
+                File path to salmon 'quant.genes.sf' output.
 
-    --sample_name=SAMPLE_NAME
-            Sample name to be presented in report.
+--kallisto=KALLISTO
+                File path to kallisto 'abundance.tsv' output.
 
-    --sample_source=SAMPLE_SOURCE
-            Type of investigated sample. [def: -]
+--sample_name=SAMPLE_NAME
+                Sample name to be presented in report.
 
-    --save_tables
-            Save interactive summary tables as HTML.
+--sample_source=SAMPLE_SOURCE
+                Type of investigated sample. [def: -]
 
-    --scaling=SCALING
-            Scaling for z-score transformation (gene-wise or group-wise). [def: gene-wise]
+--save_tables
+                Save interactive summary tables as HTML.
 
-    --subject_id=SUBJECT_ID
-            Subject ID.
+--scaling=SCALING
+                Scaling for z-score transformation (gene-wise or group-wise). [def: gene-wise]
 
-    --sv_tsv=SV_TSV
-            File path to text file with genes related to structural variation.
+--subject_id=SUBJECT_ID
+                Subject ID.
 
-    --top_genes=TOP_GENES
-            Number of top ranked genes to be presented in report.
+--sv_tsv=SV_TSV
+                File path to text file with genes related to structural variation.
 
-    --transform=TRANSFORM
-            Transformation method to be used when converting read counts. [def: CPM]
+--top_genes=TOP_GENES
+                Number of top ranked genes to be presented in report.
 
-    --umccrise=UMCCRISE
-            Directory path of the corresponding WGS-related umccrise data.
+--transform=TRANSFORM
+                Transformation method to be used when converting read counts. [def: CPM]
 
-    --version, -v
-            Print RNAsum version and exit.
+--umccrise=UMCCRISE
+                Directory path of the corresponding WGS-related umccrise data.
 
-    --help, -h
-            Show this help message and exit
+--version, -v
+                Print RNAsum version and exit.
+
+--help, -h
+                Show this help message and exit
+```
 
 **Note**
 
 Human reference genome
-***[GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)***
+[***GRCh38***](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)
 (*Ensembl* based annotation version ***105***) is used for gene
 annotation by default. GRCh37 is no longer supported.
 
@@ -369,7 +426,7 @@ The HTML report `test_sample_WTS.RNAsum.html` will be created in the
 
 In this scenario, only [WTS](#wts) data will be used and only expression
 levels of key
-**[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**,
+[**`Cancer genes`**](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes),
 **`Fusion genes`**, **`Immune markers`** and homologous recombination
 deficiency genes (**`HRD genes`**) will be reported. Moreover, gene
 fusions reported in the `Fusion genes` report section will not contain
@@ -422,7 +479,7 @@ folder.
 ### Output
 
 The pipeline generates a HTML ***Patient Transcriptome Summary***
-**[report](#report)** and a [results](#results) folder:
+[**report**](#report) and a [results](#results) folder:
 
 ``` text
 |
