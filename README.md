@@ -45,9 +45,8 @@ brew install poppler
 
 **For Conda / HPC Environments**
 If you do not have root access (e.g., on a cluster), creating a fresh Conda environment is the most reliable way to provide necessary system libraries:
-
-# Create a dedicated environment with R and system libraries
 ```bash
+# Create a dedicated environment with R and system libraries
 conda create -n rnasum_env -c conda-forge -c bioconda \
   r-base=4.3 \
   poppler harfbuzz fribidi freetype pkg-config cairo pango make gxx_linux-64
