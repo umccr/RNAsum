@@ -49,7 +49,7 @@ If you do not have root access (e.g., on a cluster), creating a fresh Conda envi
 # Create a dedicated environment with R and system libraries
 conda create -n rnasum_env -c conda-forge -c bioconda \
   r-base=4.3 \
-  poppler harfbuzz fribidi freetype pkg-config cairo pango make gxx_linux-64
+  poppler harfbuzz fribidi freetype pkg-config cairo openssl pango make gxx_linux-64
 
 # Activate the environment
 conda activate rnasum_env
