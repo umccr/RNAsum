@@ -29,13 +29,55 @@ findings and to provide additional evidence for detected alterations.
 - **R** package can be installed directly from the [GitHub
   source](https://github.com/umccr/RNAsum):
 
+### 1. System Dependencies (Prerequisites)
+
+`RNAsum` depends on `pdftools`, which requires system-level libraries (poppler, cairo, etc.) to be installed before installing the R package.
+
+**For Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get install libpoppler-cpp-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libcairo2-dev libpango1.0-dev
+```
+
+**For macOS:**
+```bash
+brew install poppler
+```
+
+**For Conda / HPC Environments**
+If you do not have root access (e.g., on a cluster), creating a fresh Conda environment is the most reliable way to provide necessary system libraries:
+
+# Create a dedicated environment with R and system libraries
+```bash
+conda create -n rnasum_env -c conda-forge -c bioconda \
+  r-base=4.3 \
+  poppler harfbuzz fribidi freetype pkg-config cairo pango make gxx_linux-64
+
+# Activate the environment
+conda activate rnasum_env
+```
+
+
+### 2. Install R Package
+Once system dependencies are met, you can install the package directly from GitHub.
+
+**Note**: The reference data package (RNAsum.data) is large. It is recommended to increase the download timeout limit before installation.
+
+
 ``` r
+# 1. Increase timeout to prevent download failure for RNAsum.data
+options(timeout = 600)
+
+# 2. Install via remotes
+# (This will automatically resolve CRAN, Bioconductor, and GitHub dependencies)
+if (!require("remotes")) install.packages("remotes")
+
 remotes::install_github("umccr/RNAsum") # latest main commit
 remotes::install_github("umccr/RNAsum@v0.0.X") # version 0.0.X
 remotes::install_github("umccr/RNAsum@abcde") # commit abcde
 remotes::install_github("umccr/RNAsum#123") # PR 123
 ```
 
+### Alternative Installation Methods
 - **Conda** package is available from the Anaconda [umccr
   channel](https://anaconda.org/umccr/r-rnasum):
 
