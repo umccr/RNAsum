@@ -1,6 +1,11 @@
 
 - [RNAsum](#rnasum)
   - [Installation](#installation)
+    - [1. System Dependencies
+      (Prerequisites)](#1-system-dependencies-prerequisites)
+    - [2. Install R Package](#2-install-r-package)
+    - [Alternative Installation
+      Methods](#alternative-installation-methods)
   - [Workflow](#workflow)
   - [Reference data](#reference-data)
     - [External reference cohorts](#external-reference-cohorts)
@@ -31,21 +36,26 @@ findings and to provide additional evidence for detected alterations.
 
 ### 1. System Dependencies (Prerequisites)
 
-`RNAsum` depends on `pdftools`, which requires system-level libraries (poppler, cairo, etc.) to be installed before installing the R package.
+`RNAsum` depends on `pdftools`, which requires system-level libraries
+(poppler, cairo, etc.) to be installed before installing the R package.
 
 **For Linux (Ubuntu/Debian):**
-```bash
+
+``` bash
 sudo apt-get install libpoppler-cpp-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libcairo2-dev libpango1.0-dev
 ```
 
 **For macOS:**
-```bash
+
+``` bash
 brew install poppler
 ```
 
-**For Conda / HPC Environments**
-If you do not have root access (e.g., on a cluster), creating a fresh Conda environment is the most reliable way to provide necessary system libraries:
-```bash
+**For Conda / HPC Environments** If you do not have root access (e.g.,
+on a cluster), creating a fresh Conda environment is the most reliable
+way to provide necessary system libraries:
+
+``` bash
 # Create a dedicated environment with R and system libraries
 conda create -n rnasum_env -c conda-forge -c bioconda \
   r-base=4.3 \
@@ -55,12 +65,13 @@ conda create -n rnasum_env -c conda-forge -c bioconda \
 conda activate rnasum_env
 ```
 
-
 ### 2. Install R Package
-Once system dependencies are met, you can install the package directly from GitHub.
 
-**Note**: The reference data package (RNAsum.data) is large. It is recommended to increase the download timeout limit before installation.
+Once system dependencies are met, you can install the package directly
+from GitHub.
 
+**Note**: The reference data package (RNAsum.data) is large. It is
+recommended to increase the download timeout limit before installation.
 
 ``` r
 # 1. Increase timeout to prevent download failure for RNAsum.data
@@ -77,6 +88,7 @@ remotes::install_github("umccr/RNAsum#123") # PR 123
 ```
 
 ### Alternative Installation Methods
+
 - **Conda** package is available from the Anaconda [umccr
   channel](https://anaconda.org/umccr/r-rnasum):
 
@@ -90,10 +102,6 @@ conda install r-rnasum==X.X.X -c umccr -c conda-forge -c bioconda
 ``` bash
 docker pull ghcr.io/umccr/rnasum:latest
 ```
-
-## Example reports
-
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1234567.svg)](https://doi.org/10.5281/zenodo.17353511)
 
 ## Workflow
 
@@ -242,118 +250,10 @@ export PATH="${rnasum_cli}:${PATH}"
 ```
 
     $ rnasum.R --version
-    1.1.5 
+    bash: line 4: rnasum.R: command not found
 
     $ rnasum.R --help
-    Usage
-    =====
-     
-    /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
-
-
-    Options
-    =======
-    --arriba_dir=ARRIBA_DIR
-            Directory path to Arriba results containing fusions.pdf and fusions.tsv.
-
-    --arriba_pdf=ARRIBA_PDF
-            File path of Arriba PDF output.
-
-    --arriba_tsv=ARRIBA_TSV
-            File path of Arriba TSV output.
-
-    --batch_rm
-            Remove batch-associated effects between datasets.
-
-    --cn_gain=CN_GAIN
-            CN threshold value to classify genes within gained regions. [def: 95]
-
-    --cn_loss=CN_LOSS
-            CN threshold value to classify genes within lost regions. [def: 5]
-
-    --dataset=DATASET
-            Dataset to be used as external reference cohort. [def: PANCAN]
-
-    --dataset_name_incl
-            Include dataset in report name.
-
-    --dragen_fusions=DRAGEN_FUSIONS
-            File path to DRAGEN RNA-seq 'fusion_candidates.final' output.
-
-    --dragen_mapping_metrics=DRAGEN_MAPPING_METRICS
-            File path to DRAGEN RNA-seq 'mapping_metrics.csv' output.
-
-    --dragen_wts_dir=DRAGEN_WTS_DIR
-            Directory path to DRAGEN RNA-seq results.
-
-    --drugs
-            Include drug matching section in report.
-
-    --filter
-            Filter out low expressed genes.
-
-    --immunogram
-            Include immunogram in report.
-
-    --log
-            Log2 transform data before normalisation.
-
-    --norm=NORM
-            Normalisation method.
-
-    --pcgr_splice_vars
-            Include non-coding splice region variants reported in PCGR.
-
-    --pcgr_tier=PCGR_TIER
-            Tier threshold for reporting variants reported in PCGR. [def: 4]
-
-    --pcgr_tiers_tsv=PCGR_TIERS_TSV
-            File path to PCGR 'snvs_indels.tiers.tsv' output.
-
-    --project=PROJECT
-            Project name, used for annotation purposes only.
-
-    --purple_gene_tsv=PURPLE_GENE_TSV
-            File path to PURPLE 'purple.cnv.gene.tsv' output.
-
-    --report_dir=REPORT_DIR
-            Directory path to output report.
-
-    --salmon=SALMON
-            File path to salmon 'quant.genes.sf' output.
-
-    --sample_name=SAMPLE_NAME
-            Sample name to be presented in report.
-
-    --sample_source=SAMPLE_SOURCE
-            Type of investigated sample. [def: -]
-
-    --save_tables
-            Save interactive summary tables as HTML.
-
-    --scaling=SCALING
-            Scaling for z-score transformation (gene-wise or group-wise). [def: gene-wise]
-
-    --subject_id=SUBJECT_ID
-            Subject ID.
-
-    --sv_tsv=SV_TSV
-            File path to text file with genes related to structural variation.
-
-    --top_genes=TOP_GENES
-            Number of top ranked genes to be presented in report.
-
-    --transform=TRANSFORM
-            Transformation method to be used when converting read counts. [def: CPM]
-
-    --umccrise=UMCCRISE
-            Directory path of the corresponding WGS-related umccrise data.
-
-    --version, -v
-            Print RNAsum version and exit.
-
-    --help, -h
-            Show this help message and exit
+    bash: line 7: rnasum.R: command not found
 
 **Note**
 
@@ -374,7 +274,7 @@ different data availability scenarios:
 **Note**
 
 - Example data is provided in the `/inst/rawdata/test_data` folder of
-  the GitHub [repo](https://github.com/umccr/RNAsum).
+  the GitHub \[repo\]\[rnasum-gh\].
 - The `RNAsum` runtime should be less than **15 minutes** using **16GB
   RAM** memory and **1 CPU**.
 
