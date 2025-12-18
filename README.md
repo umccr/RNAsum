@@ -253,14 +253,14 @@ export PATH="${rnasum_cli}:${PATH}"
 ```
 
 ``` bash
-$ RNAsum --version
+$ rnasum.R --version
 2.0.0
 
-$ RNAsum --help
+$ rnasum.R --help
 Usage
 =====
  
-/Users/jiajunzhan/Library/R/arm64/4.5/library/RNAsum/cli/rnasum.R [options]
+rnasum.R [options]
 
 
 Options
