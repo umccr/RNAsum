@@ -248,8 +248,9 @@ The table below lists all input data accepted in `RNAsum`:
 ## Usage
 
 ``` bash
-rnasum_cli=$(Rscript -e 'x = system.file("cli", package = "RNAsum"); cat(x, "\n")' | xargs)
-export PATH="${rnasum_cli}:${PATH}"
+rnasum_cli=$(Rscript -e 'cat(system.file("cli", package="RNAsum"))')
+ln -sf "$rnasum_cli/rnasum.R" "$rnasum_cli/RNAsum"
+export PATH="$rnasum_cli:$PATH"
 ```
 
 ``` bash
@@ -260,7 +261,7 @@ $ RNAsum --help
 Usage
 =====
  
-/Users/jiajunzhan/Library/R/arm64/4.5/library/RNAsum/cli/rnasum.R [options]
+RNAsum [options]
 
 
 Options
@@ -410,7 +411,7 @@ genome-based data. A subset of the TCGA pancreatic adenocarcinoma
 dataset is used as reference cohort (`--dataset TEST`).
 
 ``` bash
-rnasum.R \
+RNAsum \
   --sample_name test_sample_WTS \
   --dataset TEST \
   --dragen_wts_dir inst/rawdata/test_data/dragen \
@@ -435,7 +436,7 @@ pancreatic adenocarcinoma dataset is used as the reference cohort
 (`--dataset TEST`).
 
 ``` bash
-rnasum.R \
+RNAsum \
   --sample_name test_sample_WTS \
   --dataset TEST \
   --dragen_wts_dir inst/rawdata/test_data/dragen \
@@ -461,7 +462,7 @@ corresponding treatments. A subset of the TCGA pancreatic adenocarcinoma
 dataset is used as the reference cohort (`--dataset TEST`).
 
 ``` bash
-rnasum.R \
+RNAsum \
   --sample_name test_sample_WTS \
   --dataset TEST \
   --dragen_wts_dir $(pwd)/../rawdata/test_data/dragen \
