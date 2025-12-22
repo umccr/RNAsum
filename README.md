@@ -222,11 +222,11 @@ export PATH="$rnasum_cli:$PATH"
 &#10;--filter: Filter out low expressed genes
 &#10;--immunogram: Include immunogram in report
 &#10;--log: Log2 transform data before normalisation
-&#10;--norm=: Normalisation method
+&#10;--norm: Normalisation method
 &#10;--pcgr_splice_vars: Include non-coding splice region variants reported in PCGR
 &#10;--pcgr_tier: Tier threshold for reporting variants reported in PCGR [def: 4]
 &#10;--pcgr_tiers_tsv: File path to PCGR 'snvs_indels.tiers.tsv' output
-&#10;--project=: Project name, used for annotation purposes only
+&#10;--project: Project name, used for annotation purposes only
 &#10;--purple_gene_tsv: File path to PURPLE 'purple.cnv.gene.tsv' output
 &#10;--report_dir: Directory path to output report
 &#10;--salmon: File path to salmon 'quant.genes.sf' output
