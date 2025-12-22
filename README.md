@@ -203,40 +203,46 @@ export PATH="$rnasum_cli:$PATH"
 
 <summary>
 
-Options
+<strong>Options</strong>
 </summary>
 
-–arriba_dir: Directory path to Arriba results containing fusions.pdf and
-fusions.tsv –arriba_pdf: File path of Arriba PDF output –arriba_tsv:
-File path of Arriba TSV output –batch_rm: Remove batch-associated
-effects between datasets –cn_gain: CN threshold value to classify genes
-within gained regions \[def: 95\] –cn_loss: CN threshold value to
-classify genes within lost regions \[def: 5\] –dataset: Dataset to be
-used as external reference cohort \[def: PANCAN\] –dataset_name_incl:
-Include dataset in report name –dragen_fusions: File path to DRAGEN
-RNA-seq ‘fusion_candidates.final’ output –dragen_mapping_metrics: File
-path to DRAGEN RNA-seq ‘mapping_metrics.csv’ output –dragen_wts_dir:
-Directory path to DRAGEN RNA-seq results –drugs: Include drug matching
-section in report –filter: Filter out low expressed genes –immunogram:
-Include immunogram in report –log: Log2 transform data before
-normalisation –norm=: Normalisation method –pcgr_splice_vars: Include
-non-coding splice region variants reported in PCGR –pcgr_tier: Tier
-threshold for reporting variants reported in PCGR \[def: 4\]
-–pcgr_tiers_tsv: File path to PCGR ‘snvs_indels.tiers.tsv’ output
-–project=: Project name, used for annotation purposes only
-–purple_gene_tsv: File path to PURPLE ‘purple.cnv.gene.tsv’ output
-–report_dir: Directory path to output report –salmon: File path to
-salmon ‘quant.genes.sf’ output –kallisto: File path to kallisto
-‘abundance.tsv’ output –sample_name: Sample name to be presented in
-report –sample_source: Type of investigated sample \[def: -\]
-–save_tables: Save interactive summary tables as HTML –scaling: Scaling
-for z-score transformation (gene-wise or group-wise) \[def: gene-wise\]
-–subject_id: Subject ID –sv_tsv: File path to text file with genes
-related to structural variation –top_genes: Number of top ranked genes
-to be presented in report –transform: Transformation method to be used
-when converting read counts \[def: CPM\] –umccrise: Directory path of
-the corresponding WGS-related umccrise data –version, -v: Print RNAsum
-version and exit –help, -h: Show this help message and exit
+<pre><code>
+&#10;--arriba_dir: Directory path to Arriba results containing fusions.pdf and fusions.tsv
+&#10;--arriba_pdf: File path of Arriba PDF output
+&#10;--arriba_tsv: File path of Arriba TSV output
+&#10;--batch_rm: Remove batch-associated effects between datasets
+&#10;--cn_gain: CN threshold value to classify genes within gained regions [def: 95]
+&#10;--cn_loss: CN threshold value to classify genes within lost regions [def: 5]
+&#10;--dataset: Dataset to be used as external reference cohort [def: PANCAN]
+&#10;--dataset_name_incl: Include dataset in report name
+&#10;--dragen_fusions: File path to DRAGEN RNA-seq 'fusion_candidates.final' output
+&#10;--dragen_mapping_metrics: File path to DRAGEN RNA-seq 'mapping_metrics.csv' output
+&#10;--dragen_wts_dir: Directory path to DRAGEN RNA-seq results
+&#10;--drugs: Include drug matching section in report
+&#10;--filter: Filter out low expressed genes
+&#10;--immunogram: Include immunogram in report
+&#10;--log: Log2 transform data before normalisation
+&#10;--norm=: Normalisation method
+&#10;--pcgr_splice_vars: Include non-coding splice region variants reported in PCGR
+&#10;--pcgr_tier: Tier threshold for reporting variants reported in PCGR [def: 4]
+&#10;--pcgr_tiers_tsv: File path to PCGR 'snvs_indels.tiers.tsv' output
+&#10;--project=: Project name, used for annotation purposes only
+&#10;--purple_gene_tsv: File path to PURPLE 'purple.cnv.gene.tsv' output
+&#10;--report_dir: Directory path to output report
+&#10;--salmon: File path to salmon 'quant.genes.sf' output
+&#10;--kallisto: File path to kallisto 'abundance.tsv' output
+&#10;--sample_name: Sample name to be presented in report
+&#10;--sample_source: Type of investigated sample [def: -]
+&#10;--save_tables: Save interactive summary tables as HTML
+&#10;--scaling: Scaling for z-score transformation (gene-wise or group-wise) [def: gene-wise]
+&#10;--subject_id: Subject ID
+&#10;--sv_tsv: File path to text file with genes related to structural variation
+&#10;--top_genes: Number of top ranked genes to be presented in report
+&#10;--transform: Transformation method to be used when converting read counts [def: CPM]
+&#10;--umccrise: Directory path of the corresponding WGS-related umccrise data
+&#10;--version, -v: Print RNAsum version and exit
+&#10;--help, -h: Show this help message and exit
+</code></pre>
 
 </details>
 
