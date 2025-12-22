@@ -189,14 +189,56 @@ repository.
 ## Usage
 
 ``` bash
-rnasum_cli=$(Rscript -e 'x = system.file("cli", package = "RNAsum"); cat(x, "\n")' | xargs)
-export PATH="${rnasum_cli}:${PATH}"
+rnasum_cli=$(Rscript -e 'cat(system.file("cli", package="RNAsum"))')
+ln -sf "$rnasum_cli/rnasum.R" "$rnasum_cli/RNAsum"
+export PATH="$rnasum_cli:$PATH"
 ```
 
-    $ rnasum.R --version
+    $ rnasum --version
     2.0.0 
 
-    $ rnasum.R --help
+    $ rnasum --help
+
+<details>
+
+<summary>
+
+Options
+</summary>
+
+–arriba_dir: Directory path to Arriba results containing fusions.pdf and
+fusions.tsv –arriba_pdf: File path of Arriba PDF output –arriba_tsv:
+File path of Arriba TSV output –batch_rm: Remove batch-associated
+effects between datasets –cn_gain: CN threshold value to classify genes
+within gained regions \[def: 95\] –cn_loss: CN threshold value to
+classify genes within lost regions \[def: 5\] –dataset: Dataset to be
+used as external reference cohort \[def: PANCAN\] –dataset_name_incl:
+Include dataset in report name –dragen_fusions: File path to DRAGEN
+RNA-seq ‘fusion_candidates.final’ output –dragen_mapping_metrics: File
+path to DRAGEN RNA-seq ‘mapping_metrics.csv’ output –dragen_wts_dir:
+Directory path to DRAGEN RNA-seq results –drugs: Include drug matching
+section in report –filter: Filter out low expressed genes –immunogram:
+Include immunogram in report –log: Log2 transform data before
+normalisation –norm=: Normalisation method –pcgr_splice_vars: Include
+non-coding splice region variants reported in PCGR –pcgr_tier: Tier
+threshold for reporting variants reported in PCGR \[def: 4\]
+–pcgr_tiers_tsv: File path to PCGR ‘snvs_indels.tiers.tsv’ output
+–project=: Project name, used for annotation purposes only
+–purple_gene_tsv: File path to PURPLE ‘purple.cnv.gene.tsv’ output
+–report_dir: Directory path to output report –salmon: File path to
+salmon ‘quant.genes.sf’ output –kallisto: File path to kallisto
+‘abundance.tsv’ output –sample_name: Sample name to be presented in
+report –sample_source: Type of investigated sample \[def: -\]
+–save_tables: Save interactive summary tables as HTML –scaling: Scaling
+for z-score transformation (gene-wise or group-wise) \[def: gene-wise\]
+–subject_id: Subject ID –sv_tsv: File path to text file with genes
+related to structural variation –top_genes: Number of top ranked genes
+to be presented in report –transform: Transformation method to be used
+when converting read counts \[def: CPM\] –umccrise: Directory path of
+the corresponding WGS-related umccrise data –version, -v: Print RNAsum
+version and exit –help, -h: Show this help message and exit
+
+</details>
 
 **Note**
 
@@ -212,7 +254,6 @@ different data availability scenarios:
 
 1.  [WTS and WGS data](#1-wts-and-wgs-data)
 2.  [WTS data only](#2-wts-data-only)
-3.  [WTS WGS and clinical data](#3-wts-wgs-and-clinical-data)
 
 **Note**
 
@@ -227,7 +268,7 @@ This is the **most frequent and preferred case**, in which the
 [WGS](#wgs)-based findings will be used as a primary source for
 expression profile prioritisation. The genome-based results can be
 incorporated into the report by specifying the location of the
-corresponding output files (including results from `PCGR`, `PURPLE`, and
+corresponding output files (e.g. results from `PCGR`, `PURPLE`, and
 `Manta`). The **`Mutated genes`**, **`Structural variants`** and
 **`CN altered genes`** report sections will contain information about
 expression levels of the mutated genes, genes located within detected
@@ -237,13 +278,16 @@ genome-based data. A subset of the TCGA pancreatic adenocarcinoma
 dataset is used as reference cohort (`--dataset TEST`).
 
 ``` bash
-rnasum.R \
+rnasum \
   --sample_name test_sample_WTS \
   --dataset TEST \
-  --dragen_wts_dir inst/rawdata/test_data/dragen \
-  --report_dir inst/rawdata/test_data/dragen/RNAsum \
-  --umccrise inst/rawdata/test_data/umccrised/test_sample_WGS \
-  --save_tables FALSE
+  --salmon "$PWD/../rawdata/test_data/dragen/TEST.quant.genes.sf" \
+  --arriba_dir "$PWD/../rawdata/test_data/dragen/arriba" \
+  --umccrise "$PWD/../rawdata/test_data/umccrised/test_sample_WGS" \
+  --sv_tsv "$PWD/../rawdata/test_data/umccrised/test_sample_WGS/structural/TEST-manta.tsv" \
+  --report_dir "$PWD/../rawdata/test_data/RNAsum" \
+  --save_tables FALSE \
+  --filter TRUE
 ```
 
 The HTML report `test_sample_WTS.RNAsum.html` will be created in the
@@ -262,46 +306,18 @@ pancreatic adenocarcinoma dataset is used as the reference cohort
 (`--dataset TEST`).
 
 ``` bash
-rnasum.R \
+rnasum \
   --sample_name test_sample_WTS \
   --dataset TEST \
-  --dragen_wts_dir inst/rawdata/test_data/dragen \
-  --report_dir inst/rawdata/test_data/dragen/RNAsum \
-  --save_tables FALSE
+  --salmon "$PWD/../rawdata/test_data/dragen/TEST.quant.genes.sf" \
+  --arriba_dir "$PWD/../rawdata/test_data/dragen/arriba" \
+  --report_dir "$PWD/../rawdata/test_data/RNAsum" \
+  --save_tables FALSE \
+  --filter TRUE
 ```
 
 The output HTML report `test_sample_WTS.RNAsum.html` will be created in
 the `inst/rawdata/test_data/dragen/RNAsum` folder.
-
-#### 3. WTS WGS and clinical data
-
-For samples derived from subjects, for which clinical information is
-available, a treatment regimen timeline can be added to the HTML report.
-This can be added by specifying the location of a relevant excel
-spreadsheet (see example `test_clinical_data.xlsx` under
-`inst/rawdata/test_data/test_clinical_data.xlsx`) using the
-`--clinical_info` argument. In this spreadsheet, at least one of the
-following columns is expected: `NEOADJUVANT REGIMEN`,
-`ADJUVANT REGIMEN`, `FIRST LINE REGIMEN`, `SECOND LINE REGIMEN` or
-`THIRD LINE REGIMEN`, along with `START` and `STOP` dates of
-corresponding treatments. A subset of the TCGA pancreatic adenocarcinoma
-dataset is used as the reference cohort (`--dataset TEST`).
-
-``` bash
-rnasum.R \
-  --sample_name test_sample_WTS \
-  --dataset TEST \
-  --dragen_wts_dir $(pwd)/../rawdata/test_data/dragen \
-  --report_dir $(pwd)/../rawdata/test_data/dragen/RNAsum \
-  --umccrise $(pwd)/../rawdata/test_data/umccrised/test_sample_WGS \
-  --save_tables FALSE \
-  --clinical_info $(pwd)/../rawdata/test_data/test_clinical_data.xlsx \
-  --save_tables FALSE
-```
-
-The HTML report `test_sample_WTS.RNAsum.html` will be created in the
-`../rawdata/test_data/stratus/test_sample_WTS_dragen_v3.9.3/RNAsum`
-folder.
 
 ### Output
 
@@ -322,24 +338,7 @@ The pipeline generates a HTML ***Patient Transcriptome Summary***
 
 The generated HTML report includes searchable tables and interactive
 plots presenting expression levels of altered genes, as well as links to
-public resources describing the genes of interest. The report consists
-of several sections, including:
-
-- Input data
-- Clinical information\*
-- Findings summary
-- Mutated genes\*\*
-- Fusion genes
-- Structural variants\*\*
-- CN altered genes\*\*
-- Immune markers
-- HRD genes
-- Cancer genes
-- Drug matching
-
-\* if clinical information is available; see `--clinical_info` argument
-<br /> \*\* if genome-based results are available; see `--umccrise`
-argument
+public resources describing the genes of interest.
 
 Detailed description of the report structure, including result
 prioritisation and visualisation is available
