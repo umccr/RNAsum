@@ -6,6 +6,7 @@
     - [2. Install R Package](#2-install-r-package)
     - [Alternative Installation
       Methods](#alternative-installation-methods)
+  - [Example reports](#example-reports)
   - [Workflow](#workflow)
   - [Reference data](#reference-data)
     - [External reference cohorts](#external-reference-cohorts)
@@ -97,6 +98,10 @@ conda install r-rnasum==X.X.X -c umccr -c conda-forge -c bioconda
 ``` bash
 docker pull ghcr.io/umccr/rnasum:latest
 ```
+
+## Example reports
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1234567.svg)](https://doi.org/10.5281/zenodo.17353511)
 
 ## Workflow
 
@@ -192,118 +197,6 @@ export PATH="${rnasum_cli}:${PATH}"
     2.0.0 
 
     $ rnasum.R --help
-    Usage
-    =====
-     
-    /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/library/RNAsum/cli/rnasum.R [options]
-
-
-    Options
-    =======
-    --arriba_dir=ARRIBA_DIR
-            Directory path to Arriba results containing fusions.pdf and fusions.tsv.
-
-    --arriba_pdf=ARRIBA_PDF
-            File path of Arriba PDF output.
-
-    --arriba_tsv=ARRIBA_TSV
-            File path of Arriba TSV output.
-
-    --batch_rm
-            Remove batch-associated effects between datasets.
-
-    --cn_gain=CN_GAIN
-            CN threshold value to classify genes within gained regions. [def: 95]
-
-    --cn_loss=CN_LOSS
-            CN threshold value to classify genes within lost regions. [def: 5]
-
-    --dataset=DATASET
-            Dataset to be used as external reference cohort. [def: PANCAN]
-
-    --dataset_name_incl
-            Include dataset in report name.
-
-    --dragen_fusions=DRAGEN_FUSIONS
-            File path to DRAGEN RNA-seq 'fusion_candidates.final' output.
-
-    --dragen_mapping_metrics=DRAGEN_MAPPING_METRICS
-            File path to DRAGEN RNA-seq 'mapping_metrics.csv' output.
-
-    --dragen_wts_dir=DRAGEN_WTS_DIR
-            Directory path to DRAGEN RNA-seq results.
-
-    --drugs
-            Include drug matching section in report.
-
-    --filter
-            Filter out low expressed genes.
-
-    --immunogram
-            Include immunogram in report.
-
-    --log
-            Log2 transform data before normalisation.
-
-    --norm=NORM
-            Normalisation method.
-
-    --pcgr_splice_vars
-            Include non-coding splice region variants reported in PCGR.
-
-    --pcgr_tier=PCGR_TIER
-            Tier threshold for reporting variants reported in PCGR. [def: 4]
-
-    --pcgr_tiers_tsv=PCGR_TIERS_TSV
-            File path to PCGR 'snvs_indels.tiers.tsv' output.
-
-    --project=PROJECT
-            Project name, used for annotation purposes only.
-
-    --purple_gene_tsv=PURPLE_GENE_TSV
-            File path to PURPLE 'purple.cnv.gene.tsv' output.
-
-    --report_dir=REPORT_DIR
-            Directory path to output report.
-
-    --salmon=SALMON
-            File path to salmon 'quant.genes.sf' output.
-
-    --kallisto=KALLISTO
-            File path to kallisto 'abundance.tsv' output.
-
-    --sample_name=SAMPLE_NAME
-            Sample name to be presented in report.
-
-    --sample_source=SAMPLE_SOURCE
-            Type of investigated sample. [def: -]
-
-    --save_tables
-            Save interactive summary tables as HTML.
-
-    --scaling=SCALING
-            Scaling for z-score transformation (gene-wise or group-wise). [def: gene-wise]
-
-    --subject_id=SUBJECT_ID
-            Subject ID.
-
-    --sv_tsv=SV_TSV
-            File path to text file with genes related to structural variation.
-
-    --top_genes=TOP_GENES
-            Number of top ranked genes to be presented in report.
-
-    --transform=TRANSFORM
-            Transformation method to be used when converting read counts. [def: CPM]
-
-    --umccrise=UMCCRISE
-            Directory path of the corresponding WGS-related umccrise data.
-
-    --version, -v
-            Print RNAsum version and exit.
-
-    --help, -h
-            Show this help message and exit
 
 **Note**
 
