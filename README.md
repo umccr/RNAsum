@@ -140,7 +140,7 @@ The reference expression data are available for **33 cancer types** and
 were derived from [external](#external-reference-cohorts)
 ([TCGA](https://tcga-data.nci.nih.gov/)) and
 [internal](#internal-reference-cohort)
-([CCGCM](https://mdhs.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group))
+([CCGCM](https://genomic-cancer-medicine.unimelb.edu.au/research/clinical-cancer-genomics))
 resources.
 
 ### External reference cohorts
@@ -153,11 +153,11 @@ of **33 cancer datasets** from TCGA can be used as a reference cohort
 for comparing expression changes in genes of interest of the patient.
 Additionally, 10 samples from each of the 33 TCGA datasets were combined
 to create the **[Pan-Cancer
-dataset](./inst/articles/tcga_projects_summary.md#pan-cancer-dataset)**,
+dataset](./inst/articles/TCGA_projects_summary.md#pan-cancer-dataset)**,
 and for some cohorts **[extended
-sets](./inst/articles/tcga_projects_summary.md#extended-datasets)** are
+sets](./inst/articles/TCGA_projects_summary.md#extended-datasets)** are
 also available. All available datasets are listed in the **[TCGA
-projects summary table](./inst/articles/tcga_projects_summary.md)**.
+projects summary table](./inst/articles/TCGA_projects_summary.md)**.
 These datasets have been processed using methods described in the
 [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data)
 repository. The dataset of interest can be specified by using one of the
@@ -178,7 +178,7 @@ pre-processing](./inst/articles/workflow.md#data-processing)).
 
 This internal reference set of **40 pancreatic cancer samples** is based
 on WTS data generated at
-**[CCGCM](https://research.unimelb.edu.au/centre-for-cancer-research/our-research/precision-oncology-research-group)**
+**[CCGCM](https://genomic-cancer-medicine.unimelb.edu.au/research/clinical-cancer-genomics)**
 and processed with the **in-house RNA-seq** pipeline to minimise
 potential batch effects between investigated samples and the reference
 cohort and to make sure the data are comparable. The internal reference
@@ -306,7 +306,7 @@ The HTML report `test_sample_WTS.RNAsum.html` will be created in the
 
 In this scenario, only [WTS](#wts) data will be used and only expression
 levels of key
-**[`Cancer genes`](https://github.com/umccr/umccrise/blob/master/workflow.md#key-cancer-genes)**,
+**[`Cancer genes`](./inst/articles/workflow.md#key-cancer-genes)**,
 **`Fusion genes`**, **`Immune markers`** and homologous recombination
 deficiency genes (**`HRD genes`**) will be reported. Moreover, gene
 fusions reported in the `Fusion genes` report section will not contain
