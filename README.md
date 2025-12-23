@@ -319,7 +319,8 @@ rnasum \
   --sample_name test_sample_WTS \
   --dataset TEST \
   --salmon "$PWD/../rawdata/test_data/dragen/TEST.quant.genes.sf" \
-  --arriba_dir "$PWD/../rawdata/test_data/dragen/arriba" \
+  --arriba_pdf "$PWD/../rawdata/test_data/dragen/arriba/fusions.pdf" \
+  --arriba_tsv "$PWD/../rawdata/test_data/dragen/arriba/fusions.tsv"  \
   --report_dir "$PWD/../rawdata/test_data/RNAsum" \
   --save_tables FALSE \
   --filter TRUE
