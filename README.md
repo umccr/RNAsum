@@ -54,7 +54,7 @@ way to provide necessary system libraries:
 ``` bash
 # Create a dedicated environment with R and system libraries
 conda create -n rnasum_env -c conda-forge -c bioconda \
-  r-base=4.3 \
+  r-base=4.1 \
   poppler harfbuzz fribidi freetype pkg-config cairo openssl pango make gxx_linux-64
 
 # Activate the environment
