@@ -190,7 +190,7 @@ repository.
 
 ``` bash
 rnasum_cli=$(Rscript -e 'cat(system.file("cli", package="RNAsum"))')
-ln -sf "$rnasum_cli/rnasum.R" "$rnasum_cli/RNAsum"
+ln -sf "$rnasum_cli/rnasum.R" "$rnasum_cli/rnasum"
 export PATH="$rnasum_cli:$PATH"
 ```
 
