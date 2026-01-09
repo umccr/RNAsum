@@ -26,11 +26,13 @@ individual cancer patient samples.
 **DOCS**: <https://umccr.github.io/RNAsum>
 
 ## Installation
+RNAsum can be installed using one of the following three methods.
 
+### A. Install from GitHub
 - **R** package can be installed directly from the [GitHub
   source](https://github.com/umccr/RNAsum):
 
-### 1. System Dependencies (Prerequisites)
+#### 1. System Dependencies (Prerequisites)
 
 `RNAsum` depends on `pdftools`, which requires system-level libraries
 (poppler, cairo, etc.) to be installed before installing the R package.
@@ -61,14 +63,18 @@ conda create -n rnasum_env -c conda-forge -c bioconda \
 conda activate rnasum_env
 ```
 
-### 2. Install R Package
+#### 2. Install R Package
 
 Once system dependencies are met, you can install the package directly
 from GitHub.
 
 **Note**: The reference data package (RNAsum.data) is large. It is
 recommended to increase the download timeout limit before installation.
-
+Launch R:
+``` bash
+R
+```
+Then run the following inside the R console:
 ``` r
 # 1. Increase timeout to prevent download failure for RNAsum.data
 options(timeout = 600)
@@ -83,15 +89,16 @@ remotes::install_github("umccr/RNAsum@abcde") # commit abcde
 remotes::install_github("umccr/RNAsum#123") # PR 123
 ```
 
-### Alternative Installation Methods
+### B. Install from Conda
 
 - **Conda** package is available from the Anaconda [umccr
   channel](https://anaconda.org/umccr/r-rnasum):
 
 ``` bash
-conda install r-rnasum==X.X.X -c umccr -c conda-forge -c bioconda
+conda create -n rnasum -c umccr -c conda-forge -c bioconda r-rnasum
+conda activate rnasum
 ```
-
+### C. Install from Docker
 - **Docker** image is available from the [GitHub Container
   Registy](https://github.com/umccr/RNAsum/pkgs/container/rnasum):
 
