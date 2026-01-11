@@ -1,11 +1,8 @@
 
 - [RNAsum](#rnasum)
   - [Installation](#installation)
-    - [1. System Dependencies
-      (Prerequisites)](#1-system-dependencies-prerequisites)
-    - [2. Install R Package](#2-install-r-package)
-    - [Alternative Installation
-      Methods](#alternative-installation-methods)
+    - [A. Install from GitHub](#a-install-from-github)
+    - [B. Install from Conda](#b-install-from-conda)
   - [Example reports](#example-reports)
   - [Workflow](#workflow)
   - [Reference data](#reference-data)
@@ -26,85 +23,74 @@ individual cancer patient samples.
 **DOCS**: <https://umccr.github.io/RNAsum>
 
 ## Installation
-RNAsum can be installed using one of the following three methods.
+
+RNAsum can be installed using one of the following two methods.
 
 ### A. Install from GitHub
-- **R** package can be installed directly from the [GitHub
-  source](https://github.com/umccr/RNAsum):
+
+**R** package can be installed directly from the [GitHub
+source](https://github.com/umccr/RNAsum) using the following steps:
 
 #### 1. System Dependencies (Prerequisites)
 
 `RNAsum` depends on `pdftools`, which requires system-level libraries
 (poppler, cairo, etc.) to be installed before installing the R package.
 
-**For Linux (Ubuntu/Debian):**
+##### Linux (Ubuntu/Debian):
 
-``` bash
-sudo apt-get install libpoppler-cpp-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libcairo2-dev libpango1.0-dev
-```
+    sudo apt-get install libpoppler-cpp-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libcairo2-dev libpango1.0-dev
 
-**For macOS:**
+##### MAC:
 
-``` bash
-brew install poppler
-```
+    brew install poppler
 
-**For Conda / HPC Environments** If you do not have root access (e.g.,
-on a cluster), creating a fresh Conda environment is the most reliable
-way to provide necessary system libraries:
+##### Conda / HPC Environments:
 
-``` bash
-# Create a dedicated environment with R and system libraries
-conda create -n rnasum_env -c conda-forge -c bioconda \
-  r-base=4.1 \
-  poppler harfbuzz fribidi freetype pkg-config cairo openssl pango make gxx_linux-64
+If you do not have root access (e.g., on a cluster), creating a fresh
+Conda environment is the most reliable way to provide necessary system
+libraries:
 
-# Activate the environment
-conda activate rnasum_env
-```
+    # Create a dedicated environment with R and system libraries
+    conda create -n rnasum_env -c conda-forge -c bioconda \
+      r-base=4.1 \
+      poppler harfbuzz fribidi freetype pkg-config cairo openssl pango make gxx_linux-64
+
+    # Activate the environment
+    conda activate rnasum_env
 
 #### 2. Install R Package
 
 Once system dependencies are met, you can install the package directly
 from GitHub.
 
-**Note**: The reference data package (RNAsum.data) is large. It is
+Note: The reference data package (RNAsum.data) is large. It is
 recommended to increase the download timeout limit before installation.
-Launch R:
-``` bash
-R
-```
+
+Launch R using following on the terminal:
+
+    R
+
 Then run the following inside the R console:
-``` r
-# 1. Increase timeout to prevent download failure for RNAsum.data
-options(timeout = 600)
 
-# 2. Install via remotes
-# (This will automatically resolve CRAN, Bioconductor, and GitHub dependencies)
-if (!require("remotes")) install.packages("remotes")
+    # 1. Increase timeout to prevent download failure for RNAsum.data
+    options(timeout = 600)
 
-remotes::install_github("umccr/RNAsum") # latest main commit
-remotes::install_github("umccr/RNAsum@v0.0.X") # version 0.0.X
-remotes::install_github("umccr/RNAsum@abcde") # commit abcde
-remotes::install_github("umccr/RNAsum#123") # PR 123
-```
+    # 2. Install via remotes
+    # (This will automatically resolve CRAN, Bioconductor, and GitHub dependencies)
+    if (!require("remotes")) install.packages("remotes")
+
+    remotes::install_github("umccr/RNAsum") # latest main commit
+    remotes::install_github("umccr/RNAsum@v0.0.X") # version 0.0.X
+    remotes::install_github("umccr/RNAsum@abcde") # commit abcde
+    remotes::install_github("umccr/RNAsum#123") # PR 123
 
 ### B. Install from Conda
 
-- **Conda** package is available from the Anaconda [umccr
-  channel](https://anaconda.org/umccr/r-rnasum):
+Conda package is available from the Anaconda umccr channel:
 
-``` bash
-conda create -n rnasum -c umccr -c conda-forge -c bioconda r-rnasum
-conda activate rnasum
-```
-### C. Install from Docker
-- **Docker** image is available from the [GitHub Container
-  Registy](https://github.com/umccr/RNAsum/pkgs/container/rnasum):
-
-``` bash
-docker pull ghcr.io/umccr/rnasum:latest
-```
+    conda create -n rnasum -c umccr -c conda-forge -c bioconda r-rnasum
+    conda activate rnasum
+    conda install umccr::r-rnasum
 
 ## Example reports
 
@@ -197,22 +183,19 @@ repository.
 
 ``` bash
 rnasum_cli=$(Rscript -e 'cat(system.file("cli", package="RNAsum"))')
-ln -sf "$rnasum_cli/rnasum.R" "$rnasum_cli/rnasum"
+ln -sf "$rnasum_cli/rnasum.R" "$rnasum_cli/RNAsum"
 export PATH="$rnasum_cli:$PATH"
 ```
 
     $ rnasum --version
-    2.0.0 
+    bash: line 5: rnasum: command not found
 
     $ rnasum --help
 
 <details>
-
 <summary>
-
 <strong>Options</strong>
 </summary>
-
 <pre><code>
 &#10;--arriba_dir: Directory path to Arriba results containing fusions.pdf and fusions.tsv
 &#10;--arriba_pdf: File path of Arriba PDF output
@@ -250,7 +233,6 @@ export PATH="$rnasum_cli:$PATH"
 &#10;--version, -v: Print RNAsum version and exit
 &#10;--help, -h: Show this help message and exit
 </code></pre>
-
 </details>
 
 **Note**
@@ -291,8 +273,6 @@ genome-based data. A subset of the TCGA pancreatic adenocarcinoma
 dataset is used as reference cohort (`--dataset TEST`).
 
 ``` bash
-cd $rnasum_cli
-
 rnasum \
   --sample_name test_sample_WTS \
   --dataset TEST \
@@ -324,8 +304,6 @@ pancreatic adenocarcinoma dataset is used as the reference cohort
 (`--dataset TEST`).
 
 ``` bash
-cd $rnasum_cli
-
 rnasum \
   --sample_name test_sample_WTS \
   --dataset TEST \
