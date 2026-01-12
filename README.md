@@ -273,6 +273,7 @@ genome-based data. A subset of the TCGA pancreatic adenocarcinoma
 dataset is used as reference cohort (`--dataset TEST`).
 
 ``` bash
+cd $rnasum_cli
 rnasum \
   --sample_name test_sample_WTS \
   --dataset TEST \
@@ -304,6 +305,7 @@ pancreatic adenocarcinoma dataset is used as the reference cohort
 (`--dataset TEST`).
 
 ``` bash
+cd $rnasum_cli
 rnasum \
   --sample_name test_sample_WTS \
   --dataset TEST \
