@@ -96,7 +96,8 @@ The pipeline consists of five main components.
 
 1.  **WTS data collection**: ingests per-gene read counts and gene
     fusions.
-2.  **Reference integration**: normalises against TCGA cohorts.
+2.  **Reference integration**: normalises against [reference
+    cohorts](./inst/articles/reference_cohorts.md).
 3.  **WGS data integration**: links genomic alterations with expression
     data.
 4.  **Knowledge enrichment**: annotates with clinicaly-relevant
