@@ -2,7 +2,7 @@
 
 The description of the main workflow components involved in (**1**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* and *[gene fusions](./data/test_data/final/test_sample_WTS/arriba/fusions.tsv)* data **[collection](#1-data-collection)**, (**2**) *[read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* data **[processing](#1-data-processing)**, (**3**) **[integration](#2-integration-with-wgs-based-results)** with **[WGS](./README.md#wgs)**-based data (processed using *[umccrise](https://github.com/umccr/umccrise)* pipeline), (**4**) results **[annotation](#3-results-annotation)** and (**5**) presentation in the *Patient Transcriptome Summary* **[report](#4-report-generation)**. 
 
-<img src="img/RNAsum_workflow.png" width="100%"> 
+<img src="../../man/figures/RNAsum_workflow.png" width="100%"> 
 
 <br/>
 
@@ -42,16 +42,16 @@ The description of the main workflow components involved in (**1**) *[read count
 
 ### Counts processing
 
-The **read count** data (see [Input data](./README.md#input-data) section in the main page) in *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* or *[quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* quantification files from [kallisto](https://pachterlab.github.io/kallisto/about) or [salmon](https://salmon.readthedocs.io/en/latest/salmon.html), respectively, are processed following steps illustrated in [Figure 1](./img/counts_post-processing_scheme.png) and described below.
+The **read count** data (see [Input data](./README.md#input-data) section in the main page) in *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* or *[quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* quantification files from [kallisto](https://pachterlab.github.io/kallisto/about) or [salmon](https://salmon.readthedocs.io/en/latest/salmon.html), respectively, are processed following steps illustrated in [Figure 1](../../man/figures/counts_post-processing_scheme.png) and described below.
 
-<img src="img/counts_post-processing_scheme.png" width="40%"> 
+<img src="../../man/figures/counts_post-processing_scheme.png" width="40%"> 
 
 ###### Figure 1
 >Counts processing scheme.
 
 #### Data collection
 
-([Figure 1](./img/counts_post-processing_scheme.png)A)
+([Figure 1](../../man/figures/counts_post-processing_scheme.png)A)
 
 * Load read count files from the following three sets of data:
 
@@ -61,7 +61,7 @@ The **read count** data (see [Input data](./README.md#input-data) section in the
 
 #### Transformation
 
-([Figure 1](./img/counts_post-processing_scheme.png)B)
+([Figure 1](../../man/figures/counts_post-processing_scheme.png)B)
 
 * Subset datasets to include common genes
 * Combine patient **sample** and **internal reference** dataset
@@ -71,7 +71,7 @@ The **read count** data (see [Input data](./README.md#input-data) section in the
 
 #### Filtering (optional)
 
-([Figure 1](./img/counts_post-processing_scheme.png)C)
+([Figure 1](../../man/figures/counts_post-processing_scheme.png)C)
 
 * Filter out genes with low counts (CPM or TPM **< 1** in more than 90% of samples) in:
 	1. **sample** + **internal reference** set
@@ -79,7 +79,7 @@ The **read count** data (see [Input data](./README.md#input-data) section in the
 
 #### Normalisation (optional)
 
-([Figure 1](./img/counts_post-processing_scheme.png)D)
+([Figure 1](../../man/figures/counts_post-processing_scheme.png)D)
 
 * Normalise data (see [Arguments](./README.md#arguments) section in the main page for available options) for sample-specific effects in:
 	1. **sample** + **internal reference** set
@@ -87,14 +87,14 @@ The **read count** data (see [Input data](./README.md#input-data) section in the
 
 #### Combination
 
-([Figure 1](./img/counts_post-processing_scheme.png)E)
+([Figure 1](../../man/figures/counts_post-processing_scheme.png)E)
 
 * Subset datasets to include common genes
 * Combine **sample** + **internal reference** set with **external reference** set
 
 #### Batch-effects correction (optional)
 
-([Figure 1](./img/counts_post-processing_scheme.png)F)
+([Figure 1](../../man/figures/counts_post-processing_scheme.png)F)
 
 * Consider the patient **sample** + **internal reference** (regardless of the patient sample origin) as one batch (both sets processed with the same pipeline) and corresponding **[TCGA](https://tcga-data.nci.nih.gov/) dataset** as another batch. The objective is to remove data variation due to technical factors.
 
@@ -104,44 +104,44 @@ The processed count data is scaled to facilitate expression values interpretatio
 
 ##### Gene-wise
 
-Z-scores are comparable by measuring the observations in multiples of the standard deviation of given sample. The gene-wise Z-score transformation procedure is illustrated in [Figure 2](./img/Z-score_transformation_gene_wise.png) and is described below.
+Z-scores are comparable by measuring the observations in multiples of the standard deviation of given sample. The gene-wise Z-score transformation procedure is illustrated in [Figure 2](../../man/figures/Z-score_transformation_gene_wise.png) and is described below.
 
-<img src="img/Z-score_transformation_gene_wise.png" width="30%"> 
+<img src="../../man/figures/Z-score_transformation_gene_wise.png" width="30%"> 
 
 ###### Figure 2
 >Gene-wise Z-score transformation scheme.
 
-* Extract expression values across all samples for a given **gene** ([Figure 2](./img/Z-score_transformation_gene_wise.png)A)
-* Compute **Z-scores** for individual samples (see equation in ([Figure 2](./img/Z-score_transformation_gene_wise.png)B)
-* Compute **median Z-scores** for ([Figure 2](./img/Z-score_transformation_gene_wise.png)C):
+* Extract expression values across all samples for a given **gene** ([Figure 2](../../man/figures/Z-score_transformation_gene_wise.png)A)
+* Compute **Z-scores** for individual samples (see equation in ([Figure 2](../../man/figures/Z-score_transformation_gene_wise.png)B)
+* Compute **median Z-scores** for ([Figure 2](../../man/figures/Z-score_transformation_gene_wise.png)C):
 	1. **internal reference** set\*
 	2.  **external reference** set
 
-* Present patient sample **Z-score** in the context the reference cohorts' **median Z-scores** ([Figure 2](./img/Z-score_transformation_gene_wise.png)D)
+* Present patient sample **Z-score** in the context the reference cohorts' **median Z-scores** ([Figure 2](../../man/figures/Z-score_transformation_gene_wise.png)D)
 
 \* used only for pancreatic cancer patients
 
 ##### Group-wise
 
-The group-wise centering apporach is presented in [Figure 3](./img/centering_group_wise.png) and is described below.
+The group-wise centering apporach is presented in [Figure 3](../../man/figures/centering_group_wise.png) and is described below.
 
 
-<img src="img/centering_group_wise.png" width="30%"> 
+<img src="../../man/figures/centering_group_wise.png" width="30%"> 
 
 ###### Figure 3
 >Group-wise centering scheme.
 
-* Extract expression values for ([Figure 3](./img/centering_group_wise.png)A):
+* Extract expression values for ([Figure 3](../../man/figures/centering_group_wise.png)A):
 	1. patient **sample**
 	2. **internal reference** set\*
 	3.  **external reference** set
 	
-* For each gene compute **median expression** value in ([Figure 3](./img/centering_group_wise.png)B):
+* For each gene compute **median expression** value in ([Figure 3](../../man/figures/centering_group_wise.png)B):
 	1. **internal reference** set\*
 	2.  **external reference** set
 	
-* **Center** the median expression values for each gene in individual groups ([Figure 3](./img/centering_group_wise.png)C)
-* Present patient sample **centered** expression values in the context the reference cohorts' **centered** values ([Figure 3](./img/centering_group_wise.png)D)
+* **Center** the median expression values for each gene in individual groups ([Figure 3](../../man/figures/centering_group_wise.png)C)
+* Present patient sample **centered** expression values in the context the reference cohorts' **centered** values ([Figure 3](../../man/figures/centering_group_wise.png)D)
 
 \* used only for pancreatic cancer patients
 
