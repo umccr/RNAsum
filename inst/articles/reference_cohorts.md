@@ -30,7 +30,7 @@ We have curated high-quality cancer reference cohorts from The Cancer Genome Atl
 |---------|-------------|
 | **Data source** | TCGA (GDC harmonized data) |
 | **Processing** | Standardized pipeline ([see details](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data)) |
-| **Reference** | [TCGA projects summary table](./inst/articles/TCGA_projects_summary.md) |
+| **Reference** | [TCGA projects summary table](./TCGA_projects_summary.md) |
 
 **Processing pipeline:**
 All TCGA datasets have been harmonized using methods documented in the [TCGA-data-harmonization](https://github.com/umccr/TCGA-data-harmonization/blob/master/expression/README.md#gdc-counts-data) repository, ensuring consistency and reproducibility.
@@ -59,7 +59,7 @@ The internal cohort addresses these limitations by ensuring:
 
 ✓ **Minimized batch effects** - same protocols as your input data  
 ✓ **High tissue quality** - stringent QC standards  
-✓ **Matched processing** - [data pre-processing](./inst/articles/workflow.md#data-processing) identical to patient samples  
+✓ **Matched processing** - [data pre-processing](./workflow.md#data-processing) identical to patient samples  
 
 ---
 
