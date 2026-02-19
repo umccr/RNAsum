@@ -158,10 +158,10 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### Structural variants
 
-* Check if **[Manta](https://github.com/Illumina/manta)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv)) is available
+* Check if SV output file is available (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv))
 * **Extract** expression level **information** and genome-based findings for genes located within detected SVs
 * **Ordered genes** by increasing **[SV score](https://github.com/vladsaveliev/simple_sv_annotation)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
-* **Compare** [gene fusions](./fusions) detected in [WTS](./README.md#wts) data ([arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly)) and [WGS](./README.md#wgs) data ([Manta](https://github.com/Illumina/manta))
+* **Compare** [gene fusions](./fusions) detected in [WTS](./README.md#wts) data ([arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly)) and [WGS](./README.md#wgs) data (structural variants)
 * **Priritise** [WGS](./README.md#wgs)-supported [gene fusions](./fusions)
 
 ### Somatic CNVs

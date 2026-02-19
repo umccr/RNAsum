@@ -80,7 +80,7 @@ Fusion genes detected in transcriptome data are reported if **at least one** of 
 
 ### Structural variants
 
-Similar to *Mutated genes* analysis but limited to genes located within structural variants (SVs) detected by [MANTA](https://github.com/Illumina/manta) using genomic data. This section is available only for samples with available *[MANTA](https://github.com/Illumina/manta) results*.
+Similar to *Mutated genes* analysis but limited to genes located within structural variants (SVs) detected using genomic data. This section is available only for samples with available SV results.
 
 ***
 

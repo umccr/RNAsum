@@ -78,7 +78,7 @@ Structural variant annotations. Tab-separated. Two supported formats:
 - First column must be `Gene`.
 - One gene symbol per row.
 
-**Format 2** — Annotation column (e.g. Manta/umccrise output):
+**Format 2** — Annotation column (e.g. umccrise SV output):
 - Column `annotation` required.
 - Each row: one or more comma-separated annotations.
 - Each annotation: pipe-delimited `Event|Effect|Genes|Transcript|Detail|Tier`.
