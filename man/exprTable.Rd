@@ -24,7 +24,8 @@ exprTable(
   fusion_genes = NULL,
   type = "z",
   scaling = "gene-wise",
-  civic_clin_evid = NULL
+  civic_clin_evid = NULL,
+  batch_rm = FALSE
 )
 }
 \arguments{

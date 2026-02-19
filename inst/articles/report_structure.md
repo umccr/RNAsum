@@ -86,7 +86,7 @@ Similar to *Mutated genes* analysis but limited to genes located within structur
 
 ### CN altered genes
 
-Section overlaying the mRNA expression data for [cancer genes](#cancer-genes) with per-gene somatic copy-number (CN) data (from [PURPLE](https://anaconda.org/bioconda/hmftools-purple)) and mutation status, if available.
+Section overlaying the mRNA expression data for [cancer genes](#cancer-genes) with per-gene somatic copy-number (CN) data and mutation status, if available.
 
 ***
 

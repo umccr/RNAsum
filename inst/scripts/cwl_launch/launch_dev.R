@@ -104,7 +104,7 @@ for (i in seq_len(nrow(d))) {
     dragen_mapping_metrics = d$MapMetricsFile[i],
     manta_tsv = d$MantaTsvFile[i],
     pcgr_tiers_tsv = d$PcgrTiersTsvFile[i],
-    purple_gene_tsv = d$PurpleCnvGeneTsvFile[i],
+    cn_gene_tsv = d$PurpleCnvGeneTsvFile[i],
     salmon = d$DragenWtsQuantGenesSfFile[i],
     sample_name = d$SubjectID[i],
     subject_id = d$SubjectID[i],

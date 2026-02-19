@@ -92,7 +92,7 @@ meta_rnasum <- wf |>
 # saveRDS(meta_rnasum, here(glue("nogit/patient_data/down_{date1}.rds")))
 # meta_rnasum <- here::here(glue("nogit/patient_data/down_{date1}.rds")) |> readr::read_rds()
 rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, dragen_mapping_metrics, sv_tsv,
-                              pcgr_tiers_tsv, purple_gene_tsv, report_dir, salmon,
+                              pcgr_tiers_tsv, cn_gene_tsv, report_dir, salmon,
                               sample_name, subject_id) {
   params <- list(
     arriba_pdf = arriba_pdf,
@@ -114,7 +114,7 @@ rnasum_params_set <- function(arriba_pdf, arriba_tsv, dataset, dragen_fusions, d
     pcgr_tier = 4,
     pcgr_tiers_tsv = pcgr_tiers_tsv,
     project = "-",
-    purple_gene_tsv = purple_gene_tsv,
+    cn_gene_tsv = cn_gene_tsv,
     report_dir = report_dir,
     salmon = salmon,
     sample_name = sample_name,
@@ -149,7 +149,7 @@ d_runs |>
         dragen_mapping_metrics = MapMetricsFile,
         sv_tsv = MantaTsvFile,
         pcgr_tiers_tsv = PcgrTiersTsvFile,
-        purple_gene_tsv = PurpleCnvGeneTsvFile,
+        cn_gene_tsv = PurpleCnvGeneTsvFile,
         report_dir = here::here(glue::glue("nogit/patient_data/reports/{SubjectID}_{LibraryID}_{rnasum_dataset}")),
         salmon = DragenWtsQuantGenesSfFile,
         sample_name = glue::glue("{SubjectID}_{LibraryID}"),

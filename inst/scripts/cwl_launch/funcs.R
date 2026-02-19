@@ -10,7 +10,7 @@ query_workflow_rnasum <- function(sbjids) {
 
 json_obj <- function(rnasum_version, workdir, outdir, arriba_pdf, arriba_tsv, dataset,
                      dragen_fusions, dragen_mapping_metrics,
-                     manta_tsv, pcgr_tiers_tsv, purple_gene_tsv,
+                     manta_tsv, pcgr_tiers_tsv, cn_gene_tsv,
                      salmon, sample_name, subject_id, library_id) {
   report_dir <- glue("{subject_id}_{library_id}")
   fc <- function(f) {
@@ -29,7 +29,7 @@ json_obj <- function(rnasum_version, workdir, outdir, arriba_pdf, arriba_tsv, da
       "dragen_mapping_metrics" = fc(dragen_mapping_metrics),
       "manta_tsv" = fc(manta_tsv),
       "pcgr_tiers_tsv" = fc(pcgr_tiers_tsv),
-      "purple_gene_tsv" = fc(purple_gene_tsv),
+      "cn_gene_tsv" = fc(cn_gene_tsv),
       "report_dir" = report_dir,
       "salmon" = fc(salmon),
       "sample_name" = sample_name,

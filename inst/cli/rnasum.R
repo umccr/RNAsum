@@ -33,7 +33,7 @@ option_list <- list(
   make_option("--pcgr_tier", default = 4, type = "integer", help = "Tier threshold for reporting variants reported in PCGR. [def: %default]"),
   make_option("--pcgr_tiers_tsv", type = "character", help = "File path to PCGR 'snvs_indels.tiers.tsv' output."),
   make_option("--project", type = "character", help = "Project name, used for annotation purposes only."),
-  make_option("--purple_gene_tsv", type = "character", help = "File path to PURPLE 'purple.cnv.gene.tsv' output."),
+  make_option("--cn_gene_tsv", type = "character", help = "File path to copy-number gene file (e.g. purple.cnv.gene.tsv)."),
   make_option("--report_dir", type = "character", help = "Directory path to output report."),
   make_option("--salmon", type = "character", help = "File path to salmon 'quant.genes.sf' output."),
   make_option("--kallisto", type = "character", help = "File path to kallisto 'abundance.tsv' output."),

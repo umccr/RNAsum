@@ -177,6 +177,8 @@ cn_subset <- function(gene.mut = NULL, cn_data, expr_data.z, expr_data.perc) {
     d <- d |>
       dplyr::left_join(gene.mut.sub, by = c("Gene" = "gene")) |>
       dplyr::rename("Alterations" = "alterations")
+  } else {
+    d <- d |> dplyr::mutate(Alterations = "None")
   }
   return(d)
 }
