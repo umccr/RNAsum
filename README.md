@@ -166,9 +166,9 @@ rnasum \
   --arriba_pdf "$PWD/../rawdata/test_data/dragen/arriba/fusions.pdf" \
   --arriba_tsv "$PWD/../rawdata/test_data/dragen/arriba/fusions.tsv"  \
   --dragen_fusions "$PWD/../rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final"  \
-  --pcgr_tiers_tsv "$PWD/../rawdata/test_data/umccrised/test_sample_WGS/small_variants/TEST-snvs_indels.tiers.tsv" \
-  --cn_gene_tsv "$PWD/../rawdata/test_data/umccrised/test_sample_WGS/copy_number/TEST.cnv.gene.tsv" \
-  --sv_tsv "$PWD/../rawdata/test_data/umccrised/test_sample_WGS/structural/TEST-sv.tsv" \
+  --pcgr_tiers_tsv "$PWD/../rawdata/test_data/small_variants/TEST-snvs_indels.tiers.tsv" \
+  --cn_gene_tsv "$PWD/../rawdata/test_data/copy_number/TEST.cnv.gene.tsv" \
+  --sv_tsv "$PWD/../rawdata/test_data/structural/TEST-sv.tsv" \
   --report_dir "$PWD/../rawdata/test_data/RNAsum" \
   --save_tables FALSE \
   --filter TRUE

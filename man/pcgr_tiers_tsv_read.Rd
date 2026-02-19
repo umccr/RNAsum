@@ -18,8 +18,8 @@ by PCGR.
 }
 \examples{
 x <- system.file(
-  "rawdata/test_data/umccrised/test_sample_WGS/small_variants",
-  "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
+  "rawdata/test_data/small_variants",
+  "TEST-snvs_indels.tiers.tsv",
   package = "RNAsum"
 )
 (ptsv <- pcgr_tiers_tsv_read(x))

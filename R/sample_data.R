@@ -14,10 +14,7 @@
 #' p <- list(
 #'   dragen_wts_dir = system.file("rawdata/test_data/dragen", package = "RNAsum"),
 #'   arriba_dir = system.file("rawdata/test_data/dragen/arriba", package = "RNAsum"),
-#'   umccrise = system.file(
-#'     "rawdata/test_data/umccrised/test_sample_WGS",
-#'     package = "RNAsum"
-#'   )
+#'   umccrise = system.file("rawdata/test_data", package = "RNAsum")
 #' )
 #' res <- read_sample_data(p, tempdir())
 #' @testexamples
@@ -110,14 +107,17 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
 #' @return A list of the input sample data.
 #' @examples
 #' p <- list(
-#'   umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),
+#'   umccrise = system.file("rawdata/test_data", package = "RNAsum"),
 #'   pcgr_tiers_tsv = system.file(
-#'     "rawdata/test_data/umccrised/test_sample_WGS/small_variants",
-#'     "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
+#'     "rawdata/test_data/small_variants", "TEST-snvs_indels.tiers.tsv",
 #'     package = "RNAsum"
 #'   ),
-#'   sash_tsv = system.file(
-#'     "rawdata/test_data/test_sample_WGS/structural/TEST.sv.prioritised.tsv",
+#'   cn_gene_tsv = system.file(
+#'     "rawdata/test_data/copy_number", "TEST.cnv.gene.tsv",
+#'     package = "RNAsum"
+#'   ),
+#'   sv_tsv = system.file(
+#'     "rawdata/test_data/structural", "TEST-sv.tsv",
 #'     package = "RNAsum"
 #'   )
 #' )

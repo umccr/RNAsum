@@ -72,27 +72,15 @@ TP53	1.0	1.0
 
 ### `--sv_tsv`
 
-Structural variant annotations. Tab-separated. Two supported formats:
+Structural variant annotations. Tab-separated.
 
-**Format 1** — Simple gene list:
-- First column must be `Gene`.
-- One gene symbol per row.
-
-**Format 2** — Annotation column (e.g. umccrise SV output):
-- Column `annotation` required.
+Annotation column (e.g. Manta/umccrise SV output):
+- **Column** `annotation` **required**.
 - Each row: one or more comma-separated annotations.
 - Each annotation: pipe-delimited `Event|Effect|Genes|Transcript|Detail|Tier`.
 - The pipeline uses `Effect` (2nd field) and `Genes` (3rd field).
 
-**Minimal example (Format 1)**:
-
-```tsv
-Gene
-FAM43B
-NTNG1
-```
-
-**Minimal example (Format 2)**:
+**Minimal example**:
 
 ```tsv
 annotation

@@ -20,16 +20,13 @@ A list of the input sample data.
 }
 \description{
 Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
-DRAGEN fusions, DRAGEN mapping metrics, SVs, PURPLE CNVs, and PCGR SNVs.
+DRAGEN fusions, DRAGEN mapping metrics, SVs, copy-number data, and PCGR SNVs.
 }
 \examples{
 p <- list(
   dragen_wts_dir = system.file("rawdata/test_data/dragen", package = "RNAsum"),
   arriba_dir = system.file("rawdata/test_data/dragen/arriba", package = "RNAsum"),
-  umccrise = system.file(
-    "rawdata/test_data/umccrised/test_sample_WGS",
-    package = "RNAsum"
-  )
+  umccrise = system.file("rawdata/test_data", package = "RNAsum")
 )
 res <- read_sample_data(p, tempdir())
 }
