@@ -2,7 +2,7 @@
 % Please edit documentation in R/sample_data.R
 \name{ppl_cnv_som_gene_read}
 \alias{ppl_cnv_som_gene_read}
-\title{Read PURPLE CNV Gene File}
+\title{Read CNV Gene File}
 \usage{
 ppl_cnv_som_gene_read(x)
 }
@@ -13,7 +13,7 @@ ppl_cnv_som_gene_read(x)
 The input file as a tibble.
 }
 \description{
-Reads the \code{purple.cnv.gene.tsv} file, which summarises copy number
+Reads the copy-number gene file (e.g. \code{purple.cnv.gene.tsv}), which summarises copy number
 alterations of each gene in the HMF panel
 (see https://github.com/hartwigmedical/hmftools/tree/master/purple#gene-copy-number-file).
 }

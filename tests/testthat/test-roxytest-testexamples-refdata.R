@@ -2,7 +2,7 @@
 
 # File R/refdata.R: @testexamples
 
-test_that("Function get_refgenes() @ L57", {
+test_that("Function get_refgenes() @ L68", {
   
   p <- list(
     genes_cancer = system.file("extdata/genes/umccr_cancer_genes.2019-03-20.tsv.gz",

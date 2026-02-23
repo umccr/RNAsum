@@ -36,13 +36,13 @@ The description of the main workflow components involved in (**1**) *[read count
 
 ## 1. Data collection
 
-**[Read counts](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)** data from patient sample are collected from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
+**[Read counts](./data/test_data/abundance.tsv)** data from patient sample are collected from *[bcbio-nextgen RNA-seq](https://bcbio-nextgen.readthedocs.io/en/latest/contents/bulk_rnaseq.html)* or *[DRAGEN RNA](https://sapac.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/edico-genome-inc-dragen-rna-pipeline.html)* pipeline.
 
 ## 2. Data processing 
 
 ### Counts processing
 
-The **read count** data (see [Input data](./README.md#input-data) section in the main page) in *[abundance.tsv](./data/test_data/final/test_sample_WTS/kallisto/abundance.tsv)* or *[quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* quantification files from [kallisto](https://pachterlab.github.io/kallisto/about) or [salmon](https://salmon.readthedocs.io/en/latest/salmon.html), respectively, are processed following steps illustrated in [Figure 1](../../man/figures/counts_post-processing_scheme.png) and described below.
+The **read count** data (see [Input data](./README.md#input-data) section in the main page) in *[abundance.tsv](./data/test_data/abundance.tsv)* or *[quant.sf](./data/test_data/stratus/test_sample_WTS/TEST.quant.sf)* quantification files from [kallisto](https://pachterlab.github.io/kallisto/about) or [salmon](https://salmon.readthedocs.io/en/latest/salmon.html), respectively, are processed following steps illustrated in [Figure 1](../../man/figures/counts_post-processing_scheme.png) and described below.
 
 <img src="../../man/figures/counts_post-processing_scheme.png" width="40%"> 
 
@@ -152,21 +152,21 @@ For patients with available [WGS](./README.md#wgs) data processed using *[umccri
 
 ### Somatic SNVs and small indels
 
-* Check if **[PCGR](https://github.com/sigven/pcgr)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/pcgr/test_sample_WGS-somatic.pcgr.snvs_indels.tiers.tsv)) is available
+* Check if **[PCGR](https://github.com/sigven/pcgr)** output file (see [example](./data/test_data/small_variants/TEST-snvs_indels.tiers.tsv)) is available
 * **Extract** expression level **information** and genome-based findings for genes with detected genomic variants (use ```--pcgr_tier``` [argument](README.md/#arguments) to define [tier]([https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg](https://sigven.github.io/pcgr/articles/variant_classification.html) threshold value)
 * **Ordered genes** by increasing variants **[tier]([https://pcgr.readthedocs.io/en/latest/tier_systems.html#tier-model-2-pcgr-acmg](https://sigven.github.io/pcgr/articles/variant_classification.html)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
 
 ### Structural variants
 
-* Check if **[Manta](https://github.com/Illumina/manta)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/structural/test_sample_WGS-sv-prioritize-manta-pass.tsv)) is available
+* Check if SV output file is available (see [example](./data/test_data/structural/TEST-sv.tsv))
 * **Extract** expression level **information** and genome-based findings for genes located within detected SVs
 * **Ordered genes** by increasing **[SV score](https://github.com/vladsaveliev/simple_sv_annotation)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
-* **Compare** [gene fusions](./fusions) detected in [WTS](./README.md#wts) data ([arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly)) and [WGS](./README.md#wgs) data ([Manta](https://github.com/Illumina/manta))
+* **Compare** [gene fusions](./fusions) detected in [WTS](./README.md#wts) data ([arriba](https://arriba.readthedocs.io/en/latest/) and [pizzly](https://github.com/pmelsted/pizzly)) and [WGS](./README.md#wgs) data (structural variants)
 * **Priritise** [WGS](./README.md#wgs)-supported [gene fusions](./fusions)
 
 ### Somatic CNVs
 
-* Check if **[PURPLE](https://github.com/hartwigmedical/hmftools/blob/master/purple/README.md)** output file (see [example](./data/test_data/umccrised/test_sample_WGS/purple/test_sample_WGS.purple.gene.cnv)) is available
+* Check if copy-number gene output file is available (see [example](./data/test_data/copy_number/TEST.cnv.gene.tsv))
 * **Extract** expression level **information** and genome-based findings for genes located within detected CNVs (use ```--cn_loss ``` and ```--cn_gain ``` [arguments](README.md/#arguments) to define CN threshold values to classify genes within lost and gained regions)
 * **Ordered genes** by increasing (for genes within lost regions) or decreasing (for genes within gained regions) **[CN](https://github.com/umccr/umccrise/blob/master/workflow.md#somatic-cnv)** and then by decreasing absolute values representing difference between expression levels in the patient sample and the corresponding reference cohort
 

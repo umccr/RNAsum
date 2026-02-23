@@ -4,7 +4,7 @@
 \alias{get_refdata}
 \title{Get Reference Data File Paths}
 \usage{
-get_refdata(dataset)
+get_refdata(dataset, batch_rm)
 }
 \arguments{
 \item{dataset}{Reference RNAsum dataset of interest.}

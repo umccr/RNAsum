@@ -124,18 +124,22 @@ rnasum --version
 
 ### Common options
 
-| Option              | Description                    | Default  |
-|---------------------|--------------------------------|----------|
-| `--sample_name`     | Sample identifier              | Required |
-| `--dataset`         | TCGA reference cohort          | `PANCAN` |
-| `--salmon`          | Salmon quantification file     | \-       |
-| `--kallisto`        | Kallisto abundance file        | \-       |
-| `--arriba_tsv`      | Arriba fusion detection output | \-       |
-| `--pcgr_tiers_tsv`  | PCGR variant calls (tier 1-4)  | \-       |
-| `--purple_gene_tsv` | PURPLE copy number by gene     | \-       |
-| `--filter`          | Filter low-expressed genes     | `TRUE`   |
+| Option             | Description                    | Default  |
+|--------------------|--------------------------------|----------|
+| `--sample_name`    | Sample identifier              | Required |
+| `--dataset`        | TCGA reference cohort          | `PANCAN` |
+| `--salmon`         | Salmon quantification file     | \-       |
+| `--kallisto`       | Kallisto abundance file        | \-       |
+| `--arriba_tsv`     | Arriba fusion detection output | \-       |
+| `--pcgr_tiers_tsv` | PCGR variant calls (tier 1-4)  | \-       |
+| `--cn_gene_tsv`    | Copy number by gene            | \-       |
+| `--filter`         | Filter low-expressed genes     | `TRUE`   |
 
 Run `rnasum --help` to get complete list of options.
+
+For format and minimal content of input files (e.g. `--pcgr_tiers_tsv`,
+`--cn_gene_tsv`, `--sv_tsv`), see [Input file
+formats](./inst/articles/input_files.md).
 
 **Note**: human reference genome
 [GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)
@@ -162,9 +166,9 @@ rnasum \
   --arriba_pdf "$PWD/../rawdata/test_data/dragen/arriba/fusions.pdf" \
   --arriba_tsv "$PWD/../rawdata/test_data/dragen/arriba/fusions.tsv"  \
   --dragen_fusions "$PWD/../rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final"  \
-  --pcgr_tiers_tsv "$PWD/../rawdata/test_data/umccrised/test_sample_WGS/small_variants/TEST-somatic.pcgr.snvs_indels.tiers.tsv" \
-  --purple_gene_tsv "$PWD/../rawdata/test_data/umccrised/test_sample_WGS/purple/TEST.purple.cnv.gene.tsv" \
-  --sv_tsv "$PWD/../rawdata/test_data/umccrised/test_sample_WGS/structural/TEST-manta.tsv" \
+  --pcgr_tiers_tsv "$PWD/../rawdata/test_data/small_variants/TEST-snvs_indels.tiers.tsv" \
+  --cn_gene_tsv "$PWD/../rawdata/test_data/copy_number/TEST.cnv.gene.tsv" \
+  --sv_tsv "$PWD/../rawdata/test_data/structural/TEST-sv.tsv" \
   --report_dir "$PWD/../rawdata/test_data/RNAsum" \
   --save_tables FALSE \
   --filter TRUE

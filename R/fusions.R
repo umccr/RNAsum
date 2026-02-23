@@ -200,7 +200,7 @@ fusions_table <- function(fusions) {
       caption = htmltools::tags$caption(style = "caption-side: top; text-align: left; color:grey; font-size:100% ;")
     ) |>
     DT::formatStyle(columns = names(tab1), `font-size` = "12px", "text-align" = "center") |>
-    ##### Highlight rows with fusions involving cancer genes or DNA support from MANTA
+    ##### Highlight rows with fusions involving cancer genes or DNA support from SV data
     DT::formatStyle(columns = "Cancer gene(s)", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgrey"))) |>
     DT::formatStyle(columns = "Reported fusion", backgroundColor = DT::styleEqual(c(FALSE, TRUE), c("transparent", "lightgreen")))
   if (all(c("DNA support (A)", "DNA support (B)") %in% colnames(tab1))) {

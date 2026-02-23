@@ -2,12 +2,12 @@
 % Please edit documentation in R/sample_data.R
 \name{purple_cnv_summary}
 \alias{purple_cnv_summary}
-\title{Get PURPLE CNV Summary}
+\title{Get CNV Summary}
 \usage{
 purple_cnv_summary(tbl, cancer_genes_symbol, cn_bottom, cn_top)
 }
 \arguments{
-\item{tbl}{PURPLE gene CNV tibble}
+\item{tbl}{Gene copy-number tibble}
 
 \item{cancer_genes_symbol}{Character vector of gene symbols to filter on.}
 
@@ -19,5 +19,5 @@ purple_cnv_summary(tbl, cancer_genes_symbol, cn_bottom, cn_top)
 List with genes, top and bottom copy number thresholds.
 }
 \description{
-Get PURPLE CNV Summary
+Get CNV Summary
 }

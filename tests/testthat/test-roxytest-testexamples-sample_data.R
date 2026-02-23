@@ -2,15 +2,12 @@
 
 # File R/sample_data.R: @testexamples
 
-test_that("Function read_sample_data() @ L27", {
+test_that("Function read_sample_data() @ L24", {
   
   p <- list(
     dragen_wts_dir = system.file("rawdata/test_data/dragen", package = "RNAsum"),
     arriba_dir = system.file("rawdata/test_data/dragen/arriba", package = "RNAsum"),
-    umccrise = system.file(
-      "rawdata/test_data/umccrised/test_sample_WGS",
-      package = "RNAsum"
-    )
+    umccrise = system.file("rawdata/test_data", package = "RNAsum")
   )
   res <- read_sample_data(p, tempdir())
   expect_equal(length(res), 6)
@@ -18,17 +15,20 @@ test_that("Function read_sample_data() @ L27", {
 })
 
 
-test_that("Function read_wgs_data() @ L116", {
+test_that("Function read_wgs_data() @ L128", {
   
   p <- list(
-    umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),
+    umccrise = system.file("rawdata/test_data", package = "RNAsum"),
     pcgr_tiers_tsv = system.file(
-      "rawdata/test_data/umccrised/test_sample_WGS/small_variants",
-      "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
+      "rawdata/test_data/small_variants", "TEST-snvs_indels.tiers.tsv",
       package = "RNAsum"
     ),
-    sash_tsv = system.file(
-      "rawdata/test_data/test_sample_WGS/structural/TEST.sv.prioritised.tsv",
+    cn_gene_tsv = system.file(
+      "rawdata/test_data/copy_number", "TEST.cnv.gene.tsv",
+      package = "RNAsum"
+    ),
+    sv_tsv = system.file(
+      "rawdata/test_data/structural", "TEST-sv.tsv",
       package = "RNAsum"
     )
   )

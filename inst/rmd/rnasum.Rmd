@@ -30,7 +30,7 @@ params:
   pcgr_tier: 4
   pcgr_tiers_tsv: NULL
   project: NULL
-  purple_gene_tsv: NULL
+  cn_gene_tsv: NULL
   report_dir: NULL
   salmon: NULL
   kallisto: NULL
@@ -168,7 +168,7 @@ runDragenFusionChunk <- !is.null(sample_data.list[["dragen_fusions"]])
 runDragenMappingMetricsChunk <- !is.null(sample_data.list[["dragen_mapping_metrics"]])
 runFusionChunk <- runArribaChunk || runDragenFusionChunk
 runPcgrChunk <- !is.null(sample_data.list[["wgs"]][["pcgr_tiers_tsv"]])
-runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["purple_gene_tsv"]])
+runPurpleChunk <- !is.null(sample_data.list[["wgs"]][["cn_gene_tsv"]])
 runSVsChunk <- (!is.null(sample_data.list[["wgs"]][["sv_tsv"]]) &&
   nrow(sample_data.list[["wgs"]][["sv_tsv"]][["melted"]] > 0))
 
@@ -309,10 +309,10 @@ if (runSVsChunk) {
   ref_genes.list[["summary"]]$SV <- RNAsum::sv_summary(sample_data.list[["wgs"]][["sv_tsv"]][["melted"]])
 }
 
-# PURPLE annotation of copy-number (CN) altered genes in given patient based on
-# PURPLE results, including only those with CN values meeting user-defined thresholds.
+# Annotation of copy-number (CN) altered genes in given patient, including only
+# those with CN values meeting user-defined thresholds.
 if (runPurpleChunk) {
-  purple_summary <- sample_data.list$wgs[["purple_gene_tsv"]] |>
+  purple_summary <- sample_data.list$wgs[["cn_gene_tsv"]] |>
     RNAsum::purple_cnv_summary(
       cancer_genes_symbol = ref_genes.list[["genes_cancer"]][["Gene"]],
       cn_bottom = params$cn_loss,
@@ -1335,7 +1335,7 @@ stopifnot(all(expr_data.perc[["SYMBOL"]] == expr_data.z[["SYMBOL"]]))
 ##### Deal with negative CN values
 ##### Remove entries with missing gene symbol (mainly variants in intergenic regions)
 ##### Select just gene and mean cn
-cn_data <- sample_data.list[["wgs"]][["purple_gene_tsv"]] |>
+cn_data <- sample_data.list[["wgs"]][["cn_gene_tsv"]] |>
   dplyr::mutate(
     MeanCopyNumber = rowMeans(cbind(.data$minCopyNumber, .data$maxCopyNumber)),
     MeanCopyNumber = if_else(.data$MeanCopyNumber < 0, 0, .data$MeanCopyNumber)
@@ -3004,7 +3004,7 @@ rm(limit_genes)
 
 ## CN altered genes
 
-Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)), as well as SNVs/indels and SV data, if available.
+Section overlaying the mRNA expression data with per-gene somatic copy-number (CN) data, as well as SNVs/indels and SV data, if available.
 
 `r if ( !runPurpleChunk ) { c("CN information for this sample is **NOT AVAILABLE**.") }`
 
@@ -3020,6 +3020,10 @@ mysql_populate_update <- paste0(mysql_populate_update, ",CN altered genes")
 ##### Generate genomic view plot with per-gene CN values (y-axis) along chromosomal coordinates (x-axis)
 dat1 <- ref_dataset.list[[dataset]][["expr_mut_cn_data_all"]]
 data.sub <- ref_dataset.list[[dataset]][["expr_mut_cn_data"]]
+
+##### Ensure Alterations column exists (e.g. when PCGR not used or no overlapping genes)
+if (!"Alterations" %in% colnames(dat1)) dat1 <- dat1 |> dplyr::mutate(Alterations = "None")
+if (!"Alterations" %in% colnames(data.sub)) data.sub <- data.sub |> dplyr::mutate(Alterations = "None")
 
 ##### Add fusion genes
 if (runFusionChunk) {
@@ -3175,7 +3179,7 @@ if (!is.null(dev.list())) invisible(dev.off())
 
 ### - Expression vs CN {.tabset}
 
-Scatterplot comparing the per-gene difference in **mRNA expression** of [Cancer genes] between patient's sample and cancer individuals (*y-axis*), and **CN values** (*x-axis*, from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)).
+Scatterplot comparing the per-gene difference in **mRNA expression** of [Cancer genes] between patient's sample and cancer individuals (*y-axis*), and **CN values** (*x-axis*).
 
 #### Percentiles
 
@@ -3241,7 +3245,7 @@ of these genes was reliably measured in the patient's sample. The remaining
 
 #### Gains {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values \>= `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values \>= `r if ( runPurpleChunk ) { cn_top } else { c("(NA)") }` (**gains**), based on patient's genomic data, and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
 
 ##### Percentiles
 
@@ -3424,7 +3428,7 @@ The [RED]{style="color:#ff0000"} colour range indicate relatively **high express
 
 #### Losses {.tabset}
 
-Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values =\< `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data (from [PURPLE](https://github.com/hartwigmedical/hmftools/tree/master/purple)), and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
+Table summarising the **mRNA expression** values in cancer and patient samples for genes with **CN** values =\< `r if ( runPurpleChunk ) { cn_bottom } else { c("(NA)") }` (**losses**), based on patient's genomic data, and mutation status if available (from [PCGR](https://github.com/sigven/pcgr)).
 
 ##### Percentiles
 

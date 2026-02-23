@@ -79,7 +79,7 @@ rnasum_params_set <- function(
   dragen_mapping_metrics,
   sv_tsv,
   pcgr_tiers_tsv,
-  purple_gene_tsv,
+  cn_gene_tsv,
   report_dir,
   salmon,
   sample_name,
@@ -105,7 +105,7 @@ rnasum_params_set <- function(
     pcgr_tier = 4,
     pcgr_tiers_tsv = pcgr_tiers_tsv,
     project = "-",
-    purple_gene_tsv = purple_gene_tsv,
+    cn_gene_tsv = cn_gene_tsv,
     report_dir = report_dir,
     salmon = salmon,
     sample_name = sample_name,
@@ -134,7 +134,7 @@ params <- rnasum_params_set(
   dragen_mapping_metrics = local_paths$MapMetricsFile,
   sv_tsv = local_paths$SvPrioritisedTsvFile,
   pcgr_tiers_tsv = local_paths$PcgrTiersTsvFile,
-  purple_gene_tsv = local_paths$PurpleCnvGeneTsvFile,
+    cn_gene_tsv = local_paths$PurpleCnvGeneTsvFile,
   report_dir = here::here(glue::glue(
     "nogit/patient_data/reports/{rnasum_inputs$reportDir}"
   )),

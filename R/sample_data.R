@@ -1,7 +1,7 @@
 #' Read Sample Data
 #'
 #' Reads sample data, including Arriba fusions, Arriba plots, Salmon counts,
-#' DRAGEN fusions, DRAGEN mapping metrics, SVs, PURPLE CNVs, and PCGR SNVs.
+#' DRAGEN fusions, DRAGEN mapping metrics, SVs, copy-number data, and PCGR SNVs.
 #'
 #' @param p RNAsum params list.
 #' @param results_dir Directory to output extracted Arriba PNGs to (created
@@ -14,10 +14,7 @@
 #' p <- list(
 #'   dragen_wts_dir = system.file("rawdata/test_data/dragen", package = "RNAsum"),
 #'   arriba_dir = system.file("rawdata/test_data/dragen/arriba", package = "RNAsum"),
-#'   umccrise = system.file(
-#'     "rawdata/test_data/umccrised/test_sample_WGS",
-#'     package = "RNAsum"
-#'   )
+#'   umccrise = system.file("rawdata/test_data", package = "RNAsum")
 #' )
 #' res <- read_sample_data(p, tempdir())
 #' @testexamples
@@ -101,7 +98,7 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
 
 #' Read WGS Data
 #'
-#' Reads WGS data, including PCGR `tiers.tsv`, PURPLE `cnv.gene.tsv`, and
+#' Reads WGS data, including PCGR `tiers.tsv`, copy-number `cnv.gene.tsv`, and
 #' `sv.prioritised.tsv`. If the file path has been specified in the RNAsum params and is
 #' valid, it is returned. As a fallback, if the umccrise directory param has
 #' been specified, then there is an attempt to detect the file pattern in there.
@@ -110,14 +107,17 @@ read_sample_data <- function(p, results_dir, tx2gene = NULL) {
 #' @return A list of the input sample data.
 #' @examples
 #' p <- list(
-#'   umccrise = system.file("rawdata/test_data/umccrised/test_sample_WGS", package = "RNAsum"),
+#'   umccrise = system.file("rawdata/test_data", package = "RNAsum"),
 #'   pcgr_tiers_tsv = system.file(
-#'     "rawdata/test_data/umccrised/test_sample_WGS/small_variants",
-#'     "TEST-somatic.pcgr.snvs_indels.tiers.tsv",
+#'     "rawdata/test_data/small_variants", "TEST-snvs_indels.tiers.tsv",
 #'     package = "RNAsum"
 #'   ),
-#'   sash_tsv = system.file(
-#'     "rawdata/test_data/test_sample_WGS/structural/TEST.sv.prioritised.tsv",
+#'   cn_gene_tsv = system.file(
+#'     "rawdata/test_data/copy_number", "TEST.cnv.gene.tsv",
+#'     package = "RNAsum"
+#'   ),
+#'   sv_tsv = system.file(
+#'     "rawdata/test_data/structural", "TEST-sv.tsv",
 #'     package = "RNAsum"
 #'   )
 #' )
@@ -158,10 +158,10 @@ read_wgs_data <- function(p) {
     nm = "pcgr_tiers_tsv", func = pcgr_tiers_tsv_read
   )
 
-  purple_gene_tsv <- .read(
+  cn_gene_tsv <- .read(
     p = p,
     subdir = "purple", pat = "purple\\.cnv\\.gene\\.tsv$",
-    nm = "purple_gene_tsv", func = ppl_cnv_som_gene_read
+    nm = "cn_gene_tsv", func = ppl_cnv_som_gene_read
   )
 
   sv_tsv <- .read(
@@ -172,7 +172,7 @@ read_wgs_data <- function(p) {
 
   list(
     pcgr_tiers_tsv = pcgr_tiers_tsv,
-    purple_gene_tsv = purple_gene_tsv,
+    cn_gene_tsv = cn_gene_tsv,
     sv_tsv = sv_tsv
   )
 }
@@ -256,9 +256,9 @@ sv_summary <- function(tbl) {
   res
 }
 
-#' Get PURPLE CNV Summary
+#' Get CNV Summary
 #'
-#' @param tbl PURPLE gene CNV tibble
+#' @param tbl Gene copy-number tibble
 #' @param cancer_genes_symbol Character vector of gene symbols to filter on.
 #' @param cn_bottom CN threshold value to classify genes within lost regions.
 #' @param cn_top CN threshold value to classify genes within gained regions.
@@ -346,9 +346,9 @@ immune_summary <- function(tbl_imarkers, tbl_igram = NULL, igram_param = TRUE) {
   res
 }
 
-#' Read PURPLE CNV Gene File
+#' Read CNV Gene File
 #'
-#' Reads the `purple.cnv.gene.tsv` file, which summarises copy number
+#' Reads the copy-number gene file (e.g. `purple.cnv.gene.tsv`), which summarises copy number
 #' alterations of each gene in the HMF panel
 #' (see https://github.com/hartwigmedical/hmftools/tree/master/purple#gene-copy-number-file).
 #'
@@ -368,7 +368,7 @@ ppl_cnv_som_gene_read <- function(x) {
     "minRegionStartSupport" = "c", "minRegionEndSupport" = "c",
     "minRegionMethod" = "c", "minMinorAlleleCopyNumber" = "d"
   )
-  # PURPLE as of at least v3.9.2 (2023-09-05) has some different columns
+  # Some versions have different columns
   ct2 <- list(
     "chromosome" = "c", "start" = "d", "end" = "d", "gene" = "c",
     "minCopyNumber" = "d", "maxCopyNumber" = "d",
