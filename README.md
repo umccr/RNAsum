@@ -97,10 +97,10 @@ The pipeline consists of five main components.
 1.  **WTS data collection**: ingests per-gene read counts and gene
     fusions.
 2.  **Reference integration**: normalises against [reference
-    cohorts](./inst/articles/reference_cohorts.md).
+    cohorts](https://umccr.github.io/RNAsum/articles/reference_cohorts.html).
 3.  **WGS data integration**: links genomic alterations with expression
     data.
-4.  **Knowledge enrichment**: annotates with clinicaly-relevant
+4.  **Knowledge enrichment**: annotates with clinically relevant
     databases.
 5.  **Report generation**: prioritises findings and creates interactive
     visualizations.
@@ -139,7 +139,7 @@ Run `rnasum --help` to get complete list of options.
 
 For format and minimal content of input files (e.g. `--pcgr_tiers_tsv`,
 `--cn_gene_tsv`, `--sv_tsv`), see [Input file
-formats](./inst/articles/input_files.md).
+formats](https://umccr.github.io/RNAsum/articles/input_files.html).
 
 **Note**: human reference genome
 [GRCh38](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.39)
@@ -229,16 +229,16 @@ sections:
 | Pancreatic Adenocarcinoma | `PAAD`       | 150     |
 
 See the complete [TCGA projects summary
-table](./inst/articles/TCGA_projects_summary.md).
+table](https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html).
 
 ## Documentation
 
 | Resource | Link |
 |----|----|
 | Full documentation | [umccr.github.io/RNAsum](https://umccr.github.io/RNAsum/) |
-| Workflow details | [workflow.md](https://umccr.github.io/RNAsum/articles/workflow.html) |
-| Report structure | [report_structure.md](https://umccr.github.io/RNAsum/articles/report_structure.html) |
-| TCGA datasets | [TCGA_projects_summary.md](./inst/articles/TCGA_projects_summary.md) |
+| Workflow details | [Workflow details](https://umccr.github.io/RNAsum/articles/workflow.html) |
+| Report structure | [Report structure](https://umccr.github.io/RNAsum/articles/report_structure.html) |
+| TCGA datasets | [TCGA projects summary](https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html) |
 
 ## Contributing
 

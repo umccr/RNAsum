@@ -12,6 +12,26 @@ env:
   VERSION: '2.0.2' # bump
 
 jobs:
+  docs-publish:
+    name: Website publish
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+      - name: Micromamba setup
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: ${{ env.env_yaml_path }}/condabuild.yaml
+      - name: 🌐 Website publish
+        run: |
+          micromamba env create -n pkgdownenv -f ${env_yaml_path}/pkgdown.yaml
+          micromamba activate pkgdownenv
+          rnasum.R --version
+          Rscript -e "pkgdown::deploy_to_branch(pkg = '.', commit_message = paste(pkgdown:::construct_commit_message('.'), '- see https://umccr.github.io/RNAsum/'), branch = 'gh-pages', new_process = FALSE)"
+
   condarise-dockerise-document:
     # When merging to main and the commit message starts with 'Bump version:'
     if: "startsWith(github.event.head_commit.message, 'Bump version:')"
@@ -47,13 +67,6 @@ jobs:
           git add .
           git commit -m "${MSG}"
           git push
-
-      - name: 🌐 Website publish
-        run: |
-          micromamba env create -n pkgdownenv -f ${env_yaml_path}/pkgdown.yaml
-          micromamba activate pkgdownenv
-          rnasum.R --version
-          Rscript -e "pkgdown::deploy_to_branch(pkg = '.', commit_message = paste(pkgdown:::construct_commit_message('.'), '- see https://umccr.github.io/RNAsum/'), branch = 'gh-pages', new_process = FALSE)"
 
       - name: 📥 Pull lock commit
         id: pull_lock_commit
