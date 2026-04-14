@@ -68,6 +68,8 @@ exprTable(
 \item{scaling}{Scaling}
 
 \item{civic_clin_evid}{civic_clin_evid tibble from reference genes.}
+
+\item{batch_rm}{Remove batch-associated effects between datasets.}
 }
 \value{
 Table with coloured cells indicating expression values for selected genes

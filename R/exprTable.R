@@ -22,6 +22,7 @@
 #' @param type Type.
 #' @param civic_clin_evid civic_clin_evid tibble from reference genes.
 #' @param scaling Scaling
+#' @param batch_rm Remove batch-associated effects between datasets.
 #'
 #' @importFrom dplyr %>%
 #' @return Table with coloured cells indicating expression values for selected genes
