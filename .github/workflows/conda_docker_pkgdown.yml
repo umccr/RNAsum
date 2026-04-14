@@ -12,30 +12,10 @@ env:
   VERSION: '2.0.2' # bump
 
 jobs:
-  docs-publish:
-    name: Website publish
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - name: Code checkout
-        uses: actions/checkout@v4
-      - name: Micromamba setup
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          environment-file: ${{ env.env_yaml_path }}/condabuild.yaml
-      - name: 🌐 Website publish
-        run: |
-          micromamba env create -n pkgdownenv -f ${env_yaml_path}/pkgdown.yaml
-          micromamba activate pkgdownenv
-          rnasum.R --version
-          Rscript -e "pkgdown::deploy_to_branch(pkg = '.', commit_message = paste(pkgdown:::construct_commit_message('.'), '- see https://umccr.github.io/RNAsum/'), branch = 'gh-pages', new_process = FALSE)"
-
-  condarise-dockerise-document:
+  condarise:
     # When merging to main and the commit message starts with 'Bump version:'
     if: "startsWith(github.event.head_commit.message, 'Bump version:')"
-    name: Conda Docker Docs
+    name: Conda build and lock
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -43,9 +23,9 @@ jobs:
 
     steps:
       - name: Code checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Micromamba setup
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: ${{ env.env_yaml_path }}/condabuild.yaml
       - name: 🐍 Conda pkg build and upload
@@ -76,7 +56,7 @@ jobs:
           LATEST_COMMIT_HASH="$(git --no-pager log -1 --format='%H')"
           echo "latest_commit_hash=${LATEST_COMMIT_HASH}" >> ${GITHUB_OUTPUT}
       - name: 🔖 Create tag
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           LATEST_COMMIT_HASH: ${{ steps.pull_lock_commit.outputs.latest_commit_hash }}
         with:
@@ -90,22 +70,53 @@ jobs:
               sha: the_sha
             })
 
-      # work with tag from above
+  pkgdown:
+    needs: condarise
+    name: Website publish
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
       - name: Code checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ env.VERSION }}
+      - name: Micromamba setup
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: ${{ env.env_yaml_path }}/condabuild.yaml
+      - name: 🌐 Website publish
+        run: |
+          micromamba env create -n pkgdownenv -f ${env_yaml_path}/pkgdown.yaml
+          micromamba activate pkgdownenv
+          rnasum.R --version
+          Rscript -e "pkgdown::deploy_to_branch(pkg = '.', commit_message = paste(pkgdown:::construct_commit_message('.'), '- see https://umccr.github.io/RNAsum/'), branch = 'gh-pages', new_process = FALSE)"
+
+  dockerise:
+    needs: condarise
+    name: Docker build and push
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v6
         with:
           ref: v${{ env.VERSION }}
       - name: 🏰 QEMU setup
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: 🏯 Buildx setup
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         with:
           install: true
           config-inline: |
             [worker.oci]
               max-parallelism = 2
       - name: 🐙 GitHub CR login
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -117,7 +128,7 @@ jobs:
           echo "repo_nm: ${REPO_NM}"
           echo "REPO_NM_LC=${REPO_NM,,}" >> ${GITHUB_ENV}
       - name: 🐳 Docker img build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           tags: ghcr.io/${{ env.REPO_NM_LC }}:${{ env.VERSION }}
           context: .

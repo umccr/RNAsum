@@ -92,7 +92,7 @@ conda activate rnasum
 
 The pipeline consists of five main components.
 
-![](man/figures/RNAsum_workflow_updated.png)
+![rnasum_workflow](man/figures/RNAsum_workflow_updated.png)
 
 1.  **WTS data collection**: ingests per-gene read counts and gene
     fusions.
