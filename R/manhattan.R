@@ -33,7 +33,7 @@ plot_cnv_manhattan <- function(
     dplyr::group_by(.data$SEQNAME) |>
     dplyr::summarize(max_pos = max(.data$GENESEQSTART), .groups = "drop") |>
     dplyr::arrange(.data$SEQNAME) |>
-    dplyr::mutate(offset = cumsum(c(0, head(.data$max_pos, -1))))
+    dplyr::mutate(offset = cumsum(c(0, utils::head(.data$max_pos, -1))))
 
   plot_data <- cnv_data |>
     dplyr::left_join(chr_lengths, by = "SEQNAME") |>
