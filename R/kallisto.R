@@ -6,11 +6,11 @@
 #' @return Tibble with the counts per gene transcript, or NULL if any of the
 #'         input params are NULL.
 #' @examples
-#' x <- system.file("rawdata/test_data/quant/abundance.tsv", package = "RNAsum")
+#' x <- system.file("rawdata/test_data/kallisto/abundance.tsv", package = "RNAsum")
 #' tx2gene <- NULL
 #' (kc <- kallisto_counts(x, tx2gene)) # NULL since no tx2gene specified
 #' @testexamples
-#' expect_null(sc)
+#' expect_null(kc)
 #' @export
 kallisto_counts <- function(x, tx2gene = NULL) {
   if (is.null(x) || is.null(tx2gene)) {
@@ -29,7 +29,7 @@ kallisto_counts <- function(x, tx2gene = NULL) {
   txi_kallisto <- tximport::tximport(files = x, type = "kallisto", tx2gene = tx2gene)
   counts <- txi_kallisto[["counts"]] |>
     tibble::as_tibble(rownames = "rowname", .name_repair = make.names) |>
-    dplyr::rename(count = X) |>
+    dplyr::rename(count = .data$X) |>
     dplyr::filter(!grepl("PAR_Y", .data$rowname))
 
   counts <- counts |>

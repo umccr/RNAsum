@@ -3,6 +3,7 @@
 #' Get a list of paths to internal and external reference data, based on a
 #' selected dataset name.
 #' @param dataset Reference RNAsum dataset of interest.
+#' @param batch_rm Remove batch-associated effects between datasets.
 #'
 #' @return List with paths to internal and external reference datasets
 #'         (Counts, Targets and Name).
@@ -10,7 +11,7 @@
 #' @examples
 #' x <- get_refdata(dataset = "TEST")
 #' @export
-get_refdata <- function(dataset, batch_rm) {
+get_refdata <- function(dataset, batch_rm = FALSE) {
   assertthat::assert_that(dataset %in% names(RNAsum::REFERENCE_DATASETS))
   refdata_dir <- system.file("extdata", package = "RNAsum.data")
   d_clean <- base::strsplit(dataset, split = "-", fixed = TRUE)[[1]][1]

@@ -19,7 +19,6 @@ dummy1 <- function() {
   ggforce::geom_sina
   ggplot2::ggplot
   limma::removeBatchEffect
-  manhattanly::manhattanly
   optparse::make_option
   preprocessCore::normalize.quantiles
   ragg::agg_png

@@ -4,10 +4,12 @@
 \alias{get_refdata}
 \title{Get Reference Data File Paths}
 \usage{
-get_refdata(dataset, batch_rm)
+get_refdata(dataset, batch_rm = FALSE)
 }
 \arguments{
 \item{dataset}{Reference RNAsum dataset of interest.}
+
+\item{batch_rm}{Remove batch-associated effects between datasets.}
 }
 \value{
 List with paths to internal and external reference datasets

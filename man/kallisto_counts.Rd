@@ -19,7 +19,7 @@ input params are NULL.
 Get kallisto counts via tximport.
 }
 \examples{
-x <- system.file("rawdata/test_data/quant/abundance.tsv", package = "RNAsum")
+x <- system.file("rawdata/test_data/kallisto/abundance.tsv", package = "RNAsum")
 tx2gene <- NULL
 (kc <- kallisto_counts(x, tx2gene)) # NULL since no tx2gene specified
 }
