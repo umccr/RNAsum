@@ -92,7 +92,7 @@ conda activate rnasum
 
 The pipeline consists of five main components.
 
-![rnasum_workflow](man/figures/RNAsum_workflow_updated.png)
+![](man/figures/RNAsum_workflow_updated.png)
 
 1.  **WTS data collection**: ingests per-gene read counts and gene
     fusions.
@@ -122,12 +122,34 @@ export PATH="$rnasum_cli:$PATH"
 rnasum --version
 ```
 
+### Batch effect considerations
+
+When comparing clinical RNA-seq samples to TCGA reference cohorts, batch
+effects can significantly impact expression rankings due to protocol
+differences (e.g., ribo-depletion vs poly-A selection, different library
+preparation methods).
+
+RNAsum provides the `--batch_rm` parameter to address these differences:
+
+**When to use `--batch_rm`:**
+
+- Clinical samples use different RNA-seq protocols than TCGA
+- An internal reference cohort was processed with the same protocol
+- Expression rankings appear systematically skewed
+
+**Alternative approaches:**
+
+- Use tissue-matched internal reference cohorts when available
+- Consider protocol-specific thresholds for expression classification
+- Validate findings with orthogonal methods when possible
+
 ### Common options
 
 | Option             | Description                    | Default  |
 |--------------------|--------------------------------|----------|
 | `--sample_name`    | Sample identifier              | Required |
 | `--dataset`        | TCGA reference cohort          | `PANCAN` |
+| `--batch_rm`       | Remove batch effects           | `FALSE`  |
 | `--salmon`         | Salmon quantification file     | \-       |
 | `--kallisto`       | Kallisto abundance file        | \-       |
 | `--arriba_tsv`     | Arriba fusion detection output | \-       |
@@ -148,7 +170,7 @@ default. GRCh37 is no longer supported.
 
 ## Examples
 
-**Test data**: in `/inst/rawdata/test_data` folder of the GitHub repo  
+**Test data**: in `/inst/rawdata/test_data` folder of the GitHub repo\
 **Runtime**: \< 15 minutes (16GB RAM, 1 CPU)
 
 ### Scenario 1: WGS + WTS (recommended)
@@ -198,6 +220,200 @@ rnasum \
 
 The HTML report `test_sample_WTS.RNAsum.html` will be created in the
 `inst/rawdata/test_data/dragen/RNAsum` folder.
+
+## Batch effects assessment
+
+Assess potential batch effects between the clinical sample and TCGA
+reference data before running the main analysis. This is particularly
+important when using different RNA-seq protocols. RNAsum provides
+**three gene set options** for targeted batch assessment.
+
+#### Basic setup
+
+The batch assessment functions (`assess_batch_effects()`,
+`quick_batch_check()`) are exported by RNAsum starting from the current
+release, so once the package is installed/upgraded user can call them
+directly after `library(RNAsum)` — no `source()` is needed.
+
+If user cannot upgrade and are working from a local clone of the source
+tree, the user can instead source the file directly from the repository:
+
+``` r
+# Only needed when working from a local source clone and not from an installed RNAsum
+# source("R/batch_assessment.R")
+```
+
+``` r
+# Load RNAsum and required libraries
+library(RNAsum)
+library(dplyr)
+
+# Load test sample data (Salmon gene quantification)
+test_file <- system.file("rawdata/test_data/dragen/TEST.quant.genes.sf", package = "RNAsum")
+sample_data <- read.delim(test_file)
+
+# Convert to named vector (using TPM values)
+sample_tpm <- setNames(sample_data$TPM, sample_data$Name)
+
+# Get reference data file paths
+ref_paths <- get_refdata(dataset = "TEST", batch_rm = FALSE)
+
+# Load reference expression matrix
+ref_counts <- utils::read.table(gzfile(ref_paths$ext_ref$counts),
+                                header = TRUE, sep = "\t", row.names = NULL)
+ref_matrix <- as.matrix(ref_counts[, -1])  # Remove gene name column
+rownames(ref_matrix) <- ref_counts[[1]]   # Set gene names as row names
+```
+
+#### Gene set options
+
+**Option 1: top variable genes (default)**
+
+``` r
+# Standard assessment using most variable genes (recommended for general use)
+batch_results <- assess_batch_effects(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "top_n",          # Uses most variable genes
+  n_genes = 2000,                   # Number of genes to analyze
+  protocol_clinical = "ribo-depletion",
+  protocol_reference = "TCGA_poly-A",
+  output_dir = "batch_assessment_topn"
+)
+```
+
+**Option 2: cancer gene set**
+
+``` r
+# Combined cancer genes database (1315 unique genes)
+batch_cancer_combined <- assess_batch_effects(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "cancer_genes",
+  cancer_gene_source = "combined",    # Combined UMCCR + OncoKB databases
+  protocol_clinical = "ribo-depletion",
+  protocol_reference = "TCGA_poly-A",
+  output_dir = "batch_assessment_cancer_combined"
+)
+
+# Quick assessment with cancer genes
+quick_batch_check(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "cancer_genes",
+  cancer_gene_source = "combined",
+  save_plots = TRUE
+)
+```
+
+**Option 3: custom gene set**
+
+``` r
+# User-defined gene sets (genes must match sample data format)
+# Note: Ensure gene IDs match data format (Ensembl IDs vs gene symbols)
+
+# Method 1: Direct Ensembl ID specification
+custom_genes_direct <- c("ENSG00000141510", "ENSG00000012048", "ENSG00000139618")  # TP53, BRCA1, BRCA2
+
+batch_custom_direct <- assess_batch_effects(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "custom",
+  gene_subset = custom_genes_direct,
+  protocol_clinical = "ribo-depletion",
+  protocol_reference = "TCGA_poly-A",
+  output_dir = "batch_assessment_custom_direct"
+)
+
+# Method 2: Use cancer genes with automatic conversion (recommended)
+batch_cancer_symbols <- assess_batch_effects(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "cancer_genes",      # Enhanced: handles symbols automatically
+  cancer_gene_source = "combined",     # 1315 genes with auto-conversion
+  protocol_clinical = "ribo-depletion",
+  protocol_reference = "TCGA_poly-A",
+  output_dir = "batch_assessment_cancer_auto"
+)
+```
+
+#### Prerequisites for cancer gene sets (Option 2)
+
+For cancer gene set analysis, use the enhanced built-in functionality
+with automatic format conversion:
+
+- **No external files needed** - Cancer gene databases and format
+  conversion are built-in
+- **Automatic gene ID conversion** - Handles Ensembl IDs ↔ gene symbols
+  transparently
+- **Three cancer databases available** - UMCCR (1248), OncoKB (1019),
+  Combined (1315 genes)
+- **Smart format detection** - Automatically detects and converts
+  incompatible formats
+
+#### Complete workflow: running all three options with TEST data
+
+``` r
+# Streamlined batch assessment workflow using enhanced functionality
+library(RNAsum)
+
+# Load test sample data
+test_file <- system.file("rawdata/test_data/dragen/TEST.quant.genes.sf", package = "RNAsum")
+sample_data <- read.delim(test_file)
+sample_tpm <- setNames(sample_data$TPM, sample_data$Name)
+
+# Get reference data
+ref_paths <- get_refdata(dataset = "TEST", batch_rm = FALSE)
+ref_counts <- utils::read.table(gzfile(ref_paths$ext_ref$counts),
+                                header = TRUE, sep = "\t", row.names = NULL)
+ref_matrix <- as.matrix(ref_counts[, -1])
+rownames(ref_matrix) <- ref_counts[[1]]
+
+# OPTION 1: Top variable genes
+batch_topn <- assess_batch_effects(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "top_n",
+  n_genes = 2000,
+  protocol_clinical = "ribo-depletion",
+  protocol_reference = "TCGA_poly-A"
+)
+
+# OPTION 2: Cancer genes
+batch_cancer <- assess_batch_effects(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "cancer_genes",
+  cancer_gene_source = "combined",
+  protocol_clinical = "ribo-depletion",
+  protocol_reference = "TCGA_poly-A"
+)
+
+# OPTION 3: Custom genes
+custom_ensembl <- c("ENSG00000141510", "ENSG00000012048", "ENSG00000139618")  # TP53, BRCA1, BRCA2
+batch_custom <- assess_batch_effects(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "custom",
+  gene_subset = custom_ensembl,
+  protocol_clinical = "ribo-depletion",
+  protocol_reference = "TCGA_poly-A"
+)
+
+# Compare results
+cat("=== Enhanced Batch Assessment Results ===\n")
+cat("Top genes analysis: ", round(batch_topn$pca_results$distance_percentile * 100, 1), "% PCA distance percentile\n")
+cat("Cancer genes analysis: ", round(batch_cancer$pca_results$distance_percentile * 100, 1), "% PCA distance percentile\n")
+cat("Custom genes analysis: ", round(batch_custom$pca_results$distance_percentile * 100, 1), "% PCA distance percentile\n")
+```
+
+**Assessment output interpretation:**
+
+- **PCA distance percentile \> 95%**: High batch effect risk - consider
+  `--batch_rm`
+- **Median correlation \< 0.7**: Substantial protocol differences
+  detected
+- **Extreme Z-scores \> 10%**: Expression ranking issues likely
 
 ## What’s in the report?
 
