@@ -284,8 +284,6 @@ batch_results <- assess_batch_effects(
 <strong>Detailed gene set options and examples</strong>
 </summary>
 
-### Gene set options
-
 RNAsum provides **three gene set options** for targeted batch
 assessment.
 
@@ -382,7 +380,7 @@ with automatic format conversion:
 <strong>Complete workflow example</strong>
 </summary>
 
-### Complete workflow: running all three options with TEST data
+Running all three options with TEST data
 
 ``` r
 # Streamlined batch assessment workflow using enhanced functionality
