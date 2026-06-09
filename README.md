@@ -225,10 +225,9 @@ The HTML report `test_sample_WTS.RNAsum.html` will be created in the
 
 Assess potential batch effects between the clinical sample and TCGA
 reference data before running the main analysis. This is particularly
-important when using different RNA-seq protocols. RNAsum provides
-**three gene set options** for targeted batch assessment.
+important when using different RNA-seq protocols.
 
-#### Basic setup
+### Basic setup
 
 The batch assessment functions (`assess_batch_effects()`,
 `quick_batch_check()`) are exported by RNAsum starting from the current
@@ -243,31 +242,54 @@ tree, the user can instead source the file directly from the repository:
 # source("R/batch_assessment.R")
 ```
 
+### Quick start
+
 ``` r
-# Load RNAsum and required libraries
 library(RNAsum)
-library(dplyr)
 
 # Load test sample data (Salmon gene quantification)
 test_file <- system.file("rawdata/test_data/dragen/TEST.quant.genes.sf", package = "RNAsum")
 sample_data <- read.delim(test_file)
-
-# Convert to named vector (using TPM values)
 sample_tpm <- setNames(sample_data$TPM, sample_data$Name)
 
-# Get reference data file paths
+# Get reference data
 ref_paths <- get_refdata(dataset = "TEST", batch_rm = FALSE)
-
-# Load reference expression matrix
 ref_counts <- utils::read.table(gzfile(ref_paths$ext_ref$counts),
                                 header = TRUE, sep = "\t", row.names = NULL)
-ref_matrix <- as.matrix(ref_counts[, -1])  # Remove gene name column
-rownames(ref_matrix) <- ref_counts[[1]]   # Set gene names as row names
+ref_matrix <- as.matrix(ref_counts[, -1])
+rownames(ref_matrix) <- ref_counts[[1]]
+
+# Quick assessment using most variable genes (default)
+batch_results <- assess_batch_effects(
+  sample_data = sample_tpm,
+  reference_data = ref_matrix,
+  gene_set_type = "top_n",
+  n_genes = 2000,
+  output_dir = "batch_assessment_results"
+)
 ```
 
-#### Gene set options
+**Assessment interpretation:**
 
-**Option 1: top variable genes (default)**
+- **PCA distance percentile \> 95%**: High batch effect risk - consider
+  `--batch_rm`
+- **Median correlation \< 0.7**: Substantial protocol differences
+  detected
+- **Extreme Z-scores \> 10%**: Expression ranking issues likely
+
+<details>
+
+<summary>
+
+<strong>Detailed gene set options and examples</strong>
+</summary>
+
+### Gene set options
+
+RNAsum provides **three gene set options** for targeted batch
+assessment.
+
+**Option 1: Top variable genes (default)**
 
 ``` r
 # Standard assessment using most variable genes (recommended for general use)
@@ -282,7 +304,7 @@ batch_results <- assess_batch_effects(
 )
 ```
 
-**Option 2: cancer gene set**
+**Option 2: Cancer gene set**
 
 ``` r
 # Combined cancer genes database (1315 unique genes)
@@ -306,7 +328,7 @@ quick_batch_check(
 )
 ```
 
-**Option 3: custom gene set**
+**Option 3: Custom gene set**
 
 ``` r
 # User-defined gene sets (genes must match sample data format)
@@ -337,7 +359,7 @@ batch_cancer_symbols <- assess_batch_effects(
 )
 ```
 
-#### Prerequisites for cancer gene sets (Option 2)
+### Prerequisites for cancer gene sets (Option 2)
 
 For cancer gene set analysis, use the enhanced built-in functionality
 with automatic format conversion:
@@ -351,7 +373,16 @@ with automatic format conversion:
 - **Smart format detection** - Automatically detects and converts
   incompatible formats
 
-#### Complete workflow: running all three options with TEST data
+</details>
+
+<details>
+
+<summary>
+
+<strong>Complete workflow example</strong>
+</summary>
+
+### Complete workflow: running all three options with TEST data
 
 ``` r
 # Streamlined batch assessment workflow using enhanced functionality
@@ -407,13 +438,7 @@ cat("Cancer genes analysis: ", round(batch_cancer$pca_results$distance_percentil
 cat("Custom genes analysis: ", round(batch_custom$pca_results$distance_percentile * 100, 1), "% PCA distance percentile\n")
 ```
 
-**Assessment output interpretation:**
-
-- **PCA distance percentile \> 95%**: High batch effect risk - consider
-  `--batch_rm`
-- **Median correlation \< 0.7**: Substantial protocol differences
-  detected
-- **Extreme Z-scores \> 10%**: Expression ranking issues likely
+</details>
 
 ## What’s in the report?
 
@@ -453,6 +478,7 @@ table](https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html).
 |----|----|
 | Full documentation | [umccr.github.io/RNAsum](https://umccr.github.io/RNAsum/) |
 | Workflow details | [Workflow details](https://umccr.github.io/RNAsum/articles/workflow.html) |
+| Batch assessment guide | [Batch assessment](https://umccr.github.io/RNAsum/articles/batch_assessment.html) |
 | Report structure | [Report structure](https://umccr.github.io/RNAsum/articles/report_structure.html) |
 | TCGA datasets | [TCGA projects summary](https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html) |
 
