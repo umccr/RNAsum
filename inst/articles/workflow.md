@@ -96,7 +96,57 @@ The **read count** data (see [Input data](./README.md#input-data) section in the
 
 ([Figure 1](../../man/figures/counts_post-processing_scheme.png)F)
 
-* Consider the patient **sample** + **internal reference** (regardless of the patient sample origin) as one batch (both sets processed with the same pipeline) and corresponding **[TCGA](https://tcga-data.nci.nih.gov/) dataset** as another batch. The objective is to remove data variation due to technical factors.
+Batch effects represent systematic technical differences between datasets that can significantly impact expression comparisons and downstream interpretation. RNAsum provides the `--batch_rm` parameter to address these differences when appropriate.
+
+**When batch effects occur:**
+
+* **Protocol differences**: Clinical samples often use different RNA-seq protocols than TCGA (e.g., ribo-depletion vs poly-A selection)
+* **Platform differences**: Different sequencing instruments or flow cell chemistries
+* **Processing differences**: Varying library preparation methods or computational pipelines
+* **Temporal differences**: Samples processed at different times or facilities
+
+**Implementation approach:**
+
+* Consider the patient **sample** + **internal reference** (regardless of the patient sample origin) as one batch (both processed with the same pipeline)
+* Treat the corresponding **[TCGA](https://tcga-data.nci.nih.gov/) dataset** as another batch
+* Apply batch correction methods to remove systematic technical variation while preserving biological signal
+
+**When to use `--batch_rm`:**
+
+✅ **Recommended when:**
+- Clinical samples use different library preparation protocols than TCGA
+- Substantial expression ranking discrepancies are observed
+- Internal validation cohorts are available for method evaluation
+- Protocol documentation indicates significant technical differences
+
+⚠️ **Use with caution when:**
+- Sample sizes are very small (< 10 samples per batch)
+- Biological and technical effects are confounded
+- No validation method is available to assess correction effectiveness
+
+**Technical considerations:**
+
+**Strandness differences**: TCGA data were sequenced using stranded protocols but analyzed in an unstranded manner. Modern clinical samples processed with strand-specific protocols may show systematic differences, particularly for genes with overlapping transcripts (e.g., ALK, CLDN18).
+
+**Expression threshold impacts**: Batch effects can inflate or deflate expression rankings. Consider using more stringent thresholds (>95th percentile) for clinical decision-making when substantial batch effects are suspected.
+
+**Enhanced batch assessment options**: RNAsum provides three specialized approaches for batch effect evaluation:
+
+1. **Top variable genes** (`gene_set_type = "top_n"`): Uses the most variable genes across the reference cohort for comprehensive batch assessment. Best for general-purpose evaluation.
+
+2. **Cancer gene sets** (`gene_set_type = "cancer_genes"`): Focuses analysis on curated cancer gene databases, providing clinically relevant batch assessment. Available sources:
+   - **UMCCR database**: 1,248 cancer genes from multiple sources
+   - **OncoKB database**: 1,019 clinically relevant cancer genes  
+   - **Combined databases**: 1,315 unique cancer genes
+
+3. **Custom gene sets** (`gene_set_type = "custom"`): Allows assessment of user-defined gene lists. Requires gene IDs to match sample data format (typically Ensembl IDs).
+
+**Gene ID format considerations**: Cancer gene databases use gene symbols (e.g., "TP53", "BRCA1") while sample data typically uses Ensembl IDs (e.g., "ENSG00000141510"). The enhanced system provides intelligent error handling and format guidance when mismatches occur.
+
+**Choosing the right approach**:
+- Use **cancer genes** for oncology-focused clinical samples
+- Use **top variable genes** for comprehensive assessment or research applications  
+- Use **custom genes** for pathway-specific or hypothesis-driven analysis
 
 #### Data scaling
 

@@ -16,7 +16,7 @@ option_list <- list(
   make_option("--arriba_dir", type = "character", help = "Directory path to Arriba results containing fusions.pdf and fusions.tsv."),
   make_option("--arriba_pdf", type = "character", help = "File path of Arriba PDF output."),
   make_option("--arriba_tsv", type = "character", help = "File path of Arriba TSV output."),
-  make_option("--batch_rm", action = "store_true", help = "Remove batch-associated effects between datasets."),
+  make_option("--batch_rm", action = "store_true", help = "Remove batch-associated effects between datasets. [def: TRUE]"),
   make_option("--cn_gain", default = 95, type = "integer", help = "CN threshold value to classify genes within gained regions. [def: %default]"),
   make_option("--cn_loss", default = 5, type = "integer", help = "CN threshold value to classify genes within lost regions. [def: %default]"),
   make_option("--dataset", default = "PANCAN", type = "character", help = "Dataset to be used as external reference cohort. [def: %default]"),
@@ -25,9 +25,9 @@ option_list <- list(
   make_option("--dragen_mapping_metrics", type = "character", help = "File path to DRAGEN RNA-seq 'mapping_metrics.csv' output."),
   make_option("--dragen_wts_dir", type = "character", help = "Directory path to DRAGEN RNA-seq results."),
   make_option("--drugs", action = "store_true", help = "Include drug matching section in report."),
-  make_option("--filter", action = "store_true", help = "Filter out low expressed genes."),
+  make_option("--filter", action = "store_true", help = "Filter out low expressed genes. [def: TRUE]"),
   make_option("--immunogram", action = "store_true", help = "Include immunogram in report."),
-  make_option("--log", action = "store_true", help = "Log2 transform data before normalisation."),
+  make_option("--log", action = "store_true", help = "Log2 transform data before normalisation. [def: TRUE]"),
   make_option("--norm", type = "character", help = "Normalisation method."),
   make_option("--pcgr_splice_vars", action = "store_true", help = "Include non-coding splice region variants reported in PCGR."),
   make_option("--pcgr_tier", default = 4, type = "integer", help = "Tier threshold for reporting variants reported in PCGR. [def: %default]"),
@@ -60,13 +60,18 @@ if (!is.null(opt$version)) {
 opt$version <- NULL
 opt$help <- NULL
 
-##### Convert missing flags to FALSE
-flags <- c("batch_rm", "dataset_name_incl", "drugs", "filter", "immunogram", "log", "pcgr_splice_vars", "save_tables")
+##### Convert missing flags to FALSE (except batch_rm, filter, log which default to TRUE)
+flags <- c("dataset_name_incl", "drugs", "immunogram", "pcgr_splice_vars", "save_tables")
 for (flag in flags) {
   if (is.null(opt[[flag]])) {
     opt[[flag]] <- FALSE
   }
 }
+
+# Set enhanced normalization defaults (User Method approach)
+opt$batch_rm <- if (is.null(opt$batch_rm)) TRUE else opt$batch_rm
+opt$filter <- if (is.null(opt$filter)) TRUE else opt$filter
+opt$log <- if (is.null(opt$log)) TRUE else opt$log
 
 ##### Check required args
 if (is.null(opt$sample_name) || is.null(opt$report_dir)) {
