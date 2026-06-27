@@ -64,11 +64,17 @@ quick_batch_check(
 )
 ```
 
-**Advantages**: - Captures genome-wide expression patterns - Robust
-statistical power with large gene sets - Protocol-agnostic assessment
+**Advantages**:
 
-**Use when**: - Protocol differences are unknown - General assessment
-needed - Research contexts requiring comprehensive evaluation
+- Captures genome-wide expression patterns
+- Robust statistical power with large gene sets
+- Protocol-agnostic assessment
+
+**Use when**:
+
+- Protocol differences are unknown
+- General assessment needed
+- Research contexts requiring comprehensive evaluation
 
 ### 2. Cancer Gene Sets
 
@@ -128,12 +134,17 @@ results_combined <- assess_batch_effects(
 IDs with comprehensive lookup table covering 150+ cancer genes,
 achieving ~125 successfully mapped genes per analysis.
 
-**Advantages**: - Clinically relevant assessment focusing on actionable
-genes - Therapeutically informed batch effect evaluation - Multiple
-database options for different clinical contexts
+**Advantages**:
 
-**Use when**: - Analyzing cancer samples - Clinical diagnostic
-contexts - Therapeutic decision support workflows
+- Clinically relevant assessment focusing on actionable genes
+- Therapeutically informed batch effect evaluation
+- Multiple database options for different clinical contexts
+
+**Use when**:
+
+- Analyzing cancer samples
+- Clinical diagnostic contexts
+- Therapeutic decision support workflows
 
 ### 3. Custom Gene Sets
 
@@ -174,13 +185,17 @@ results_immuno <- assess_batch_effects(
 )
 ```
 
-**Advantages**: - Targeted assessment for specific biological
-questions - User-controlled gene selection - Pathway or
-mechanism-specific evaluation
+**Advantages**:
 
-**Use when**: - Specific pathways are of primary interest -
-Hypothesis-driven research contexts - Focused clinical applications
-(e.g., specific drug targets)
+- Targeted assessment for specific biological questions
+- User-controlled gene selection
+- Pathway or mechanism-specific evaluation
+
+**Use when**:
+
+- Specific pathways are of primary interest
+- Hypothesis-driven research contexts
+- Focused clinical applications (e.g., specific drug targets)
 
 ------------------------------------------------------------------------
 
@@ -196,15 +211,19 @@ positioned relative to reference cohort samples (blue points).
 
 **Purpose**: Visualizes overall expression profile similarity
 
-**Interpretation**: - **Clinical sample within blue cloud**: Good
-protocol compatibility - **Clinical sample outside blue cloud**:
-Potential batch effects - **Distance from centroid**: Quantified as PCA
-distance percentile
+**Interpretation**:
 
-**Key Metric**: PCA distance percentile - `>95%`: 🔴 **High batch effect
-risk** - `--batch_rm` strongly recommended - `80-95%`: 🟡 **Moderate
-risk** - Consider `--batch_rm` based on use case - `<80%`: 🟢
-**Generally acceptable** - TCGA comparison acceptable
+- **Clinical sample within blue cloud**: Good protocol compatibility
+- **Clinical sample outside blue cloud**: Potential batch effects
+- **Distance from centroid**: Quantified as PCA distance percentile
+
+**Key Metric**: PCA distance percentile
+
+- `>95%`: 🔴 **High batch effect risk** - `--batch_rm` strongly
+  recommended
+- `80-95%`: 🟡 **Moderate risk** - Consider `--batch_rm` based on use
+  case
+- `<80%`: 🟢 **Generally acceptable** - TCGA comparison acceptable
 
 ### 2. Expression Distribution Comparison (`*_expression_comparison.png`)
 
@@ -213,12 +232,16 @@ distributions between clinical sample and reference cohort.
 
 **Purpose**: Identifies systematic expression level shifts
 
-**Interpretation**: - **Overlapping curves**: Similar expression
-ranges - **Shifted curves**: Protocol-induced expression differences -
-**Different shapes**: Distinct expression characteristics
+**Interpretation**:
 
-**Key Metrics**: - Expression level shift (log2 units) - Variance ratio
-between sample and reference
+- **Overlapping curves**: Similar expression ranges
+- **Shifted curves**: Protocol-induced expression differences
+- **Different shapes**: Distinct expression characteristics
+
+**Key Metrics**:
+
+- Expression level shift (log2 units)
+- Variance ratio between sample and reference
 
 ### 3. Z-score Distribution Analysis (`*_zscore_distribution.png`)
 
@@ -227,13 +250,17 @@ reference cohort, with ±2SD and ±3SD threshold lines.
 
 **Purpose**: Evaluates expression ranking accuracy
 
-**Interpretation**: - **Normal bell curve around zero**: Good ranking
-preservation - **Skewed or shifted distribution**: Systematic ranking
-errors - **High proportions beyond ±2SD**: Expression ranking issues
+**Interpretation**:
 
-**Key Metrics**: - Mean \|Z-score\|: Overall deviation magnitude -
-Extreme Z-scores (\>±2SD): Percentage of mis-ranked genes - Outlier
-genes (\>±3SD): Severely affected genes
+- **Normal bell curve around zero**: Good ranking preservation
+- **Skewed or shifted distribution**: Systematic ranking errors
+- **High proportions beyond ±2SD**: Expression ranking issues
+
+**Key Metrics**:
+
+- Mean \|Z-score\|: Overall deviation magnitude
+- Extreme Z-scores (\>±2SD): Percentage of mis-ranked genes
+- Outlier genes (\>±3SD): Severely affected genes
 
 ### 4. Reference Correlation Heatmap (`*_correlation_heatmap.png`)
 
@@ -243,14 +270,18 @@ individual reference samples, arranged by correlation strength.
 **Purpose**: Identifies compatible reference samples and overall cohort
 fit
 
-**Interpretation**: - **High correlations (\>0.8)**: Strong protocol
-compatibility - **Moderate correlations (0.5-0.8)**: Acceptable with
-possible batch correction - **Low correlations (\<0.5)**: Substantial
-protocol differences
+**Interpretation**:
 
-**Key Metrics**: - Median Pearson correlation: Overall cohort
-compatibility - Median Spearman correlation: Ranking-based
-compatibility - Correlation range and variability
+- **High correlations (\>0.8)**: Strong protocol compatibility
+- **Moderate correlations (0.5-0.8)**: Acceptable with possible batch
+  correction
+- **Low correlations (\<0.5)**: Substantial protocol differences
+
+**Key Metrics**:
+
+- Median Pearson correlation: Overall cohort compatibility
+- Median Spearman correlation: Ranking-based compatibility
+- Correlation range and variability
 
 ------------------------------------------------------------------------
 
@@ -272,10 +303,11 @@ compatibility - Correlation range and variability
 rnasum --sample_name clinical_sample --batch_rm --dataset BRCA [other options...]
 ```
 
-**Moderate Risk (🟡)** - Context-dependent decision: - **Clinical
-diagnostics**: Use `--batch_rm` for safety - **Research applications**:
-Validate findings with orthogonal methods - **Exploratory analysis**:
-TCGA comparison may be acceptable
+**Moderate Risk (🟡)** - Context-dependent decision:
+
+- **Clinical diagnostics**: Use `--batch_rm` for safety
+- **Research applications**: Validate findings with orthogonal methods
+- **Exploratory analysis**: TCGA comparison may be acceptable
 
 **Low Risk (🟢)** - Standard workflow:
 
@@ -383,10 +415,12 @@ quick_batch_check(
 **Automatic Format Detection**: The enhanced system automatically
 detects gene ID formats and provides helpful error messages.
 
-**Common Formats**: - **Sample data**: Typically uses Ensembl gene IDs
-(e.g., “ENSG00000141510”) - **Cancer databases**: Use gene symbols
-(e.g., “TP53”, “BRCA1”) - **Custom sets**: Must match sample data format
-for proper analysis
+**Common Formats**:
+
+- **Sample data**: Typically uses Ensembl gene IDs (e.g.,
+  “ENSG00000141510”)
+- **Cancer databases**: Use gene symbols (e.g., “TP53”, “BRCA1”)
+- **Custom sets**: Must match sample data format for proper analysis
 
 **Gene ID Versioning**: Some datasets include Ensembl version numbers
 (e.g., “ENSG00000141510.14”). The system automatically handles version
@@ -444,11 +478,13 @@ batch_results <- assess_batch_effects(
 )
 ```
 
-**Expected Results with TEST Data**: - **PCA distance percentile**:
-~50-70% (moderate positioning) - **Median correlation**: ~0.6-0.8
-(reasonable compatibility) - **Z-score extremes**: ~3-7% (acceptable
-ranking preservation) - **Verdict**: Likely 🟡 **Moderate risk** -
-consider `--batch_rm` for clinical applications
+**Expected Results with TEST Data**:
+
+- **PCA distance percentile**: ~50-70% (moderate positioning)
+- **Median correlation**: ~0.6-0.8 (reasonable compatibility)
+- **Z-score extremes**: ~3-7% (acceptable ranking preservation)
+- **Verdict**: Likely 🟡 **Moderate risk** - consider `--batch_rm` for
+  clinical applications
 
 ------------------------------------------------------------------------
 
@@ -465,12 +501,16 @@ consider `--batch_rm` for clinical applications
 
 ### Protocol-Specific Considerations
 
-**Major Batch Effect Sources**: - **Ribo-depletion vs poly-A
-selection**: Most significant source of systematic bias - **Different
-sequencing platforms**: Can introduce platform-specific artifacts -
-**RNA quality differences**: Fresh vs FFPE tissue shows distinct
-patterns - **Processing time gaps**: Temporal batch effects from
-different processing periods
+**Major Batch Effect Sources**:
+
+- **Ribo-depletion vs poly-A selection**: Most significant source of
+  systematic bias
+- **Different sequencing platforms**: Can introduce platform-specific
+  artifacts
+- **RNA quality differences**: Fresh vs FFPE tissue shows distinct
+  patterns
+- **Processing time gaps**: Temporal batch effects from different
+  processing periods
 
 ### Validation Approaches
 
