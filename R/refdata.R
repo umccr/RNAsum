@@ -11,7 +11,7 @@
 #' @examples
 #' x <- get_refdata(dataset = "TEST")
 #' @export
-get_refdata <- function(dataset, batch_rm = FALSE) {
+get_refdata <- function(dataset, batch_rm = TRUE) {
   assertthat::assert_that(dataset %in% names(RNAsum::REFERENCE_DATASETS))
   refdata_dir <- system.file("extdata", package = "RNAsum.data")
   d_clean <- base::strsplit(dataset, split = "-", fixed = TRUE)[[1]][1]
