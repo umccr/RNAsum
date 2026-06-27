@@ -1,0 +1,49 @@
+# Changelog
+
+## v2.0.3 (2026-04-15)
+
+[2.0.0 - 2.0.3
+diff](https://github.com/umccr/rnasum/compare/v2.0.0...v2.0.3)
+
+**Major changes:** - add support for minimal inputs for SV and CN
+<https://github.com/umccr/RNAsum/pull/171> and
+<https://github.com/umccr/RNAsum/pull/204> - replace the manhattanly CN
+genomic plot logic with a custom plotly function
+<https://github.com/umccr/RNAsum/pull/205> and
+<https://github.com/umccr/RNAsum/pull/208> - clean-up README
+<https://github.com/umccr/RNAsum/pull/203> and
+<https://github.com/umccr/RNAsum/pull/193> - bug fixes
+<https://github.com/umccr/RNAsum/pull/181>,
+<https://github.com/umccr/RNAsum/pull/178> and
+<https://github.com/umccr/RNAsum/pull/173> - CI refactor
+<https://github.com/umccr/RNAsum/pull/209>
+
+## v2.0.0 (2024-12-17)
+
+[1.1.5 - 2.0.0
+diff](https://github.com/umccr/rnasum/compare/v1.1.5...v2.0.0)
+
+## v1.1.5 (2024-11-08)
+
+[1.1.4 - 1.1.5
+diff](https://github.com/umccr/rnasum/compare/v1.1.4...v1.1.5)
+
+## v1.1.4 (2024-11-08)
+
+[1.1.3 - 1.1.4
+diff](https://github.com/umccr/rnasum/compare/v1.1.3...v1.1.4)
+
+## v1.1.3 (2024-10-16)
+
+[1.1.2 - 1.1.3
+diff](https://github.com/umccr/rnasum/compare/v1.1.2...v1.1.3)
+
+## v1.1.2 (2024-10-09)
+
+[1.1.1 - 1.1.2
+diff](https://github.com/umccr/rnasum/compare/v1.1.1...v1.1.2)
+
+## v1.1.1 (2024-09-26)
+
+[1.1.0 - 1.1.1
+diff](https://github.com/umccr/rnasum/compare/v1.1.0...v1.1.1)
