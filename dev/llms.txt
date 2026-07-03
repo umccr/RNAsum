@@ -16,76 +16,55 @@ MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.or
 and whole-transcriptome sequencing (WTS) data to generate comprehensive,
 interactive HTML reports for cancer patient samples.
 
-## Quick start
+## Installation
 
-RNAsum can be installed using one of the following two methods.
+### Mac
 
-### Installation
-
-#### Option 1: from GitHub
-
-`RNAsum` depends on `pdftools`, which requires system-level libraries
-(poppler, cairo, etc.) to be installed before installing the R package.
-
-------------------------------------------------------------------------
-
-**System dependencies installation**
-
-**Ubuntu/Debian:**
+We recommend using Docker:
 
 ``` bash
-sudo apt-get install libpoppler-cpp-dev libharfbuzz-dev libfribidi-dev \
-                     libfreetype6-dev libcairo2-dev libpango1.0-dev
+# Check https://github.com/umccr/RNAsum/releases for the latest release
+VERSION=2.0.4
+docker pull ghcr.io/umccr/rnasum:${VERSION}
+docker run --rm ghcr.io/umccr/rnasum:${VERSION} rnasum.R --version
+docker run --rm ghcr.io/umccr/rnasum:${VERSION} rnasum.R --help
 ```
 
-**macOS:**
+Mount local data directories with `-v`:
 
 ``` bash
-brew install poppler
+docker run --rm \
+  -v /path/to/inputs:/inputs \
+  -v /path/to/outputs:/outputs \
+  ghcr.io/umccr/rnasum:${VERSION} \
+  rnasum.R --sample_name SAMPLE --dataset PANCAN \
+           --salmon /inputs/quant.genes.sf \
+           --report_dir /outputs
 ```
 
-**HPC/Cluster (without root):**
+### HPC / Linux
 
-If you do not have root access (e.g., on a cluster), creating a fresh
-Conda environment is the most reliable way to provide necessary system
-libraries:
+Use the conda lock file for a pinned, reproducible install:
 
 ``` bash
-conda create -n rnasum_env -c conda-forge -c bioconda \
-  r-base=4.1 poppler harfbuzz fribidi freetype pkg-config \
-  cairo openssl pango make gxx_linux-64
-conda activate rnasum_env
-```
-
-------------------------------------------------------------------------
-
-Once system dependencies are met, you can install the package directly
-from GitHub from within R console.
-
-``` r
-
-# 1. Increase timeout to prevent download failure for RNAsum.data
-options(timeout = 600)
-
-# 2. Install via remotes
-if (!require("remotes")) install.packages("remotes")
-remotes::install_github("umccr/RNAsum")
-```
-
-#### Option 2: from Conda
-
-Conda package is available from the Anaconda umccr channel:
-
-``` bash
-conda create -n rnasum -c umccr -c conda-forge -c bioconda r-rnasum
+# Platforms: linux-64, linux-aarch64
+# Check https://github.com/umccr/RNAsum/releases for the latest version
+PLATFORM=linux-64
+VERSION=2.0.4
+LOCK_URL="https://raw.githubusercontent.com/umccr/RNAsum/refs/tags/v${VERSION}/deploy/conda/env/lock/rnasum-${PLATFORM}.lock"
+conda create -n rnasum --file "${LOCK_URL}"
 conda activate rnasum
+rnasum.R --version
+rnasum.R --help
 ```
 
 ## Workflow
 
 The pipeline consists of five main components.
 
-![](reference/figures/RNAsum_workflow_updated.png)
+![RNAsum workflow](reference/figures/RNAsum_workflow_updated.png)
+
+RNAsum workflow
 
 1.  **WTS data collection**: ingests per-gene read counts and gene
     fusions.
@@ -103,16 +82,9 @@ documentation](https://umccr.github.io/RNAsum/articles/workflow.html)
 
 ## Usage
 
-Add `RNAsum` to PATH environment variable.
-
 ``` bash
-rnasum_cli=$(Rscript -e 'cat(system.file("cli", package="RNAsum"))')
-ln -sf "$rnasum_cli/rnasum.R" "$rnasum_cli/rnasum"
-export PATH="$rnasum_cli:$PATH"
-```
-
-``` bash
-rnasum --version
+rnasum.R --version
+rnasum.R --help
 ```
 
 ### Batch effect considerations
@@ -150,7 +122,7 @@ RNAsum provides the `--batch_rm` parameter to address these differences:
 | `--cn_gene_tsv`    | Copy number by gene            | \-       |
 | `--filter`         | Filter low-expressed genes     | `TRUE`   |
 
-Run `rnasum --help` to get complete list of options.
+Run `rnasum.R --help` to get complete list of options.
 
 For format and minimal content of input files (e.g. `--pcgr_tiers_tsv`,
 `--cn_gene_tsv`, `--sv_tsv`), see [Input file
@@ -163,8 +135,13 @@ default. GRCh37 is no longer supported.
 
 ## Examples
 
-**Test data**: in `/inst/rawdata/test_data` folder of the GitHub repo\
+**Test data**: bundled with the package in `inst/rawdata/test_data/`
 **Runtime**: \< 15 minutes (16GB RAM, 1 CPU)
+
+``` bash
+# Locate bundled test data
+TESTDATA=$(Rscript -e 'cat(system.file("rawdata/test_data", package="RNAsum"))')
+```
 
 ### Scenario 1: WGS + WTS (recommended)
 
@@ -172,25 +149,22 @@ Comprehensive reporting, in which WGS-based findings are used as a
 primary source for expression profile prioritisation.
 
 ``` bash
-cd $rnasum_cli
-
-rnasum \
+rnasum.R \
   --sample_name test_sample_WTS \
   --dataset TEST \
-  --salmon "$PWD/../rawdata/test_data/dragen/TEST.quant.genes.sf" \
-  --arriba_pdf "$PWD/../rawdata/test_data/dragen/arriba/fusions.pdf" \
-  --arriba_tsv "$PWD/../rawdata/test_data/dragen/arriba/fusions.tsv"  \
-  --dragen_fusions "$PWD/../rawdata/test_data/dragen/test_sample_WTS.fusion_candidates.final"  \
-  --pcgr_tiers_tsv "$PWD/../rawdata/test_data/small_variants/TEST-snvs_indels.tiers.tsv" \
-  --cn_gene_tsv "$PWD/../rawdata/test_data/copy_number/TEST.cnv.gene.tsv" \
-  --sv_tsv "$PWD/../rawdata/test_data/structural/TEST-sv.tsv" \
-  --report_dir "$PWD/../rawdata/test_data/RNAsum" \
+  --salmon "${TESTDATA}/dragen/TEST.quant.genes.sf" \
+  --arriba_pdf "${TESTDATA}/dragen/arriba/fusions.pdf" \
+  --arriba_tsv "${TESTDATA}/dragen/arriba/fusions.tsv" \
+  --dragen_fusions "${TESTDATA}/dragen/test_sample_WTS.fusion_candidates.final" \
+  --pcgr_tiers_tsv "${TESTDATA}/small_variants/TEST-snvs_indels.tiers.tsv" \
+  --cn_gene_tsv "${TESTDATA}/copy_number/TEST.cnv.gene.tsv" \
+  --sv_tsv "${TESTDATA}/structural/TEST-sv.tsv" \
+  --report_dir /tmp/rnasum_test \
   --save_tables FALSE \
   --filter TRUE
 ```
 
-The HTML report `test_sample_WTS.RNAsum.html` will be created in the
-`inst/rawdata/test_data/dragen/RNAsum` folder.
+The HTML report will be created in `/tmp/rnasum_test/`.
 
 ### Scenario 2: WTS only
 
@@ -198,21 +172,18 @@ Basic reporting including information about detected gene fusions and
 expression levels of key genes.
 
 ``` bash
-cd $rnasum_cli
-
-rnasum \
+rnasum.R \
   --sample_name test_sample_WTS \
   --dataset TEST \
-  --salmon "$PWD/../rawdata/test_data/dragen/TEST.quant.genes.sf" \
-  --arriba_pdf "$PWD/../rawdata/test_data/dragen/arriba/fusions.pdf" \
-  --arriba_tsv "$PWD/../rawdata/test_data/dragen/arriba/fusions.tsv"  \
-  --report_dir "$PWD/../rawdata/test_data/RNAsum" \
+  --salmon "${TESTDATA}/dragen/TEST.quant.genes.sf" \
+  --arriba_pdf "${TESTDATA}/dragen/arriba/fusions.pdf" \
+  --arriba_tsv "${TESTDATA}/dragen/arriba/fusions.tsv" \
+  --report_dir /tmp/rnasum_test \
   --save_tables FALSE \
   --filter TRUE
 ```
 
-The HTML report `test_sample_WTS.RNAsum.html` will be created in the
-`inst/rawdata/test_data/dragen/RNAsum` folder.
+The HTML report will be created in `/tmp/rnasum_test/`.
 
 ## Batch effects assessment
 
@@ -223,19 +194,8 @@ important when using different RNA-seq protocols.
 ### Basic setup
 
 The batch assessment functions (`assess_batch_effects()`,
-`quick_batch_check()`) are exported by RNAsum starting from the current
-release, so once the package is installed/upgraded user can call them
-directly after [`library(RNAsum)`](https://umccr.github.io/RNAsum/) — no
-[`source()`](https://rdrr.io/r/base/source.html) is needed.
-
-If user cannot upgrade and are working from a local clone of the source
-tree, the user can instead source the file directly from the repository:
-
-``` r
-
-# Only needed when working from a local source clone and not from an installed RNAsum
-# source("R/batch_assessment.R")
-```
+`quick_batch_check()`) are available directly after
+[`library(RNAsum)`](https://umccr.github.io/RNAsum/).
 
 ### Quick start
 
