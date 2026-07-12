@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
 env:
   atoken: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
   recipe_path: deploy/conda/recipe
@@ -14,8 +13,8 @@ env:
 
 jobs:
   condarise:
-    # When pushing to main and the commit message starts with 'Bump version:'
-    if: "github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Bump version:')"
+    # When merging to main and the commit message starts with 'Bump version:'
+    if: "startsWith(github.event.head_commit.message, 'Bump version:')"
     name: Conda build and lock
     runs-on: ubuntu-latest
     defaults:
@@ -73,7 +72,6 @@ jobs:
 
   pkgdown:
     needs: condarise
-    if: "always() && (needs.condarise.result == 'success' || github.event_name == 'workflow_dispatch')"
     name: Website publish
     runs-on: ubuntu-latest
     defaults:
@@ -83,7 +81,7 @@ jobs:
       - name: Code checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || format('v{0}', env.VERSION) }}
+          ref: v${{ env.VERSION }}
       - name: Micromamba setup
         uses: mamba-org/setup-micromamba@v3
         with:
@@ -99,7 +97,6 @@ jobs:
 
   dockerise:
     needs: condarise
-    if: "always() && needs.condarise.result == 'success'"
     name: Docker build and push
     runs-on: ubuntu-latest
     defaults:
