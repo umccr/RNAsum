@@ -1,5 +1,4 @@
 
-
 # RNAsum
 
 Transforms RNA-sequencing data into actionable clinical insights with
@@ -64,7 +63,11 @@ rnasum.R --help
 
 The pipeline consists of five main components.
 
-![RNAsum workflow](man/figures/RNAsum_workflow_updated.png)
+<figure>
+<img src="man/figures/RNAsum_workflow_updated.png"
+alt="RNAsum workflow" />
+<figcaption aria-hidden="true">RNAsum workflow</figcaption>
+</figure>
 
 1.  **WTS data collection**: ingests per-gene read counts and gene
     fusions.
@@ -159,9 +162,7 @@ rnasum.R \
   --pcgr_tiers_tsv "${TESTDATA}/small_variants/TEST-snvs_indels.tiers.tsv" \
   --cn_gene_tsv "${TESTDATA}/copy_number/TEST.cnv.gene.tsv" \
   --sv_tsv "${TESTDATA}/structural/TEST-sv.tsv" \
-  --report_dir /tmp/rnasum_test \
-  --save_tables FALSE \
-  --filter TRUE
+  --report_dir /tmp/rnasum_test
 ```
 
 The HTML report will be created in `/tmp/rnasum_test/`.
@@ -178,9 +179,7 @@ rnasum.R \
   --salmon "${TESTDATA}/dragen/TEST.quant.genes.sf" \
   --arriba_pdf "${TESTDATA}/dragen/arriba/fusions.pdf" \
   --arriba_tsv "${TESTDATA}/dragen/arriba/fusions.tsv" \
-  --report_dir /tmp/rnasum_test \
-  --save_tables FALSE \
-  --filter TRUE
+  --report_dir /tmp/rnasum_test
 ```
 
 The HTML report will be created in `/tmp/rnasum_test/`.
@@ -451,7 +450,7 @@ If you use `RNAsum` please cite:
 > Kanwal S, Marzec J, Diakumis P, Hofmann O, Grimmond S (2024). “RNAsum:
 > An R package to comprehensively post-process, summarise and visualise
 > genomics and transcriptomics data.” version 1.1.0,
-> https://umccr.github.io/RNAsum/
+> <https://umccr.github.io/RNAsum/>
 
 A BibTeX entry for LaTeX users is
 
