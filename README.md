@@ -438,6 +438,7 @@ table](https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html).
 | Batch assessment guide | [Batch assessment](https://umccr.github.io/RNAsum/articles/batch_assessment.html) |
 | Report structure | [Report structure](https://umccr.github.io/RNAsum/articles/report_structure.html) |
 | TCGA datasets | [TCGA projects summary](https://umccr.github.io/RNAsum/articles/tcga_projects_summary.html) |
+| Gene identifier handling | [Gene identifiers](https://umccr.github.io/RNAsum/articles/gene_identifiers.html) |
 
 ## Contributing
 
