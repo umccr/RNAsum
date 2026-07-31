@@ -1999,6 +1999,101 @@ rm(summary_table.df, findings.summary, sunburst_plot)
 
 ------------------------------------------------------------------------
 
+### Strandedness note
+
+The TCGA expression data used as the reference cohort in this report was
+generated with non-strand-specific (unstranded) poly(A) library preparation
+and quantified as unstranded read counts by the NCI Genomic Data Commons
+(GDC). A pan-cancer census of 11,505 TCGA samples confirms that 32 of 33
+TCGA projects (96.6%; n = 11,114 samples) are genuinely unstranded — a direct
+consequence of historical non-strand-specific library preparation across most
+TCGA cancer types. Only TCGA-GBM constitutes a mixed cohort (391 samples,
+3.4% of the total). This is consistent with the GDC's own harmonisation
+policy, which explicitly states: *"to facilitate harmonisation across samples,
+all RNA-Seq reads are treated as unstranded during analyses."* RNAsum's use
+of unstranded GDC counts is therefore the statistically correct and
+GDC-recommended approach; applying stranded quantification to genuinely
+unstranded samples would artificially exclude approximately 50% of valid sense
+reads.
+
+**Residual concern when the patient library is strand-specific.** When a
+patient sample is prepared with a stranded protocol (e.g. dUTP/ISR,
+increasingly common in modern clinical workflows), reads from antisense
+transcripts are correctly excluded in the patient sample but were counted in
+the TCGA reference. At genes with a large antisense gene-body overlap this can
+introduce a modest **downward bias in the patient's apparent percentile or
+Z-score ranking** relative to the TCGA cohort. Empirically the effect is
+bounded (~2.5% for ALK, the gene with the largest overlap in this list), but
+may warrant consideration when low or borderline expression of a flagged gene
+is the basis for a clinical decision, as the downward percentile bias may
+slightly underestimate the patient's true expression relative to the TCGA
+cohort.
+
+The table below lists the 21 clinically actionable cancer genes with an
+antisense gene-body overlap of ≥ 10,000 bp in GENCODE v36, where this effect
+is most pronounced. Overlap sizes are based on GENCODE v36 annotations. **Expression measured**
+indicates whether the gene's expression was reliably quantified in this
+patient's sample (i.e. passes the minimum threshold to be reported). **Report
+sections** shows which sections of this report the gene is highlighted in based
+on detected alterations ("-" if not flagged in any section). Rows where
+expression was measured are highlighted.
+
+```{r strandedness_flagged_genes, comment = NA, message = FALSE, warning = FALSE}
+antisense_overlap_genes <- tibble::tibble(
+  Gene = c(
+    "RB1", "PDCD1LG2", "FBXW7", "MSH2", "ATM", "RUNX1", "ALK",
+    "EGFR", "CDKN2A", "BRCA1", "NF1", "MSH6", "CDK6", "FANCD2",
+    "KMT2A", "KDR", "CTNNB1", "BCL6", "ERBB2", "ESR1", "SMARCA4"
+  ),
+  `Antisense partner` = c(
+    "LPAR6", "INCR1", "lncRNA", "KCNK12", "C11orf65", "RUNX1-AS1", "AC074096.1",
+    "EGFR-AS1", "lncRNA", "NBR2", "OMG", "FBXO11", "lncRNA", "FANCD2OS",
+    "TTC36-AS1", "lncRNA", "ULK4", "lncRNA", "PGAP3", "SYNE1", "lncRNA"
+  ),
+  `Overlap (bp)` = c(
+    "~117,300", "~85,500", "~65,500", "~61,700", "~60,600", "~48,600", "32,660",
+    "~31,900", "~28,400", "~28,300", "~25,500", "~24,900", "~24,600", "~20,600",
+    "~16,600", "~14,400", "~13,500", "~12,500", ">= 10,000", ">= 10,000", ">= 10,000"
+  )
+) |>
+  dplyr::mutate(
+    `Expression measured` = dplyr::if_else(
+      .data$Gene %in% rownames(ref_dataset.list[[dataset]][["data_to_report"]]),
+      "Yes", "No"
+    ),
+    `Report sections` = vapply(.data$Gene, function(g) {
+      sections <- names(alt_genes.all.list)[
+        vapply(alt_genes.all.list, function(x) g %in% names(x), logical(1))
+      ]
+      if (length(sections) == 0) "-" else paste(sections, collapse = ", ")
+    }, character(1))
+  )
+
+antisense_overlap_genes |>
+  dplyr::mutate(
+    Gene = glue::glue(
+      "<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene={Gene}'>{Gene}</a>"
+    )
+  ) |>
+  DT::datatable(
+    rownames = FALSE,
+    options = list(pageLength = 25, dom = "t", scrollX = TRUE),
+    escape = FALSE,
+    width = 700
+  ) |>
+  DT::formatStyle(
+    "Expression measured",
+    backgroundColor = DT::styleEqual(c("Yes", "No"), c("#fffacd", "white")),
+    fontWeight = DT::styleEqual("Yes", "bold")
+  ) |>
+  DT::formatStyle(
+    "Report sections",
+    color = DT::styleEqual("-", "#aaaaaa")
+  )
+```
+
+------------------------------------------------------------------------
+
 ## Mutated genes
 
 mRNA expression levels of genes containing single nucleotide variants (SNVs) or insertions/deletions (indels), obtained from the [PCGR](https://github.com/sigven/pcgr) report, in patient's sample and their average mRNA expression in samples from cancer cohorts. NOTE, only PCGR tiers 1-`r params$pcgr_tier` `r if ( params$pcgr_splice_vars ) { c("and non-coding splice region " ) }` variants are reported.
