@@ -187,6 +187,24 @@ rnasum.R \
 
 The HTML report will be created in `/tmp/rnasum_test/`.
 
+### Ready-made Docker example
+
+A runnable Docker wrapper for Scenario 1 is bundled at
+`inst/scripts/run.sh`. It pulls the image, mounts an input and output
+directory, and runs the WGS + WTS example. All three of `VERSION` (image
+tag, see [tags](https://github.com/umccr/RNAsum/tags)), `OUTDIR` (where
+the report is written), and `TESTDATA` (input data directory) are
+required. Point `TESTDATA` at the bundled test data under
+`inst/rawdata/test_data` or at your own inputs:
+
+``` bash
+# Uses bundled test data
+VERSION=2.0.4 OUTDIR=/path/to/output TESTDATA=/path/to/inst/rawdata/test_data ./inst/scripts/run.sh
+
+# Or run against your own data directory
+VERSION=2.0.4 OUTDIR=/path/to/output TESTDATA=/path/to/inputs ./inst/scripts/run.sh
+```
+
 ## Batch effects assessment
 
 Assess potential batch effects between the clinical sample and TCGA
