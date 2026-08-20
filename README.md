@@ -1,4 +1,5 @@
 
+
 # RNAsum
 
 Transforms RNA-sequencing data into actionable clinical insights with
@@ -69,11 +70,7 @@ rnasum.R --help
 
 The pipeline consists of five main components.
 
-<figure>
-<img src="man/figures/RNAsum_workflow_updated.png"
-alt="RNAsum workflow" />
-<figcaption aria-hidden="true">RNAsum workflow</figcaption>
-</figure>
+![RNAsum workflow](man/figures/RNAsum_workflow_updated.png)
 
 1.  **WTS data collection**: ingests per-gene read counts and gene
     fusions.
@@ -207,14 +204,21 @@ The batch assessment functions (`assess_batch_effects()`,
 library(RNAsum)
 
 # Load test sample data (Salmon gene quantification)
-test_file <- system.file("rawdata/test_data/dragen/TEST.quant.genes.sf", package = "RNAsum")
+test_file <- system.file(
+  "rawdata/test_data/dragen/TEST.quant.genes.sf",
+  package = "RNAsum"
+)
 sample_data <- read.delim(test_file)
 sample_tpm <- setNames(sample_data$TPM, sample_data$Name)
 
 # Get reference data
 ref_paths <- get_refdata(dataset = "TEST", batch_rm = FALSE)
-ref_counts <- utils::read.table(gzfile(ref_paths$ext_ref$counts),
-                                header = TRUE, sep = "\t", row.names = NULL)
+ref_counts <- utils::read.table(
+  gzfile(ref_paths$ext_ref$counts),
+  header = TRUE,
+  sep = "\t",
+  row.names = NULL
+)
 ref_matrix <- as.matrix(ref_counts[, -1])
 rownames(ref_matrix) <- ref_counts[[1]]
 
@@ -253,8 +257,8 @@ assessment.
 batch_results <- assess_batch_effects(
   sample_data = sample_tpm,
   reference_data = ref_matrix,
-  gene_set_type = "top_n",          # Uses most variable genes
-  n_genes = 2000,                   # Number of genes to analyze
+  gene_set_type = "top_n", # Uses most variable genes
+  n_genes = 2000, # Number of genes to analyze
   protocol_clinical = "ribo-depletion",
   protocol_reference = "TCGA_poly-A",
   output_dir = "batch_assessment_topn"
@@ -269,7 +273,7 @@ batch_cancer_combined <- assess_batch_effects(
   sample_data = sample_tpm,
   reference_data = ref_matrix,
   gene_set_type = "cancer_genes",
-  cancer_gene_source = "combined",    # Combined UMCCR + OncoKB databases
+  cancer_gene_source = "combined", # Combined UMCCR + OncoKB databases
   protocol_clinical = "ribo-depletion",
   protocol_reference = "TCGA_poly-A",
   output_dir = "batch_assessment_cancer_combined"
@@ -292,7 +296,11 @@ quick_batch_check(
 # Note: Ensure gene IDs match data format (Ensembl IDs vs gene symbols)
 
 # Method 1: Direct Ensembl ID specification
-custom_genes_direct <- c("ENSG00000141510", "ENSG00000012048", "ENSG00000139618")  # TP53, BRCA1, BRCA2
+custom_genes_direct <- c(
+  "ENSG00000141510",
+  "ENSG00000012048",
+  "ENSG00000139618"
+) # TP53, BRCA1, BRCA2
 
 batch_custom_direct <- assess_batch_effects(
   sample_data = sample_tpm,
@@ -308,8 +316,8 @@ batch_custom_direct <- assess_batch_effects(
 batch_cancer_symbols <- assess_batch_effects(
   sample_data = sample_tpm,
   reference_data = ref_matrix,
-  gene_set_type = "cancer_genes",      # Enhanced: handles symbols automatically
-  cancer_gene_source = "combined",     # 1315 genes with auto-conversion
+  gene_set_type = "cancer_genes", # Enhanced: handles symbols automatically
+  cancer_gene_source = "combined", # 1315 genes with auto-conversion
   protocol_clinical = "ribo-depletion",
   protocol_reference = "TCGA_poly-A",
   output_dir = "batch_assessment_cancer_auto"
@@ -346,14 +354,21 @@ Running all three options with TEST data
 library(RNAsum)
 
 # Load test sample data
-test_file <- system.file("rawdata/test_data/dragen/TEST.quant.genes.sf", package = "RNAsum")
+test_file <- system.file(
+  "rawdata/test_data/dragen/TEST.quant.genes.sf",
+  package = "RNAsum"
+)
 sample_data <- read.delim(test_file)
 sample_tpm <- setNames(sample_data$TPM, sample_data$Name)
 
 # Get reference data
 ref_paths <- get_refdata(dataset = "TEST", batch_rm = FALSE)
-ref_counts <- utils::read.table(gzfile(ref_paths$ext_ref$counts),
-                                header = TRUE, sep = "\t", row.names = NULL)
+ref_counts <- utils::read.table(
+  gzfile(ref_paths$ext_ref$counts),
+  header = TRUE,
+  sep = "\t",
+  row.names = NULL
+)
 ref_matrix <- as.matrix(ref_counts[, -1])
 rownames(ref_matrix) <- ref_counts[[1]]
 
@@ -378,7 +393,7 @@ batch_cancer <- assess_batch_effects(
 )
 
 # OPTION 3: Custom genes
-custom_ensembl <- c("ENSG00000141510", "ENSG00000012048", "ENSG00000139618")  # TP53, BRCA1, BRCA2
+custom_ensembl <- c("ENSG00000141510", "ENSG00000012048", "ENSG00000139618") # TP53, BRCA1, BRCA2
 batch_custom <- assess_batch_effects(
   sample_data = sample_tpm,
   reference_data = ref_matrix,
@@ -390,9 +405,21 @@ batch_custom <- assess_batch_effects(
 
 # Compare results
 cat("=== Enhanced Batch Assessment Results ===\n")
-cat("Top genes analysis: ", round(batch_topn$pca_results$distance_percentile * 100, 1), "% PCA distance percentile\n")
-cat("Cancer genes analysis: ", round(batch_cancer$pca_results$distance_percentile * 100, 1), "% PCA distance percentile\n")
-cat("Custom genes analysis: ", round(batch_custom$pca_results$distance_percentile * 100, 1), "% PCA distance percentile\n")
+cat(
+  "Top genes analysis: ",
+  round(batch_topn$pca_results$distance_percentile * 100, 1),
+  "% PCA distance percentile\n"
+)
+cat(
+  "Cancer genes analysis: ",
+  round(batch_cancer$pca_results$distance_percentile * 100, 1),
+  "% PCA distance percentile\n"
+)
+cat(
+  "Custom genes analysis: ",
+  round(batch_custom$pca_results$distance_percentile * 100, 1),
+  "% PCA distance percentile\n"
+)
 ```
 
 </details>
@@ -457,7 +484,7 @@ If you use `RNAsum` please cite:
 > Kanwal S, Marzec J, Diakumis P, Hofmann O, Grimmond S (2024). “RNAsum:
 > An R package to comprehensively post-process, summarise and visualise
 > genomics and transcriptomics data.” version 1.1.0,
-> <https://umccr.github.io/RNAsum/>
+> https://umccr.github.io/RNAsum/
 
 A BibTeX entry for LaTeX users is
 
