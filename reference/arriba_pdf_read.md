@@ -35,11 +35,11 @@ pdf <- system.file("rawdata/test_data/dragen/arriba/fusions.pdf", package = "RNA
 tsv <- system.file("rawdata/test_data/dragen/arriba/fusions.tsv", package = "RNAsum")
 fusions <- arriba_tsv_read(tsv)
 (pngs <- arriba_pdf_read(pdf, fusions, tempdir()))
-#> # A tibble: 4 x 2
+#> # A tibble: 4 × 2
 #>   nm                                                                 png        
 #>   <chr>                                                              <chr>      
-#> 1 EP300.AS1__XRCC6_chr22.41195482_chr22.41636113                     /var/folde~
-#> 2 LAPTM4A__AC098828.3_chr2.20051410_chr2.20064511                    /var/folde~
-#> 3 FNIP1__AC112492.1.83716..DCAF8L1.218._chr5.131642783_chrX.27977775 /var/folde~
-#> 4 ZFP64__MORC2_chr20.52096811_chr22.30963497                         /var/folde~
+#> 1 EP300.AS1__XRCC6_chr22.41195482_chr22.41636113                     /tmp/Rtmp2…
+#> 2 LAPTM4A__AC098828.3_chr2.20051410_chr2.20064511                    /tmp/Rtmp2…
+#> 3 FNIP1__AC112492.1.83716..DCAF8L1.218._chr5.131642783_chrX.27977775 /tmp/Rtmp2…
+#> 4 ZFP64__MORC2_chr20.52096811_chr22.30963497                         /tmp/Rtmp2…
 ```

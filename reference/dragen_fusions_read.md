@@ -27,12 +27,12 @@ x <- system.file("rawdata/test_data/dragen",
   package = "RNAsum"
 )
 (a <- dragen_fusions_read(x))
-#> # A tibble: 2 x 15
+#> # A tibble: 2 × 15
 #>   gene1 gene2   Score LeftBreakpoint RightBreakpoint Gene1Location Gene2Location
 #>   <chr> <chr>   <dbl> <chr>          <chr>           <chr>         <chr>        
-#> 1 ATAD2 FBXO32  0.966 chr8:12338052~ chr8:123534814~ IntactExon    IntactExon   
-#> 2 NRIP1 AF1275~ 0.658 chr21:1506474~ chr21:14857708~ IntactExon    IntactExon;I~
-#> # i 8 more variables: Gene1Sense <chr>, Gene2Sense <chr>, Gene1Id <chr>,
+#> 1 ATAD2 FBXO32  0.966 chr8:12338052… chr8:123534814… IntactExon    IntactExon   
+#> 2 NRIP1 AF1275… 0.658 chr21:1506474… chr21:14857708… IntactExon    IntactExon;I…
+#> # ℹ 8 more variables: Gene1Sense <chr>, Gene2Sense <chr>, Gene1Id <chr>,
 #> #   Gene2Id <chr>, NumSplitReads <dbl>, NumSoftClippedReads <dbl>,
 #> #   NumPairedReads <dbl>, ReadNames <chr>
 ```

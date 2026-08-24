@@ -41,28 +41,7 @@ Uses the most variable genes in the reference dataset for analysis,
 providing robust statistical power and capturing global expression
 patterns.
 
-``` r
-
-# Standard assessment with top variable genes
-results <- assess_batch_effects(
-  sample_data = sample_tpm,
-  reference_data = ref_matrix,
-  gene_set_type = "top_n",
-  n_genes = 2000,  # Customizable (default: 2000)
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_standard"
-)
-
-# Quick assessment with fewer genes
-quick_batch_check(
-  sample_data = sample_tpm,
-  reference_data = ref_matrix,
-  gene_set_type = "top_n",
-  n_genes = 1000,
-  save_plots = TRUE
-)
-```
+`# Standard assessment with top variable genes`` ``results`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_tpm``,`` `` reference_data ``=`` ``ref_matrix``,`` `` gene_set_type ``=`` ``"top_n"``,`` `` n_genes ``=`` ``2000``, ``# Customizable (default: 2000)`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_standard"`` ``)`` `` ``# Quick assessment with fewer genes`` ``quick_batch_check``(`` `` sample_data ``=`` ``sample_tpm``,`` `` reference_data ``=`` ``ref_matrix``,`` `` gene_set_type ``=`` ``"top_n"``,`` `` n_genes ``=`` ``1000``,`` `` save_plots ``=`` ``TRUE`` ``)`
 
 **Advantages**:
 
@@ -85,41 +64,7 @@ Uses curated cancer gene databases focusing on clinically relevant and
 actionable genes. **Enhanced with comprehensive gene mapping** achieving
 up to 125+ cancer genes from major databases.
 
-``` r
-
-# UMCCR cancer genes (comprehensive mapping)
-results_umccr <- assess_batch_effects(
-  sample_data = sample_tpm,
-  reference_data = ref_matrix,
-  gene_set_type = "cancer_genes",
-  cancer_gene_source = "umccr",  # 1,248 total genes → ~125 mapped
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_cancer_umccr"
-)
-
-# OncoKB cancer genes (clinically actionable)
-results_oncokb <- assess_batch_effects(
-  sample_data = sample_tpm,
-  reference_data = ref_matrix,
-  gene_set_type = "cancer_genes",
-  cancer_gene_source = "oncokb",  # 1,019 total genes → ~125 mapped
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_cancer_oncokb"
-)
-
-# Combined cancer gene databases (maximum coverage)
-results_combined <- assess_batch_effects(
-  sample_data = sample_tpm,
-  reference_data = ref_matrix,
-  gene_set_type = "cancer_genes",
-  cancer_gene_source = "combined",  # 1,315 unique genes → ~125 mapped
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_cancer_combined"
-)
-```
+`# UMCCR cancer genes (comprehensive mapping)`` ``results_umccr`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_tpm``,`` `` reference_data ``=`` ``ref_matrix``,`` `` gene_set_type ``=`` ``"cancer_genes"``,`` `` cancer_gene_source ``=`` ``"umccr"``, ``# 1,248 total genes → ~125 mapped`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_cancer_umccr"`` ``)`` `` ``# OncoKB cancer genes (clinically actionable)`` ``results_oncokb`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_tpm``,`` `` reference_data ``=`` ``ref_matrix``,`` `` gene_set_type ``=`` ``"cancer_genes"``,`` `` cancer_gene_source ``=`` ``"oncokb"``, ``# 1,019 total genes → ~125 mapped`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_cancer_oncokb"`` ``)`` `` ``# Combined cancer gene databases (maximum coverage)`` ``results_combined`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_tpm``,`` `` reference_data ``=`` ``ref_matrix``,`` `` gene_set_type ``=`` ``"cancer_genes"``,`` `` cancer_gene_source ``=`` ``"combined"``, ``# 1,315 unique genes → ~125 mapped`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_cancer_combined"`` ``)`
 
 **Available Cancer Gene Databases:**
 
@@ -153,37 +98,7 @@ achieving ~125 successfully mapped genes per analysis.
 Allows specification of custom gene sets tailored to specific research
 questions, pathways, or clinical contexts.
 
-``` r
-
-# Example: DNA repair pathway genes
-repair_genes <- c("ENSG00000141510", "ENSG00000012048", "ENSG00000139618",
-                  "ENSG00000083093", "ENSG00000149311", "ENSG00000143627")
-                  # TP53, BRCA1, BRCA2, PALB2, ATM, ATR
-
-results_custom <- assess_batch_effects(
-  sample_data = sample_tpm,
-  reference_data = ref_matrix,
-  gene_set_type = "custom",
-  gene_subset = repair_genes,
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_custom"
-)
-
-# Example: Immunotherapy targets
-immuno_genes <- c("ENSG00000188389", "ENSG00000120217", "ENSG00000163599")
-                  # PDCD1 (PD-1), CD274 (PD-L1), CTLA4
-
-results_immuno <- assess_batch_effects(
-  sample_data = sample_tpm,
-  reference_data = ref_matrix,
-  gene_set_type = "custom",
-  gene_subset = immuno_genes,
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_immunotherapy"
-)
-```
+`# Example: DNA repair pathway genes`` ``repair_genes`` ``<-`` `[`c`](https://rdrr.io/r/base/c.html)`(``"ENSG00000141510"``, ``"ENSG00000012048"``, ``"ENSG00000139618"``,`` `` ``"ENSG00000083093"``, ``"ENSG00000149311"``, ``"ENSG00000143627"``)`` `` ``# TP53, BRCA1, BRCA2, PALB2, ATM, ATR`` `` ``results_custom`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_tpm``,`` `` reference_data ``=`` ``ref_matrix``,`` `` gene_set_type ``=`` ``"custom"``,`` `` gene_subset ``=`` ``repair_genes``,`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_custom"`` ``)`` `` ``# Example: Immunotherapy targets`` ``immuno_genes`` ``<-`` `[`c`](https://rdrr.io/r/base/c.html)`(``"ENSG00000188389"``, ``"ENSG00000120217"``, ``"ENSG00000163599"``)`` `` ``# PDCD1 (PD-1), CD274 (PD-L1), CTLA4`` `` ``results_immuno`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_tpm``,`` `` reference_data ``=`` ``ref_matrix``,`` `` gene_set_type ``=`` ``"custom"``,`` `` gene_subset ``=`` ``immuno_genes``,`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_immunotherapy"`` ``)`
 
 **Advantages**:
 
@@ -324,11 +239,7 @@ rnasum --sample_name clinical_sample --dataset BRCA [other options...]
 The batch assessment functions are exported by RNAsum, so after
 installation you can call them directly:
 
-``` r
-
-library(RNAsum)
-# assess_batch_effects() and quick_batch_check() are now available
-```
+[`library`](https://rdrr.io/r/base/library.html)`(`[`RNAsum`](https://umccr.github.io/RNAsum/)`)`` ``# assess_batch_effects() and quick_batch_check() are now available`
 
 > **Note**: If working from a local source clone without installation,
 > you may need: `source("R/batch_assessment.R")` from the repository
@@ -336,79 +247,7 @@ library(RNAsum)
 
 ### Complete Workflow Example
 
-``` r
-
-library(RNAsum)
-library(dplyr)
-
-# Load your sample data
-sample_file <- "path/to/your/sample.quant.genes.sf"
-sample_data <- read.delim(sample_file)
-sample_tpm <- setNames(sample_data$TPM, sample_data$Name)
-
-# Load reference data
-ref_paths <- get_refdata(dataset = "PANCAN", batch_rm = FALSE)
-counts_file <- ref_paths$ext_ref$counts
-counts_data <- utils::read.table(gzfile(counts_file), header = TRUE, sep = "\t", row.names = NULL)
-ref_matrix <- as.matrix(counts_data[, -1])
-rownames(ref_matrix) <- counts_data[[1]]
-
-# Handle gene ID versioning (if needed)
-names(sample_tpm) <- gsub("\\..*$", "", names(sample_tpm))  # Remove versions
-rownames(ref_matrix) <- gsub("\\..*$", "", rownames(ref_matrix))
-
-# Remove duplicates and get common genes
-sample_tpm <- sample_tpm[!duplicated(names(sample_tpm))]
-ref_matrix <- ref_matrix[!duplicated(rownames(ref_matrix)), ]
-common_genes <- intersect(names(sample_tpm), rownames(ref_matrix))
-sample_final <- sample_tpm[common_genes]
-ref_final <- ref_matrix[common_genes, ]
-
-# Run comprehensive assessment with all three approaches
-
-# 1. Top variable genes (comprehensive)
-results_comprehensive <- assess_batch_effects(
-  sample_data = sample_final,
-  reference_data = ref_final,
-  gene_set_type = "top_n",
-  n_genes = 2000,
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_comprehensive"
-)
-
-# 2. Enhanced cancer genes (clinical focus)
-results_cancer <- assess_batch_effects(
-  sample_data = sample_final,
-  reference_data = ref_final,
-  gene_set_type = "cancer_genes",
-  cancer_gene_source = "combined",  # Maximum coverage
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_cancer"
-)
-
-# 3. Custom pathway-specific genes
-custom_genes <- c("ENSG00000141510", "ENSG00000133703", "ENSG00000146648")  # TP53, KRAS, EGFR
-results_custom <- assess_batch_effects(
-  sample_data = sample_final,
-  reference_data = ref_final,
-  gene_set_type = "custom",
-  gene_subset = custom_genes,
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "batch_results_custom"
-)
-
-# Quick assessment for rapid evaluation
-quick_batch_check(
-  sample_data = sample_final,
-  reference_data = ref_final,
-  gene_set_type = "cancer_genes",
-  cancer_gene_source = "umccr",
-  save_plots = TRUE
-)
-```
+[`library`](https://rdrr.io/r/base/library.html)`(`[`RNAsum`](https://umccr.github.io/RNAsum/)`)`` `[`library`](https://rdrr.io/r/base/library.html)`(`[`dplyr`](https://dplyr.tidyverse.org)`)`` `` ``# Load your sample data`` ``sample_file`` ``<-`` ``"path/to/your/sample.quant.genes.sf"`` ``sample_data`` ``<-`` `[`read.delim`](https://rdrr.io/r/utils/read.table.html)`(``sample_file``)`` ``sample_tpm`` ``<-`` `[`setNames`](https://rdrr.io/r/stats/setNames.html)`(``sample_data``$``TPM``, ``sample_data``$``Name``)`` `` ``# Load reference data`` ``ref_paths`` ``<-`` `[`get_refdata`](https://umccr.github.io/RNAsum/reference/get_refdata.md)`(``dataset ``=`` ``"PANCAN"``, batch_rm ``=`` ``FALSE``)`` ``counts_file`` ``<-`` ``ref_paths``$``ext_ref``$``counts`` ``counts_data`` ``<-`` ``utils``::`[`read.table`](https://rdrr.io/r/utils/read.table.html)`(`[`gzfile`](https://rdrr.io/r/base/connections.html)`(``counts_file``)``, header ``=`` ``TRUE``, sep ``=`` ``"\t"``, row.names ``=`` ``NULL``)`` ``ref_matrix`` ``<-`` `[`as.matrix`](https://rdrr.io/r/base/matrix.html)`(``counts_data``[``, ``-``1``]``)`` `[`rownames`](https://rdrr.io/r/base/colnames.html)`(``ref_matrix``)`` ``<-`` ``counts_data``[[``1``]``]`` `` ``# Handle gene ID versioning (if needed)`` `[`names`](https://rdrr.io/r/base/names.html)`(``sample_tpm``)`` ``<-`` `[`gsub`](https://rdrr.io/r/base/grep.html)`(``"\\..*$"``, ``""``, `[`names`](https://rdrr.io/r/base/names.html)`(``sample_tpm``)``)`` ``# Remove versions`` `[`rownames`](https://rdrr.io/r/base/colnames.html)`(``ref_matrix``)`` ``<-`` `[`gsub`](https://rdrr.io/r/base/grep.html)`(``"\\..*$"``, ``""``, `[`rownames`](https://rdrr.io/r/base/colnames.html)`(``ref_matrix``)``)`` `` ``# Remove duplicates and get common genes`` ``sample_tpm`` ``<-`` ``sample_tpm``[``!`[`duplicated`](https://rdrr.io/r/base/duplicated.html)`(`[`names`](https://rdrr.io/r/base/names.html)`(``sample_tpm``)``)``]`` ``ref_matrix`` ``<-`` ``ref_matrix``[``!`[`duplicated`](https://rdrr.io/r/base/duplicated.html)`(`[`rownames`](https://rdrr.io/r/base/colnames.html)`(``ref_matrix``)``)``, ``]`` ``common_genes`` ``<-`` `[`intersect`](https://generics.r-lib.org/reference/setops.html)`(`[`names`](https://rdrr.io/r/base/names.html)`(``sample_tpm``)``, `[`rownames`](https://rdrr.io/r/base/colnames.html)`(``ref_matrix``)``)`` ``sample_final`` ``<-`` ``sample_tpm``[``common_genes``]`` ``ref_final`` ``<-`` ``ref_matrix``[``common_genes``, ``]`` `` ``# Run comprehensive assessment with all three approaches`` `` ``# 1. Top variable genes (comprehensive)`` ``results_comprehensive`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_final``,`` `` reference_data ``=`` ``ref_final``,`` `` gene_set_type ``=`` ``"top_n"``,`` `` n_genes ``=`` ``2000``,`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_comprehensive"`` ``)`` `` ``# 2. Enhanced cancer genes (clinical focus)`` ``results_cancer`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_final``,`` `` reference_data ``=`` ``ref_final``,`` `` gene_set_type ``=`` ``"cancer_genes"``,`` `` cancer_gene_source ``=`` ``"combined"``, ``# Maximum coverage`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_cancer"`` ``)`` `` ``# 3. Custom pathway-specific genes`` ``custom_genes`` ``<-`` `[`c`](https://rdrr.io/r/base/c.html)`(``"ENSG00000141510"``, ``"ENSG00000133703"``, ``"ENSG00000146648"``)`` ``# TP53, KRAS, EGFR`` ``results_custom`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_final``,`` `` reference_data ``=`` ``ref_final``,`` `` gene_set_type ``=`` ``"custom"``,`` `` gene_subset ``=`` ``custom_genes``,`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"batch_results_custom"`` ``)`` `` ``# Quick assessment for rapid evaluation`` ``quick_batch_check``(`` `` sample_data ``=`` ``sample_final``,`` `` reference_data ``=`` ``ref_final``,`` `` gene_set_type ``=`` ``"cancer_genes"``,`` `` cancer_gene_source ``=`` ``"umccr"``,`` `` save_plots ``=`` ``TRUE`` ``)`
 
 ### Gene ID Format Considerations
 
@@ -426,12 +265,7 @@ detects gene ID formats and provides helpful error messages.
 (e.g., “ENSG00000141510.14”). The system automatically handles version
 compatibility:
 
-``` r
-
-# Automatic version normalization (if needed)
-names(sample_tpm) <- gsub("\\..*$", "", names(sample_tpm))
-rownames(ref_matrix) <- gsub("\\..*$", "", rownames(ref_matrix))
-```
+`# Automatic version normalization (if needed)`` `[`names`](https://rdrr.io/r/base/names.html)`(``sample_tpm``)`` ``<-`` `[`gsub`](https://rdrr.io/r/base/grep.html)`(``"\\..*$"``, ``""``, `[`names`](https://rdrr.io/r/base/names.html)`(``sample_tpm``)``)`` `[`rownames`](https://rdrr.io/r/base/colnames.html)`(``ref_matrix``)`` ``<-`` `[`gsub`](https://rdrr.io/r/base/grep.html)`(``"\\..*$"``, ``""``, `[`rownames`](https://rdrr.io/r/base/colnames.html)`(``ref_matrix``)``)`
 
 **Format Mismatch Handling**: When formats don’t match, you’ll receive
 clear guidance:
@@ -449,34 +283,7 @@ clear guidance:
 
 Using the provided TEST sample for demonstration:
 
-``` r
-
-library(RNAsum)
-library(dplyr)
-
-# Load TEST sample data
-test_file <- system.file("rawdata/test_data/dragen/TEST.quant.genes.sf", package = "RNAsum")
-sample_data <- read.delim(test_file)
-sample_tpm <- setNames(sample_data$TPM, sample_data$Name)
-
-# Get TEST reference data
-ref_paths <- get_refdata(dataset = "TEST", batch_rm = FALSE)
-ref_counts <- utils::read.table(gzfile(ref_paths$ext_ref$counts),
-                                header = TRUE, sep = "\t", row.names = NULL)
-ref_matrix <- as.matrix(ref_counts[, -1])
-rownames(ref_matrix) <- ref_counts[[1]]
-
-# Run cancer gene assessment
-batch_results <- assess_batch_effects(
-  sample_data = sample_tpm,
-  reference_data = ref_matrix,
-  gene_set_type = "cancer_genes",
-  cancer_gene_source = "umccr",
-  protocol_clinical = "ribo-depletion",
-  protocol_reference = "TCGA_poly-A",
-  output_dir = "test_batch_assessment"
-)
-```
+[`library`](https://rdrr.io/r/base/library.html)`(`[`RNAsum`](https://umccr.github.io/RNAsum/)`)`` `[`library`](https://rdrr.io/r/base/library.html)`(`[`dplyr`](https://dplyr.tidyverse.org)`)`` `` ``# Load TEST sample data`` ``test_file`` ``<-`` `[`system.file`](https://rdrr.io/r/base/system.file.html)`(``"rawdata/test_data/dragen/TEST.quant.genes.sf"``, package ``=`` ``"RNAsum"``)`` ``sample_data`` ``<-`` `[`read.delim`](https://rdrr.io/r/utils/read.table.html)`(``test_file``)`` ``sample_tpm`` ``<-`` `[`setNames`](https://rdrr.io/r/stats/setNames.html)`(``sample_data``$``TPM``, ``sample_data``$``Name``)`` `` ``# Get TEST reference data`` ``ref_paths`` ``<-`` `[`get_refdata`](https://umccr.github.io/RNAsum/reference/get_refdata.md)`(``dataset ``=`` ``"TEST"``, batch_rm ``=`` ``FALSE``)`` ``ref_counts`` ``<-`` ``utils``::`[`read.table`](https://rdrr.io/r/utils/read.table.html)`(`[`gzfile`](https://rdrr.io/r/base/connections.html)`(``ref_paths``$``ext_ref``$``counts``)``,`` `` header ``=`` ``TRUE``, sep ``=`` ``"\t"``, row.names ``=`` ``NULL``)`` ``ref_matrix`` ``<-`` `[`as.matrix`](https://rdrr.io/r/base/matrix.html)`(``ref_counts``[``, ``-``1``]``)`` `[`rownames`](https://rdrr.io/r/base/colnames.html)`(``ref_matrix``)`` ``<-`` ``ref_counts``[[``1``]``]`` `` ``# Run cancer gene assessment`` ``batch_results`` ``<-`` ``assess_batch_effects``(`` `` sample_data ``=`` ``sample_tpm``,`` `` reference_data ``=`` ``ref_matrix``,`` `` gene_set_type ``=`` ``"cancer_genes"``,`` `` cancer_gene_source ``=`` ``"umccr"``,`` `` protocol_clinical ``=`` ``"ribo-depletion"``,`` `` protocol_reference ``=`` ``"TCGA_poly-A"``,`` `` output_dir ``=`` ``"test_batch_assessment"`` ``)`
 
 **Expected Results with TEST Data**:
 

@@ -6,7 +6,7 @@ selected dataset name.
 ## Usage
 
 ``` r
-get_refdata(dataset, batch_rm = FALSE)
+get_refdata(dataset, batch_rm = TRUE)
 ```
 
 ## Arguments
