@@ -5,14 +5,14 @@ set -euo pipefail
 # Example: run RNAsum in Docker (WGS + WTS) with the TEST reference dataset.
 #
 # Usage:
-#   VERSION=2.0.4 OUTDIR=/path/to/output TESTDATA=/path/to/inst/rawdata/test_data ./run.sh # bundled test data
+#   VERSION=2.0.4 OUTDIR=/path/to/output INDIR=/path/to/inst/rawdata/test_data ./run.sh # bundled test data
 #   ---OR---
-#   VERSION=2.0.4 OUTDIR=/path/to/output TESTDATA=/path/to/inputs ./run.sh                 # your own data
+#   VERSION=2.0.4 OUTDIR=/path/to/output INDIR=/path/to/inputs ./run.sh                 # your own data
 #
 # Environment variables:
 #   VERSION   RNAsum image tag to pull            (required)
 #   OUTDIR    Host directory for the HTML report (required)
-#   TESTDATA  Host directory with input files    (required)
+#   INDIR     Host directory with input files    (required)
 #
 # Input files are mounted read-only at /inputs; the report is written to
 # ${OUTDIR}. Check https://github.com/umccr/RNAsum/tags for the latest tag.
@@ -27,9 +27,9 @@ IMAGE="ghcr.io/umccr/rnasum:${VERSION}"
 
 # Host directory holding the input data. Required: point it at your data, or at
 # the bundled test data in this repo (inst/rawdata/test_data).
-if [[ -z "${TESTDATA:-}" ]]; then
-  echo "Error: set TESTDATA to the directory holding the input files." >&2
-  echo "  e.g. TESTDATA=/path/to/inst/rawdata/test_data" >&2
+if [[ -z "${INDIR:-}" ]]; then
+  echo "Error: set INDIR to the directory holding the input files." >&2
+  echo "  e.g. INDIR=/path/to/inst/rawdata/test_data" >&2
   exit 1
 fi
 
@@ -47,7 +47,7 @@ docker pull "${IMAGE}"
 # Mount input data at /inputs and outputs at /outputs.
 # WGS + WTS using the TEST reference dataset.
 docker run --rm \
-  -v "${TESTDATA}:/inputs:ro" \
+  -v "${INDIR}:/inputs:ro" \
   -v "${OUTDIR}:/outputs" \
   "${IMAGE}" \
   rnasum.R \
